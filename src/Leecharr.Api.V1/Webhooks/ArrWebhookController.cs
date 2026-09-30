@@ -11,6 +11,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Developer;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
@@ -28,6 +29,7 @@ public class ArrWebhookController : Controller
     private readonly ITorrentService torrentService;
     private readonly IProwlarrSyncService prowlarrSyncService;
     private readonly IEventAggregator eventAggregator;
+    private readonly IDeveloperWebhookStore webhookStore;
     private readonly Logger logger;
 
     public ArrWebhookController(
@@ -36,7 +38,8 @@ public class ArrWebhookController : Controller
         IArrConnectionRepository arrConnectionRepository = null,
         ITorrentService torrentService = null,
         IProwlarrSyncService prowlarrSyncService = null,
-        IEventAggregator eventAggregator = null)
+        IEventAggregator eventAggregator = null,
+        IDeveloperWebhookStore webhookStore = null)
     {
         this.torrentRepository = torrentRepository;
         this.mediaMetadataRepository = mediaMetadataRepository;
@@ -44,6 +47,7 @@ public class ArrWebhookController : Controller
         this.torrentService = torrentService;
         this.prowlarrSyncService = prowlarrSyncService;
         this.eventAggregator = eventAggregator;
+        this.webhookStore = webhookStore;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -95,164 +99,295 @@ public class ArrWebhookController : Controller
         return await this.ProcessWebhookAsync(null, payload);
     }
 
-    private async Task<ActionResult<ArrWebhookResult>> ProcessWebhookAsync(string arrType, ArrWebhookPayload payload)
+    [NonAction]
+    public async Task<ActionResult<ArrWebhookResult>> ProcessWebhookAsync(
+        string arrType,
+        ArrWebhookPayload payload,
+        string rawPayload = null,
+        string clientIp = null,
+        string userAgent = null,
+        bool recordReceipt = true)
     {
         if (payload == null)
         {
-            return this.BadRequest(new ArrWebhookResult
+            var badRequestResult = new ArrWebhookResult
             {
                 Success = false,
                 Message = "Payload is required.",
-            });
+            };
+
+            this.RecordReceipt(arrType, null, 400, badRequestResult, rawPayload, clientIp, userAgent, recordReceipt);
+            return this.BadRequest(badRequestResult);
         }
 
         var eventType = payload.EventType ?? "Unknown";
         this.logger.Info("Received Arr webhook event '{0}' for type '{1}' from instance '{2}'", eventType, arrType ?? "Unknown", payload.InstanceName ?? "Unknown");
 
-        if (string.Equals(eventType, "Test", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            return this.Ok(new ArrWebhookResult
+            if (string.Equals(eventType, "Test", StringComparison.OrdinalIgnoreCase))
             {
-                Success = true,
-                EventType = eventType,
-                Message = "Webhook test received successfully.",
-                Updated = false,
-            });
-        }
+                var testResult = new ArrWebhookResult
+                {
+                    Success = true,
+                    EventType = eventType,
+                    Message = "Webhook test received successfully.",
+                    Updated = false,
+                };
 
-        if (string.Equals(arrType, "Prowlarr", StringComparison.OrdinalIgnoreCase) || IsProwlarrIndexerEvent(eventType))
-        {
-            var syncedCount = 0;
-            if (this.prowlarrSyncService != null)
-            {
-                syncedCount = await this.prowlarrSyncService.SyncAllAsync();
+                this.RecordReceipt(arrType, payload, 200, testResult, rawPayload, clientIp, userAgent, recordReceipt);
+                return this.Ok(testResult);
             }
 
-            return this.Ok(new ArrWebhookResult
+            if (string.Equals(arrType, "Prowlarr", StringComparison.OrdinalIgnoreCase) || IsProwlarrIndexerEvent(eventType))
             {
-                Success = true,
-                EventType = eventType,
-                Updated = true,
-                Message = $"Prowlarr indexer sync triggered successfully ({syncedCount} indexers synced).",
-            });
-        }
-
-        var torrent = this.FindMatchingTorrent(payload);
-        var updated = false;
-
-        if (torrent != null)
-        {
-            var torrentNeedsRepoUpdate = false;
-
-            if (string.IsNullOrWhiteSpace(torrent.Category) || string.Equals(torrent.Category, "NONE", StringComparison.OrdinalIgnoreCase))
-            {
-                var resolvedCategory = string.Equals(arrType, "Sonarr", StringComparison.OrdinalIgnoreCase) || payload.Series != null
-                    ? "tv-sonarr"
-                    : (string.Equals(arrType, "Radarr", StringComparison.OrdinalIgnoreCase) || payload.Movie != null
-                        ? "radarr"
-                        : (string.Equals(arrType, "Lidarr", StringComparison.OrdinalIgnoreCase) || payload.Artist != null
-                            ? "music"
-                            : (string.Equals(arrType, "Readarr", StringComparison.OrdinalIgnoreCase) || payload.Author != null
-                                ? "books"
-                                : null)));
-
-                if (!string.IsNullOrWhiteSpace(resolvedCategory))
+                var syncedCount = 0;
+                if (this.prowlarrSyncService != null)
                 {
-                    if (this.torrentService != null)
+                    syncedCount = await this.prowlarrSyncService.SyncAllAsync();
+                }
+
+                var prowlarrResult = new ArrWebhookResult
+                {
+                    Success = true,
+                    EventType = eventType,
+                    Updated = true,
+                    Message = $"Prowlarr indexer sync triggered successfully ({syncedCount} indexers synced).",
+                };
+
+                this.RecordReceipt(arrType, payload, 200, prowlarrResult, rawPayload, clientIp, userAgent, recordReceipt);
+                return this.Ok(prowlarrResult);
+            }
+
+            var torrent = this.FindMatchingTorrent(payload);
+            var updated = false;
+
+            if (torrent != null)
+            {
+                var torrentNeedsRepoUpdate = false;
+
+                if (string.IsNullOrWhiteSpace(torrent.Category) || string.Equals(torrent.Category, "NONE", StringComparison.OrdinalIgnoreCase))
+                {
+                    var resolvedCategory = string.Equals(arrType, "Sonarr", StringComparison.OrdinalIgnoreCase) || payload.Series != null
+                        ? "tv-sonarr"
+                        : (string.Equals(arrType, "Radarr", StringComparison.OrdinalIgnoreCase) || payload.Movie != null
+                            ? "radarr"
+                            : (string.Equals(arrType, "Lidarr", StringComparison.OrdinalIgnoreCase) || payload.Artist != null
+                                ? "music"
+                                : (string.Equals(arrType, "Readarr", StringComparison.OrdinalIgnoreCase) || payload.Author != null
+                                    ? "books"
+                                    : null)));
+
+                    if (!string.IsNullOrWhiteSpace(resolvedCategory))
                     {
-                        await this.torrentService.SetCategoryAsync(torrent.Id, resolvedCategory);
-                        torrent = this.GetTorrentById(torrent.Id) ?? torrent;
+                        if (this.torrentService != null)
+                        {
+                            await this.torrentService.SetCategoryAsync(torrent.Id, resolvedCategory);
+                            torrent = this.GetTorrentById(torrent.Id) ?? torrent;
+                        }
+                        else
+                        {
+                            torrent.Category = resolvedCategory;
+                            torrentNeedsRepoUpdate = true;
+                        }
+
+                        updated = true;
+                        this.logger.Info("Assigned category '{0}' to torrent {1} from webhook", resolvedCategory, torrent.Name);
                     }
-                    else
+                }
+
+                if (this.IsImportEvent(eventType))
+                {
+                    torrent.IsImported = true;
+                    torrent.ImportedAt = DateTime.UtcNow;
+
+                    var importPath = this.ExtractImportPath(payload);
+                    if (!string.IsNullOrWhiteSpace(importPath))
                     {
-                        torrent.Category = resolvedCategory;
-                        torrentNeedsRepoUpdate = true;
+                        torrent.ImportPath = importPath;
                     }
+
+                    var resolvedArr = !string.IsNullOrWhiteSpace(arrType) && !string.Equals(arrType, "arr", StringComparison.OrdinalIgnoreCase)
+                        ? arrType
+                        : (payload.InstanceName ?? "Arr");
+                    torrent.ImportedByArr = resolvedArr;
 
                     updated = true;
-                    this.logger.Info("Assigned category '{0}' to torrent {1} from webhook", resolvedCategory, torrent.Name);
+                    torrentNeedsRepoUpdate = true;
+                    this.logger.Info("Updated import state for torrent {0} (InfoHash: {1}) by {2}", torrent.Name, torrent.InfoHash, resolvedArr);
                 }
-            }
-
-            if (this.IsImportEvent(eventType))
-            {
-                torrent.IsImported = true;
-                torrent.ImportedAt = DateTime.UtcNow;
-
-                var importPath = this.ExtractImportPath(payload);
-                if (!string.IsNullOrWhiteSpace(importPath))
+                else if (string.Equals(eventType, "ImportFailed", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(eventType, "DownloadFolderImportFailed", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(eventType, "EpisodeImportFailed", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(eventType, "MovieImportFailed", StringComparison.OrdinalIgnoreCase))
                 {
-                    torrent.ImportPath = importPath;
+                    torrent.IsImported = false;
+                    updated = true;
+                    torrentNeedsRepoUpdate = true;
+                    this.logger.Warn("Import failed for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
+                }
+                else if (string.Equals(eventType, "Grab", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(eventType, "ReleaseGrabbed", StringComparison.OrdinalIgnoreCase))
+                {
+                    this.logger.Info("Grabbed event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
+                }
+                else if (this.IsDeleteEvent(eventType))
+                {
+                    torrent.IsImported = false;
+                    torrent.ImportPath = null;
+                    updated = true;
+                    torrentNeedsRepoUpdate = true;
+                    this.logger.Info("Media/file deleted in Arr for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
+                }
+                else if (string.Equals(eventType, "DownloadFailed", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(eventType, "DownloadWarning", StringComparison.OrdinalIgnoreCase))
+                {
+                    this.logger.Warn("Download failed/warning event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
                 }
 
-                var resolvedArr = !string.IsNullOrWhiteSpace(arrType) && !string.Equals(arrType, "arr", StringComparison.OrdinalIgnoreCase)
-                    ? arrType
-                    : (payload.InstanceName ?? "Arr");
-                torrent.ImportedByArr = resolvedArr;
+                if (torrentNeedsRepoUpdate)
+                {
+                    this.torrentRepository.Update(torrent);
+                }
 
-                updated = true;
-                torrentNeedsRepoUpdate = true;
-                this.logger.Info("Updated import state for torrent {0} (InfoHash: {1}) by {2}", torrent.Name, torrent.InfoHash, resolvedArr);
+                if (!this.IsDeleteEvent(eventType))
+                {
+                    this.TryEnrichMetadata(torrent, arrType, payload);
+                }
             }
-            else if (string.Equals(eventType, "ImportFailed", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(eventType, "DownloadFolderImportFailed", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(eventType, "EpisodeImportFailed", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(eventType, "MovieImportFailed", StringComparison.OrdinalIgnoreCase))
+            else
             {
-                torrent.IsImported = false;
-                updated = true;
-                torrentNeedsRepoUpdate = true;
-                this.logger.Warn("Import failed for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
-            }
-            else if (string.Equals(eventType, "Grab", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(eventType, "ReleaseGrabbed", StringComparison.OrdinalIgnoreCase))
-            {
-                this.logger.Info("Grabbed event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
-            }
-            else if (this.IsDeleteEvent(eventType))
-            {
-                torrent.IsImported = false;
-                torrent.ImportPath = null;
-                updated = true;
-                torrentNeedsRepoUpdate = true;
-                this.logger.Info("Media/file deleted in Arr for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
-            }
-            else if (string.Equals(eventType, "DownloadFailed", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(eventType, "DownloadWarning", StringComparison.OrdinalIgnoreCase))
-            {
-                this.logger.Warn("Download failed/warning event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
+                this.logger.Warn(
+                    "Could not find matching torrent for Arr webhook event '{0}' (DownloadClientId: {1}, DownloadId: {2})",
+                    eventType,
+                    payload.DownloadClientId,
+                    payload.DownloadId);
             }
 
-            if (torrentNeedsRepoUpdate)
+            var finalResult = new ArrWebhookResult
             {
-                this.torrentRepository.Update(torrent);
+                Success = true,
+                EventType = eventType,
+                TorrentId = torrent?.Id,
+                InfoHash = torrent?.InfoHash,
+                Updated = updated,
+                Message = torrent != null
+                    ? $"Webhook event '{eventType}' processed for torrent '{torrent.Name}'."
+                    : $"Webhook event '{eventType}' processed, but no matching torrent was found.",
+            };
+
+            this.RecordReceipt(arrType, payload, 200, finalResult, rawPayload, clientIp, userAgent, recordReceipt);
+            return this.Ok(finalResult);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error processing Arr webhook for type '{0}'", arrType ?? "Unknown");
+            var errorResult = new ArrWebhookResult
+            {
+                Success = false,
+                EventType = eventType,
+                Message = $"Error processing webhook: {ex.Message}",
+            };
+
+            this.RecordReceipt(arrType, payload, 500, errorResult, rawPayload, clientIp, userAgent, recordReceipt);
+            return this.StatusCode(500, errorResult);
+        }
+    }
+
+    private void RecordReceipt(
+        string arrType,
+        ArrWebhookPayload payload,
+        int statusCode,
+        ArrWebhookResult result,
+        string rawPayload,
+        string clientIp,
+        string userAgent,
+        bool recordReceipt)
+    {
+        if (!recordReceipt || this.webhookStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var resolvedSource = !string.IsNullOrWhiteSpace(arrType)
+                ? arrType
+                : (!string.IsNullOrWhiteSpace(payload?.InstanceName) ? payload.InstanceName : "Arr");
+
+            var resolvedEvent = payload?.EventType ?? "Unknown";
+            var (ip, ua) = this.ResolveClientInfo(clientIp, userAgent);
+            var body = rawPayload ?? this.SerializePayload(payload);
+            var message = result?.Message ?? string.Empty;
+            var success = result?.Success ?? (statusCode >= 200 && statusCode < 300);
+
+            this.webhookStore.Record(
+                resolvedSource,
+                resolvedEvent,
+                ip,
+                ua,
+                statusCode,
+                body,
+                message,
+                success);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to record webhook receipt in developer store");
+        }
+    }
+
+    private (string Ip, string UserAgent) ResolveClientInfo(string clientIp, string userAgent)
+    {
+        var ip = clientIp;
+        var ua = userAgent;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(ip))
+            {
+                if (this.Request?.Headers != null && this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwarded) && !string.IsNullOrWhiteSpace(forwarded))
+                {
+                    var first = forwarded.ToString().Split(',')[0].Trim();
+                    if (!string.IsNullOrWhiteSpace(first))
+                    {
+                        ip = first;
+                    }
+                }
+                else if (this.HttpContext?.Connection?.RemoteIpAddress != null)
+                {
+                    ip = this.HttpContext.Connection.RemoteIpAddress.ToString();
+                }
             }
 
-            if (!this.IsDeleteEvent(eventType))
+            if (string.IsNullOrWhiteSpace(ua) && this.Request?.Headers != null && this.Request.Headers.TryGetValue("User-Agent", out var headerUa) && !string.IsNullOrWhiteSpace(headerUa))
             {
-                this.TryEnrichMetadata(torrent, arrType, payload);
+                ua = headerUa.ToString();
             }
         }
-        else
+        catch
         {
-            this.logger.Warn(
-                "Could not find matching torrent for Arr webhook event '{0}' (DownloadClientId: {1}, DownloadId: {2})",
-                eventType,
-                payload.DownloadClientId,
-                payload.DownloadId);
+            // Ignore HttpContext access errors when running in test contexts
         }
 
-        return this.Ok(new ArrWebhookResult
+        return (ip ?? "127.0.0.1", ua ?? "Arr");
+    }
+
+    private string SerializePayload(ArrWebhookPayload payload)
+    {
+        if (payload == null)
         {
-            Success = true,
-            EventType = eventType,
-            TorrentId = torrent?.Id,
-            InfoHash = torrent?.InfoHash,
-            Updated = updated,
-            Message = torrent != null
-                ? $"Webhook event '{eventType}' processed for torrent '{torrent.Name}'."
-                : $"Webhook event '{eventType}' processed, but no matching torrent was found.",
-        });
+            return "{}";
+        }
+
+        try
+        {
+            return JsonSerializer.Serialize(payload);
+        }
+        catch
+        {
+            return "{}";
+        }
     }
 
     private static bool IsProwlarrIndexerEvent(string eventType)

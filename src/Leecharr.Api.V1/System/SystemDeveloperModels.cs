@@ -178,6 +178,10 @@ public class DeveloperWebhookSimulateRequest
     public string EventType { get; set; } = "Grab";
 
     public string PayloadJson { get; set; } = "{}";
+
+    public bool DispatchToPipeline { get; set; } = true;
+
+    public string ArrType { get; set; }
 }
 
 public class DeveloperWebhookSimulateResponse
