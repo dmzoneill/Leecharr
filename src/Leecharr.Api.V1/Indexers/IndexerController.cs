@@ -25,7 +25,7 @@ namespace Leecharr.Api.V1.Indexers;
 [Authorize(Policy = "RequireOperator")]
 public class IndexerController : Controller
 {
-    private static readonly Regex MagnetBtihRegex = new(@"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex MagnetBtihRegex = new(@"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
 
     private readonly IIndexerRepository indexerRepository;
     private readonly ITorznabClient torznabClient;
