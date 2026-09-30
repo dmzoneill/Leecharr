@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
@@ -309,7 +310,7 @@ public class DtoModelValidationAndPreviewTest
         var escaped = Regex.Escape(propWithRegexChars);
         var settings = $"{propWithRegexChars}=my_secret_val&other=123";
 
-        var match = Regex.Match(settings, $@"{escaped}=([^&]+)");
+        var match = Regex.Match(settings, $@"{escaped}=([^&]+)", RegexOptions.None, TimeSpan.FromSeconds(2));
         match.Success.Should().BeTrue();
         match.Groups[1].Value.Should().Be("my_secret_val");
     }
