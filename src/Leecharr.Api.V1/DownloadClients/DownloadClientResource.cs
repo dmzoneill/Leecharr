@@ -112,6 +112,8 @@ public class DownloadClientRemoteItem
 
     public string Category { get; set; }
 
+    public string Tags { get; set; }
+
     public bool IsInLibrary { get; set; }
 
     public int? LibraryTorrentId { get; set; }
