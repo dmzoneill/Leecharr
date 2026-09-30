@@ -478,7 +478,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             {
                 this.logger.Warn(ex, "Error updating libtorrent session settings on config change.");
             }
-        });
+        }, this.syncCts?.Token ?? CancellationToken.None);
     }
 
     public void Handle(VpnKillSwitchTriggeredEvent message)
@@ -528,7 +528,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             {
                 this.logger.Trace(ex, "Failed to update session settings during killswitch deactivation");
             }
-        });
+        }, this.syncCts?.Token ?? CancellationToken.None);
 
         lock (this.torrentsHaltedByKillSwitch)
         {
