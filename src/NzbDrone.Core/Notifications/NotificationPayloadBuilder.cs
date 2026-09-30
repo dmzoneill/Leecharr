@@ -1143,12 +1143,13 @@ public static class NotificationPayloadBuilder
         {
             try
             {
-                if (meta != null)
+                var metaObj = (object)meta;
+                if (metaObj != null)
                 {
-                    var prop = ((object)meta).GetType().GetProperty("Overview");
+                    var prop = metaObj.GetType().GetProperty("Overview");
                     if (prop != null)
                     {
-                        return prop.GetValue((object)meta) as string;
+                        return prop.GetValue(metaObj) as string;
                     }
                 }
             }
