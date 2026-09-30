@@ -45,7 +45,7 @@ export function useEventLogs(levelParam?: LogLevel | null) {
           normLevel === "Debug" ||
           normLevel === "Warn" ||
           normLevel === "Error"
-            ? (normLevel as LogLevel)
+            ? normLevel
             : "Info";
         return {
           id: entry.id,
