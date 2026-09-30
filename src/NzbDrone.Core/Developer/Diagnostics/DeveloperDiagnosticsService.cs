@@ -34,7 +34,7 @@ public class DeveloperDiagnosticsService : IDeveloperDiagnosticsService
                     IsThreadPoolThread = false,
                     IsAlive = t.ThreadState != ThreadState.Terminated,
                     WaitReason = t.ThreadState == ThreadState.Wait ? t.WaitReason.ToString() : "None",
-                    StackTrace = string.Empty,
+                    CallStack = string.Empty,
                 });
             }
         }
