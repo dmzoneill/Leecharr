@@ -903,38 +903,38 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
         // Handle abbreviations with dots (e.g. S.W.A.T., Agents of S.H.I.E.L.D., A.I.)
         // First insert space if abbreviation ending with dot is immediately followed by a 4-digit year: S.W.A.T.2003 -> S.W.A.T. 2003
-        var text = Regex.Replace(raw, @"(\b(?:[A-Za-z]\.){2,})(?=\d{4}\b)", "$1 ");
+        var text = Regex.Replace(raw, @"(\b(?:[A-Za-z]\.){2,})(?=\d{4}\b)", "$1 ", RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Protect internal abbreviation dots by replacing with placeholder
-        text = Regex.Replace(text, @"\b(?:[A-Za-z]\.){2,}|\b(?:[A-Za-z]\.)+[A-Za-z](?![A-Za-z0-9])", m => m.Value.Replace('.', '\uE000'));
+        text = Regex.Replace(text, @"\b(?:[A-Za-z]\.){2,}|\b(?:[A-Za-z]\.)+[A-Za-z](?![A-Za-z0-9])", m => m.Value.Replace('.', '\uE000'), RegexOptions.None, TimeSpan.FromSeconds(2));
 
-        var clean = Regex.Replace(text, @"[._]", " ");
+        var clean = Regex.Replace(text, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
         clean = clean.Replace('\uE000', '.');
 
         // Strip TV season/episode markers (e.g. S01E01, S01E01-E04, S01E01E02, 1x05, Season 1, Episode 01, E05)
-        clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
+        clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip edition tags if not at start of title and followed by quality tags, years, or end of string
-        clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty);
+        clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip unambiguous quality/source/codec tags
-        clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(2160p|1080p|1080i|720p|576p|480p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web-dl|webrip|web-?dl|web-?rip|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|avc|xvid|divx|10bit)\b.*$", string.Empty);
+        clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(2160p|1080p|1080i|720p|576p|480p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web-dl|webrip|web-?dl|web-?rip|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|avc|xvid|divx|10bit)\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         var year = ExtractYear(raw);
         if (year > 0)
         {
-            clean = Regex.Replace(clean, $@"(?<!^)\s*\b{year}\b.*$", string.Empty);
+            clean = Regex.Replace(clean, $@"(?<!^)\s*\b{year}\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         }
         else
         {
             if (!KnownYearTitles.Any(k => string.Equals(k, clean.Trim(), StringComparison.OrdinalIgnoreCase)))
             {
-                clean = Regex.Replace(clean, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
+                clean = Regex.Replace(clean, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
             }
         }
 
-        clean = Regex.Replace(clean, @"\s+", " ").Trim();
-        if (clean.EndsWith('.') && !Regex.IsMatch(clean, @"\b[A-Za-z]\.$"))
+        clean = Regex.Replace(clean, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
+        if (clean.EndsWith('.') && !Regex.IsMatch(clean, @"\b[A-Za-z]\.$", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             clean = clean.TrimEnd('.').Trim('-', ' ');
         }
@@ -953,13 +953,13 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             return 0;
         }
 
-        var parenMatch = Regex.Match(rawTitle, @"\((19\d\d|20\d\d)\)");
+        var parenMatch = Regex.Match(rawTitle, @"\((19\d\d|20\d\d)\)", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (parenMatch.Success && int.TryParse(parenMatch.Groups[1].Value, out var py))
         {
             return py;
         }
 
-        var yearMatches = Regex.Matches(rawTitle, @"\b(19\d\d|20\d\d)\b");
+        var yearMatches = Regex.Matches(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (yearMatches.Count > 1)
         {
             for (var i = yearMatches.Count - 1; i >= 0; i--)
@@ -967,7 +967,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                 if (int.TryParse(yearMatches[i].Value, out var y) && y >= 1900 && y <= DateTime.UtcNow.Year + 2)
                 {
                     var prefix = rawTitle.Substring(0, yearMatches[i].Index + yearMatches[i].Length);
-                    var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ").Trim();
+                    var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
                     if (KnownYearTitles.Any(k => cleanedPrefix.EndsWith(k, StringComparison.OrdinalIgnoreCase)) && i > 0)
                     {
                         continue;
@@ -981,7 +981,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         {
             var single = yearMatches[0];
             var prefix = rawTitle.Substring(0, single.Index + single.Length);
-            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ").Trim();
+            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
             if (KnownYearTitles.Any(k => cleanedPrefix.EndsWith(k, StringComparison.OrdinalIgnoreCase)))
             {
                 return 0;
@@ -996,11 +996,12 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var taggedMatch = Regex.Match(
             rawTitle,
             @"\b(19\d\d|20\d\d)\b(?=[.\s_]*(?:1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web|dvd|x264|x265|hevc|h264|h265|\(|$))",
-            RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+            RegexOptions.IgnoreCase | RegexOptions.RightToLeft,
+            TimeSpan.FromSeconds(2));
         if (taggedMatch.Success && int.TryParse(taggedMatch.Value, out var ty) && ty >= 1900 && ty <= DateTime.UtcNow.Year + 2)
         {
             var prefix = rawTitle.Substring(0, taggedMatch.Index + taggedMatch.Length);
-            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ").Trim();
+            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
             if (KnownYearTitles.Any(k => cleanedPrefix.EndsWith(k, StringComparison.OrdinalIgnoreCase)))
             {
                 return 0;
@@ -1009,11 +1010,11 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             return ty;
         }
 
-        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft);
+        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft, TimeSpan.FromSeconds(2));
         if (rightmostMatch.Success && int.TryParse(rightmostMatch.Value, out var rmy))
         {
             var prefix = rawTitle.Substring(0, rightmostMatch.Index + rightmostMatch.Length);
-            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ").Trim();
+            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
             if (KnownYearTitles.Any(k => cleanedPrefix.EndsWith(k, StringComparison.OrdinalIgnoreCase)))
             {
                 return 0;
