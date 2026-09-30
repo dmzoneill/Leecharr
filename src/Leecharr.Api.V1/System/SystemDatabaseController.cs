@@ -513,8 +513,8 @@ public class SystemDatabaseController : Controller
     }
 
     [HttpPost("query")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("roslyn.sonaranalyzer.security.cs", "S3649", Justification = "Admin SQL console endpoint requires executing user-submitted queries.")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S3649", Justification = "Admin SQL console endpoint.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("roslyn.sonaranalyzer.security.cs", "S3649", Justification = "Admin SQL console endpoint requires executing user-submitted queries.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S3649", Justification = "Admin SQL console endpoint.")]
     public ActionResult<DatabaseQueryResult> ExecuteQuery([FromBody] DatabaseQueryRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Query))

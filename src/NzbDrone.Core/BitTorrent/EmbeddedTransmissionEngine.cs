@@ -248,7 +248,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 if (this.syncLoopTask != null)
                 {
-                    await Task.WhenAny(this.syncLoopTask, Task.Delay(2000));
+                    await Task.WhenAny(this.syncLoopTask, Task.Delay(2000, CancellationToken.None));
                 }
             }
             catch (Exception ex)
@@ -466,7 +466,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 this.logger.Trace(ex, "Failed to stop torrents or update session settings during killswitch activation");
             }
-        });
+        }, this.syncCts?.Token ?? CancellationToken.None);
     }
 
     public void Handle(VpnInterfaceRestoredEvent message)
@@ -484,7 +484,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 this.logger.Trace(ex, "Failed to update session settings during killswitch deactivation");
             }
-        });
+        }, this.syncCts?.Token ?? CancellationToken.None);
 
         lock (this.torrentsHaltedByKillSwitch)
         {
@@ -514,7 +514,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 this.logger.Warn(ex, "Error updating Transmission session settings on network binding switch.");
             }
-        });
+        }, this.syncCts?.Token ?? CancellationToken.None);
     }
 
     public void Handle(ConfigSavedEvent message)
@@ -534,7 +534,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 this.logger.Warn(ex, "Error updating Transmission session settings on config change.");
             }
-        });
+        }, this.syncCts?.Token ?? CancellationToken.None);
     }
 
     public async Task ForceRecheckAsync(int torrentId)
@@ -1316,7 +1316,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             };
 
             this.daemonProcess = Process.Start(startInfo);
-            await Task.Delay(500);
+            await Task.Delay(500, this.syncCts?.Token ?? CancellationToken.None);
         }
         catch (Exception ex)
         {

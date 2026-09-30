@@ -337,7 +337,7 @@ public class ArrWebhookController : Controller
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback header/ip inspection reads optional client connection properties.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback header/ip inspection reads optional client connection properties.")]
     private (string Ip, string UserAgent) ResolveClientInfo(string clientIp, string userAgent)
     {
         var ip = clientIp;
