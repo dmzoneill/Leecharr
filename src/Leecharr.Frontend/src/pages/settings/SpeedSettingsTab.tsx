@@ -272,6 +272,16 @@ export function SpeedSettingsTab() {
             suffix="%"
             hint={t("settingsTabs.distributionSpreadFactorHint")}
           />
+
+          <NumberInput
+            label={t("settingsTabs.distributionSpreadFactor")}
+            value={form.downloadDistributionSpreadPercentage}
+            onChange={(v) => update("downloadDistributionSpreadPercentage", v)}
+            min={10}
+            max={90}
+            suffix="%"
+            hint={t("settingsTabs.distributionSpreadFactorHint")}
+          />
         </div>
       </SectionCard>
 
