@@ -22,7 +22,7 @@ if [ -n "$PUID" ] || [ -n "$PGID" ]; then
         fi
 
         mkdir -p /config /downloads /downloads/incomplete
-        chmod -R 777 /config /downloads 2>/dev/null || true
+        chmod -R 775 /config /downloads 2>/dev/null || true
         chown -R "$PUID:$PGID" /config /downloads 2>/dev/null || true
 
         if command -v gosu >/dev/null 2>&1; then
