@@ -714,7 +714,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                                     foreach (var f in fArr.EnumerateArray())
                                     {
                                         var name = f.TryGetProperty("name", out var n) ? n.GetString()?.Replace('\\', '/').TrimStart('/') : null;
-                                        if (name != null && (name.Equals(normalized, StringComparison.OrdinalIgnoreCase) || name.EndsWith("/" + normalized, StringComparison.OrdinalIgnoreCase) || normalized.EndsWith("/" + name, StringComparison.OrdinalIgnoreCase)))
+                                        if (name != null && normalized != null && (name.Equals(normalized, StringComparison.OrdinalIgnoreCase) || name.EndsWith("/" + normalized, StringComparison.OrdinalIgnoreCase) || normalized.EndsWith("/" + name, StringComparison.OrdinalIgnoreCase)))
                                         {
                                             fileIndex = idx;
                                             break;

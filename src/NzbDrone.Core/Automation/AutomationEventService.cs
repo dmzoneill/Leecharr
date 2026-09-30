@@ -361,31 +361,14 @@ public class AutomationEventService :
 
                     var key = (script.Id, torrent?.Id, trigger);
                     var now = DateTime.UtcNow;
-                    var shouldExecute = false;
 
-                    _lastExecutionTime.AddOrUpdate(
-                        key,
-                        _ =>
-                        {
-                            shouldExecute = true;
-                            return now;
-                        },
-                        (_, lastRun) =>
-                        {
-                            if (now - lastRun < _cooldownWindow)
-                            {
-                                return lastRun;
-                            }
-
-                            shouldExecute = true;
-                            return now;
-                        });
-
-                    if (!shouldExecute)
+                    if (_lastExecutionTime.TryGetValue(key, out var lastRun) && now - lastRun < _cooldownWindow)
                     {
                         _logger.Debug("Debouncing execution of script '{0}' for trigger {1}", script.Name, trigger);
                         continue;
                     }
+
+                    _lastExecutionTime[key] = now;
 
                     try
                     {

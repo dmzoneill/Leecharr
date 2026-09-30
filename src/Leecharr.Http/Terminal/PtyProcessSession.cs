@@ -384,9 +384,13 @@ else:
 
         try
         {
+            var mkfifoBinary = File.Exists("/usr/bin/mkfifo")
+                ? "/usr/bin/mkfifo"
+                : (File.Exists("/bin/mkfifo") ? "/bin/mkfifo" : "/usr/bin/mkfifo");
+
             using var proc = Process.Start(new ProcessStartInfo
             {
-                FileName = "mkfifo",
+                FileName = mkfifoBinary,
                 Arguments = $"-m 0600 \"{path}\"",
                 CreateNoWindow = true,
                 UseShellExecute = false,
