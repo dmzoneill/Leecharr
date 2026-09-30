@@ -884,7 +884,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpDelete("{id:int}/peers/{*ip}")]
     [HttpDelete("{id:int}/peers")]
-    public async Task<IActionResult> DisconnectPeer(int id, string? ip = null)
+    public async Task<IActionResult> DisconnectPeer(int id, string ip = null)
     {
         if (string.IsNullOrWhiteSpace(ip))
         {
