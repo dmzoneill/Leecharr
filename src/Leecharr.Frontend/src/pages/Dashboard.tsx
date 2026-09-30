@@ -565,6 +565,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {t("dashboard.connectedEcosystem")}
           </span>
           <span
+            role="button"
+            tabIndex={0}
             style={{
               fontSize: "0.8rem",
               color: "var(--accent, #ffd166)",
@@ -573,6 +575,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
             onClick={() =>
               onNavigateSettings && onNavigateSettings("connections")
             }
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onNavigateSettings && onNavigateSettings("connections");
+              }
+            }}
           >
             {t("dashboard.manageConnections")}
           </span>
@@ -843,6 +851,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {t("dashboard.noIndexersConfigured")}
               </span>
               <span
+                role="button"
+                tabIndex={0}
                 style={{
                   color: "var(--accent, #ffd166)",
                   cursor: "pointer",
@@ -851,6 +861,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onClick={() =>
                   onNavigateSettings && onNavigateSettings("indexers")
                 }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onNavigateSettings && onNavigateSettings("indexers");
+                  }
+                }}
               >
                 {t("dashboard.add")}
               </span>

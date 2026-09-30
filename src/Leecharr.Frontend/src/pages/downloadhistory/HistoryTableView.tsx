@@ -294,12 +294,20 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
 
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div
+                          role="button"
+                          tabIndex={0}
                           style={{
                             fontWeight: 600,
                             wordBreak: "break-word",
                             cursor: "pointer",
                           }}
                           onClick={() => onSelectItem(item)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onSelectItem(item);
+                            }
+                          }}
                         >
                           {displayTitle}{" "}
                           {meta?.year ? (
@@ -369,6 +377,8 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                           )}
                           {item.primaryTracker && (
                             <span
+                              role="button"
+                              tabIndex={0}
                               style={{
                                 color: "var(--text-dim, #999)",
                                 cursor: "pointer",
@@ -376,6 +386,12 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                               onClick={() =>
                                 onFilterByTracker(item.primaryTracker || "")
                               }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  onFilterByTracker(item.primaryTracker || "");
+                                }
+                              }}
                               title={t("history.filterByTracker")}
                             >
                               • {item.primaryTracker}

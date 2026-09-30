@@ -384,7 +384,15 @@ function SettingsContent() {
               {searchResults.map(({ group, page, matchedKeywords }) => (
                 <div
                   key={page.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelectPage(page.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSelectPage(page.id);
+                    }
+                  }}
                   style={{
                     padding: "1rem",
                     borderRadius: "6px",

@@ -850,6 +850,8 @@ function WeeklyCalendar({
               return (
                 <div
                   key={`${hour}-${day.value}`}
+                  role="button"
+                  tabIndex={0}
                   data-calendar-cell="true"
                   data-day-idx={dayIdx}
                   data-hour={hour}
@@ -869,6 +871,21 @@ function WeeklyCalendar({
                       startTime: sTime,
                       endTime: eTime,
                     });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      const sTime = `${String(hour).padStart(2, "0")}:00`;
+                      const eTime =
+                        hour === 23
+                          ? "23:59"
+                          : `${String(hour + 1).padStart(2, "0")}:00`;
+                      onSelectRange?.({
+                        days: day.value,
+                        startTime: sTime,
+                        endTime: eTime,
+                      });
+                    }
                   }}
                   style={{
                     height: 22,

@@ -298,7 +298,17 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   return (
     <div className="detail-panel" ref={panelRef} style={{ height }}>
       {/* Resizable handle */}
-      <div className="detail-panel-resize-handle" onMouseDown={onMouseDown} />
+      <div
+        className="detail-panel-resize-handle"
+        role="button"
+        tabIndex={0}
+        onMouseDown={onMouseDown}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+          }
+        }}
+      />
 
       {/* Top Header */}
       <div className="detail-panel-header">
