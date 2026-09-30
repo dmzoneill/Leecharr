@@ -281,7 +281,7 @@ export function useDownloadClientItems(clientId: number | string) {
   const interval = useRefetchInterval();
   const isAll = clientId === "all";
   const numId =
-    typeof clientId === "number" ? clientId : parseInt(clientId, 10);
+    typeof clientId === "number" ? clientId : Number.parseInt(clientId, 10);
   const isValid = isAll || (!isNaN(numId) && numId > 0);
 
   return useQuery<DownloadClientRemoteItem[]>({

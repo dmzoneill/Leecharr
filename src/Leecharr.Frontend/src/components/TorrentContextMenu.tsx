@@ -645,7 +645,7 @@ export function TorrentContextMenu({
                         min: 0,
                         confirmText: t("common.save"),
                         validate: (val) => {
-                          const num = parseInt(val, 10);
+                          const num = Number.parseInt(val, 10);
                           if (isNaN(num) || num < 0) {
                             return t(
                               "torrents.contextMenu.invalidLimitValidation",
@@ -655,7 +655,7 @@ export function TorrentContextMenu({
                           return null;
                         },
                         onConfirm: (limit) => {
-                          const val = parseInt(limit, 10);
+                          const val = Number.parseInt(limit, 10);
                           if (!isNaN(val) && val >= 0) {
                             handleUpdateAll((t) => ({
                               ...t,
@@ -680,7 +680,7 @@ export function TorrentContextMenu({
                         min: 0,
                         confirmText: t("common.save"),
                         validate: (val) => {
-                          const num = parseInt(val, 10);
+                          const num = Number.parseInt(val, 10);
                           if (isNaN(num) || num < 0) {
                             return t(
                               "torrents.contextMenu.invalidLimitValidation",
@@ -690,7 +690,7 @@ export function TorrentContextMenu({
                           return null;
                         },
                         onConfirm: (limit) => {
-                          const val = parseInt(limit, 10);
+                          const val = Number.parseInt(limit, 10);
                           if (!isNaN(val) && val >= 0) {
                             handleUpdateAll((t) => ({
                               ...t,

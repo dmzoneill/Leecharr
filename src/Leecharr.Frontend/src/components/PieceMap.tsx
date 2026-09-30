@@ -57,12 +57,12 @@ export function hexToRgba(hex: string, alpha: number): string {
   if (!hex.startsWith("#")) return hex;
   const cleanHex = hex.slice(1);
   if (cleanHex.length === 3) {
-    const r = parseInt(cleanHex[0] + cleanHex[0], 16);
-    const g = parseInt(cleanHex[1] + cleanHex[1], 16);
-    const b = parseInt(cleanHex[2] + cleanHex[2], 16);
+    const r = Number.parseInt(cleanHex[0] + cleanHex[0], 16);
+    const g = Number.parseInt(cleanHex[1] + cleanHex[1], 16);
+    const b = Number.parseInt(cleanHex[2] + cleanHex[2], 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
-  const num = parseInt(cleanHex, 16);
+  const num = Number.parseInt(cleanHex, 16);
   const r = (num >> 16) & 255;
   const g = (num >> 8) & 255;
   const b = num & 255;
