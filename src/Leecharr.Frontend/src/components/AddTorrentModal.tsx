@@ -74,7 +74,14 @@ export function AddTorrentModal({
       <div
         ref={setContainerRef}
         className="modal-content"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           width: "100%",
           maxWidth: "720px",

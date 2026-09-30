@@ -450,6 +450,8 @@ export function MediaPlayerModal({
       <div
         ref={setContainerRef}
         className="card media-player-dialog"
+        role="button"
+        tabIndex={0}
         style={{
           width: "900px",
           maxWidth: "95vw",
@@ -464,6 +466,11 @@ export function MediaPlayerModal({
           backgroundColor: "var(--bg-primary, #18191c)",
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
       >
         {/* Modal Header */}
         <div
