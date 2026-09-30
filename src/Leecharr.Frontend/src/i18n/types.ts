@@ -1586,6 +1586,12 @@ export type I18nTranslations = {
     "downloadBackup": string;
     "updateAvailable": string;
     "checkForUpdates": string;
+    "installUpdate": string;
+    "installingUpdate": string;
+    "confirmInstallUpdate": string;
+    "confirmInstallSpecificUpdate": string;
+    "updateInstallStarted": string;
+    "updateInstallFailed": string;
     "currentVersion": string;
     "eventLogs": string;
     "severity": string;
