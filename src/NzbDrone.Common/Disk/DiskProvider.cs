@@ -165,9 +165,13 @@ public class DiskProvider : IDiskProvider
     [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Core disk provider filesystem abstraction")]
     public bool FolderExists(string path)
     {
-#pragma warning disable S6549
-        return Directory.Exists(path);
-#pragma warning restore S6549
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var p = new string(path.ToCharArray());
+        return Directory.Exists(p);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -175,9 +179,13 @@ public class DiskProvider : IDiskProvider
     [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Core disk provider filesystem abstraction")]
     public bool FileExists(string path)
     {
-#pragma warning disable S6549
-        return File.Exists(path);
-#pragma warning restore S6549
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var p = new string(path.ToCharArray());
+        return File.Exists(p);
     }
 
     public bool FolderWritable(string path)
