@@ -69,10 +69,11 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           dotnet-sonarscanner begin \
-            /k:"${{ github.repository_owner }}_${{ github.event.repository.name }}" \
-            /o:"${{ github.repository_owner }}" \
+            /k:"${{ secrets.SONAR_PROJECT_KEY || vars.SONAR_PROJECT_KEY || format('{0}_{1}', github.repository_owner, github.event.repository.name) }}" \
+            /o:"${{ secrets.SONAR_ORGANIZATION || vars.SONAR_ORGANIZATION || github.repository_owner }}" \
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
             /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
             /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**"
 
