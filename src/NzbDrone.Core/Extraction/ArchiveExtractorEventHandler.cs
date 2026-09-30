@@ -294,18 +294,18 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         }
 
         var ext = Path.GetExtension(path).ToLowerInvariant();
-        if (Regex.IsMatch(ext, @"^\.(r\d{2}|\d{3}|z\d{2})$", RegexOptions.IgnoreCase) && ext != ".001")
+        if (Regex.IsMatch(ext, @"^\.(r\d{2}|\d{3}|z\d{2})$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)) && ext != ".001")
         {
             return true;
         }
 
-        var partMatch = Regex.Match(path, @"\.part(\d+)\.(rar|7z|zip)$", RegexOptions.IgnoreCase);
+        var partMatch = Regex.Match(path, @"\.part(\d+)\.(rar|7z|zip)$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
         if (partMatch.Success && int.TryParse(partMatch.Groups[1].Value, out var partNum))
         {
             return partNum > 1;
         }
 
-        var splitMatch = Regex.Match(path, @"\.(7z|tar|zip|rar)\.(\d+)$", RegexOptions.IgnoreCase);
+        var splitMatch = Regex.Match(path, @"\.(7z|tar|zip|rar)\.(\d+)$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
         if (splitMatch.Success && int.TryParse(splitMatch.Groups[2].Value, out var splitNum))
         {
             return splitNum > 1;
