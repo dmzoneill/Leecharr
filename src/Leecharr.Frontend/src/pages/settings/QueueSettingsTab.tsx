@@ -52,7 +52,10 @@ export function QueueSettingsTab() {
         globalShareLimitAction: btConfig?.globalShareLimitAction || "Pause",
         autoShutdownAction: btConfig?.autoShutdownAction || "None",
         autoShutdownCondition:
-          btConfig?.autoShutdownCondition || "WhenDownloadsComplete",
+          !btConfig?.autoShutdownCondition ||
+          btConfig.autoShutdownCondition === "None"
+            ? "WhenDownloadsComplete"
+            : btConfig.autoShutdownCondition,
       });
       setDirty(false);
     }
