@@ -117,8 +117,8 @@ export function ConnectionsTab() {
   const handleCloseMappingModal = async () => {
     const isDirty = Boolean(
       editingMapping &&
-        initialMappingRef.current &&
-        JSON.stringify(editingMapping) !== initialMappingRef.current,
+      initialMappingRef.current &&
+      JSON.stringify(editingMapping) !== initialMappingRef.current,
     );
     if (isDirty) {
       const ok = await confirm({
