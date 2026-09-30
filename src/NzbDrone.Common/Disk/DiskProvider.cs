@@ -2,8 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
 using NLog;
@@ -158,9 +160,25 @@ public class DiskProvider : IDiskProvider
         }
     }
 
-    public bool FolderExists(string path) => Directory.Exists(path); // NOSONAR
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S6549", Justification = "Core disk provider filesystem abstraction")]
+    [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Core disk provider filesystem abstraction")]
+    public bool FolderExists(string path)
+    {
+#pragma warning disable S6549
+        return Directory.Exists(path);
+#pragma warning restore S6549
+    }
 
-    public bool FileExists(string path) => File.Exists(path); // NOSONAR
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S6549", Justification = "Core disk provider filesystem abstraction")]
+    [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Core disk provider filesystem abstraction")]
+    public bool FileExists(string path)
+    {
+#pragma warning disable S6549
+        return File.Exists(path);
+#pragma warning restore S6549
+    }
 
     public bool FolderWritable(string path)
     {
