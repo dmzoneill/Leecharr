@@ -1507,6 +1507,8 @@ export interface AiConfig {
   enableCopilotButton: boolean;
   enableNaturalSearch: boolean;
   enableSwarmDiagnostics: boolean;
+  malwareRiskThreshold?: number;
+  autoQuarantineHighRisk?: boolean;
 }
 
 export type IdentityProviderType = 0 | 1 | 2 | 3; // 0=Oidc, 1=Saml, 2=Social, 3=ForwardAuth

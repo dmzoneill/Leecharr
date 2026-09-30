@@ -24,6 +24,10 @@ public class AiConfigResource : RestResource
     public bool EnableNaturalSearch { get; set; }
 
     public bool EnableSwarmDiagnostics { get; set; }
+
+    public double MalwareRiskThreshold { get; set; } = 0.7;
+
+    public bool AutoQuarantineHighRisk { get; set; } = false;
 }
 
 public static class AiConfigResourceMapper
@@ -46,6 +50,8 @@ public static class AiConfigResourceMapper
             EnableCopilotButton = config.EnableCopilotButton,
             EnableNaturalSearch = config.EnableNaturalSearch,
             EnableSwarmDiagnostics = config.EnableSwarmDiagnostics,
+            MalwareRiskThreshold = config.MalwareRiskThreshold,
+            AutoQuarantineHighRisk = config.AutoQuarantineHighRisk,
         };
     }
 }
