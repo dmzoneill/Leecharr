@@ -7,6 +7,7 @@ Provides an embedded HTTP JSON-RPC bridge for LibTorrentDownloadEngine on port 5
 import argparse
 import base64
 import json
+import math
 import signal
 import sys
 import threading
@@ -422,7 +423,7 @@ class LibTorrentManager:
                     state_str = state_str.split(".")[-1]
 
                 prog = float(getattr(st, "progress", 0.0))
-                if prog == 0.0:
+                if math.isclose(prog, 0.0, abs_tol=1e-7):
                     ppm = getattr(st, "progress_ppm", 0)
                     total_wanted = getattr(st, "total_wanted", 0)
                     total_wanted_done = getattr(st, "total_wanted_done", 0)
@@ -587,9 +588,9 @@ def main():
         version_target=args.version_target,
     )
 
-    server = ThreadingHTTPServer((args.bind, args.port), RpcHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), RpcHandler)
     sys.stdout.write(
-        f"libtorrent_daemon listening on {args.bind}:{args.port} (Swarm: {listen_iface})\n"
+        f"libtorrent_daemon listening on 127.0.0.1:{args.port} (Swarm: {listen_iface})\n"
     )
     sys.stdout.flush()
 

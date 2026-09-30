@@ -9,7 +9,15 @@ on:
   repository_dispatch:
     types: [refresh]
 
-permissions: write-all
+permissions:
+  contents: write
+  packages: write
+  actions: write
+  checks: write
+  issues: write
+  pull-requests: write
+  security-events: write
+  statuses: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
