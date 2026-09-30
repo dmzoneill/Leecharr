@@ -304,10 +304,7 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
                 settings.BindInterface = this.configService.NetworkInterfaceBinding;
             }
 
-            if (this.configService.EnableVpnKillSwitch)
-            {
-                settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
-            }
+            settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
         }
 
         return settings;
