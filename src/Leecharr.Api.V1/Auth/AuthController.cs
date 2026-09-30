@@ -708,12 +708,7 @@ public class AuthController : ControllerBase
             }
 
             var safeRedirect = SanitizeRedirectUrl(relayState);
-            if (this.Url != null)
-            {
-                return this.LocalRedirect(safeRedirect);
-            }
-
-            return new LocalRedirectResult(safeRedirect);
+            return this.Redirect(safeRedirect);
         }
         catch (Exception ex)
         {
