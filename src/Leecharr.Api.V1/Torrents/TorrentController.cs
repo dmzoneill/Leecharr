@@ -755,7 +755,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 Path.Combine(b, cleanRelPath),
             };
 
-            if (!string.IsNullOrWhiteSpace(torrent.Name))
+            if (torrent != null && !string.IsNullOrWhiteSpace(torrent.Name))
             {
                 candidates.Add(Path.Combine(b, torrent.Name, cleanRelPath));
             }
