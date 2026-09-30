@@ -199,7 +199,7 @@ public class SystemController : ControllerBase
             Logger.Trace(ex, "Failed to query user profile environment variable");
         }
 
-        var homeRegex = new Regex(@"^(/home/[^/\\]+|/Users/[^/\\]+|[a-zA-Z]:\\Users\\[^/\\]+)", RegexOptions.IgnoreCase);
+        var homeRegex = new Regex(@"^(/home/[^/\\]+|/Users/[^/\\]+|[a-zA-Z]:\\Users\\[^/\\]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
         var match = homeRegex.Match(path);
         if (match.Success)
         {
