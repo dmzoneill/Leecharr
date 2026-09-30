@@ -2,8 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using NLog;
 
 namespace NzbDrone.Core.Torrents;
@@ -119,11 +121,14 @@ public static class TorrentPathValidator
         }
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S6549", Justification = "Symlink resolution during path canonicalization prevents traversal attacks")]
+    [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Symlink resolution during path canonicalization prevents traversal attacks")]
     private static string ResolveSegmentLinkTarget(string currentPath)
     {
+#pragma warning disable S6549
         try
         {
-            // NOSONAR
             if (File.Exists(currentPath))
             {
                 var target = File.ResolveLinkTarget(currentPath, returnFinalTarget: true);
@@ -132,7 +137,6 @@ public static class TorrentPathValidator
                     return Path.GetFullPath(target.FullName);
                 }
             }
-            // NOSONAR
             else if (Directory.Exists(currentPath))
             {
                 var target = Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
@@ -144,7 +148,6 @@ public static class TorrentPathValidator
             else
             {
                 var fileInfo = new FileInfo(currentPath);
-                // NOSONAR
                 if (fileInfo.LinkTarget != null)
                 {
                     var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
@@ -155,7 +158,6 @@ public static class TorrentPathValidator
                 }
 
                 var dirInfo = new DirectoryInfo(currentPath);
-                // NOSONAR
                 if (dirInfo.LinkTarget != null)
                 {
                     var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
@@ -172,6 +174,7 @@ public static class TorrentPathValidator
         }
 
         return currentPath;
+#pragma warning restore S6549
     }
 
     public static bool IsStrictSubPath(string basePath, string targetPath)

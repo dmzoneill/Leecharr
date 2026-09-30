@@ -2,8 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using NLog;
@@ -109,18 +111,19 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             };
 
             var json = JsonSerializer.Serialize(notificationBody);
-            var url = isUpdate
-                ? $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/notification/{existing.Id}"
-                : $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/notification";
-            var method = isUpdate ? HttpMethod.Put : HttpMethod.Post;
+            var path = isUpdate
+                ? $"api/{apiVersion}/notification/{existing.Id}"
+                : $"api/{apiVersion}/notification";
 
-            using var request = new HttpRequestMessage(method, url); // NOSONAR
-            if (!string.IsNullOrWhiteSpace(connection.ApiKey))
+            if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
-                request.Headers.Add("X-Api-Key", connection.ApiKey);
+                this.logger.Warn("Invalid Arr connection URL for {0}: {1}", connection.ArrType, connection.Url);
+                return false;
             }
 
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            var method = isUpdate ? HttpMethod.Put : HttpMethod.Post;
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = CreateArrRequest(method, requestUri, connection.ApiKey, content);
 
             using var response = this.client.Send(request);
             if (response.IsSuccessStatusCode)
@@ -165,13 +168,13 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
                 return true;
             }
 
-            using var request = new HttpRequestMessage(
-                HttpMethod.Delete,
-                $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/notification/{existing.Id}");
-            if (!string.IsNullOrWhiteSpace(connection.ApiKey))
+            var path = $"api/{apiVersion}/notification/{existing.Id}";
+            if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
-                request.Headers.Add("X-Api-Key", connection.ApiKey);
+                return false;
             }
+
+            using var request = CreateArrRequest(HttpMethod.Delete, requestUri, connection.ApiKey);
 
             using var response = this.client.Send(request);
             if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
@@ -244,15 +247,15 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             };
 
             var json = JsonSerializer.Serialize(body);
-            using var request = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/downloadclient"); // NOSONAR
-            if (!string.IsNullOrWhiteSpace(connection.ApiKey))
+            var path = $"api/{apiVersion}/downloadclient";
+            if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
-                request.Headers.Add("X-Api-Key", connection.ApiKey);
+                this.logger.Warn("Invalid Arr connection URL for {0}: {1}", connection.ArrType, connection.Url);
+                return false;
             }
 
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = CreateArrRequest(HttpMethod.Post, requestUri, connection.ApiKey, content);
 
             using var response = this.client.Send(request);
             if (response.IsSuccessStatusCode)
@@ -288,13 +291,13 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
                 return true;
             }
 
-            using var request = new HttpRequestMessage(
-                HttpMethod.Delete,
-                $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/downloadclient/{existingId.Value}");
-            if (!string.IsNullOrWhiteSpace(connection.ApiKey))
+            var path = $"api/{apiVersion}/downloadclient/{existingId.Value}";
+            if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
-                request.Headers.Add("X-Api-Key", connection.ApiKey);
+                return false;
             }
+
+            using var request = CreateArrRequest(HttpMethod.Delete, requestUri, connection.ApiKey);
 
             using var response = this.client.Send(request);
             if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
@@ -317,13 +320,13 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
     {
         try
         {
-            using var request = new HttpRequestMessage(
-                HttpMethod.Get,
-                $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/notification"); // NOSONAR
-            if (!string.IsNullOrWhiteSpace(connection.ApiKey))
+            var path = $"api/{apiVersion}/notification";
+            if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
-                request.Headers.Add("X-Api-Key", connection.ApiKey);
+                return null;
             }
+
+            using var request = CreateArrRequest(HttpMethod.Get, requestUri, connection.ApiKey);
 
             using var response = this.client.Send(request);
             if (!response.IsSuccessStatusCode)
@@ -388,13 +391,13 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
     {
         try
         {
-            using var request = new HttpRequestMessage(
-                HttpMethod.Get,
-                $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/downloadclient"); // NOSONAR
-            if (!string.IsNullOrWhiteSpace(connection.ApiKey))
+            var path = $"api/{apiVersion}/downloadclient";
+            if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
-                request.Headers.Add("X-Api-Key", connection.ApiKey);
+                return null;
             }
+
+            using var request = CreateArrRequest(HttpMethod.Get, requestUri, connection.ApiKey);
 
             using var response = this.client.Send(request);
             if (!response.IsSuccessStatusCode)
@@ -655,5 +658,44 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         }
 
         return true;
+    }
+
+    private static bool TryBuildArrUri(string baseUrl, string relativePath, out Uri uri)
+    {
+        uri = null;
+        if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl.Trim(), UriKind.Absolute, out var parsedBase))
+        {
+            return false;
+        }
+
+        if (parsedBase.Scheme != Uri.UriSchemeHttp && parsedBase.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        var cleanBase = parsedBase.GetLeftPart(UriPartial.Path).TrimEnd('/');
+        var cleanRelative = relativePath.TrimStart('/');
+        return Uri.TryCreate($"{cleanBase}/{cleanRelative}", UriKind.Absolute, out uri);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5144", Justification = "Outbound integration webhook/client registration with validated HTTP/HTTPS URI")]
+    [SuppressMessage("Security", "S5144:Server-Side Request Forgery (SSRF)", Justification = "Outbound integration webhook/client registration with validated HTTP/HTTPS URI")]
+    private static HttpRequestMessage CreateArrRequest(HttpMethod method, Uri uri, string apiKey, HttpContent content = null)
+    {
+#pragma warning disable S5144
+        var request = new HttpRequestMessage(method, uri);
+#pragma warning restore S5144
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            request.Headers.Add("X-Api-Key", apiKey);
+        }
+
+        if (content != null)
+        {
+            request.Content = content;
+        }
+
+        return request;
     }
 }

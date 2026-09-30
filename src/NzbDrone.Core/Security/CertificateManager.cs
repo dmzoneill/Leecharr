@@ -2,10 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -197,15 +199,33 @@ public class CertificateManager : ICertificateManager
                         Timeout = TimeSpan.FromSeconds(2),
                     };
 
-                    var probeHost = bindAddress switch
+                    var probeHost = "127.0.0.1";
+                    if (!string.IsNullOrWhiteSpace(bindAddress))
                     {
-                        null or "" or "*" or "0.0.0.0" => "127.0.0.1",
-                        "::" => "[::1]",
-                        var addr => addr,
-                    };
+                        var trimmedBind = bindAddress.Trim();
+                        if (trimmedBind == "::" || trimmedBind == "::1" || trimmedBind == "[::1]")
+                        {
+                            probeHost = "[::1]";
+                        }
+                        else if (IPAddress.TryParse(trimmedBind, out var parsedIp))
+                        {
+                            if (parsedIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 && !parsedIp.Equals(IPAddress.IPv6Any))
+                            {
+                                probeHost = $"[{parsedIp}]";
+                            }
+                            else if (!parsedIp.Equals(IPAddress.Any) && !parsedIp.Equals(IPAddress.IPv6Any))
+                            {
+                                probeHost = parsedIp.ToString();
+                            }
+                        }
+                        else if (string.Equals(trimmedBind, "localhost", StringComparison.OrdinalIgnoreCase))
+                        {
+                            probeHost = "127.0.0.1";
+                        }
+                    }
 
-                    var testUrl = $"https://{probeHost}:{sslPort}/";
-                    using var response = await httpClient.GetAsync(testUrl); // NOSONAR
+                    var testUri = new Uri($"https://{probeHost}:{sslPort}/", UriKind.Absolute);
+                    using var response = await SendTlsProbeAsync(httpClient, testUri);
                     result.HandshakeSucceeded = true;
                     result.Message = $"Certificate is valid and active on HTTPS port {sslPort} (TLS handshake succeeded).";
                 }
@@ -223,6 +243,16 @@ public class CertificateManager : ICertificateManager
         }
 
         return result;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5144", Justification = "Local TLS listener handshake verification probe")]
+    [SuppressMessage("Security", "S5144:Server-Side Request Forgery (SSRF)", Justification = "Local TLS listener handshake verification probe")]
+    private static async Task<HttpResponseMessage> SendTlsProbeAsync(HttpClient httpClient, Uri uri)
+    {
+#pragma warning disable S5144
+        return await httpClient.GetAsync(uri);
+#pragma warning restore S5144
     }
 
     private static string ValidateCertificatePath(string path)

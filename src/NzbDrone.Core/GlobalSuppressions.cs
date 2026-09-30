@@ -15,6 +15,7 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("csharpsquid", "S6966", Justification = "Asynchronous methods are awaited where thread scheduling allows.")]
 [assembly: SuppressMessage("csharpsquid", "S5332", Justification = "Localhost, internal loopback, and documentation URLs.")]
 [assembly: SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5144", Justification = "Outbound integration tests and webhooks to user-configured Arr and indexer instances.")]
+[assembly: SuppressMessage("Security", "S5144", Justification = "Outbound integration tests and webhooks to user-configured Arr and indexer instances.")]
 [assembly: SuppressMessage("roslyn.sonaranalyzer.security.cs", "S6776", Justification = "Authorized developer diagnostics endpoints return thread traces by design.")]
 [assembly: SuppressMessage("Security", "S1313", Justification = "Sample/fallback IP addresses in test runners and diagnostic network discovery.")]
 [assembly: SuppressMessage("roslyn.sonaranalyzer.security.cs", "S3649", Justification = "Admin database query console")]
