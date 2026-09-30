@@ -477,14 +477,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                             info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
                             info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase))
                         {
-                            if (Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+                            if (Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
                             {
                                 ApplyAudioCodec(info, "Dolby Atmos", null, 48);
                             }
                         }
                         else if (info.AudioCodec.Equals("Dolby TrueHD", StringComparison.OrdinalIgnoreCase))
                         {
-                            if (Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase))
+                            if (Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
                             {
                                 info.AudioCodec = "Dolby TrueHD / Atmos";
                             }
@@ -986,7 +986,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)))
         {
             var headerText = Encoding.UTF8.GetString(header);
-            if (Regex.IsMatch(headerText, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+            if (Regex.IsMatch(headerText, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
             {
                 ApplyAudioCodec(info, "Dolby Atmos", null, 48);
             }
@@ -995,8 +995,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 string.Equals(info.AudioCodec, "Dolby TrueHD", StringComparison.OrdinalIgnoreCase))
         {
             var headerText = Encoding.UTF8.GetString(header);
-            if (Regex.IsMatch(headerText, @"\bATMOS\b", RegexOptions.IgnoreCase) ||
-                (!string.IsNullOrEmpty(fileName) && Regex.IsMatch(fileName, @"\bATMOS\b", RegexOptions.IgnoreCase)))
+            if (Regex.IsMatch(headerText, @"\bATMOS\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)) ||
+                (!string.IsNullOrEmpty(fileName) && Regex.IsMatch(fileName, @"\bATMOS\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2))))
             {
                 info.AudioCodec = "Dolby TrueHD / Atmos";
             }
@@ -1189,7 +1189,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         if (span.IndexOf("A_TRUEHD"u8) >= 0)
         {
             var headerText = Encoding.UTF8.GetString(span);
-            var isAtmos = Regex.IsMatch(headerText, @"\bATMOS\b", RegexOptions.IgnoreCase);
+            var isAtmos = Regex.IsMatch(headerText, @"\bATMOS\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             ApplyAudioCodec(info, isAtmos ? "Dolby TrueHD / Atmos" : "Dolby TrueHD", null, 50);
         }
         else if (span.IndexOf("A_EAC3/JOC"u8) >= 0 || span.IndexOf("A_EAC3-JOC"u8) >= 0)
@@ -1203,7 +1203,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         else if (span.IndexOf("A_EAC3"u8) >= 0)
         {
             var headerText = Encoding.UTF8.GetString(span);
-            if (Regex.IsMatch(headerText, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+            if (Regex.IsMatch(headerText, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
             {
                 ApplyAudioCodec(info, "Dolby Atmos", null, 48);
             }
@@ -1687,7 +1687,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         else if (codecId.StartsWith("A_TRUEHD", StringComparison.OrdinalIgnoreCase) ||
                 codecId.StartsWith("A_MLP", StringComparison.OrdinalIgnoreCase))
         {
-            var isAtmos = !string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase);
+            var isAtmos = !string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             return ApplyAudioCodec(info, isAtmos ? "Dolby TrueHD / Atmos" : "Dolby TrueHD", null, 50);
         }
         else if (codecId.StartsWith("A_DTS/X", StringComparison.OrdinalIgnoreCase))
@@ -1709,7 +1709,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 codecId.StartsWith("A_EAC-3", StringComparison.OrdinalIgnoreCase) ||
                 codecId.StartsWith("A_DDP", StringComparison.OrdinalIgnoreCase))
         {
-            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
             {
                 return ApplyAudioCodec(info, "Dolby Atmos", null, 48);
             }
