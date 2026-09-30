@@ -527,30 +527,35 @@ public class SabnzbdApiController : ControllerBase
         string formPriority)
     {
         var localPath = !string.IsNullOrWhiteSpace(name) ? name : formName;
-        var safePath = !string.IsNullOrWhiteSpace(localPath) ? new string(localPath.ToCharArray()) : null;
 
-        // NOSONAR
-        if (safePath != null && global::System.IO.File.Exists(safePath))
+        if (!string.IsNullOrWhiteSpace(localPath))
         {
-            var bytes = await global::System.IO.File.ReadAllBytesAsync(safePath);
-            var parsed = this.torrentFileParser.Parse(bytes);
-            var added = await this.torrentService.AddFromParsedTorrentAsync(
-                parsed,
-                !string.IsNullOrWhiteSpace(cat) ? cat : formCat,
-                null,
-                false,
-                bytes);
-
-            if (added != null)
+            try
             {
-                await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+                var bytes = await global::System.IO.File.ReadAllBytesAsync(localPath);
+                var parsed = this.torrentFileParser.Parse(bytes);
+                var added = await this.torrentService.AddFromParsedTorrentAsync(
+                    parsed,
+                    !string.IsNullOrWhiteSpace(cat) ? cat : formCat,
+                    null,
+                    false,
+                    bytes);
+
+                if (added != null)
+                {
+                    await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+                }
+
+                return this.Ok(new
+                {
+                    status = true,
+                    nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") },
+                });
             }
-
-            return this.Ok(new
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
             {
-                status = true,
-                nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") },
-            });
+                // Not a readable local file path
+            }
         }
 
         if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
