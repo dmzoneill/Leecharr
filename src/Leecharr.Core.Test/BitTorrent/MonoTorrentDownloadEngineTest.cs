@@ -6627,9 +6627,9 @@ public class MonoTorrentDownloadEngineTest
     [TestCase("")]
     [TestCase("   ")]
     [TestCase(", , ; ")]
-    public void ParseBootstrapNodeEndpoints_WithNullOrWhitespace_ReturnsEmptyList(string? input)
+    public void ParseBootstrapNodeEndpoints_WithNullOrWhitespace_ReturnsEmptyList(string input)
     {
-        var result = MonoTorrentDownloadEngine.ParseBootstrapNodeEndpoints(input!);
+        var result = MonoTorrentDownloadEngine.ParseBootstrapNodeEndpoints(input);
         result.Should().BeEmpty();
     }
 
