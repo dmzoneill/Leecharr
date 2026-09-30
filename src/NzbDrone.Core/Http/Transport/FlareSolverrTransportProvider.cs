@@ -146,7 +146,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
 
         try
         {
-            var sanitizedDomain = Regex.Replace(domain, @"[^a-zA-Z0-9_-]", "_");
+            var sanitizedDomain = Regex.Replace(domain, @"[^a-zA-Z0-9_-]", "_", RegexOptions.None, TimeSpan.FromSeconds(2));
             var sessionId = $"leecharr_{sanitizedDomain}_{Guid.NewGuid():N}";
             if (sessionId.Length > 32)
             {

@@ -210,8 +210,8 @@ public class ConfigFileProvider : IConfigFileProvider
             return input;
         }
 
-        var result = System.Text.RegularExpressions.Regex.Replace(input, @"([a-z0-9])([A-Z])", "$1_$2");
-        result = System.Text.RegularExpressions.Regex.Replace(result, @"([A-Z]+)([A-Z][a-z])", "$1_$2");
+        var result = System.Text.RegularExpressions.Regex.Replace(input, @"([a-z0-9])([A-Z])", "$1_$2", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(2));
+        result = System.Text.RegularExpressions.Regex.Replace(result, @"([A-Z]+)([A-Z][a-z])", "$1_$2", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(2));
         return result.ToUpperInvariant();
     }
 
