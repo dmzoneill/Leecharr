@@ -446,4 +446,40 @@ public class MigrationTest
         var count = Convert.ToInt32(command.ExecuteScalar());
         count.Should().Be(5);
     }
+
+    [Test]
+    public void Migration039_AddsThresholdAndSmallTorrentLimitColumnsToTorrents()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp();
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(Torrents);";
+        using var reader = command.ExecuteReader();
+        var columns = new List<string>();
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        columns.Should().Contain("Threshold");
+        columns.Should().Contain("SmallTorrentLimit");
+    }
 }
