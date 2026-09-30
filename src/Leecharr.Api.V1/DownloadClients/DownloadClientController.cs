@@ -297,7 +297,7 @@ public class DownloadClientController : Controller
         List<DownloadClientDefinition> clients;
         if (id <= 0)
         {
-            clients = this.repository.All().Where(c => c.Enabled).ToList();
+            clients = this.repository.All().Where(c => c.Enable).ToList();
             if (clients.Count == 0)
             {
                 return this.NotFound();
@@ -446,7 +446,7 @@ public class DownloadClientController : Controller
             return this.repository.Get(id);
         }
 
-        var clients = this.repository.All().Where(c => c.Enabled).ToList();
+        var clients = this.repository.All().Where(c => c.Enable).ToList();
         var http = this.GetHttpClient();
         foreach (var client in clients)
         {
