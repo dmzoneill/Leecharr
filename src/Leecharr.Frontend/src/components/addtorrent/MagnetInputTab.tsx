@@ -39,8 +39,16 @@ export function parseMagnetPreview(uri: string): MagnetInfo | null {
     }
     const name = params.get("dn") || undefined;
     const trackers = params.getAll("tr");
+    let decodedName = name ? name.replace(/\+/g, " ") : undefined;
+    if (decodedName && decodedName.includes("%")) {
+      try {
+        decodedName = decodeURIComponent(decodedName);
+      } catch {
+        // Keep decodedName as-is if malformed percent sequence
+      }
+    }
     return {
-      name: name ? decodeURIComponent(name.replace(/\+/g, " ")) : undefined,
+      name: decodedName,
       hash: hash || undefined,
       trackerCount: trackers.length,
     };
