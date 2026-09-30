@@ -142,14 +142,30 @@ export function ColumnCustomizerModal({
     <div
       ref={modalRef}
       className="modal-overlay column-customizer-overlay"
+      role="button"
+      tabIndex={0}
       onClick={handleBackdropClick}
-      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+            onClose();
+          }
+        }
+      }}
       aria-modal="true"
       aria-labelledby="column-customizer-title"
     >
       <div
         className="modal column-customizer-modal"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{ maxWidth: "680px", width: "95%" }}
       >
         <div className="column-customizer-header">
