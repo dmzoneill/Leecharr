@@ -38,9 +38,13 @@ describe("GettingStartedModal (#1019)", () => {
       writable: true,
       configurable: true,
     });
+    (globalThis as unknown as { window: unknown }).window = {
+      localStorage: mockStorage,
+    };
   });
 
   afterEach(() => {
+    delete (globalThis as unknown as { window?: unknown }).window;
     Object.defineProperty(globalThis, "localStorage", {
       value: originalLocalStorage,
       writable: true,

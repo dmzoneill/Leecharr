@@ -153,15 +153,23 @@ describe("TorrentContextMenu (#1008)", () => {
 
   describe("copyToClipboard safe fallback", () => {
     it("does not throw when navigator.clipboard is undefined (HTTP LAN context)", async () => {
-      const originalNavigator = globalThis.navigator;
+      const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
       try {
         // Simulate non-secure HTTP context where navigator.clipboard is undefined
-        (globalThis as unknown as { navigator: unknown }).navigator = {};
+        Object.defineProperty(globalThis, "navigator", {
+          value: {},
+          configurable: true,
+          writable: true,
+        });
         // Should safely return without throwing unhandled TypeError
         const result = await copyToClipboard("test-content");
         assert.strictEqual(typeof result, "boolean");
       } finally {
-        globalThis.navigator = originalNavigator;
+        if (originalDescriptor) {
+          Object.defineProperty(globalThis, "navigator", originalDescriptor);
+        } else {
+          delete (globalThis as unknown as { navigator?: unknown }).navigator;
+        }
       }
     });
   });

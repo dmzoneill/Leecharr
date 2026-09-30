@@ -1,4 +1,4 @@
-.PHONY: setup test-setup test integration build clean restore frontend \
+.PHONY: setup test-setup test test-frontend integration build clean restore frontend \
        stack-init stack-build stack-up stack-down stack-configure stack-healthy stack-rebuild stack-clean \
        test-unit test-integration test-all publish coverage-report lint format \
        quality-report container-build container-build-test \
@@ -64,6 +64,10 @@ test:
 		--logger "trx;LogFileName=test-results.trx" \
 		--logger "console;verbosity=normal" \
 		--collect:"XPlat Code Coverage"
+	@if [ -f $(FRONTEND)/package.json ] && command -v npm > /dev/null 2>&1; then cd $(FRONTEND) && npm test; fi
+
+test-frontend:
+	@if [ -f $(FRONTEND)/package.json ] && command -v npm > /dev/null 2>&1; then cd $(FRONTEND) && npm test; fi
 
 test-unit: test
 
