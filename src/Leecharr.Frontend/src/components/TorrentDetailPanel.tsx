@@ -19,6 +19,7 @@ import {
 } from "./icons/UIIcons";
 import { PeerMapIcon } from "./icons/AppIcons";
 import { usePanelHeight } from "./torrentdetailpanel/shared";
+import { useToast } from "../context/ToastContext";
 import { StatusTab } from "./torrentdetailpanel/StatusTab";
 import { DetailsTab } from "./torrentdetailpanel/DetailsTab";
 import { FilesTab } from "./torrentdetailpanel/FilesTab";
@@ -185,6 +186,9 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   const stopSeeding = useStopSeeding();
   const recheckTorrent = useRecheckTorrent();
   const announceTorrent = useAnnounceTorrent();
+  const { showToast } = useToast();
+  const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
   const [tab, setTab] = useState<DetailTab>("status");
   const { height, panelRef, onMouseDown } = usePanelHeight();
@@ -219,13 +223,77 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
     );
   }
 
-  const st = (
+  const status = (
     useTorrentStore.getState().telemetry[currentTorrent.id]?.status ??
     currentTorrent.status ??
     ""
   ).toLowerCase();
-  const isActive =
-    st === "downloading" || st === "seeding" || st === "checking";
+  const isInactive =
+    status === "paused" ||
+    status === "stopped" ||
+    status === "idle" ||
+    status === "error" ||
+    status === "queued" ||
+    status === "stalled" ||
+    !["downloading", "seeding", "checking"].includes(status);
+
+  const startPending = startSeeding.isPending || isStarting;
+  const stopPending = stopSeeding.isPending || isStopping;
+  const isStartStopPending = startPending || stopPending;
+
+  const handleStart = async () => {
+    if (onResume) {
+      setIsStarting(true);
+      try {
+        await Promise.resolve(onResume(currentTorrent.id));
+      } catch (err: any) {
+        showToast(err?.message || "Failed to start torrent", "error");
+      } finally {
+        setIsStarting(false);
+      }
+    } else {
+      startSeeding.mutate(currentTorrent.id, {
+        onSuccess: () => showToast("Torrent resumed", "success"),
+        onError: (err: any) =>
+          showToast(err?.message || "Failed to start torrent", "error"),
+      });
+    }
+  };
+
+  const handleStop = async () => {
+    if (onPause) {
+      setIsStopping(true);
+      try {
+        await Promise.resolve(onPause(currentTorrent.id));
+      } catch (err: any) {
+        showToast(err?.message || "Failed to pause torrent", "error");
+      } finally {
+        setIsStopping(false);
+      }
+    } else {
+      stopSeeding.mutate(currentTorrent.id, {
+        onSuccess: () => showToast("Torrent paused", "info"),
+        onError: (err: any) =>
+          showToast(err?.message || "Failed to pause torrent", "error"),
+      });
+    }
+  };
+
+  const handleRecheck = () => {
+    recheckTorrent.mutate(currentTorrent.id, {
+      onSuccess: () => showToast("Piece recheck initiated", "success"),
+      onError: (err: any) =>
+        showToast(err?.message || "Failed to initiate recheck", "error"),
+    });
+  };
+
+  const handleAnnounce = () => {
+    announceTorrent.mutate(currentTorrent.id, {
+      onSuccess: () => showToast("Tracker announce sent", "success"),
+      onError: (err: any) =>
+        showToast(err?.message || "Failed to announce to trackers", "error"),
+    });
+  };
 
   return (
     <div className="detail-panel" ref={panelRef} style={{ height }}>
@@ -295,52 +363,84 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
         </div>
 
         <div className="detail-panel-actions">
-          {!isActive ? (
+          {isInactive ? (
             <button
               type="button"
               className="btn btn-small btn-success"
-              onClick={() => {
-                if (onResume) {
-                  onResume(currentTorrent.id);
-                } else {
-                  startSeeding.mutate(currentTorrent.id);
-                }
-              }}
+              disabled={isStartStopPending}
+              onClick={handleStart}
             >
-              {t("torrents.actions.start")}
+              {startPending ? (
+                <>
+                  <i
+                    className="fas fa-spinner fa-spin"
+                    style={{ marginRight: "4px" }}
+                  />
+                  Starting...
+                </>
+              ) : (
+                t("torrents.actions.start")
+              )}
             </button>
           ) : (
             <button
               type="button"
               className="btn btn-small btn-danger"
-              onClick={() => {
-                if (onPause) {
-                  onPause(currentTorrent.id);
-                } else {
-                  stopSeeding.mutate(currentTorrent.id);
-                }
-              }}
+              disabled={isStartStopPending}
+              onClick={handleStop}
             >
-              {t("torrents.actions.stop")}
+              {stopPending ? (
+                <>
+                  <i
+                    className="fas fa-spinner fa-spin"
+                    style={{ marginRight: "4px" }}
+                  />
+                  Stopping...
+                </>
+              ) : (
+                t("torrents.actions.stop")
+              )}
             </button>
           )}
 
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => recheckTorrent.mutate(currentTorrent.id)}
+            disabled={recheckTorrent.isPending}
+            onClick={handleRecheck}
             title={t("torrents.actions.recheck")}
           >
-            {t("torrents.actions.recheck")}
+            {recheckTorrent.isPending ? (
+              <>
+                <i
+                  className="fas fa-spinner fa-spin"
+                  style={{ marginRight: "4px" }}
+                />
+                Checking...
+              </>
+            ) : (
+              t("torrents.actions.recheck")
+            )}
           </button>
 
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => announceTorrent.mutate(currentTorrent.id)}
+            disabled={announceTorrent.isPending}
+            onClick={handleAnnounce}
             title={t("torrents.actions.announce")}
           >
-            {t("torrents.actions.announce")}
+            {announceTorrent.isPending ? (
+              <>
+                <i
+                  className="fas fa-spinner fa-spin"
+                  style={{ marginRight: "4px" }}
+                />
+                Announcing...
+              </>
+            ) : (
+              t("torrents.actions.announce")
+            )}
           </button>
 
           {onDelete && (
