@@ -183,6 +183,14 @@ public class AddTorrentJsonRequest
     public bool? SequentialDownload { get; set; }
 
     public bool? FirstLastPiecePriority { get; set; }
+
+    public List<int> Tags { get; set; }
+
+    public List<int> TagIds { get; set; }
+
+    public int? DownloadLimit { get; set; }
+
+    public int? UploadLimit { get; set; }
 }
 
 [V1ApiController("torrents")]
@@ -1304,11 +1312,17 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         var magnet = !string.IsNullOrWhiteSpace(request.MagnetLink) ? request.MagnetLink : request.MagnetUrl;
         var isPaused = request.Paused || request.StartPaused;
+        var effectiveTags = (request.Tags != null && request.Tags.Count > 0) ? request.Tags : request.TagIds;
+        var hasCustomOptions = request.SequentialDownload.HasValue ||
+                               request.FirstLastPiecePriority.HasValue ||
+                               (effectiveTags != null && effectiveTags.Count > 0) ||
+                               request.DownloadLimit.HasValue ||
+                               request.UploadLimit.HasValue;
 
         if (!string.IsNullOrWhiteSpace(magnet))
         {
-            var torrent = (request.SequentialDownload.HasValue || request.FirstLastPiecePriority.HasValue)
-                ? await this.torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused, request.SequentialDownload, request.FirstLastPiecePriority)
+            var torrent = hasCustomOptions
+                ? await this.torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused, request.SequentialDownload, request.FirstLastPiecePriority, effectiveTags, request.DownloadLimit, request.UploadLimit)
                 : await this.torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused);
             if (torrent == null)
             {
@@ -1324,8 +1338,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
             var bytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl, maxSizeBytes: maxTorrentBytes);
             var parsed = this.torrentFileParser.Parse(bytes);
-            var torrent = (request.SequentialDownload.HasValue || request.FirstLastPiecePriority.HasValue)
-                ? await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes, request.SequentialDownload, request.FirstLastPiecePriority)
+            var torrent = hasCustomOptions
+                ? await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes, request.SequentialDownload, request.FirstLastPiecePriority, effectiveTags, request.DownloadLimit, request.UploadLimit)
                 : await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes);
             if (torrent == null)
             {
@@ -1350,9 +1364,31 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         [FromForm(Name = "isPaused")] bool isPaused = false,
         [FromForm(Name = "startPaused")] bool startPaused = false,
         [FromForm(Name = "sequentialDownload")] bool? sequentialDownload = null,
-        [FromForm(Name = "firstLastPiecePriority")] bool? firstLastPiecePriority = null)
+        [FromForm(Name = "firstLastPiecePriority")] bool? firstLastPiecePriority = null,
+        [FromForm(Name = "tags")] List<int> tags = null,
+        [FromForm(Name = "tagIds")] List<int> tagIds = null,
+        [FromForm(Name = "downloadLimit")] int? downloadLimit = null,
+        [FromForm(Name = "uploadLimit")] int? uploadLimit = null)
     {
         var isPausedFlag = paused || isPaused || startPaused;
+
+        var seqOpt = sequentialDownload;
+        if (!seqOpt.HasValue && this.Request?.HasFormContentType == true && bool.TryParse(this.Request.Form["sequentialDownload"], out var sVal))
+        {
+            seqOpt = sVal;
+        }
+
+        var flpOpt = firstLastPiecePriority;
+        if (!flpOpt.HasValue && this.Request?.HasFormContentType == true && bool.TryParse(this.Request.Form["firstLastPiecePriority"], out var flpVal))
+        {
+            flpOpt = flpVal;
+        }
+
+        var tagsOpt = this.ResolveTagsFromForm(tags, tagIds);
+        var dlOpt = this.ResolveLimitFromForm(downloadLimit, "downloadLimit", "dlLimit");
+        var ulOpt = this.ResolveLimitFromForm(uploadLimit, "uploadLimit", "upLimit");
+        var hasCustomOptions = seqOpt.HasValue || flpOpt.HasValue || tagsOpt.Count > 0 || dlOpt.HasValue || ulOpt.HasValue;
+        var effectiveTags = tagsOpt.Count > 0 ? tagsOpt : null;
 
         if (file != null && file.Length > 0)
         {
@@ -1367,8 +1403,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var bytes = ms.ToArray();
             var parsed = this.torrentFileParser.Parse(bytes);
 
-            var torrent = (sequentialDownload.HasValue || firstLastPiecePriority.HasValue)
-                ? await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPausedFlag, bytes, sequentialDownload, firstLastPiecePriority)
+            var torrent = hasCustomOptions
+                ? await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPausedFlag, bytes, seqOpt, flpOpt, effectiveTags, dlOpt, ulOpt)
                 : await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPausedFlag, bytes);
             if (torrent == null)
             {
@@ -1381,8 +1417,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (!string.IsNullOrWhiteSpace(magnetUrl))
         {
-            var torrent = (sequentialDownload.HasValue || firstLastPiecePriority.HasValue)
-                ? await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPausedFlag, sequentialDownload, firstLastPiecePriority)
+            var torrent = hasCustomOptions
+                ? await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPausedFlag, seqOpt, flpOpt, effectiveTags, dlOpt, ulOpt)
                 : await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPausedFlag);
             if (torrent == null)
             {
@@ -1407,7 +1443,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         [FromForm(Name = "isPaused")] bool? isPaused = null,
         [FromForm(Name = "startPaused")] bool? startPaused = null,
         [FromForm(Name = "sequentialDownload")] bool? sequentialDownload = null,
-        [FromForm(Name = "firstLastPiecePriority")] bool? firstLastPiecePriority = null)
+        [FromForm(Name = "firstLastPiecePriority")] bool? firstLastPiecePriority = null,
+        [FromForm(Name = "tags")] List<int> tags = null,
+        [FromForm(Name = "tagIds")] List<int> tagIds = null,
+        [FromForm(Name = "downloadLimit")] int? downloadLimit = null,
+        [FromForm(Name = "uploadLimit")] int? uploadLimit = null)
     {
         var formFiles = new List<IFormFile>();
         if (files != null && files.Count > 0)
@@ -1490,8 +1530,13 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                     flpOpt = flpVal;
                 }
 
-                var torrent = (seqOpt.HasValue || flpOpt.HasValue)
-                    ? await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, pausedFlag, bytes, seqOpt, flpOpt)
+                var tagsOpt = this.ResolveTagsFromForm(tags, tagIds);
+                var dlOpt = this.ResolveLimitFromForm(downloadLimit, "downloadLimit", "dlLimit");
+                var ulOpt = this.ResolveLimitFromForm(uploadLimit, "uploadLimit", "upLimit");
+
+                var hasCustomOptions = seqOpt.HasValue || flpOpt.HasValue || tagsOpt.Count > 0 || dlOpt.HasValue || ulOpt.HasValue;
+                var torrent = hasCustomOptions
+                    ? await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, pausedFlag, bytes, seqOpt, flpOpt, tagsOpt.Count > 0 ? tagsOpt : null, dlOpt, ulOpt)
                     : await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, pausedFlag, bytes);
                 if (torrent == null)
                 {
@@ -1510,6 +1555,68 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         return this.Ok(new TorrentUploadResult(added, failed));
+    }
+
+    private List<int> ResolveTagsFromForm(List<int> tags, List<int> tagIds)
+    {
+        var result = new List<int>();
+        if (tags != null && tags.Count > 0)
+        {
+            result.AddRange(tags);
+        }
+
+        if (tagIds != null && tagIds.Count > 0)
+        {
+            result.AddRange(tagIds);
+        }
+
+        if (this.Request?.HasFormContentType == true)
+        {
+            foreach (var key in new[] { "tags", "tags[]", "tagIds", "tagIds[]" })
+            {
+                if (this.Request.Form.ContainsKey(key))
+                {
+                    foreach (var val in this.Request.Form[key])
+                    {
+                        if (string.IsNullOrWhiteSpace(val))
+                        {
+                            continue;
+                        }
+
+                        foreach (var part in val.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            if (int.TryParse(part.Trim(), out var parsedId))
+                            {
+                                result.Add(parsedId);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return result.Distinct().ToList();
+    }
+
+    private int? ResolveLimitFromForm(int? limit, params string[] formKeys)
+    {
+        if (limit.HasValue)
+        {
+            return limit.Value;
+        }
+
+        if (this.Request?.HasFormContentType == true)
+        {
+            foreach (var key in formKeys)
+            {
+                if (this.Request.Form.ContainsKey(key) && int.TryParse(this.Request.Form[key], out var parsedVal))
+                {
+                    return parsedVal;
+                }
+            }
+        }
+
+        return null;
     }
 
     [HttpPost("grab")]
