@@ -91,9 +91,15 @@ export const EVENT_INVALIDATION_MAP: Record<string, string[][]> = {
   ],
   AutomationExecuted: [["automation", "scripts"], ["automation"]],
   AutomationTriggerEvaluated: [["automation", "scripts"], ["automation"]],
-  TrackerUpdated: [["trackerboost"]],
-  TrackerAnnounced: [["trackerboost"]],
-  TrackerAnnounceEvent: [["trackerboost"]],
+  TrackerUpdated: [["torrents"], ["trackerboost"]],
+  TrackerAnnounced: [["torrents"], ["trackerboost"]],
+  TrackerAnnounceEvent: [["torrents"], ["trackerboost"]],
+  speedscheduleAdded: [["speedschedule"], ["speedschedule", "active"]],
+  speedscheduleUpdated: [["speedschedule"], ["speedschedule", "active"]],
+  speedscheduleDeleted: [["speedschedule"], ["speedschedule", "active"]],
+  SpeedScheduleAdded: [["speedschedule"], ["speedschedule", "active"]],
+  SpeedScheduleUpdated: [["speedschedule"], ["speedschedule", "active"]],
+  SpeedScheduleDeleted: [["speedschedule"], ["speedschedule", "active"]],
   subsystemSwitched: [["subsystems"], ["torrentengine"]],
 };
 
@@ -122,16 +128,24 @@ export const RECONNECT_QUERY_KEYS: string[][] = [
 export function isHandledByNamedEvent(name?: string): boolean {
   if (!name) return false;
   const lower = name.toLowerCase();
-  return (
+  if (
     lower.includes("torrent") ||
-    lower.includes("seeding") ||
     lower.includes("health") ||
     lower.includes("command") ||
     lower.includes("system") ||
     lower.includes("task") ||
     lower.includes("automation") ||
-    lower.includes("speed") ||
-    lower.includes("tracker")
+    lower === "speedpulse" ||
+    lower === "speed_update" ||
+    lower === "speedupdate" ||
+    lower === "statesnapshot" ||
+    lower === "piecemapupdated" ||
+    lower === "piece_map_updated"
+  ) {
+    return true;
+  }
+  return Object.keys(EVENT_INVALIDATION_MAP).some(
+    (key) => key.toLowerCase() === lower
   );
 }
 
@@ -231,11 +245,6 @@ export default function SignalRProvider({
         return;
       }
 
-      // Eliminate duplicate invalidations for events already handled by named event listeners
-      if (isHandledByNamedEvent(name)) {
-        return;
-      }
-
       if (name.includes("tracker")) {
         queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
         queryClient.invalidateQueries({ queryKey: ["torrents"] });
@@ -262,6 +271,11 @@ export default function SignalRProvider({
         queryClient.invalidateQueries({
           queryKey: ["speedschedule", "active"],
         });
+      }
+
+      // Eliminate duplicate invalidations for events already handled by named event listeners
+      if (isHandledByNamedEvent(name)) {
+        return;
       }
     };
 
