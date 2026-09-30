@@ -335,7 +335,7 @@ export function NumberInput({
         onChange(
           step && step < 1
             ? parseFloat(e.target.value) || 0
-            : parseInt(e.target.value, 10) || 0,
+            : Number.parseInt(e.target.value, 10) || 0,
         )
       }
       min={min}

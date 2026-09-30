@@ -78,7 +78,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   }, [torrent, dirty]);
 
   const handleSave = () => {
-    const prioVal = parseInt(priority, 10);
+    const prioVal = Number.parseInt(priority, 10);
     trackTorrentOptionsSave({
       super_seeding: initialSeeding,
       force_start: forceStart,
@@ -123,7 +123,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const numChange =
     (setter: (v: number) => void) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const parsed = parseInt(e.target.value, 10);
+      const parsed = Number.parseInt(e.target.value, 10);
       mark(setter)(isNaN(parsed) ? 0 : Math.max(0, parsed));
     };
   const floatChange =

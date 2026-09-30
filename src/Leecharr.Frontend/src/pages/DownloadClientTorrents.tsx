@@ -26,7 +26,7 @@ function getProgressPercent(progress: number | undefined | null): number {
 export default function DownloadClientTorrents() {
   const { id } = useParams<{ id: string }>();
   const isAll = id === "all";
-  const clientId = isAll ? 0 : parseInt(id || "0", 10);
+  const clientId = isAll ? 0 : Number.parseInt(id || "0", 10);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
