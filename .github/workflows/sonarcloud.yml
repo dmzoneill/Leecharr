@@ -89,7 +89,7 @@ jobs:
             --collect:"XPlat Code Coverage;Format=opencover"
 
       - name: End SonarCloud Scanner
-        if: steps.check_token.outputs.has_token == 'true'
+        if: always() && steps.check_token.outputs.has_token == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
