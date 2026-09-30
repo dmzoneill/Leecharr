@@ -56,7 +56,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
         this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
 
-        this.flushTask = Task.Run(this.ProcessSnapshotQueueAsync);
+        this.flushTask = Task.Run(this.ProcessSnapshotQueueAsync, this.cts?.Token ?? CancellationToken.None);
         this.pruneTimer = new Timer(
             _ =>
             {
@@ -73,7 +73,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
             TimeSpan.FromMinutes(15),
             TimeSpan.FromHours(24));
 
-        Task.Run(this.SeedFromExistingTrackers);
+        Task.Run(this.SeedFromExistingTrackers, this.cts?.Token ?? CancellationToken.None);
     }
 
     public void SeedFromExistingTrackers()
@@ -790,10 +790,10 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while ((this.snapshotChannel.Reader.Count > 0 || this.isProcessingBatch) && DateTime.UtcNow < deadline)
         {
-            await Task.Delay(5).ConfigureAwait(false);
+            await Task.Delay(5, this.cts?.Token ?? CancellationToken.None).ConfigureAwait(false);
         }
 
-        await this.flushLock.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        await this.flushLock.WaitAsync(TimeSpan.FromSeconds(5), this.cts?.Token ?? CancellationToken.None).ConfigureAwait(false);
         this.flushLock.Release();
     }
 
