@@ -143,4 +143,39 @@ public class ClientEmulationPresetsTest
             }
         }
     }
+
+    [Test]
+    public void ConfigureGlobalMonoTorrentDefaults_AnonymousMode_SetsEmptyVersionsAndIdentifiers()
+    {
+        MonoTorrentDownloadEngine.ConfigureGlobalMonoTorrentDefaults("-qB4650-", "qBittorrent/4.6.5", anonymousMode: true);
+
+        var monoTorrentAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => a.GetName().Name?.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase) == true)
+            .ToList();
+
+        foreach (var asm in monoTorrentAssemblies)
+        {
+            var gitInfoType = asm.GetType("MonoTorrent.GitInfoHelper");
+            if (gitInfoType != null)
+            {
+                var clientVer = gitInfoType.GetProperty("ClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+                var dhtVer = gitInfoType.GetProperty("DhtClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+                var clientIdentifier = gitInfoType.GetProperty("ClientIdentifier", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+
+                clientVer.Should().BeEmpty();
+                dhtVer.Should().BeEmpty();
+                clientIdentifier.Should().BeEmpty();
+            }
+
+            var dhtMsgType = asm.GetType("MonoTorrent.Dht.Messages.DhtMessage");
+            if (dhtMsgType != null)
+            {
+                var dhtVersionField = dhtMsgType.GetField("DhtVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                    ?? dhtMsgType.GetField("<DhtVersion>k__BackingField", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                var dhtVersionVal = dhtVersionField?.GetValue(null)?.ToString();
+
+                dhtVersionVal.Should().BeEmpty();
+            }
+        }
+    }
 }

@@ -110,6 +110,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private bool lastAppliedAnonymousMode;
     private string lastAppliedDhtBootstrapNodes = string.Empty;
     private string lastAppliedPiecePickerStrategy = string.Empty;
+    private string lastAppliedPeerIdPrefix = string.Empty;
+    private string lastAppliedUserAgent = string.Empty;
 
     internal string LastAppliedInterfaceBinding => this.lastAppliedInterfaceBinding;
 
@@ -130,6 +132,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     internal string LastAppliedDhtBootstrapNodes => this.lastAppliedDhtBootstrapNodes;
 
     internal string LastAppliedPiecePickerStrategy => this.lastAppliedPiecePickerStrategy;
+
+    internal string LastAppliedPeerIdPrefix => this.lastAppliedPeerIdPrefix;
+
+    internal string LastAppliedUserAgent => this.lastAppliedUserAgent;
 
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
@@ -296,6 +302,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastAppliedAnonymousMode = this.configService?.AnonymousMode ?? false;
         this.lastAppliedDhtBootstrapNodes = this.configService?.DhtBootstrapNodes ?? string.Empty;
         this.lastAppliedPiecePickerStrategy = this.configService?.PiecePickerStrategy ?? string.Empty;
+        this.lastAppliedPeerIdPrefix = this.configService?.PeerIdPrefix ?? string.Empty;
+        this.lastAppliedUserAgent = this.configService?.BitTorrentUserAgent ?? string.Empty;
     }
 
     public async Task StartAsync()
@@ -625,6 +633,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastAppliedProxyUsername = this.configService.ProxyUsername ?? string.Empty;
         this.lastAppliedProxyPassword = this.configService.ProxyPassword ?? string.Empty;
         this.lastAppliedAnonymousMode = this.configService.AnonymousMode;
+        this.lastAppliedPeerIdPrefix = peerIdPrefix ?? string.Empty;
+        this.lastAppliedUserAgent = userAgent ?? string.Empty;
 
         if (this.configService.UpnpEnabled && !this.configService.AnonymousMode && this.engine != null)
         {
@@ -5034,6 +5044,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var currentAnonymousMode = this.configService.AnonymousMode;
         var anonymousModeChanged = this.lastAppliedAnonymousMode != currentAnonymousMode;
 
+        var currentPeerIdPrefix = this.configService.PeerIdPrefix ?? string.Empty;
+        var currentUserAgent = this.configService.BitTorrentUserAgent ?? string.Empty;
+        var peerIdOrEmulationChanged = !string.Equals(this.lastAppliedPeerIdPrefix, currentPeerIdPrefix, StringComparison.Ordinal) ||
+                                       !string.Equals(this.lastAppliedUserAgent, currentUserAgent, StringComparison.Ordinal);
+
         var interfaceOrPortChanged = !string.Equals(this.lastAppliedInterfaceBinding, currentIface, StringComparison.OrdinalIgnoreCase) ||
                                         this.lastAppliedListenPort != currentPort;
 
@@ -5043,9 +5058,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             !string.Equals(this.lastAppliedProxyUsername, currentProxyUsername, StringComparison.Ordinal) ||
                             !string.Equals(this.lastAppliedProxyPassword, currentProxyPassword, StringComparison.Ordinal);
 
-        if (interfaceOrPortChanged || proxyChanged || anonymousModeChanged)
+        if (interfaceOrPortChanged || proxyChanged || anonymousModeChanged || peerIdOrEmulationChanged)
         {
-            this.logger.Info("Network interface, listen port, proxy, or anonymous mode configuration changed. Updating listen endpoints and cycling peer sockets.");
+            this.logger.Info("Network interface, listen port, proxy, anonymous mode, or client emulation configuration changed. Updating listen endpoints and cycling peer sockets.");
             await this.UpdateEngineListenEndpointsAsync().ConfigureAwait(false);
             await this.ResetPeerSocketsAsync().ConfigureAwait(false);
 
@@ -5057,6 +5072,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.lastAppliedProxyUsername = currentProxyUsername;
             this.lastAppliedProxyPassword = currentProxyPassword;
             this.lastAppliedAnonymousMode = currentAnonymousMode;
+            this.lastAppliedPeerIdPrefix = currentPeerIdPrefix;
+            this.lastAppliedUserAgent = currentUserAgent;
         }
 
         var currentDhtBootstrapNodes = this.configService.DhtBootstrapNodes ?? string.Empty;
@@ -5136,9 +5153,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public void Handle(ConfigSavedEvent message)
     {
+        var prefix = this.configService.PeerIdPrefix;
+        var userAgent = this.configService.BitTorrentUserAgent;
+        var isAnonymous = this.configService.AnonymousMode;
+        ConfigureGlobalMonoTorrentDefaults(prefix, userAgent, isAnonymous);
+
         if (this.engine != null)
         {
-            this.ApplyCustomPeerId(this.engine, this.configService.PeerIdPrefix);
+            this.ApplyCustomPeerId(this.engine, prefix);
 
             _ = Task.Run(async () =>
             {
@@ -5156,9 +5178,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public void Handle(ConfigFileSavedEvent message)
     {
+        var prefix = this.configService.PeerIdPrefix;
+        var userAgent = this.configService.BitTorrentUserAgent;
+        var isAnonymous = this.configService.AnonymousMode;
+        ConfigureGlobalMonoTorrentDefaults(prefix, userAgent, isAnonymous);
+
         if (this.engine != null)
         {
-            this.ApplyCustomPeerId(this.engine, this.configService.PeerIdPrefix);
+            this.ApplyCustomPeerId(this.engine, prefix);
 
             _ = Task.Run(async () =>
             {
@@ -5283,14 +5310,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     var extHandshakeType = asm.GetType("MonoTorrent.Messages.Peer.Libtorrent.ExtendedHandshakeMessage");
                     if (extHandshakeType != null)
                     {
-                        var extVerProp = extHandshakeType.GetProperty("Version", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                        var extVerProp = extHandshakeType.GetProperty("Version", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?? extHandshakeType.GetProperty("ClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
                         if (extVerProp?.CanWrite == true)
                         {
                             extVerProp.SetValue(null, userAgent);
                         }
 
                         var extVerField = extHandshakeType.GetField("version", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                            ?? extHandshakeType.GetField("<Version>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                            ?? extHandshakeType.GetField("<Version>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?? extHandshakeType.GetField("clientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?? extHandshakeType.GetField("<ClientVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
                         SetStaticField(extVerField, userAgent);
                     }
                 }
