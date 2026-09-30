@@ -70,6 +70,30 @@ describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
       ["torrents"],
     ]);
     assert.deepEqual(EVENT_INVALIDATION_MAP.HealthCheckCompleted, [["health"]]);
+    assert.deepEqual(EVENT_INVALIDATION_MAP.TrackerUpdated, [
+      ["torrents"],
+      ["trackerboost"],
+    ]);
+    assert.deepEqual(EVENT_INVALIDATION_MAP.TrackerAnnounced, [
+      ["torrents"],
+      ["trackerboost"],
+    ]);
+    assert.deepEqual(EVENT_INVALIDATION_MAP.TrackerAnnounceEvent, [
+      ["torrents"],
+      ["trackerboost"],
+    ]);
+    assert.deepEqual(EVENT_INVALIDATION_MAP.speedscheduleAdded, [
+      ["speedschedule"],
+      ["speedschedule", "active"],
+    ]);
+    assert.deepEqual(EVENT_INVALIDATION_MAP.speedscheduleUpdated, [
+      ["speedschedule"],
+      ["speedschedule", "active"],
+    ]);
+    assert.deepEqual(EVENT_INVALIDATION_MAP.speedscheduleDeleted, [
+      ["speedschedule"],
+      ["speedschedule", "active"],
+    ]);
   });
 
   it("RECONNECT_QUERY_KEYS includes seeding stats and torrents for reconnect resync", () => {
@@ -92,6 +116,10 @@ describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
     assert.equal(isHandledByNamedEvent("CommandStarted"), true);
     assert.equal(isHandledByNamedEvent("TaskCompleted"), true);
     assert.equal(isHandledByNamedEvent("TrackerAnnounced"), true);
+    assert.equal(isHandledByNamedEvent("tracker"), false);
+    assert.equal(isHandledByNamedEvent("seeding"), false);
+    assert.equal(isHandledByNamedEvent("speedschedule"), false);
+    assert.equal(isHandledByNamedEvent("schedule"), false);
     assert.equal(isHandledByNamedEvent("unknownCustomEvent"), false);
     assert.equal(isHandledByNamedEvent(""), false);
     assert.equal(isHandledByNamedEvent(undefined), false);
