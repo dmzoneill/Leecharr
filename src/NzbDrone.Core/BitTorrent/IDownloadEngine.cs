@@ -161,13 +161,13 @@ public interface IDownloadTask
     bool SequentialDownload
     {
         get => false;
-        set { }
+        set => _ = value;
     }
 
     bool FirstLastPiecePriority
     {
         get => false;
-        set { }
+        set => _ = value;
     }
 
     IEnumerable<int> PartialPieces => this.Picker?.PartialPieces;
@@ -175,7 +175,7 @@ public interface IDownloadTask
     bool IsSuperSeeding
     {
         get => false;
-        set { }
+        set => _ = value;
     }
 
     string ErrorMessage => null;

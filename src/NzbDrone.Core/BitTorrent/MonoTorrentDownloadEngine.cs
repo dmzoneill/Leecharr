@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
 using MonoTorrent;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
@@ -5456,7 +5457,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     }
 
     [DllImport("libc", EntryPoint = "posix_fallocate", SetLastError = true)]
-    private static extern int PosixFallocate(int fd, long offset, long len);
+    private static extern int PosixFallocate(SafeFileHandle fd, long offset, long len);
 
     internal async Task PreallocateFilesAsync(TorrentManager manager, string workingPath, MtTorrent parsedTorrent = null)
     {
@@ -5677,8 +5678,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     try
                     {
-                        var fd = fs.SafeFileHandle.DangerousGetHandle().ToInt32();
-                        var ret = PosixFallocate(fd, 0, expectedLength);
+                        var ret = PosixFallocate(fs.SafeFileHandle, 0, expectedLength);
                         if (ret == 0)
                         {
                             allocated = true;
