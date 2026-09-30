@@ -151,7 +151,8 @@ export function IdleLockModal({
   return (
     <div
       className="idle-lock-overlay"
-      role="dialog"
+      role="button"
+      tabIndex={0}
       aria-modal="true"
       aria-labelledby="idle-lock-title"
       onClick={() => {
@@ -159,8 +160,26 @@ export function IdleLockModal({
           onUnlock();
         }
       }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (!requiresPassword) {
+            e.preventDefault();
+            onUnlock();
+          }
+        }
+      }}
     >
-      <div className="idle-lock-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="idle-lock-card"
+        role="button"
+        tabIndex={0}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
+      >
         {/* Leecharr Branding */}
         <div
           style={{
@@ -426,10 +445,16 @@ export function IdleCountdownModal({
   return (
     <div
       className="idle-countdown-overlay"
-      role="alertdialog"
+      role="button"
+      tabIndex={0}
       aria-modal="true"
       aria-labelledby="idle-countdown-title"
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.stopPropagation();
+        }
+      }}
     >
       <div className="idle-countdown-card">
         {/* Warning Icon */}

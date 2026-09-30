@@ -101,8 +101,15 @@ export function PromptModal({
   return (
     <div
       className="modal-overlay"
+      role="button"
+      tabIndex={0}
       onClick={onCancel}
-      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
       aria-modal="true"
       aria-labelledby="prompt-modal-title"
       aria-describedby={message ? "prompt-modal-desc" : undefined}
@@ -124,7 +131,14 @@ export function PromptModal({
       <div
         ref={trapRef}
         className="modal-content"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           width: "100%",
           maxWidth: "440px",
