@@ -54,6 +54,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
 
         var previousApiKey = this.configFileProvider.ApiKey;
         var previousAuthEnabled = this.configFileProvider.AuthenticationEnabled;
+        var previousAuthRequired = this.configFileProvider.AuthenticationRequired;
 
         if (resource.ApiKey != null && resource.ApiKey.Contains('*'))
         {
@@ -111,7 +112,8 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
         this.configFileProvider.SaveConfigDictionary(fileUpdates);
 
         if (!string.Equals(previousApiKey, resource.ApiKey, StringComparison.Ordinal) ||
-            previousAuthEnabled != resource.AuthenticationEnabled)
+            previousAuthEnabled != resource.AuthenticationEnabled ||
+            previousAuthRequired != resource.AuthenticationRequired)
         {
             RpcSessionStore.InvalidateAllSessions();
             MessageHub.DisconnectAllConnections();
