@@ -2,8 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -234,7 +236,14 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         await this.syncLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            var baseUri = prowlarrUrl?.Trim().TrimEnd('/') ?? string.Empty;
+            if (!Uri.TryCreate(prowlarrUrl?.Trim(), UriKind.Absolute, out var parsedUri) ||
+                (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps))
+            {
+                this.logger.Warn("Invalid Prowlarr URL scheme or format: {0}", prowlarrUrl);
+                return 0;
+            }
+
+            var baseUri = parsedUri.GetLeftPart(UriPartial.Path).TrimEnd('/');
             if (baseUri.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
             {
                 baseUri = baseUri.Substring(0, baseUri.Length - 7).TrimEnd('/');
@@ -259,10 +268,9 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             }
 
             var doSyncCategories = shouldSyncCategories ?? true;
-            var requestUrl = $"{baseUri}/api/v1/indexer";
+            var requestUri = new Uri($"{baseUri}/api/v1/indexer", UriKind.Absolute);
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl); // NOSONAR
-            request.Headers.Add("X-Api-Key", apiKey);
+            using var request = CreateProwlarrRequest(HttpMethod.Get, requestUri, apiKey);
 
             HttpResponseMessage response;
             try
@@ -271,7 +279,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             }
             catch (Exception ex)
             {
-                this.logger.Error(ex, "Failed to connect to Prowlarr at {0}", requestUrl);
+                this.logger.Error(ex, "Failed to connect to Prowlarr at {0}", requestUri);
                 throw;
             }
 
@@ -564,5 +572,17 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         }
 
         return categories.OrderBy(c => c).ToList();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5144", Justification = "Outbound query to user-configured Prowlarr instance with validated HTTP/HTTPS URI")]
+    [SuppressMessage("Security", "S5144:Server-Side Request Forgery (SSRF)", Justification = "Outbound query to user-configured Prowlarr instance with validated HTTP/HTTPS URI")]
+    private static HttpRequestMessage CreateProwlarrRequest(HttpMethod method, Uri uri, string apiKey)
+    {
+#pragma warning disable S5144
+        var request = new HttpRequestMessage(method, uri);
+#pragma warning restore S5144
+        request.Headers.Add("X-Api-Key", apiKey);
+        return request;
     }
 }
