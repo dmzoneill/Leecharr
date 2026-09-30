@@ -131,7 +131,9 @@ else:
 
     public static PtyProcessSession Start(string cwd, int cols, int rows)
     {
-        var safeCwd = !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd) ? cwd : "/tmp";
+        var safeCwd = !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd)
+            ? cwd
+            : (Environment.GetEnvironmentVariable("HOME") ?? TerminalEnvironmentSanitizer.GetSafeTempDirectory());
         string controlPipePath = null;
         FileStream controlPipeStream = null;
         Process proc = null;
@@ -142,7 +144,8 @@ else:
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3")))
             {
                 var pyBinary = File.Exists("/usr/bin/python3") ? "/usr/bin/python3" : "/bin/python3";
-                controlPipePath = Path.Combine(Path.GetTempPath(), $"leecharr_pty_ctrl_{Guid.NewGuid():N}.pipe");
+                var safeTempDir = TerminalEnvironmentSanitizer.GetSafeTempDirectory();
+                controlPipePath = Path.Combine(safeTempDir, $"leecharr_pty_ctrl_{Guid.NewGuid():N}.pipe");
                 CreateFifo(controlPipePath);
 
                 var b64Script = Convert.ToBase64String(Encoding.UTF8.GetBytes(PythonPtyScript));
@@ -369,6 +372,7 @@ else:
             {
                 if (MkFifo(path, 384 /* 0600 */) == 0)
                 {
+                    File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                     return;
                 }
             }
@@ -388,6 +392,10 @@ else:
                 UseShellExecute = false,
             });
             proc?.WaitForExit(1000);
+            if (File.Exists(path) && (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)))
+            {
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
         }
         catch (Exception ex)
         {

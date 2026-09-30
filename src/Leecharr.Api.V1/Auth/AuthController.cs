@@ -705,7 +705,16 @@ public class AuthController : ControllerBase
                 }
             }
 
-            var safeRedirect = SanitizeRedirectUrl(relayState);
+            var safeRedirect = "/";
+            if (!string.IsNullOrWhiteSpace(relayState) &&
+                relayState.StartsWith('/') &&
+                !relayState.StartsWith("//", StringComparison.Ordinal) &&
+                !relayState.StartsWith("/\\", StringComparison.Ordinal) &&
+                IsLocalUrl(relayState))
+            {
+                safeRedirect = relayState;
+            }
+
             return this.Redirect(safeRedirect);
         }
         catch (Exception ex)
