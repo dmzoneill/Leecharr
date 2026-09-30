@@ -36,10 +36,17 @@ export interface PieceMapUpdatePayload {
   version?: number;
 }
 
+export interface TelemetryUpdate extends Partial<TorrentTelemetry> {
+  id: number;
+  upSpeed?: number;
+  downSpeed?: number;
+  [key: string]: unknown;
+}
+
 export interface TorrentStoreState {
   // Ephemeral Telemetry per torrent ID (from high-frequency speedPulse SignalR events)
   telemetry: Record<number, TorrentTelemetry>;
-  updateTelemetry: (updates: Array<{ id: number; [key: string]: unknown }>) => void;
+  updateTelemetry: (updates: TelemetryUpdate[]) => void;
   clearTelemetry: () => void;
   purgeStaleTelemetry: (maxAgeMs?: number) => void;
 
