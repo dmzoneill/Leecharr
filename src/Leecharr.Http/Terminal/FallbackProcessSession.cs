@@ -11,7 +11,7 @@ using NLog;
 
 namespace Leecharr.Http.Terminal;
 
-public sealed class FallbackProcessSession : ITerminalSession
+public sealed class FallbackProcessSession : ITerminalSession, IDisposable
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly Process process;
@@ -140,6 +140,7 @@ public sealed class FallbackProcessSession : ITerminalSession
         try
         {
             this.sessionCts.Cancel();
+            this.sessionCts.Dispose();
             this.outputChannel.Writer.TryComplete();
 
             if (!this.process.HasExited)
@@ -153,6 +154,11 @@ public sealed class FallbackProcessSession : ITerminalSession
         {
             Logger.Trace(ex, "Failed to kill process tree during teardown");
         }
+    }
+
+    public void Dispose()
+    {
+        this.Kill();
     }
 
     public ValueTask DisposeAsync()

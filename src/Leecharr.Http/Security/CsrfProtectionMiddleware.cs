@@ -326,7 +326,7 @@ public class CsrfProtectionMiddleware
         return false;
     }
 
-    public static bool IsOriginAllowed(string originOrReferer, HostString requestHost, string allowedCorsOrigins = null)
+    public static bool IsOriginAllowed(string originOrReferer, HostString requestHost, string allowedCorsOrigins)
     {
         if (!string.IsNullOrWhiteSpace(allowedCorsOrigins) && IsCorsOriginAllowed(originOrReferer, allowedCorsOrigins))
         {

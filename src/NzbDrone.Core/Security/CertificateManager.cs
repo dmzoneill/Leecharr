@@ -74,14 +74,31 @@ public class CertificateManager : ICertificateManager
             if (!string.IsNullOrWhiteSpace(certPath))
             {
                 var trimmedPath = certPath.Trim();
-                if (!File.Exists(trimmedPath))
+                var canonicalPath = Path.GetFullPath(trimmedPath);
+                var dir = Path.GetDirectoryName(canonicalPath);
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
                 {
                     result.IsValid = false;
                     result.Message = $"Certificate file not found at '{trimmedPath}'.";
                     return result;
                 }
 
-                cert = this.LoadCustomCertificate(trimmedPath, keyPath, password);
+                var canonicalDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(dir)) + Path.DirectorySeparatorChar;
+                if (!canonicalPath.StartsWith(canonicalDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.IsValid = false;
+                    result.Message = $"Certificate path '{trimmedPath}' is outside its directory.";
+                    return result;
+                }
+
+                if (!File.Exists(canonicalPath))
+                {
+                    result.IsValid = false;
+                    result.Message = $"Certificate file not found at '{trimmedPath}'.";
+                    return result;
+                }
+
+                cert = this.LoadCustomCertificate(canonicalPath, keyPath, password);
             }
             else
             {
@@ -152,7 +169,25 @@ public class CertificateManager : ICertificateManager
                         ConnectTimeout = TimeSpan.FromSeconds(2),
                         SslOptions = new SslClientAuthenticationOptions
                         {
-                            RemoteCertificateValidationCallback = (sender, serverCert, chain, errors) => true,
+                            RemoteCertificateValidationCallback = (sender, serverCert, chain, errors) =>
+                            {
+                                if (serverCert == null)
+                                {
+                                    return false;
+                                }
+
+                                if (errors == SslPolicyErrors.None)
+                                {
+                                    return true;
+                                }
+
+                                if (serverCert is X509Certificate2 x509Cert && !string.IsNullOrEmpty(cert?.Thumbprint))
+                                {
+                                    return string.Equals(x509Cert.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase);
+                                }
+
+                                return chain != null && chain.Build(new X509Certificate2(serverCert));
+                            },
                         },
                     };
 
@@ -189,36 +224,65 @@ public class CertificateManager : ICertificateManager
         return result;
     }
 
+    private static string ValidateCertificatePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Certificate path must not be null or empty.", nameof(path));
+        }
+
+        var fullPath = Path.GetFullPath(path.Trim());
+        var dir = Path.GetDirectoryName(fullPath);
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        {
+            throw new DirectoryNotFoundException($"Directory for certificate '{fullPath}' does not exist.");
+        }
+
+        var canonicalDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(dir)) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(canonicalDir, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException($"Certificate path '{fullPath}' is outside its directory.");
+        }
+
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException($"Certificate file not found at '{fullPath}'.", fullPath);
+        }
+
+        return fullPath;
+    }
+
     private X509Certificate2 LoadCustomCertificate(string certPath, string keyPath, string password)
     {
-        var ext = Path.GetExtension(certPath).ToLowerInvariant();
+        var validatedCertPath = ValidateCertificatePath(certPath);
+        var ext = Path.GetExtension(validatedCertPath).ToLowerInvariant();
 
         if (ext is ".pfx" or ".p12")
         {
             var pass = string.IsNullOrEmpty(password) ? null : password;
             return X509CertificateLoader.LoadPkcs12FromFile(
-                certPath,
+                validatedCertPath,
                 pass,
                 X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
         }
 
         var collection = new X509Certificate2Collection();
-        collection.ImportFromPemFile(certPath);
+        collection.ImportFromPemFile(validatedCertPath);
 
         if (collection.Count == 0)
         {
-            throw new InvalidOperationException($"Certificate file '{certPath}' does not contain any valid certificates.");
+            throw new InvalidOperationException($"Certificate file '{validatedCertPath}' does not contain any valid certificates.");
         }
 
-        var hasExplicitKey = !string.IsNullOrWhiteSpace(keyPath) && File.Exists(keyPath.Trim());
-        var effectiveKeyPath = hasExplicitKey ? keyPath.Trim() : certPath;
+        var hasExplicitKey = !string.IsNullOrWhiteSpace(keyPath) && File.Exists(Path.GetFullPath(keyPath.Trim()));
+        var effectiveKeyPath = hasExplicitKey ? ValidateCertificatePath(keyPath.Trim()) : validatedCertPath;
 
         if (!hasExplicitKey)
         {
-            var pemContent = File.ReadAllText(certPath);
+            var pemContent = File.ReadAllText(validatedCertPath);
             if (!pemContent.Contains("PRIVATE KEY", StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"Certificate file '{certPath}' does not contain a private key and no private key file was provided.");
+                throw new InvalidOperationException($"Certificate file '{validatedCertPath}' does not contain a private key and no private key file was provided.");
             }
         }
 
@@ -227,16 +291,16 @@ public class CertificateManager : ICertificateManager
         {
             try
             {
-                leafWithKey = X509Certificate2.CreateFromEncryptedPemFile(certPath, password, effectiveKeyPath);
+                leafWithKey = X509Certificate2.CreateFromEncryptedPemFile(validatedCertPath, password, effectiveKeyPath);
             }
             catch
             {
-                leafWithKey = X509Certificate2.CreateFromPemFile(certPath, effectiveKeyPath);
+                leafWithKey = X509Certificate2.CreateFromPemFile(validatedCertPath, effectiveKeyPath);
             }
         }
         else
         {
-            leafWithKey = X509Certificate2.CreateFromPemFile(certPath, effectiveKeyPath);
+            leafWithKey = X509Certificate2.CreateFromPemFile(validatedCertPath, effectiveKeyPath);
         }
 
         var fullCollection = new X509Certificate2Collection { leafWithKey };

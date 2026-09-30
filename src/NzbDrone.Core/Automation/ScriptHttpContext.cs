@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Security;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -80,7 +81,15 @@ public class ScriptHttpContext : IDisposable
 
         if (allowInsecureTls)
         {
-            handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+            handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) =>
+            {
+                if (sslPolicyErrors == SslPolicyErrors.None)
+                {
+                    return true;
+                }
+
+                return allowInsecureTls;
+            };
         }
 
         return handler;
