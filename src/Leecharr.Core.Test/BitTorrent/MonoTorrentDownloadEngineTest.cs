@@ -5982,6 +5982,21 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public void CreateHttpClient_ConfiguresAutomaticDecompressionAndStandardHeaders()
+    {
+        var client = this.engine.CreateHttpClient();
+        var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = handlerField!.GetValue(client) as SocketsHttpHandler;
+
+        handler.Should().NotBeNull();
+        handler!.AutomaticDecompression.Should().Be(DecompressionMethods.All);
+        client.DefaultRequestHeaders.Contains("Accept-Encoding").Should().BeTrue();
+        client.DefaultRequestHeaders.GetValues("Accept-Encoding").Should().Contain("gzip, deflate");
+        client.DefaultRequestHeaders.Contains("Accept").Should().BeTrue();
+        client.DefaultRequestHeaders.GetValues("Accept").Should().Contain("*/*");
+    }
+
+    [Test]
     public void CreateHttpClient_WhenProxyNotConfigured_SetsConnectCallback()
     {
         var client = this.engine.CreateHttpClient();
@@ -6681,6 +6696,31 @@ public class MonoTorrentDownloadEngineTest
         }
 
         this.engine.LastAppliedDhtBootstrapNodes.Should().Be("127.0.0.1:6882, 127.0.0.3:6883");
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_WhenClientEmulationChanged_UpdatesEmulationAndDefaults()
+    {
+        this.configService.PeerIdPrefix.Returns("-qB4650-");
+        this.configService.BitTorrentUserAgent.Returns("qBittorrent/4.6.5");
+
+        await this.engine.StartAsync();
+        this.engine.LastAppliedPeerIdPrefix.Should().Be("-qB4650-");
+        this.engine.LastAppliedUserAgent.Should().Be("qBittorrent/4.6.5");
+
+        this.configService.PeerIdPrefix.Returns("-DE2110-");
+        this.configService.BitTorrentUserAgent.Returns("Deluge/2.1.1");
+        this.engine.Handle(new ConfigSavedEvent());
+
+        for (var i = 0; i < 50 && this.engine.LastAppliedPeerIdPrefix != "-DE2110-"; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        this.engine.LastAppliedPeerIdPrefix.Should().Be("-DE2110-");
+        this.engine.LastAppliedUserAgent.Should().Be("Deluge/2.1.1");
 
         await this.engine.StopAsync();
     }
