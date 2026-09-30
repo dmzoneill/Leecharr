@@ -101,7 +101,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
                 connection.Execute("DELETE FROM \"TorrentFiles\" WHERE \"TorrentId\" = @TorrentId", new { TorrentId = id }, transaction);
                 connection.Execute("DELETE FROM \"TrackerEntries\" WHERE \"TorrentId\" = @TorrentId", new { TorrentId = id }, transaction);
                 connection.Execute("DELETE FROM \"TorrentMediaMetadata\" WHERE \"TorrentId\" = @TorrentId", new { TorrentId = id }, transaction);
-                connection.Execute($"DELETE FROM \"{this.table}\" WHERE \"Id\" = @Id", new { Id = id }, transaction);
+                connection.Execute("DELETE FROM \"Torrents\" WHERE \"Id\" = @Id", new { Id = id }, transaction);
 
                 transaction.Commit();
             }
@@ -133,7 +133,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
         var normalized = infoHash.Trim().ToLowerInvariant();
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<Torrent>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash OR \"V2InfoHash\" = @InfoHash",
+                "SELECT * FROM \"Torrents\" WHERE \"InfoHash\" = @InfoHash OR \"V2InfoHash\" = @InfoHash",
                 new { InfoHash = normalized }));
     }
 
@@ -147,7 +147,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
         var normalized = infoHash.Trim().ToLowerInvariant();
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<int>(
-                $"SELECT COUNT(1) FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash OR \"V2InfoHash\" = @InfoHash",
+                "SELECT COUNT(1) FROM \"Torrents\" WHERE \"InfoHash\" = @InfoHash OR \"V2InfoHash\" = @InfoHash",
                 new { InfoHash = normalized }) > 0);
     }
 
@@ -155,7 +155,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<Torrent>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"Category\" = @Category",
+                "SELECT * FROM \"Torrents\" WHERE \"Category\" = @Category",
                 new { Category = category }));
     }
 
@@ -163,7 +163,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<Torrent>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"Status\" = @Status",
+                "SELECT * FROM \"Torrents\" WHERE \"Status\" = @Status",
                 new { Status = (int)status }));
     }
 
@@ -178,7 +178,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     private int GetNextQueuePositionInternal()
     {
         return this.ExecuteWithRetry(connection =>
-            connection.ExecuteScalar<int>($"SELECT COALESCE(MAX(\"QueuePosition\"), 0) + 1 FROM \"{this.table}\""));
+            connection.ExecuteScalar<int>("SELECT COALESCE(MAX(\"QueuePosition\"), 0) + 1 FROM \"Torrents\""));
     }
 
     private static void NormalizeTorrent(Torrent model)

@@ -23,7 +23,7 @@ public class TorrentEventLogRepository : BasicRepository<TorrentEventLog>, ITorr
 
         return this.ExecuteWithRetry(connection =>
             connection.Query<TorrentEventLog>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Timestamp\" DESC, \"Id\" DESC LIMIT @Limit",
+                "SELECT * FROM \"TorrentEventLogs\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Timestamp\" DESC, \"Id\" DESC LIMIT @Limit",
                 new { TorrentId = torrentId, Limit = limit }).ToList());
     }
 
@@ -36,13 +36,13 @@ public class TorrentEventLogRepository : BasicRepository<TorrentEventLog>, ITorr
 
         this.ExecuteWithRetry(connection =>
             connection.Execute(
-                $"DELETE FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
+                "DELETE FROM \"TorrentEventLogs\" WHERE \"TorrentId\" = @TorrentId",
                 new { TorrentId = torrentId }));
     }
 
     public void DeleteAll()
     {
         this.ExecuteWithRetry(connection =>
-            connection.Execute($"DELETE FROM \"{this.table}\""));
+            connection.Execute("DELETE FROM \"TorrentEventLogs\""));
     }
 }

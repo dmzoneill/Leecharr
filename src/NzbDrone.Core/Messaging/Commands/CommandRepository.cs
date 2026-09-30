@@ -20,7 +20,7 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<CommandModel>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"Status\" = @Status",
+                "SELECT * FROM \"Commands\" WHERE \"Status\" = @Status",
                 new { Status = (int)status }));
     }
 
@@ -28,20 +28,22 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<CommandModel>(
-                $"SELECT * FROM \"{this.table}\" ORDER BY \"QueuedAt\" DESC LIMIT @Limit",
+                "SELECT * FROM \"Commands\" ORDER BY \"QueuedAt\" DESC LIMIT @Limit",
                 new { Limit = limit }));
     }
 
     public void DeleteOldTerminalCommands(DateTime cutoff)
     {
-        var completed = (int)CommandStatus.Completed;
-        var failed = (int)CommandStatus.Failed;
-        var cancelled = (int)CommandStatus.Cancelled;
-
         this.ExecuteWithRetry(connection =>
             connection.Execute(
-                $"DELETE FROM \"{this.table}\" WHERE \"Status\" IN ({completed}, {failed}, {cancelled}) AND \"EndedAt\" IS NOT NULL AND \"EndedAt\" < @Cutoff",
-                new { Cutoff = cutoff }));
+                "DELETE FROM \"Commands\" WHERE \"Status\" IN (@Completed, @Failed, @Cancelled) AND \"EndedAt\" IS NOT NULL AND \"EndedAt\" < @Cutoff",
+                new
+                {
+                    Completed = (int)CommandStatus.Completed,
+                    Failed = (int)CommandStatus.Failed,
+                    Cancelled = (int)CommandStatus.Cancelled,
+                    Cutoff = cutoff
+                }));
     }
 
     public CommandModel FindExisting(string name, string body)
@@ -58,8 +60,14 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
         return this.ExecuteWithRetry(connection =>
         {
             var candidates = connection.Query<CommandModel>(
-                $"SELECT * FROM \"{this.table}\" WHERE (\"Name\" = @Name OR \"Name\" = @AltName) AND \"Status\" IN ({(int)CommandStatus.Queued}, {(int)CommandStatus.Running})",
-                new { Name = name, AltName = altName });
+                "SELECT * FROM \"Commands\" WHERE (\"Name\" = @Name OR \"Name\" = @AltName) AND \"Status\" IN (@Queued, @Running)",
+                new
+                {
+                    Name = name,
+                    AltName = altName,
+                    Queued = (int)CommandStatus.Queued,
+                    Running = (int)CommandStatus.Running
+                });
 
             return candidates.FirstOrDefault(c => AreBodiesEquivalent(c.Body, body));
         });
