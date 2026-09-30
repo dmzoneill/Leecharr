@@ -27,20 +27,20 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         ".flac", ".mp3", ".aac", ".wav", ".alac", ".ogg", ".m4a",
     };
 
-    private static readonly Regex SeasonEpisodeRegex = new(@"(?i)\bS(?<season>\d{1,2})E(?<episode>\d{1,3})(?:-?E?(?<endEpisode>\d{1,3}))?\b", RegexOptions.Compiled);
-    private static readonly Regex AltSeasonEpisodeRegex = new(@"(?i)\b(?<season>\d{1,2})x(?<episode>\d{1,3})\b", RegexOptions.Compiled);
-    private static readonly Regex SeasonOnlyRegex = new(@"(?i)\b(?:Season|Series)\s*(?<season>\d{1,2})\b", RegexOptions.Compiled);
-    private static readonly Regex EpisodeOnlyRegex = new(@"(?i)\b(?:Episode|Ep)\s*(?<episode>\d{1,3})\b", RegexOptions.Compiled);
-    private static readonly Regex YearRegex = new(@"\b(?<year>19\d{2}|20\d{2})\b", RegexOptions.Compiled);
-    private static readonly Regex ResolutionRegex = new(@"(?i)\b(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b", RegexOptions.Compiled);
-    private static readonly Regex QualityRegex = new(@"(?i)\b(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b", RegexOptions.Compiled);
-    private static readonly Regex VideoCodecRegex = new(@"(?i)\b(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|VP9|VP8|MPEG-?2|VC-?1|XviD|DivX)\b", RegexOptions.Compiled);
-    private static readonly Regex AudioCodecRegex = new(@"(?i)\b(?<audio>DTS-HD(?:[\s\.]*MA)?|DTS-X|TrueHD(?:[\s\.]*Atmos)?|Atmos|DTS|E-?AC-?3|DDP5\.1|DDP|AC-?3|DD5\.1|AAC(?:[\s\.]*2\.0)?|FLAC|MP3|OPUS|VORBIS)\b", RegexOptions.Compiled);
-    private static readonly Regex AudioChannelsRegex = new(@"(?i)\b(?<channels>7\.1|5\.1|2\.0|1\.0)\b", RegexOptions.Compiled);
-    private static readonly Regex DynamicRangeRegex = new(@"(?i)\b(?<hdr>DV|Dolby\s*Vision|HDR10\+|HDR10|HDR|HLG|SDR)\b", RegexOptions.Compiled);
-    private static readonly Regex EditionRegex = new(@"(?i)\b(?<edition>Extended(?:\s*Cut)?|Director'?s\s*Cut|Unrated|IMAX(?:\s*Enhanced)?|Theatrical|Remastered|Criterion)\b", RegexOptions.Compiled);
-    private static readonly Regex LanguageRegex = new(@"(?i)\b(?<lang>Multi(?:-?Audio)?|Dual(?:-?Audio)?|VOSTFR|TRUEFRENCH|VFF|Castellano|Latino|ENG(?:LISH)?|FRENCH|FRA|FRE|GER(?:MAN)?|DEU|SPANISH|SPA|ESP|ITA(?:LIAN)?|JAP(?:ANESE)?|JPN|KOR(?:EAN)?|CHI(?:NESE)?|ZHO|HIN(?:DI)?|POR(?:TUGUESE)?|DUT(?:CH)?|NLD|POL(?:ISH)?|SWE(?:DISH)?|NOR(?:WEGIAN)?|UKR(?:AINIAN)?|TUR(?:KISH)?|ARA(?:BIC)?|RUS(?:SIAN)?)\b", RegexOptions.Compiled);
-    private static readonly Regex ReleaseGroupRegex = new(@"(?:-(?<group>[A-Za-z0-9]+)|\[(?<group>[A-Za-z0-9]+)\])$", RegexOptions.Compiled);
+    private static readonly Regex SeasonEpisodeRegex = new(@"(?i)\bS(?<season>\d{1,2})E(?<episode>\d{1,3})(?:-?E?(?<endEpisode>\d{1,3}))?\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex AltSeasonEpisodeRegex = new(@"(?i)\b(?<season>\d{1,2})x(?<episode>\d{1,3})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex SeasonOnlyRegex = new(@"(?i)\b(?:Season|Series)\s*(?<season>\d{1,2})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex EpisodeOnlyRegex = new(@"(?i)\b(?:Episode|Ep)\s*(?<episode>\d{1,3})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex YearRegex = new(@"\b(?<year>19\d{2}|20\d{2})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex ResolutionRegex = new(@"(?i)\b(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex QualityRegex = new(@"(?i)\b(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex VideoCodecRegex = new(@"(?i)\b(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|VP9|VP8|MPEG-?2|VC-?1|XviD|DivX)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex AudioCodecRegex = new(@"(?i)\b(?<audio>DTS-HD(?:[\s\.]*MA)?|DTS-X|TrueHD(?:[\s\.]*Atmos)?|Atmos|DTS|E-?AC-?3|DDP5\.1|DDP|AC-?3|DD5\.1|AAC(?:[\s\.]*2\.0)?|FLAC|MP3|OPUS|VORBIS)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex AudioChannelsRegex = new(@"(?i)\b(?<channels>7\.1|5\.1|2\.0|1\.0)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex DynamicRangeRegex = new(@"(?i)\b(?<hdr>DV|Dolby\s*Vision|HDR10\+|HDR10|HDR|HLG|SDR)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex EditionRegex = new(@"(?i)\b(?<edition>Extended(?:\s*Cut)?|Director'?s\s*Cut|Unrated|IMAX(?:\s*Enhanced)?|Theatrical|Remastered|Criterion)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex LanguageRegex = new(@"(?i)\b(?<lang>Multi(?:-?Audio)?|Dual(?:-?Audio)?|VOSTFR|TRUEFRENCH|VFF|Castellano|Latino|ENG(?:LISH)?|FRENCH|FRA|FRE|GER(?:MAN)?|DEU|SPANISH|SPA|ESP|ITA(?:LIAN)?|JAP(?:ANESE)?|JPN|KOR(?:EAN)?|CHI(?:NESE)?|ZHO|HIN(?:DI)?|POR(?:TUGUESE)?|DUT(?:CH)?|NLD|POL(?:ISH)?|SWE(?:DISH)?|NOR(?:WEGIAN)?|UKR(?:AINIAN)?|TUR(?:KISH)?|ARA(?:BIC)?|RUS(?:SIAN)?)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex ReleaseGroupRegex = new(@"(?:-(?<group>[A-Za-z0-9]+)|\[(?<group>[A-Za-z0-9]+)\])$", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
 
     public string ProviderId => "RuleHeuristic";
 
@@ -92,17 +92,17 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         var working = releaseName.Trim();
 
         // 1. Check Proper / Repack / Remux
-        if (Regex.IsMatch(working, @"(?i)\bPROPER\b"))
+        if (Regex.IsMatch(working, @"(?i)\bPROPER\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.IsProper = true;
         }
 
-        if (Regex.IsMatch(working, @"(?i)\b(REPACK|RERIP)\b"))
+        if (Regex.IsMatch(working, @"(?i)\b(REPACK|RERIP)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.IsRepack = true;
         }
 
-        if (Regex.IsMatch(working, @"(?i)\bREMUX\b"))
+        if (Regex.IsMatch(working, @"(?i)\bREMUX\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.IsRemux = true;
         }
@@ -233,7 +233,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         if (audioMatch.Success)
         {
             var rawAudio = audioMatch.Groups["audio"].Value.Replace('.', ' ');
-            rawAudio = Regex.Replace(rawAudio, @"\s+", " ").Trim();
+            rawAudio = Regex.Replace(rawAudio, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
             result.AudioCodec = NormalizeAudioCodec(rawAudio);
         }
 
@@ -501,36 +501,36 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         var working = naturalQuery.Trim();
 
         // Infer category from raw query first
-        if (Regex.IsMatch(naturalQuery, @"(?i)\b(tv|series|season|episode|episodes|show|s\d+)\b"))
+        if (Regex.IsMatch(naturalQuery, @"(?i)\b(tv|series|season|episode|episodes|show|s\d+)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.Category = "tv";
         }
-        else if (Regex.IsMatch(naturalQuery, @"(?i)\b(movie|movies|film|cinema|remux|bluray|bdrip|brrip)\b"))
+        else if (Regex.IsMatch(naturalQuery, @"(?i)\b(movie|movies|film|cinema|remux|bluray|bdrip|brrip)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.Category = "movies";
         }
-        else if (Regex.IsMatch(naturalQuery, @"(?i)\b(album|music|flac|mp3|discography|soundtrack|song)\b"))
+        else if (Regex.IsMatch(naturalQuery, @"(?i)\b(album|music|flac|mp3|discography|soundtrack|song)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.Category = "music";
         }
-        else if (Regex.IsMatch(naturalQuery, @"(?i)\b(anime|manga)\b"))
+        else if (Regex.IsMatch(naturalQuery, @"(?i)\b(anime|manga)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.Category = "anime";
         }
-        else if (Regex.IsMatch(naturalQuery, @"(?i)\b(software|app|iso|linux|windows|macos)\b"))
+        else if (Regex.IsMatch(naturalQuery, @"(?i)\b(software|app|iso|linux|windows|macos)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.Category = "software";
         }
 
         // 1. Freeleech
-        if (Regex.IsMatch(working, @"(?i)\b(?:freeleech|free\s*leech)\b"))
+        if (Regex.IsMatch(working, @"(?i)\b(?:freeleech|free\s*leech)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             result.FreeleechOnly = true;
-            working = Regex.Replace(working, @"(?i)\b(?:freeleech|free\s*leech)\b", " ");
+            working = Regex.Replace(working, @"(?i)\b(?:freeleech|free\s*leech)\b", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
         }
 
         // 2. Min Seeders
-        var seedersMatch = Regex.Match(working, @"(?i)(?:with\s+)?(?:at\s*least|min|minimum|>=|>)\s*(?<seeds>\d+)\s*(?:seeders?|seeds?)");
+        var seedersMatch = Regex.Match(working, @"(?i)(?:with\s+)?(?:at\s*least|min|minimum|>=|>)\s*(?<seeds>\d+)\s*(?:seeders?|seeds?)", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (seedersMatch.Success)
         {
             result.MinSeeders = int.Parse(seedersMatch.Groups["seeds"].Value, CultureInfo.InvariantCulture);
@@ -538,7 +538,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
         else
         {
-            var plusSeedsMatch = Regex.Match(working, @"(?i)(?:with\s+)?(?<seeds>\d+)\+\s*(?:seeders?|seeds?)");
+            var plusSeedsMatch = Regex.Match(working, @"(?i)(?:with\s+)?(?<seeds>\d+)\+\s*(?:seeders?|seeds?)", RegexOptions.None, TimeSpan.FromSeconds(2));
             if (plusSeedsMatch.Success)
             {
                 result.MinSeeders = int.Parse(plusSeedsMatch.Groups["seeds"].Value, CultureInfo.InvariantCulture);
@@ -547,7 +547,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 3. Max Age Days
-        var ageMatch = Regex.Match(working, @"(?i)(?:last|within|newer\s*than)\s*(?<days>\d+)\s*days?");
+        var ageMatch = Regex.Match(working, @"(?i)(?:last|within|newer\s*than)\s*(?<days>\d+)\s*days?", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (ageMatch.Success)
         {
             result.MaxAgeDays = int.Parse(ageMatch.Groups["days"].Value, CultureInfo.InvariantCulture);
@@ -555,7 +555,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 4. Resolution
-        var resMatch = Regex.Match(working, @"(?i)\b(?:in\s+)?(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b");
+        var resMatch = Regex.Match(working, @"(?i)\b(?:in\s+)?(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (resMatch.Success)
         {
             var res = resMatch.Groups["res"].Value;
@@ -564,7 +564,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 5. Quality
-        var qualityMatch = Regex.Match(working, @"(?i)\b(?:in\s+)?(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b");
+        var qualityMatch = Regex.Match(working, @"(?i)\b(?:in\s+)?(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (qualityMatch.Success)
         {
             result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, qualityMatch.Groups["quality"].Value.Contains("remux", StringComparison.OrdinalIgnoreCase));
@@ -572,7 +572,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 6. Codec
-        var codecMatch = Regex.Match(working, @"(?i)\b(?:in\s+|with\s+)?(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|VP9|VP8|MPEG-?2|VC-?1|XviD|DivX)\b");
+        var codecMatch = Regex.Match(working, @"(?i)\b(?:in\s+|with\s+)?(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|VP9|VP8|MPEG-?2|VC-?1|XviD|DivX)\b", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (codecMatch.Success)
         {
             result.Codec = NormalizeCodec(codecMatch.Groups["codec"].Value);
@@ -615,7 +615,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 9. Year
-        var yearWithPrepMatch = Regex.Match(working, @"(?i)\b(?:from|in)\s+(?<year>19\d{2}|20\d{2})\b");
+        var yearWithPrepMatch = Regex.Match(working, @"(?i)\b(?:from|in)\s+(?<year>19\d{2}|20\d{2})\b", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (yearWithPrepMatch.Success)
         {
             result.Year = int.Parse(yearWithPrepMatch.Groups["year"].Value, CultureInfo.InvariantCulture);
@@ -639,9 +639,9 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 11. Clean Title Extraction
-        var clean = Regex.Replace(working, @"(?i)^\s*(?:download|find|search\s*for|search|grab|get(?!\s+out\b))\s+", string.Empty);
-        clean = Regex.Replace(clean, @"[^\w\s\-\.]", " ");
-        clean = Regex.Replace(clean, @"\s+", " ").Trim();
+        var clean = Regex.Replace(working, @"(?i)^\s*(?:download|find|search\s*for|search|grab|get(?!\s+out\b))\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
+        clean = Regex.Replace(clean, @"[^\w\s\-\.]", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
+        clean = Regex.Replace(clean, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
 
         result.CleanTitle = clean;
         result.CleanQuery = string.IsNullOrWhiteSpace(clean) ? naturalQuery : clean;
@@ -674,7 +674,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             {
                 suspiciousFiles.Add(filePath);
 
-                if (hasMediaFiles || Regex.IsMatch(torrentName, @"(?i)\b(1080p|2160p|720p|bluray|web-dl|flac|mp3)\b"))
+                if (hasMediaFiles || Regex.IsMatch(torrentName, @"(?i)\b(1080p|2160p|720p|bluray|web-dl|flac|mp3)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
                 {
                     riskScore += 0.6;
                     threatReasons.Add($"Dangerous executable/script '{fileName}' found in a media release.");
@@ -687,7 +687,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             }
 
             // 2. Double extension trick (e.g. Movie.mp4.exe, Song.mp3.scr)
-            if (Regex.IsMatch(fileName, @"(?i)\.(mkv|mp4|avi|mp3|flac|pdf|jpg|png)\.(exe|scr|bat|cmd|vbs|js|pif|ps1|msi)$"))
+            if (Regex.IsMatch(fileName, @"(?i)\.(mkv|mp4|avi|mp3|flac|pdf|jpg|png)\.(exe|scr|bat|cmd|vbs|js|pif|ps1|msi)$", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 riskScore += 0.8;
                 suspiciousFiles.Add(filePath);
@@ -695,7 +695,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             }
 
             // 3. Fake codec / password unlocker traps
-            if (Regex.IsMatch(fileName, @"(?i)(password|unlocker|codec_setup|install_first|how_to_play|readme_key)\.(exe|scr|url|lnk|bat)"))
+            if (Regex.IsMatch(fileName, @"(?i)(password|unlocker|codec_setup|install_first|how_to_play|readme_key)\.(exe|scr|url|lnk|bat)", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 riskScore += 0.7;
                 suspiciousFiles.Add(filePath);
@@ -705,7 +705,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             // 4. Suspiciously tiny media files (< 500 KB for video)
             if (MediaExtensions.Contains(ext) && file.Size > 0 && file.Size < 500 * 1024)
             {
-                if (Regex.IsMatch(torrentName, @"(?i)\b(1080p|2160p|720p|bluray|web-dl|movie)\b"))
+                if (Regex.IsMatch(torrentName, @"(?i)\b(1080p|2160p|720p|bluray|web-dl|movie)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
                 {
                     riskScore += 0.25;
                     threatReasons.Add($"Media file '{fileName}' has suspiciously low file size ({file.Size / 1024} KB).");
@@ -714,7 +714,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // Check torrent name anomalies
-        if (Regex.IsMatch(torrentName, @"(?i)\.(exe|scr|bat|cmd)$"))
+        if (Regex.IsMatch(torrentName, @"(?i)\.(exe|scr|bat|cmd)$", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             riskScore += 0.5;
             threatReasons.Add("Torrent payload itself is named as a standalone executable/script.");
@@ -811,8 +811,8 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         // Strip release group suffix
         if (!string.IsNullOrEmpty(parsed.ReleaseGroup))
         {
-            clean = Regex.Replace(clean, @"-(?i)" + Regex.Escape(parsed.ReleaseGroup) + @"$", string.Empty);
-            clean = Regex.Replace(clean, @"\[(?i)" + Regex.Escape(parsed.ReleaseGroup) + @"\]$", string.Empty);
+            clean = Regex.Replace(clean, @"-(?i)" + Regex.Escape(parsed.ReleaseGroup) + @"$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
+            clean = Regex.Replace(clean, @"\[(?i)" + Regex.Escape(parsed.ReleaseGroup) + @"\]$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         }
 
         // Find the earliest index of technical tags
@@ -864,8 +864,8 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // Replace dots, underscores, dashes with spaces
-        clean = Regex.Replace(clean, @"[\._\+]", " ");
-        clean = Regex.Replace(clean, @"\s+", " ").Trim();
+        clean = Regex.Replace(clean, @"[\._\+]", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
+        clean = Regex.Replace(clean, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
 
         return string.IsNullOrWhiteSpace(clean) ? raw : clean;
     }
