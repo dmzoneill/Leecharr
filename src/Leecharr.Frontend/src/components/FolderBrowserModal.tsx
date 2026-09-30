@@ -311,7 +311,7 @@ export function FolderBrowserModal({
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateFolder();
+                  if (e.key === "Enter") void handleCreateFolder();
                 }}
                 placeholder={t(
                   "folderBrowser.folderNamePlaceholder",

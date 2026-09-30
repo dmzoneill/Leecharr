@@ -233,10 +233,13 @@ export function MediaPlayerModal({
   const handleCopyStreamUrl = useCallback(() => {
     const fullUrl = getAbsoluteUrl(streamUrl);
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(fullUrl).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      });
+      void navigator.clipboard
+        .writeText(fullUrl)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+        })
+        .catch(() => {});
     }
   }, [streamUrl]);
 
@@ -772,7 +775,7 @@ export function MediaPlayerModal({
                     className="btn btn-xs btn-default"
                     onClick={() => {
                       if (navigator.clipboard?.writeText) {
-                        navigator.clipboard.writeText(
+                        void navigator.clipboard.writeText(
                           `mpv "${getAbsoluteUrl(streamUrl)}"`,
                         );
                         setCopiedMpvCmd(true);
@@ -807,7 +810,7 @@ export function MediaPlayerModal({
                     className="btn btn-xs btn-default"
                     onClick={() => {
                       if (navigator.clipboard?.writeText) {
-                        navigator.clipboard.writeText(
+                        void navigator.clipboard.writeText(
                           `vlc "${getAbsoluteUrl(streamUrl)}"`,
                         );
                         setCopiedVlcCmd(true);
@@ -926,7 +929,7 @@ xdg-mime default mpv-stream-handler.desktop x-scheme-handler/web+mpv
 xdg-mime default mpv-stream-handler.desktop x-scheme-handler/mpv
 update-desktop-database ~/.local/share/applications/`;
                     if (navigator.clipboard?.writeText) {
-                      navigator.clipboard.writeText(script);
+                      void navigator.clipboard.writeText(script);
                       setCopiedScript(true);
                       setTimeout(() => setCopiedScript(false), 2500);
                     }

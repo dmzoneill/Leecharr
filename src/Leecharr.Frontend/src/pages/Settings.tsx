@@ -148,7 +148,7 @@ function SettingsContent() {
   }, [isDirty]);
 
   const handleSelectPage = (pageId: string) => {
-    confirmIfDirty(() => {
+    void confirmIfDirty(() => {
       setSearchQuery("");
       navigate(`/settings/${pageId}`);
     });

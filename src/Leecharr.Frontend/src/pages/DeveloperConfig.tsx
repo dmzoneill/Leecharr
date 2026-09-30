@@ -29,7 +29,7 @@ export default function DeveloperConfig() {
   }, [fetchConfig]);
 
   const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
+    void navigator.clipboard.writeText(text);
     setActionMessage({ text: `${label} copied to clipboard!`, type: "success" });
   };
 

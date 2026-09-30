@@ -51,7 +51,7 @@ export default function DeveloperNetwork() {
         curl += ` \\\n  -H "${k}: ${v}"`;
       });
     }
-    navigator.clipboard.writeText(curl);
+    void navigator.clipboard.writeText(curl);
     setActionMessage({ text: "cURL command copied to clipboard!", type: "success" });
   };
 
