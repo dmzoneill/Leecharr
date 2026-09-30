@@ -9,6 +9,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Network.Blocklist;
 
 namespace Leecharr.Core.Test.Blocklist;
@@ -78,6 +79,7 @@ public class BlocklistProvidersAndTaskTest
         var updateService = Substitute.For<IBlocklistUpdateService>();
         var configService = Substitute.For<IConfigService>();
         configService.BlocklistEnabled.Returns(true);
+        configService.BlocklistAutoUpdateEnabled.Returns(true);
         configService.BlocklistUpdateIntervalHours.Returns(100);
         updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(10));
 
@@ -102,6 +104,53 @@ public class BlocklistProvidersAndTaskTest
         task.Handle(new ApplicationStartedEvent());
 
         updateService.DidNotReceive().UpdateRulesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task BlocklistUpdateTask_Handle_WhenAutoUpdateDisabled_DoesNotPerformInitialUpdate()
+    {
+        var updateService = Substitute.For<IBlocklistUpdateService>();
+        var configService = Substitute.For<IConfigService>();
+        configService.BlocklistEnabled.Returns(true);
+        configService.BlocklistAutoUpdateEnabled.Returns(false);
+        configService.BlocklistUpdateIntervalHours.Returns(100);
+
+        using var task = new BlocklistUpdateTask(updateService, configService);
+        task.Handle(new ApplicationStartedEvent());
+
+        // Wait briefly for background Task.Run
+        await Task.Delay(100);
+
+        await updateService.DidNotReceive().UpdateRulesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task BlocklistUpdateTask_ExecuteAsync_WhenScheduledAndAutoUpdateDisabled_SkipsUpdate()
+    {
+        var updateService = Substitute.For<IBlocklistUpdateService>();
+        var configService = Substitute.For<IConfigService>();
+        configService.BlocklistAutoUpdateEnabled.Returns(false);
+
+        using var task = new BlocklistUpdateTask(updateService, configService);
+        var command = new BlocklistUpdateCommand { Trigger = CommandTrigger.Scheduled };
+        await task.ExecuteAsync(command, CancellationToken.None);
+
+        await updateService.DidNotReceive().UpdateRulesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task BlocklistUpdateTask_ExecuteAsync_WhenManualAndAutoUpdateDisabled_ExecutesUpdate()
+    {
+        var updateService = Substitute.For<IBlocklistUpdateService>();
+        var configService = Substitute.For<IConfigService>();
+        configService.BlocklistAutoUpdateEnabled.Returns(false);
+        updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(42));
+
+        using var task = new BlocklistUpdateTask(updateService, configService);
+        var command = new BlocklistUpdateCommand { Trigger = CommandTrigger.Manual };
+        await task.ExecuteAsync(command, CancellationToken.None);
+
+        await updateService.Received(1).UpdateRulesAsync(Arg.Any<CancellationToken>());
     }
 
     [Test]
