@@ -124,6 +124,29 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
         }
     }
 
+    public bool Cancel(int id)
+    {
+        var command = this.repository.Get(id);
+        if (command == null)
+        {
+            return false;
+        }
+
+        if (command.Status == CommandStatus.Completed ||
+            command.Status == CommandStatus.Failed ||
+            command.Status == CommandStatus.Cancelled)
+        {
+            return false;
+        }
+
+        command.Status = CommandStatus.Cancelled;
+        command.EndedAt = DateTime.UtcNow;
+        command.Message = "Command was cancelled by user.";
+        this.repository.Update(command);
+        this.logger.Info("Command {0} (ID: {1}) was cancelled", command.Name, command.Id);
+        return true;
+    }
+
     private void CleanupOldCommands()
     {
         var cutoff = DateTime.UtcNow.AddDays(-7);
