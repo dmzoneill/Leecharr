@@ -353,6 +353,9 @@ public class CommandExecutorTest
     [TestCase("Backup")]
     [TestCase("BackupCommand")]
     [TestCase("backup")]
+    [TestCase("SyncArr")]
+    [TestCase("SyncArrCommand")]
+    [TestCase("syncarr")]
     public async Task ExecuteAsync_ResolvesAndExecutesSystemTaskCommands(string commandName)
     {
         var commandModel = new CommandModel
@@ -420,6 +423,18 @@ public class CommandExecutorTest
             {
                 var h = Substitute.For<IExecuteAsync<NzbDrone.Core.Backup.BackupCommand>>();
                 h.ExecuteAsync(Arg.Any<NzbDrone.Core.Backup.BackupCommand>(), Arg.Any<CancellationToken>())
+                    .Returns(_ =>
+                    {
+                        executeAsyncCalled = true;
+                        return Task.CompletedTask;
+                    });
+                return h;
+            }
+
+            if (requestedType == typeof(IExecuteAsync<NzbDrone.Core.ArrIntegration.SyncArrCommand>))
+            {
+                var h = Substitute.For<IExecuteAsync<NzbDrone.Core.ArrIntegration.SyncArrCommand>>();
+                h.ExecuteAsync(Arg.Any<NzbDrone.Core.ArrIntegration.SyncArrCommand>(), Arg.Any<CancellationToken>())
                     .Returns(_ =>
                     {
                         executeAsyncCalled = true;
