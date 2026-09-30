@@ -229,10 +229,16 @@ export function NetworkSettingsTab() {
                 />
               </div>
               <div className="form-group" style={{ display: "flex", flexDirection: "column" }}>
-                <label className="form-label" style={{ visibility: "hidden" }}>
+                <label
+                  htmlFor="test-port-button"
+                  className="form-label"
+                  style={{ visibility: "hidden" }}
+                  aria-label={t("settingsTabs.batch2.testPort", "Test Port")}
+                >
                   Test
                 </label>
                 <button
+                  id="test-port-button"
                   type="button"
                   className="btn btn-outline"
                   onClick={handleTestPort}

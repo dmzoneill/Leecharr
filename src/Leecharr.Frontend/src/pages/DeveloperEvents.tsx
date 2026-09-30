@@ -484,7 +484,7 @@ export default function DeveloperEvents() {
             <form onSubmit={handlePublish}>
               <div style={{ marginBottom: "12px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                  <label style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+                  <label htmlFor="publish-event-name" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
                     Event Name
                   </label>
                   <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
@@ -515,6 +515,7 @@ export default function DeveloperEvents() {
                   ))}
                 </div>
                 <input
+                  id="publish-event-name"
                   type="text"
                   value={publishEventName}
                   onChange={(e) => setPublishEventName(e.target.value)}
@@ -532,10 +533,11 @@ export default function DeveloperEvents() {
               </div>
 
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, marginBottom: "4px" }}>
+                <label htmlFor="publish-payload" style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, marginBottom: "4px" }}>
                   Payload JSON
                 </label>
                 <textarea
+                  id="publish-payload"
                   rows={8}
                   value={publishPayload}
                   onChange={(e) => setPublishPayload(e.target.value)}

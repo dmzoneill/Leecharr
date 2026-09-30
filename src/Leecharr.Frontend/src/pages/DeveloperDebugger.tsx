@@ -810,10 +810,11 @@ export default function DeveloperDebugger() {
 
             <form onSubmit={handleAddTracepoint} style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.83rem" }}>
               <div>
-                <label style={{ display: "block", color: "var(--text-secondary, #94a3b8)", marginBottom: "4px" }}>
+                <label htmlFor="debugger-target-file-path" style={{ display: "block", color: "var(--text-secondary, #94a3b8)", marginBottom: "4px" }}>
                   Target File Path
                 </label>
                 <input
+                  id="debugger-target-file-path"
                   type="text"
                   value={newFilePath}
                   onChange={(e) => setNewFilePath(e.target.value)}
@@ -833,10 +834,11 @@ export default function DeveloperDebugger() {
               </div>
 
               <div>
-                <label style={{ display: "block", color: "var(--text-secondary, #94a3b8)", marginBottom: "4px" }}>
+                <label htmlFor="debugger-line-number" style={{ display: "block", color: "var(--text-secondary, #94a3b8)", marginBottom: "4px" }}>
                   Line Number
                 </label>
                 <input
+                  id="debugger-line-number"
                   type="number"
                   value={newLineNumber}
                   onChange={(e) => setNewLineNumber(Number(e.target.value))}
@@ -856,10 +858,11 @@ export default function DeveloperDebugger() {
               </div>
 
               <div>
-                <label style={{ display: "block", color: "var(--text-secondary, #94a3b8)", marginBottom: "4px" }}>
+                <label htmlFor="debugger-hit-condition" style={{ display: "block", color: "var(--text-secondary, #94a3b8)", marginBottom: "4px" }}>
                   Hit Condition (optional expression)
                 </label>
                 <input
+                  id="debugger-hit-condition"
                   type="text"
                   placeholder="e.g. torrent.Id > 0"
                   value={newCondition}

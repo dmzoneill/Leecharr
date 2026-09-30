@@ -445,6 +445,7 @@ export function Toggle({
   hint,
   helpText,
   disabled,
+  id,
 }: {
   label: string;
   checked: boolean;
@@ -452,8 +453,11 @@ export function Toggle({
   hint?: string;
   helpText?: string;
   disabled?: boolean;
+  id?: string;
 }) {
   const displayHint = hint || helpText;
+  const inputId =
+    id || `toggle-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   return (
     <div className="form-group form-group-toggle">
       <div
@@ -466,6 +470,7 @@ export function Toggle({
         }}
       >
         <span
+          id={`${inputId}-text`}
           className="form-label"
           style={{
             cursor: disabled ? "not-allowed" : "pointer",
@@ -476,11 +481,18 @@ export function Toggle({
         >
           {label}
         </span>
-        <label className="toggle-switch" style={{ flexShrink: 0, margin: 0 }}>
+        <label
+          htmlFor={inputId}
+          className="toggle-switch"
+          aria-label={label}
+          style={{ flexShrink: 0, margin: 0 }}
+        >
           <input
+            id={inputId}
             type="checkbox"
             checked={checked}
             disabled={disabled}
+            aria-label={label}
             onChange={(e) => onChange(e.target.checked)}
           />
           <span className="toggle-slider" />
