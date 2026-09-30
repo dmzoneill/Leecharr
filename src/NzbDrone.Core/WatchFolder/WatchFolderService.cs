@@ -61,7 +61,8 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
     private static readonly Regex TvPattern = new(
         @"(\bS\d{1,2}(?:[-._]?(?:E|EP)\d{1,4}(?:(?:[-_~]|e|E|\.E)\d{1,4})*)?\b|\b(?:E|EP)\d{1,4}(?:(?:[-_~]|e|E|\.E)\d{1,4})*\b|\b\d{1,2}x\d{1,4}\b|\b(19\d{2}|20\d{2})[.\-_ ](0[1-9]|1[0-2])[.\-_ ](0[1-9]|[12]\d|3[01])\b|\bSeason[\s\._]*\d+|\bComplete[\s\._]*Series\b|\b(EZTV|ETTV)\b)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex MoviePattern = new(
         @"(\b(19\d{2}|20\d{2})\b.*\b(2160p|1080p|720p|480p|576p|UHD|BluRay|WEB-DL|WEBRip|Remux|HDTV|DVDRip|BDRip|HDR|DV|IMAX)\b|\b(2160p|1080p|720p|480p|576p|UHD|BluRay|WEB-DL|WEBRip|Remux|HDTV|DVDRip|BDRip|HDR|DV|IMAX)\b.*\b(19\d{2}|20\d{2})\b|\b(YTS|YIFY)\b)",
@@ -75,7 +76,8 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
     private static readonly Regex MusicPattern = new(
         @"\b(FLAC|MP3|320kbps|Vinyl|Lossless|CD|Album|Discography|AAC|ALAC|WAV|AIFF|OGG|Opus|24bit|24-bit|Hi-Res|Soundtrack|OST)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     public WatchFolderService(
         IConfigService configService,
