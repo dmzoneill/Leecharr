@@ -304,7 +304,10 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
                 settings.BindInterface = this.configService.NetworkInterfaceBinding;
             }
 
-            settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
+            if (this.configService.EnableVpnKillSwitch)
+            {
+                settings.EnableVpnKillSwitch = true;
+            }
         }
 
         return settings;
@@ -321,7 +324,7 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
             if (nic == null || nic.OperationalStatus != OperationalStatus.Up)
             {
@@ -352,7 +355,7 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
             if (nic == null || nic.OperationalStatus != OperationalStatus.Up)
             {
