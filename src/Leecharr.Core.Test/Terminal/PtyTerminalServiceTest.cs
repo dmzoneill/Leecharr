@@ -359,7 +359,7 @@ public class PtyTerminalServiceTest
 
             sb.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
             var text = sb.ToString();
-            var match = Regex.Match(text, @"INNER_PID_(\d+)\s+_END");
+            var match = Regex.Match(text, @"INNER_PID_(\d+)\s+_END", RegexOptions.None, TimeSpan.FromSeconds(2));
             if (match.Success)
             {
                 childPid = int.Parse(match.Groups[1].Value);
