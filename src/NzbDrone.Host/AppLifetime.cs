@@ -141,24 +141,26 @@ public class AppLifetime : IHostedService, IDisposable
             if (this.services.ProwlarrSyncService != null && this.services.ProwlarrSyncService.IsConfigured())
             {
                 this.logger.Info("Prowlarr is configured; triggering startup Prowlarr sync...");
-                _ = Task.Run(async () =>
-                {
-                    try
+                _ = Task.Run(
+                    async () =>
                     {
-                        if (this.services.CommandQueueManager != null)
+                        try
                         {
-                            this.services.CommandQueueManager.Push(new ProwlarrSyncCommand(), CommandTrigger.Scheduled);
+                            if (this.services.CommandQueueManager != null)
+                            {
+                                this.services.CommandQueueManager.Push(new ProwlarrSyncCommand(), CommandTrigger.Scheduled);
+                            }
+                            else
+                            {
+                                await this.services.ProwlarrSyncService.SyncAllAsync();
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            await this.services.ProwlarrSyncService.SyncAllAsync();
+                            this.logger.Warn(ex, "Failed to execute startup Prowlarr sync");
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Warn(ex, "Failed to execute startup Prowlarr sync");
-                    }
-                });
+                    },
+                    cancellationToken);
             }
         }
         catch (Exception ex)
@@ -687,7 +689,7 @@ public class AppLifetime : IHostedService, IDisposable
 
                 if (this.services.RssSyncService != null)
                 {
-                    await this.services.RssSyncService.SyncRssFeedsAsync();
+                    await this.services.RssSyncService.SyncRssFeedsAsync(token);
                 }
             }
             catch (OperationCanceledException)

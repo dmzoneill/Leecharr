@@ -30,7 +30,7 @@ public class HostHeaderValidationMiddleware
                 this.logger.Warn("Blocked request with disallowed Host header: '{0}' from {1}", hostHeader, context.Connection.RemoteIpAddress);
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 context.Response.ContentType = "text/plain";
-                await context.Response.WriteAsync("Invalid Host header.");
+                await context.Response.WriteAsync("Invalid Host header.", context.RequestAborted);
                 return;
             }
         }
