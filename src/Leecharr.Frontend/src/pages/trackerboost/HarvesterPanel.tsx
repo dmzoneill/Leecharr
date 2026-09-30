@@ -70,6 +70,10 @@ export function HarvesterPanel({
     return filteredDownloads.find((i) => i.key === activeSelectedKey);
   }, [filteredDownloads, activeSelectedKey]);
 
+  const isLeecharr =
+    selectedItem?.sourceType === "leecharr" &&
+    Boolean(selectedItem?.id && selectedItem.id > 0);
+
   // Inspection hooks with live hash scraping
   const {
     data: torrentInspection,
@@ -77,7 +81,7 @@ export function HarvesterPanel({
     refetch: refetchTorrentInspect,
   } = useInspectTorrentTrackers(
     selectedItem?.id ?? 0,
-    Boolean(selectedItem?.id && selectedItem.id > 0),
+    isLeecharr,
   );
 
   const {
@@ -87,11 +91,11 @@ export function HarvesterPanel({
   } = useInspectHashTrackers(
     selectedItem?.infoHash ?? "",
     selectedItem?.name ?? "",
-    Boolean(!selectedItem?.id && selectedItem?.infoHash),
+    Boolean(!isLeecharr && selectedItem?.infoHash),
   );
 
-  const inspection = selectedItem?.id ? torrentInspection : hashInspection;
-  const inspectionLoading = selectedItem?.id
+  const inspection = isLeecharr ? torrentInspection : hashInspection;
+  const inspectionLoading = isLeecharr
     ? torrentInspectLoading
     : hashInspectLoading;
 
@@ -148,7 +152,7 @@ export function HarvesterPanel({
   };
 
   const handleBoostItem = (item: UnifiedDownloadItem) => {
-    if (item.id && item.id > 0) {
+    if (item.sourceType === "leecharr" && item.id && item.id > 0) {
       boostTorrent.mutate(item.id, {
         onSuccess: (res) => {
           showToast(res.message, res.boosted ? "success" : "info");
@@ -187,7 +191,7 @@ export function HarvesterPanel({
 
     injectTracker.mutate(
       {
-        torrentId: selectedItem.id,
+        torrentId: isLeecharr ? selectedItem.id : undefined,
         infoHash: selectedItem.infoHash,
         trackerUrl,
       },
@@ -687,7 +691,7 @@ export function HarvesterPanel({
                     className="btn btn-action"
                     style={{ fontSize: "0.85rem" }}
                     onClick={() =>
-                      selectedItem.id
+                      isLeecharr
                         ? refetchTorrentInspect()
                         : refetchHashInspect()
                     }
