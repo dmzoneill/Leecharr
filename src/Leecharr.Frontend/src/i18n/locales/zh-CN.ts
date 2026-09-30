@@ -2023,8 +2023,8 @@ const zhCN: I18nTranslations = {
     "inactivityWarning": "不活动警告",
     "inactivityWarningDesc": "由于以下位置不活动，您的会话将自动锁定：",
     "activityHint": "移动鼠标或按任意键保持活动状态。",
-    "passwordPlaceholder": "输入密码或 API 密钥",
-    "passwordRequired": "需要密码或 API 密钥",
+    "passwordPlaceholder": "输入密码",
+    "passwordRequired": "需要密码",
     "invalidPassword": "密码或凭据无效",
     "sessionUnlocked": "会话解锁成功",
     "lockScreen": "锁屏"

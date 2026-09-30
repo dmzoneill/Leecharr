@@ -2023,8 +2023,8 @@ const hi: I18nTranslations = {
     "inactivityWarning": "निष्क्रियता चेतावनी",
     "inactivityWarningDesc": "निष्क्रियता के कारण आपका सत्र स्वचालित रूप से लॉक हो जाएगा:",
     "activityHint": "सक्रिय रहने के लिए अपना माउस हिलाएँ या कोई भी कुंजी दबाएँ।",
-    "passwordPlaceholder": "पासवर्ड या एपीआई कुंजी दर्ज करें",
-    "passwordRequired": "पासवर्ड या एपीआई कुंजी आवश्यक है",
+    "passwordPlaceholder": "पासवर्ड दर्ज करें",
+    "passwordRequired": "पासवर्ड आवश्यक है",
     "invalidPassword": "अमान्य पासवर्ड या क्रेडेंशियल",
     "sessionUnlocked": "सत्र सफलतापूर्वक अनलॉक हो गया",
     "lockScreen": "लॉक स्क्रीन"

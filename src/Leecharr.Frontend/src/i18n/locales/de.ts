@@ -2023,8 +2023,8 @@ const de: I18nTranslations = {
     "inactivityWarning": "Inaktivitätswarnung",
     "inactivityWarningDesc": "Ihre Sitzung wird aufgrund von Inaktivität automatisch gesperrt:",
     "activityHint": "Bewegen Sie Ihre Maus oder drücken Sie eine beliebige Taste, um aktiv zu bleiben.",
-    "passwordPlaceholder": "Geben Sie das Passwort oder den API-Schlüssel ein",
-    "passwordRequired": "Es ist ein Passwort oder ein API-Schlüssel erforderlich",
+    "passwordPlaceholder": "Geben Sie das Passwort ein",
+    "passwordRequired": "Es ist ein Passwort erforderlich",
     "invalidPassword": "Ungültiges Passwort oder ungültige Anmeldeinformationen",
     "sessionUnlocked": "Sitzung erfolgreich entsperrt",
     "lockScreen": "Bildschirm sperren"

@@ -2023,8 +2023,8 @@ const bn: I18nTranslations = {
     "inactivityWarning": "নিষ্ক্রিয়তা সতর্কতা",
     "inactivityWarningDesc": "এতে নিষ্ক্রিয়তার কারণে আপনার সেশন স্বয়ংক্রিয়ভাবে লক হয়ে যাবে:",
     "activityHint": "সক্রিয় থাকার জন্য আপনার মাউস সরান বা যেকোনো কী টিপুন।",
-    "passwordPlaceholder": "পাসওয়ার্ড বা API কী লিখুন",
-    "passwordRequired": "পাসওয়ার্ড বা API কী প্রয়োজন",
+    "passwordPlaceholder": "পাসওয়ার্ড লিখুন",
+    "passwordRequired": "পাসওয়ার্ড প্রয়োজন",
     "invalidPassword": "অবৈধ পাসওয়ার্ড বা শংসাপত্র",
     "sessionUnlocked": "সেশন সফলভাবে আনলক করা হয়েছে৷",
     "lockScreen": "লক স্ক্রীন"

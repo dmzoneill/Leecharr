@@ -2023,8 +2023,8 @@ const ko: I18nTranslations = {
     "inactivityWarning": "비활성 경고",
     "inactivityWarningDesc": "다음 활동이 없으면 세션이 자동으로 잠깁니다.",
     "activityHint": "활성 상태를 유지하려면 마우스를 움직이거나 아무 키나 누르십시오.",
-    "passwordPlaceholder": "비밀번호 또는 API 키를 입력하세요.",
-    "passwordRequired": "비밀번호 또는 API 키가 필요합니다",
+    "passwordPlaceholder": "비밀번호를 입력하세요.",
+    "passwordRequired": "비밀번호가 필요합니다",
     "invalidPassword": "잘못된 비밀번호 또는 자격 증명",
     "sessionUnlocked": "세션이 성공적으로 잠금 해제되었습니다.",
     "lockScreen": "잠금 화면"

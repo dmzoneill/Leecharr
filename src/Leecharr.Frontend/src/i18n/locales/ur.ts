@@ -2023,8 +2023,8 @@ const ur: I18nTranslations = {
     "inactivityWarning": "غیرفعالیت کی وارننگ",
     "inactivityWarningDesc": "آپ کا سیشن اس میں غیرفعالیت کی وجہ سے خود بخود بند ہو جائے گا:",
     "activityHint": "اپنے ماؤس کو حرکت دیں یا فعال رہنے کے لیے کوئی بھی کلید دبائیں۔",
-    "passwordPlaceholder": "پاس ورڈ یا API کلید درج کریں۔",
-    "passwordRequired": "پاس ورڈ یا API کلید درکار ہے۔",
+    "passwordPlaceholder": "پاس ورڈ درج کریں۔",
+    "passwordRequired": "پاس ورڈ درکار ہے۔",
     "invalidPassword": "غلط پاس ورڈ یا اسناد",
     "sessionUnlocked": "سیشن کامیابی کے ساتھ غیر مقفل ہو گیا۔",
     "lockScreen": "لاک اسکرین"

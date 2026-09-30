@@ -2023,8 +2023,8 @@ const vi: I18nTranslations = {
     "inactivityWarning": "Cảnh báo không hoạt động",
     "inactivityWarningDesc": "Phiên của bạn sẽ tự động khóa do không hoạt động trong:",
     "activityHint": "Di chuyển chuột hoặc nhấn phím bất kỳ để duy trì hoạt động.",
-    "passwordPlaceholder": "Nhập mật khẩu hoặc khóa API",
-    "passwordRequired": "Cần có mật khẩu hoặc khóa API",
+    "passwordPlaceholder": "Nhập mật khẩu",
+    "passwordRequired": "Cần có mật khẩu",
     "invalidPassword": "Mật khẩu hoặc thông tin đăng nhập không hợp lệ",
     "sessionUnlocked": "Đã mở khóa phiên thành công",
     "lockScreen": "Màn hình khóa"

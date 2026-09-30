@@ -2023,8 +2023,8 @@ const ar: I18nTranslations = {
     "inactivityWarning": "تحذير من عدم النشاط",
     "inactivityWarningDesc": "سيتم قفل جلستك تلقائيًا بسبب عدم النشاط في:",
     "activityHint": "حرك الماوس أو اضغط على أي مفتاح لتظل نشطًا.",
-    "passwordPlaceholder": "أدخل كلمة المرور أو مفتاح API",
-    "passwordRequired": "مطلوب كلمة المرور أو مفتاح API",
+    "passwordPlaceholder": "أدخل كلمة المرور",
+    "passwordRequired": "مطلوب كلمة المرور",
     "invalidPassword": "كلمة المرور أو بيانات الاعتماد غير صالحة",
     "sessionUnlocked": "تم فتح الجلسة بنجاح",
     "lockScreen": "قفل الشاشة"

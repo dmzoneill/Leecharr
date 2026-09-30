@@ -103,7 +103,7 @@ export function IdleLockModal({
       }
 
       if (!password.trim()) {
-        setError(t("auth.passwordRequired", "Password or API key is required"));
+        setError(t("auth.passwordRequired", "Password is required"));
         passwordInputRef.current?.focus();
         return;
       }
@@ -283,7 +283,7 @@ export function IdleLockModal({
                 className="form-input"
                 placeholder={t(
                   "auth.passwordPlaceholder",
-                  "Enter password or API key",
+                  "Enter password",
                 )}
                 value={password}
                 onChange={(e) => {
