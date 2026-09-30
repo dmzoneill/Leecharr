@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   useIndexers,
   useIndexerSearch,
@@ -20,10 +21,13 @@ interface IndexersProps {
 }
 
 export const Indexers: React.FC<IndexersProps> = ({
-  selectedSubNav = "all",
+  selectedSubNav,
   onSelectIndexer,
   onNavigateSettings,
 }) => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [internalIndexer, setInternalIndexer] = useState<string>("all");
   const { t } = useTranslation();
   const { data: indexers, isLoading: isIndexersLoading } = useIndexers();
   const { data: categories } = useCategories();
@@ -41,9 +45,44 @@ export const Indexers: React.FC<IndexersProps> = ({
 
   // Determine active indexer
   const enabledIndexers = (indexers || []).filter((i) => i.enable);
-  const isAll = selectedSubNav === "all" || !selectedSubNav;
-  const currentIndexerId = !isAll ? Number(selectedSubNav) : undefined;
+  const activeSelection =
+    selectedSubNav !== undefined
+      ? selectedSubNav
+      : searchParams.get("indexer") || internalIndexer || "all";
+  const parsedId = Number(activeSelection);
+  const isAll =
+    activeSelection === "all" || !activeSelection || Number.isNaN(parsedId);
+  const currentIndexerId = !isAll ? parsedId : undefined;
   const currentIndexer = indexers?.find((i) => i.id === currentIndexerId);
+
+  const handleNavigateSettings = (section = "indexers") => {
+    if (onNavigateSettings) {
+      onNavigateSettings(section);
+    } else {
+      navigate(`/settings/${section}`);
+    }
+  };
+
+  const handleSelectIndexer = (id: string) => {
+    if (onSelectIndexer) {
+      onSelectIndexer(id);
+    } else {
+      setInternalIndexer(id);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (id === "all") {
+          next.delete("indexer");
+        } else {
+          next.set("indexer", id);
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleClearFilter = () => {
+    handleSelectIndexer("all");
+  };
 
   // Live Indexer Search Hook
   const searchResults = useIndexerSearch(
@@ -279,7 +318,7 @@ export const Indexers: React.FC<IndexersProps> = ({
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => onNavigateSettings && onNavigateSettings("indexers")}
+            onClick={() => handleNavigateSettings("indexers")}
             style={{
               backgroundColor: "rgba(255, 209, 102, 0.1)",
               color: "var(--accent, #ffd166)",
@@ -324,7 +363,7 @@ export const Indexers: React.FC<IndexersProps> = ({
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => onNavigateSettings && onNavigateSettings("indexers")}
+            onClick={() => handleNavigateSettings("indexers")}
             style={{
               backgroundColor: "var(--accent, #ffd166)",
               color: "#10111a",
@@ -338,8 +377,8 @@ export const Indexers: React.FC<IndexersProps> = ({
         </div>
       )}
 
-      {/* Indexer Filter Pills / Chips when in All View */}
-      {isAll && enabledIndexers.length > 0 && (
+      {/* Indexer Filter Pills / Chips */}
+      {enabledIndexers.length > 0 && (
         <div
           style={{
             display: "flex",
@@ -353,13 +392,16 @@ export const Indexers: React.FC<IndexersProps> = ({
           <button
             type="button"
             className="badge"
+            onClick={handleClearFilter}
             style={{
               padding: "0.35rem 0.75rem",
               borderRadius: "20px",
-              backgroundColor: "var(--accent, #ffd166)",
-              color: "#000000",
-              fontWeight: 600,
-              border: "none",
+              backgroundColor: isAll
+                ? "var(--accent, #ffd166)"
+                : "var(--bg-secondary, #171b35)",
+              color: isAll ? "#000000" : "var(--text-secondary, #c7c5d3)",
+              fontWeight: isAll ? 600 : "normal",
+              border: isAll ? "none" : "1px solid var(--border-light)",
               cursor: "pointer",
             }}
           >
@@ -367,24 +409,32 @@ export const Indexers: React.FC<IndexersProps> = ({
               count: enabledIndexers.length,
             })}
           </button>
-          {enabledIndexers.map((idx) => (
-            <button
-              key={idx.id}
-              type="button"
-              className="badge"
-              onClick={() => onSelectIndexer && onSelectIndexer(String(idx.id))}
-              style={{
-                padding: "0.35rem 0.75rem",
-                borderRadius: "20px",
-                backgroundColor: "var(--bg-secondary, #171b35)",
-                color: "var(--text-secondary, #c7c5d3)",
-                border: "1px solid var(--border-light)",
-                cursor: "pointer",
-              }}
-            >
-              {idx.name} ({idx.indexerType})
-            </button>
-          ))}
+          {enabledIndexers.map((idx) => {
+            const isSelected = !isAll && currentIndexerId === idx.id;
+            return (
+              <button
+                key={idx.id}
+                type="button"
+                className="badge"
+                onClick={() => handleSelectIndexer(String(idx.id))}
+                style={{
+                  padding: "0.35rem 0.75rem",
+                  borderRadius: "20px",
+                  backgroundColor: isSelected
+                    ? "var(--accent, #ffd166)"
+                    : "var(--bg-secondary, #171b35)",
+                  color: isSelected
+                    ? "#000000"
+                    : "var(--text-secondary, #c7c5d3)",
+                  fontWeight: isSelected ? 600 : "normal",
+                  border: isSelected ? "none" : "1px solid var(--border-light)",
+                  cursor: "pointer",
+                }}
+              >
+                {idx.name} ({idx.indexerType})
+              </button>
+            );
+          })}
         </div>
       )}
 
