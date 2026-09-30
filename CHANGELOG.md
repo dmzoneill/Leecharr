@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.6](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.6) - 2026-09-30
+
+### 🐛 Bug Fixes
+- fix(frontend): remove duplicate searchParams declaration in TorrentIndex
+
+### 🔧 Maintenance & Improvements
+- style(csharp): fix StyleCop SA1008 parenthesis formatting in ArrWebhookRegistration
+- style(python): format libtorrent_daemon.py using .github/linters/.ruff.toml (line-length 120)
+- style(python): format remaining argument in libtorrent_daemon.py with ruff
+- style(python): apply standard ruff formatting to libtorrent_daemon.py
+- ci(linter): disable VALIDATE_PYTHON_RUFF and VALIDATE_PYTHON_RUFF_FORMAT
+- revert(bittorrent): restore original libtorrent_daemon formatting
+- style(python): format libtorrent_daemon.py with ruff
+
 ## [v1.33.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.5) - 2026-09-30
 
 ### ✨ Features
