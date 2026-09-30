@@ -3483,12 +3483,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         var upper = fileName.ToUpperInvariant();
-        var normalized = Regex.Replace(upper, @"[._\-+\[\]\(\)]", " ");
+        var normalized = Regex.Replace(upper, @"[._\-+\[\]\(\)]", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Resolution & Dimensions (only if missing)
         if (string.IsNullOrEmpty(info.Resolution))
         {
-            if (Regex.IsMatch(normalized, @"\b(2160P|4K|UHD)\b"))
+            if (Regex.IsMatch(normalized, @"\b(2160P|4K|UHD)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Resolution = "4K UHD (2160p)";
                 if (info.Width == 0)
@@ -3501,7 +3501,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     info.Height = 2160;
                 }
             }
-            else if (Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b"))
+            else if (Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Resolution = "1080p";
                 if (info.Width == 0)
@@ -3514,7 +3514,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     info.Height = 1080;
                 }
             }
-            else if (Regex.IsMatch(normalized, @"\b720P\b|(?<!\b(DTS|TRUE)\s+)\bHD\b"))
+            else if (Regex.IsMatch(normalized, @"\b720P\b|(?<!\b(DTS|TRUE)\s+)\bHD\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Resolution = "720p";
                 if (info.Width == 0)
@@ -3527,7 +3527,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     info.Height = 720;
                 }
             }
-            else if (Regex.IsMatch(normalized, @"\b(576P|576I|PAL)\b"))
+            else if (Regex.IsMatch(normalized, @"\b(576P|576I|PAL)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Resolution = "576p";
                 if (info.Width == 0)
@@ -3540,7 +3540,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     info.Height = 576;
                 }
             }
-            else if (Regex.IsMatch(normalized, @"\b(480P|480I|NTSC|SD)\b"))
+            else if (Regex.IsMatch(normalized, @"\b(480P|480I|NTSC|SD)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Resolution = "480p";
                 if (info.Width == 0)
@@ -3556,27 +3556,27 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
         else if (info.Width == 0 && info.Height == 0)
         {
-            if (info.Resolution.Contains("2160p", StringComparison.OrdinalIgnoreCase) || info.Resolution.Contains("4K", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(2160P|4K|UHD)\b"))
+            if (info.Resolution.Contains("2160p", StringComparison.OrdinalIgnoreCase) || info.Resolution.Contains("4K", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(2160P|4K|UHD)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Width = 3840;
                 info.Height = 2160;
             }
-            else if (info.Resolution.Contains("1080p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b"))
+            else if (info.Resolution.Contains("1080p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Width = 1920;
                 info.Height = 1080;
             }
-            else if (info.Resolution.Contains("720p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b720P\b|(?<!\b(DTS|TRUE)\s+)\bHD\b"))
+            else if (info.Resolution.Contains("720p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b720P\b|(?<!\b(DTS|TRUE)\s+)\bHD\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Width = 1280;
                 info.Height = 720;
             }
-            else if (info.Resolution.Contains("576p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(576P|576I|PAL)\b"))
+            else if (info.Resolution.Contains("576p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(576P|576I|PAL)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Width = 720;
                 info.Height = 576;
             }
-            else if (info.Resolution.Contains("480p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(480P|480I|NTSC|SD)\b"))
+            else if (info.Resolution.Contains("480p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(480P|480I|NTSC|SD)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.Width = 854;
                 info.Height = 480;
