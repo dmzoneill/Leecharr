@@ -2,7 +2,7 @@
 FROM node:24-alpine AS frontend
 WORKDIR /build/src/Leecharr.Frontend
 COPY src/Leecharr.Frontend/package.json src/Leecharr.Frontend/package-lock.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps --ignore-scripts
 COPY src/Leecharr.Frontend/ ./
 RUN npm run build
 

@@ -2,7 +2,7 @@
 set -e
 
 # Disable linters not supported in dispatch.yaml inputs or incompatible with repo
-if [ -n "$GITHUB_ENV" ]; then
+if [[ -n "$GITHUB_ENV" ]]; then
   {
     echo "VALIDATE_CSS=false"
     echo "VALIDATE_CSS_STYLELINT=false"
