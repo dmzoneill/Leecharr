@@ -37,6 +37,8 @@ public class TrackerResource : RestResource
 public class AddTrackerRequest
 {
     public string Url { get; set; }
+
+    public int? Tier { get; set; }
 }
 
 public class TorrentEventLogResource : RestResource
