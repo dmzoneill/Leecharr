@@ -9,11 +9,39 @@ import {
   useTestDirectArrConnection,
   useArrSync,
 } from "../../api/hooks";
-import type { ArrConnection, ArrTestResult } from "../../api/types";
+import type {
+  ArrConnection,
+  ArrTestResult,
+  RemotePathMapping,
+} from "../../api/types";
 import { TextInput, SelectInput, Toggle, SectionCard } from "./shared";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+
+const STORAGE_KEY_PATH_MAPPINGS = "leecharr_remote_path_mappings";
+
+function getStoredPathMappings(): RemotePathMapping[] {
+  if (typeof window === "undefined" || !window.localStorage) return [];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_PATH_MAPPINGS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setStoredPathMappings(mappings: RemotePathMapping[]): void {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEY_PATH_MAPPINGS,
+      JSON.stringify(mappings),
+    );
+  } catch {
+    // ignore storage write errors
+  }
+}
 
 export function ConnectionsTab() {
   const { t } = useTranslation();
@@ -72,8 +100,112 @@ export function ConnectionsTab() {
     syncEnabled: true,
     enableAutomaticAdd: true,
     webhookEnabled: true,
+    syncCategories: true,
+    category: "",
+    savePath: "",
     implementation: "SonarrConnection",
     configContract: "ArrConnectionDefinition",
+  };
+
+  const [pathMappings, setPathMappings] = useState<RemotePathMapping[]>(() =>
+    getStoredPathMappings(),
+  );
+  const [editingMapping, setEditingMapping] =
+    useState<Partial<RemotePathMapping> | null>(null);
+  const initialMappingRef = useRef<string>("");
+
+  const handleCloseMappingModal = async () => {
+    const isDirty = Boolean(
+      editingMapping &&
+        initialMappingRef.current &&
+        JSON.stringify(editingMapping) !== initialMappingRef.current,
+    );
+    if (isDirty) {
+      const ok = await confirm({
+        title: t("settingsTabs.shared.unsavedChangesTitle"),
+        message: t("settingsTabs.shared.unsavedChangesDesc"),
+        confirmText: t("settingsTabs.shared.discardAndLeave"),
+        cancelText: t("settingsTabs.shared.stayOnPage"),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setEditingMapping(null);
+  };
+
+  const mappingTrapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: Boolean(editingMapping),
+    onClose: handleCloseMappingModal,
+  });
+
+  const handleOpenAddMapping = () => {
+    const initial: Partial<RemotePathMapping> = {
+      host: "*",
+      remotePath: "",
+      localPath: "",
+    };
+    initialMappingRef.current = JSON.stringify(initial);
+    setEditingMapping(initial);
+  };
+
+  const handleOpenEditMapping = (mapping: RemotePathMapping) => {
+    const initial = { ...mapping };
+    initialMappingRef.current = JSON.stringify(initial);
+    setEditingMapping(initial);
+  };
+
+  const handleSaveMapping = () => {
+    if (!editingMapping) return;
+    if (!editingMapping.host?.trim()) {
+      showToast(t("settingsTabs.connections.hostRequired"), "error");
+      return;
+    }
+    if (!editingMapping.remotePath?.trim()) {
+      showToast(t("settingsTabs.connections.remotePathRequired"), "error");
+      return;
+    }
+    if (!editingMapping.localPath?.trim()) {
+      showToast(t("settingsTabs.connections.localPathRequired"), "error");
+      return;
+    }
+
+    if (editingMapping.id) {
+      const updated = pathMappings.map((m) =>
+        m.id === editingMapping.id ? (editingMapping as RemotePathMapping) : m,
+      );
+      setPathMappings(updated);
+      setStoredPathMappings(updated);
+      showToast(t("settingsTabs.connections.pathMappingUpdated"), "success");
+    } else {
+      const newMapping: RemotePathMapping = {
+        id: Date.now(),
+        host: editingMapping.host.trim(),
+        remotePath: editingMapping.remotePath.trim(),
+        localPath: editingMapping.localPath.trim(),
+      };
+      const updated = [...pathMappings, newMapping];
+      setPathMappings(updated);
+      setStoredPathMappings(updated);
+      showToast(t("settingsTabs.connections.pathMappingCreated"), "success");
+    }
+    setEditingMapping(null);
+  };
+
+  const handleDeleteMapping = async (mapping: RemotePathMapping) => {
+    const ok = await confirm({
+      title: t("settingsTabs.connections.deletePathMappingTitle"),
+      message: t("settingsTabs.connections.deletePathMappingMessage", {
+        host: mapping.host,
+      }),
+      danger: true,
+      confirmText: t("settingsTabs.categories.deleteConfirm"),
+    });
+    if (!ok) return;
+
+    const updated = pathMappings.filter((m) => m.id !== mapping.id);
+    setPathMappings(updated);
+    setStoredPathMappings(updated);
+    showToast(t("settingsTabs.connections.pathMappingDeleted"), "info");
   };
 
   const handleOpenModal = (conn: Partial<ArrConnection>) => {
@@ -338,6 +470,11 @@ export function ConnectionsTab() {
                     {t("settingsTabs.connections.badgeSync")}
                   </span>
                 )}
+                {conn.syncCategories !== false && (
+                  <span className="provider-card-badge provider-card-badge-blue">
+                    {t("settingsTabs.connections.badgeSyncCategories")}
+                  </span>
+                )}
                 {conn.enableAutomaticAdd && (
                   <span className="provider-card-badge provider-card-badge-blue">
                     {t("settingsTabs.connections.badgeAutoAdd")}
@@ -360,6 +497,28 @@ export function ConnectionsTab() {
                     }}
                   >
                     ↳ {conn.externalUrl}
+                  </div>
+                )}
+                {conn.category && (
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      opacity: 0.8,
+                      marginTop: "2px",
+                    }}
+                  >
+                    {t("settingsTabs.connections.category")}: {conn.category}
+                  </div>
+                )}
+                {conn.savePath && (
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      opacity: 0.8,
+                      marginTop: "2px",
+                    }}
+                  >
+                    {t("settingsTabs.connections.savePath")}: {conn.savePath}
                   </div>
                 )}
               </div>
@@ -391,6 +550,141 @@ export function ConnectionsTab() {
             <span className="provider-card-add-icon">+</span>
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title={t("settingsTabs.connections.remotePathMappingsTitle")}
+        description={t("settingsTabs.connections.remotePathMappingsDesc")}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "1rem",
+          }}
+        >
+          <button
+            type="button"
+            className="btn btn-primary btn-small"
+            onClick={handleOpenAddMapping}
+          >
+            + {t("settingsTabs.connections.addPathMapping")}
+          </button>
+        </div>
+
+        {pathMappings.length === 0 ? (
+          <div
+            style={{
+              padding: "2rem",
+              textAlign: "center",
+              color: "var(--text-muted, #7e8092)",
+              backgroundColor: "var(--bg-subtle, rgba(255, 255, 255, 0.02))",
+              borderRadius: "6px",
+              border: "1px dashed var(--border, #333)",
+            }}
+          >
+            <p style={{ margin: "0 0 1rem" }}>
+              {t("settingsTabs.connections.noPathMappings")}
+            </p>
+            <button
+              type="button"
+              className="btn btn-outline btn-small"
+              onClick={handleOpenAddMapping}
+            >
+              + {t("settingsTabs.connections.addPathMapping")}
+            </button>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table
+              className="table"
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "0.85rem",
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    borderBottom: "1px solid var(--border-light, #333)",
+                    textAlign: "left",
+                    color: "var(--text-muted, #7e8092)",
+                    fontSize: "0.8rem",
+                  }}
+                >
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.connections.host")}
+                  </th>
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.connections.remotePath")}
+                  </th>
+                  <th style={{ padding: "0.6rem 0.8rem" }}>
+                    {t("settingsTabs.connections.localPath")}
+                  </th>
+                  <th style={{ padding: "0.6rem 0.8rem", textAlign: "right" }}>
+                    {t("settingsTabs.categories.table.actions")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pathMappings.map((m) => (
+                  <tr
+                    key={m.id}
+                    style={{
+                      borderBottom: "1px solid var(--border-light, #222)",
+                    }}
+                  >
+                    <td style={{ padding: "0.65rem 0.8rem", fontWeight: 600 }}>
+                      <span className="provider-card-badge provider-card-badge-blue">
+                        {m.host}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "0.65rem 0.8rem",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {m.remotePath}
+                    </td>
+                    <td
+                      style={{
+                        padding: "0.65rem 0.8rem",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {m.localPath}
+                    </td>
+                    <td
+                      style={{
+                        padding: "0.65rem 0.8rem",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-small"
+                        style={{ marginRight: "0.5rem" }}
+                        onClick={() => handleOpenEditMapping(m)}
+                      >
+                        {t("settingsTabs.categories.table.edit")}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-small btn-danger"
+                        onClick={() => handleDeleteMapping(m)}
+                      >
+                        {t("settingsTabs.categories.table.delete")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </SectionCard>
 
       {editing && (
@@ -478,6 +772,20 @@ export function ConnectionsTab() {
               onChange={(v) => setEditing({ ...editing, apiKey: v })}
               type="password"
             />
+            <TextInput
+              label={t("settingsTabs.connections.category")}
+              value={editing.category || ""}
+              onChange={(v) => setEditing({ ...editing, category: v })}
+              placeholder="tv"
+              hint={t("settingsTabs.connections.categoryHint")}
+            />
+            <TextInput
+              label={t("settingsTabs.connections.savePath")}
+              value={editing.savePath || ""}
+              onChange={(v) => setEditing({ ...editing, savePath: v })}
+              placeholder="/downloads/tv"
+              hint={t("settingsTabs.connections.savePathHint")}
+            />
             <Toggle
               label={t("settingsTabs.notifications.enableConnection")}
               checked={editing.enable ?? true}
@@ -487,6 +795,11 @@ export function ConnectionsTab() {
               label={t("settings.syncEnabled")}
               checked={editing.syncEnabled ?? true}
               onChange={(v) => setEditing({ ...editing, syncEnabled: v })}
+            />
+            <Toggle
+              label={t("settingsTabs.connections.syncCategories")}
+              checked={editing.syncCategories ?? true}
+              onChange={(v) => setEditing({ ...editing, syncCategories: v })}
             />
             <Toggle
               label={t("settings.autoAdd")}
@@ -631,6 +944,87 @@ export function ConnectionsTab() {
                     : t("settingsTabs.notifications.save")}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingMapping && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseMappingModal}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            ref={mappingTrapRef}
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 520,
+              borderRadius: "8px",
+              boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              className="modal-title"
+              style={{ fontSize: "1.2rem", marginBottom: "1rem" }}
+            >
+              {editingMapping.id
+                ? t("settingsTabs.connections.editPathMapping")
+                : t("settingsTabs.connections.addPathMapping")}
+            </div>
+            <TextInput
+              label={t("settingsTabs.connections.host")}
+              value={editingMapping.host || ""}
+              onChange={(v) =>
+                setEditingMapping({ ...editingMapping, host: v })
+              }
+              placeholder="*"
+              hint={t("settingsTabs.connections.hostHint")}
+            />
+            <TextInput
+              label={t("settingsTabs.connections.remotePath")}
+              value={editingMapping.remotePath || ""}
+              onChange={(v) =>
+                setEditingMapping({ ...editingMapping, remotePath: v })
+              }
+              placeholder="/downloads/"
+              hint={t("settingsTabs.connections.remotePathHint")}
+            />
+            <TextInput
+              label={t("settingsTabs.connections.localPath")}
+              value={editingMapping.localPath || ""}
+              onChange={(v) =>
+                setEditingMapping({ ...editingMapping, localPath: v })
+              }
+              placeholder="/data/downloads/"
+              hint={t("settingsTabs.connections.localPathHint")}
+            />
+            <div
+              className="modal-actions"
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "0.5rem",
+                marginTop: "1.5rem",
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-outline btn-small"
+                onClick={handleCloseMappingModal}
+              >
+                {t("settingsTabs.categories.modal.cancel")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-small"
+                onClick={handleSaveMapping}
+              >
+                {t("settingsTabs.notifications.save")}
+              </button>
             </div>
           </div>
         </div>
