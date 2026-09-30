@@ -3,6 +3,7 @@ import type {
   TorrentFile,
   Category,
   SystemStatus,
+  SystemLifecycleResponse,
   CurrentUser,
 } from "./types";
 import { trackException } from "../utils/analytics";
@@ -281,6 +282,10 @@ export const api = {
 
   // System
   getSystemStatus: () => apiClient.get<SystemStatus>("/system/status"),
+  restartSystem: () =>
+    apiClient.post<SystemLifecycleResponse>("/system/restart"),
+  shutdownSystem: () =>
+    apiClient.post<SystemLifecycleResponse>("/system/shutdown"),
 
   // Authentication & SSO
   getAuthProviders: () =>
