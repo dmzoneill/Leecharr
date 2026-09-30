@@ -21,7 +21,7 @@ interface SeedingAutomationCardProps {
 }
 
 export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
-  onNavigateSettings: _onNavigateSettings,
+  onNavigateSettings,
 }) => {
   const { t } = useTranslation();
   const { data: seedConfig, isLoading: seedLoading } = useSeedingConfig();
@@ -104,7 +104,12 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
         <span className="quick-card-title">
           {t("quickSettings.seedingStorage")}
         </span>
-        <DiskStorageBadge compact />
+        <DiskStorageBadge
+          compact
+          onClick={
+            onNavigateSettings ? () => onNavigateSettings("storage") : undefined
+          }
+        />
       </div>
 
       <div className="quick-card-body">
