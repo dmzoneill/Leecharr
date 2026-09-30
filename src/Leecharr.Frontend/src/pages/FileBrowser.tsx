@@ -305,7 +305,7 @@ export function FileBrowser() {
 
   const handleOpenInCli = () => {
     const target = currentPath || listing?.path || "/downloads";
-    navigate(`/terminal?path=${encodeURIComponent(target)}`);
+    navigate(`/developer/terminal?path=${encodeURIComponent(target)}`);
   };
 
   const handleDownloadFile = useCallback(
