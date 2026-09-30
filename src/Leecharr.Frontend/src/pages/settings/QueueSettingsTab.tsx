@@ -160,7 +160,7 @@ export function QueueSettingsTab() {
             label={t("settingsTabs.queue.maxActiveDownloads")}
             value={form.downloadQueueSize}
             onChange={(v) => update("downloadQueueSize", v)}
-            min={1}
+            min={0}
             max={100}
             hint={t("settingsTabs.queue.maxActiveDownloadsHint")}
           />
@@ -169,7 +169,7 @@ export function QueueSettingsTab() {
             label={t("settingsTabs.queue.maxActiveSeeds")}
             value={form.seedQueueSize}
             onChange={(v) => update("seedQueueSize", v)}
-            min={1}
+            min={0}
             max={500}
             hint={t("settingsTabs.queue.maxActiveSeedsHint")}
           />
