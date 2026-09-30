@@ -948,7 +948,7 @@ export function AiTab() {
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  malwareRiskThreshold: parseFloat(e.target.value),
+                  malwareRiskThreshold: Number.parseFloat(e.target.value),
                 })
               }
               style={{
