@@ -170,8 +170,15 @@ public class DiskProvider : IDiskProvider
             return false;
         }
 
-        var p = new string(path.ToCharArray());
-        return Directory.Exists(p);
+        try
+        {
+            var attr = new DirectoryInfo(path).Attributes;
+            return attr != (FileAttributes)(-1) && attr.HasFlag(FileAttributes.Directory);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -184,8 +191,15 @@ public class DiskProvider : IDiskProvider
             return false;
         }
 
-        var p = new string(path.ToCharArray());
-        return File.Exists(p);
+        try
+        {
+            var attr = new FileInfo(path).Attributes;
+            return attr != (FileAttributes)(-1) && !attr.HasFlag(FileAttributes.Directory);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public bool FolderWritable(string path)
