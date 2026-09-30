@@ -133,15 +133,8 @@ export function useSetFilesPriority() {
     Error,
     { torrentId: number; files: Array<{ fileId: number; priority: number }> }
   >({
-    mutationFn: async ({ torrentId, files }) => {
-      await Promise.all(
-        files.map((f) =>
-          apiClient.put(`/torrent/${torrentId}/files/${f.fileId}/priority`, {
-            priority: f.priority,
-          }),
-        ),
-      );
-    },
+    mutationFn: ({ torrentId, files }) =>
+      apiClient.put(`/torrent/${torrentId}/files/priorities`, { files }),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({
         queryKey: ["torrents", vars.torrentId, "files"],
