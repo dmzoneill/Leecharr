@@ -105,7 +105,8 @@ public class TorrentCreationService : ITorrentCreationService
             };
         }
 
-        if (!File.Exists(request.Path) && !Directory.Exists(request.Path)) // NOSONAR
+        // NOSONAR
+        if (!File.Exists(request.Path) && !Directory.Exists(request.Path))
         {
             return new TorrentCreationResult
             {
@@ -240,7 +241,8 @@ public class TorrentCreationService : ITorrentCreationService
             if (!string.IsNullOrWhiteSpace(request.OutputPath))
             {
                 outputPath = request.OutputPath;
-                if (Directory.Exists(outputPath) || outputPath.EndsWith(Path.DirectorySeparatorChar) || outputPath.EndsWith('/')) // NOSONAR
+                // NOSONAR
+                if (Directory.Exists(outputPath) || outputPath.EndsWith(Path.DirectorySeparatorChar) || outputPath.EndsWith('/'))
                 {
                     var fileName = $"{parsed.Name}.torrent";
                     outputPath = Path.Combine(outputPath, fileName);

@@ -76,7 +76,8 @@ public class CertificateManager : ICertificateManager
                 var trimmedPath = certPath.Trim();
                 var canonicalPath = Path.GetFullPath(trimmedPath);
                 var dir = Path.GetDirectoryName(canonicalPath);
-                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) // NOSONAR
+                // NOSONAR
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
                 {
                     result.IsValid = false;
                     result.Message = $"Certificate file not found at '{trimmedPath}'.";
@@ -233,7 +234,8 @@ public class CertificateManager : ICertificateManager
 
         var fullPath = Path.GetFullPath(path.Trim());
         var dir = Path.GetDirectoryName(fullPath);
-        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) // NOSONAR
+        // NOSONAR
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
         {
             throw new DirectoryNotFoundException($"Directory for certificate '{fullPath}' does not exist.");
         }
