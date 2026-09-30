@@ -207,15 +207,33 @@ public class DiskSpaceServiceTest
 
     [TestCase(0)]
     [TestCase(-1)]
-    public void CheckDiskSpaceThresholds_WhenLowDiskSpaceThresholdMbIsZeroOrNegative_DefaultsToFiveGigabytes(int thresholdMb)
+    public void CheckDiskSpaceThresholds_WhenLowDiskSpaceThresholdMbIsZeroOrNegative_DisablesAlerts(int thresholdMb)
     {
         var eventAggregator = Substitute.For<IEventAggregator>();
         this.configService.LowDiskSpaceThresholdMb.Returns(thresholdMb);
         this.configService.DownloadDir.Returns("/downloads");
 
-        // 2 GB free (below 5 GB default warning, above 1 GB default critical)
+        // 2 GB free (below 5 GB default warning, 2% free which is below 5% freePercent)
         this.diskProvider.GetAvailableSpace("/downloads").Returns(2L * 1024 * 1024 * 1024);
         this.diskProvider.GetTotalSize("/downloads").Returns(100L * 1024 * 1024 * 1024);
+
+        var diskService = new DiskSpaceService(this.appFolderInfo, this.configService, this.diskProvider, eventAggregator: eventAggregator);
+        diskService.CheckDiskSpaceThresholds();
+
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<DiskSpaceLowEvent>());
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<DiskSpaceCriticalEvent>());
+    }
+
+    [Test]
+    public void CheckDiskSpaceThresholds_WhenLowDiskSpaceThresholdMbIsPositive_PublishesLowDiskSpaceEventWhenFreePercentBelowFivePercent()
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        this.configService.LowDiskSpaceThresholdMb.Returns(500);
+        this.configService.DownloadDir.Returns("/downloads");
+
+        // 4% free space (less than 5% freePercent), 40 GB free (well above 500 MB threshold)
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(40_000_000_000L);
+        this.diskProvider.GetTotalSize("/downloads").Returns(1_000_000_000_000L);
 
         var diskService = new DiskSpaceService(this.appFolderInfo, this.configService, this.diskProvider, eventAggregator: eventAggregator);
         diskService.CheckDiskSpaceThresholds();
@@ -228,7 +246,7 @@ public class DiskSpaceServiceTest
     public void CheckDiskSpaceThresholds_WhenDefaultThresholdsAndFreeSpaceBetweenCriticalAndWarning_PublishesLowDiskSpaceEventAndNotCritical()
     {
         var eventAggregator = Substitute.For<IEventAggregator>();
-        this.configService.LowDiskSpaceThresholdMb.Returns(0);
+        this.configService.LowDiskSpaceThresholdMb.Returns(5000);
         this.configService.DownloadDir.Returns("/downloads");
 
         // 2 GB free space: default warning threshold is 5 GB, critical threshold is 1 GB
@@ -246,7 +264,7 @@ public class DiskSpaceServiceTest
     public void CheckDiskSpaceThresholds_WhenDefaultThresholdsAndFreeSpaceBelowCritical_PublishesCriticalEventAndNotLowEvent()
     {
         var eventAggregator = Substitute.For<IEventAggregator>();
-        this.configService.LowDiskSpaceThresholdMb.Returns(0);
+        this.configService.LowDiskSpaceThresholdMb.Returns(5000);
         this.configService.DownloadDir.Returns("/downloads");
 
         // 500 MB free space: below 1 GB default critical threshold
@@ -282,7 +300,7 @@ public class DiskSpaceServiceTest
     public void CheckDiskSpaceThresholds_WhenAdequateFreeSpace_DoesNotPublishAnyEvents()
     {
         var eventAggregator = Substitute.For<IEventAggregator>();
-        this.configService.LowDiskSpaceThresholdMb.Returns(0);
+        this.configService.LowDiskSpaceThresholdMb.Returns(5000);
         this.configService.DownloadDir.Returns("/downloads");
 
         // 10 GB free space on 100 GB drive (10% free, well above 5 GB default warning and 5% ratio)

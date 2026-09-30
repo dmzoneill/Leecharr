@@ -97,6 +97,11 @@ public class DiskProvider : IDiskProvider
             try
             {
                 var mountPath = drive.RootDirectory.FullName;
+                if (!OperatingSystem.IsWindows())
+                {
+                    mountPath = ResolveSymlinkPath(mountPath);
+                }
+
                 if (!mountPath.EndsWith(Path.DirectorySeparatorChar.ToString()) && mountPath != "/")
                 {
                     mountPath += Path.DirectorySeparatorChar;

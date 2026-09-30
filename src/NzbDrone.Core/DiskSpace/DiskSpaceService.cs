@@ -169,7 +169,7 @@ public class DiskSpaceService : IDiskSpaceService
                     volumeKey = !string.IsNullOrEmpty(root) ? $"{totalSpace.Value}_{root}" : $"{totalSpace.Value}_{path}";
                 }
 
-                if (!seenVolumes.Contains(volumeKey) && !seen.Contains(path))
+                if (!seenVolumes.Contains(volumeKey) && !seen.Contains(path) && (string.IsNullOrWhiteSpace(driveRoot) || !seen.Contains(driveRoot)))
                 {
                     seenVolumes.Add(volumeKey);
                     seen.Add(path);
@@ -204,9 +204,15 @@ public class DiskSpaceService : IDiskSpaceService
             return;
         }
 
-        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0
+        var thresholdMb = this.configService != null
             ? this.configService.LowDiskSpaceThresholdMb
             : 5000;
+
+        if (thresholdMb <= 0)
+        {
+            return;
+        }
+
         var warningThresholdBytes = (long)thresholdMb * 1024 * 1024;
         var criticalThresholdBytes = Math.Min(1024L * 1024 * 1024, warningThresholdBytes / 2);
         var freePercent = (double)info.FreeSpace / info.TotalSpace;
@@ -215,7 +221,7 @@ public class DiskSpaceService : IDiskSpaceService
         {
             this.eventAggregator.PublishEvent(new DiskSpaceCriticalEvent(info.Path, info.FreeSpace));
         }
-        else if (info.FreeSpace < warningThresholdBytes || freePercent < 0.05)
+        else if (thresholdMb > 0 && (info.FreeSpace < warningThresholdBytes || freePercent < 0.05))
         {
             this.eventAggregator.PublishEvent(new DiskSpaceLowEvent(info.Path, info.FreeSpace, info.TotalSpace, freePercent));
         }
