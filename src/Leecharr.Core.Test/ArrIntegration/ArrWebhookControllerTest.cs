@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Developer;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
@@ -1102,5 +1103,102 @@ public class ArrWebhookControllerTest
         var res = okResult!.Value as ArrWebhookResult;
         res.Should().NotBeNull();
         res!.TorrentId.Should().Be(10);
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenWebhookStoreConfigured_RecordsReceiptInStore()
+    {
+        var webhookStore = Substitute.For<IDeveloperWebhookStore>();
+        var ctrl = new ArrWebhookController(
+            this.torrentRepository,
+            this.mediaMetadataRepository,
+            this.arrConnectionRepository,
+            null,
+            this.prowlarrSyncService,
+            this.eventAggregator,
+            webhookStore);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            InstanceName = "Sonarr-Main",
+            DownloadClientId = "0123456789abcdef0123456789abcdef01234567",
+        };
+
+        var result = await ctrl.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        webhookStore.Received(1).Record(
+            "Sonarr",
+            "Grab",
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            200,
+            Arg.Any<string>(),
+            Arg.Is<string>(m => m.Contains("Grab")),
+            true);
+    }
+
+    [Test]
+    public async Task HandleArr_WhenPayloadNullAndWebhookStoreConfigured_RecordsFailedReceiptInStore()
+    {
+        var webhookStore = Substitute.For<IDeveloperWebhookStore>();
+        var ctrl = new ArrWebhookController(
+            this.torrentRepository,
+            this.mediaMetadataRepository,
+            this.arrConnectionRepository,
+            null,
+            this.prowlarrSyncService,
+            this.eventAggregator,
+            webhookStore);
+
+        var result = await ctrl.HandleArr(null!);
+        var badRequest = result.Result as BadRequestObjectResult;
+        badRequest.Should().NotBeNull();
+
+        webhookStore.Received(1).Record(
+            "Arr",
+            "Unknown",
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            400,
+            Arg.Any<string>(),
+            Arg.Is<string>(m => m.Contains("required")),
+            false);
+    }
+
+    [Test]
+    public async Task HandleRadarr_WhenTestEventAndWebhookStoreConfigured_RecordsTestReceiptInStore()
+    {
+        var webhookStore = Substitute.For<IDeveloperWebhookStore>();
+        var ctrl = new ArrWebhookController(
+            this.torrentRepository,
+            this.mediaMetadataRepository,
+            this.arrConnectionRepository,
+            null,
+            this.prowlarrSyncService,
+            this.eventAggregator,
+            webhookStore);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Test",
+            InstanceName = "Radarr-4k",
+        };
+
+        var result = await ctrl.HandleRadarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        webhookStore.Received(1).Record(
+            "Radarr",
+            "Test",
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            200,
+            Arg.Any<string>(),
+            Arg.Is<string>(m => m.Contains("test")),
+            true);
     }
 }

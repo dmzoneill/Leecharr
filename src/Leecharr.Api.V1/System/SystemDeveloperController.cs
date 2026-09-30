@@ -8,8 +8,11 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading.Tasks;
+using Leecharr.Api.V1.Webhooks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Common.Serializer;
@@ -45,6 +48,8 @@ public class SystemDeveloperController : Controller
     private readonly IConfigFileProvider configFileProvider;
     private readonly IMainDatabase mainDatabase;
     private readonly IEventAggregator eventAggregator;
+    private readonly ArrWebhookController arrWebhookController;
+    private readonly IServiceProvider serviceProvider;
     private readonly Logger logger;
 
     public SystemDeveloperController(
@@ -56,7 +61,9 @@ public class SystemDeveloperController : Controller
         IConfigService configService = null,
         IConfigFileProvider configFileProvider = null,
         IMainDatabase mainDatabase = null,
-        IEventAggregator eventAggregator = null)
+        IEventAggregator eventAggregator = null,
+        ArrWebhookController arrWebhookController = null,
+        IServiceProvider serviceProvider = null)
     {
         this.eventStore = eventStore;
         this.httpTrafficStore = httpTrafficStore;
@@ -67,6 +74,8 @@ public class SystemDeveloperController : Controller
         this.configFileProvider = configFileProvider;
         this.mainDatabase = mainDatabase;
         this.eventAggregator = eventAggregator;
+        this.arrWebhookController = arrWebhookController;
+        this.serviceProvider = serviceProvider;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -906,7 +915,7 @@ public class SystemDeveloperController : Controller
     }
 
     [HttpPost("webhooks/simulate")]
-    public ActionResult<DeveloperWebhookSimulateResponse> SimulateWebhook([FromBody] DeveloperWebhookSimulateRequest request)
+    public async Task<ActionResult<DeveloperWebhookSimulateResponse>> SimulateWebhook([FromBody] DeveloperWebhookSimulateRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.PayloadJson))
         {
@@ -923,22 +932,70 @@ public class SystemDeveloperController : Controller
             var root = doc.RootElement;
 
             var detectedEvent = request.EventType;
-            if (root.TryGetProperty("eventType", out var evProp))
+            if (root.TryGetProperty("eventType", out var evProp) && !string.IsNullOrWhiteSpace(evProp.GetString()))
             {
-                detectedEvent = evProp.GetString() ?? detectedEvent;
+                detectedEvent = evProp.GetString();
             }
 
             logs.Add($"[Simulator] Detected EventType: {detectedEvent}");
+
+            var detectedArrType = request.ArrType;
+            if (string.IsNullOrWhiteSpace(detectedArrType) && root.TryGetProperty("instanceName", out var instProp) && !string.IsNullOrWhiteSpace(instProp.GetString()))
+            {
+                var inst = instProp.GetString();
+                if (inst.Contains("Sonarr", StringComparison.OrdinalIgnoreCase))
+                {
+                    detectedArrType = "Sonarr";
+                }
+                else if (inst.Contains("Radarr", StringComparison.OrdinalIgnoreCase))
+                {
+                    detectedArrType = "Radarr";
+                }
+                else if (inst.Contains("Lidarr", StringComparison.OrdinalIgnoreCase))
+                {
+                    detectedArrType = "Lidarr";
+                }
+                else if (inst.Contains("Readarr", StringComparison.OrdinalIgnoreCase))
+                {
+                    detectedArrType = "Readarr";
+                }
+                else if (inst.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase))
+                {
+                    detectedArrType = "Prowlarr";
+                }
+            }
 
             if (root.TryGetProperty("series", out var seriesProp))
             {
                 var title = seriesProp.TryGetProperty("title", out var tp) ? tp.GetString() : "Unknown";
                 logs.Add($"[Simulator] Identified TV Series context: '{title}'");
+                detectedArrType ??= "Sonarr";
             }
             else if (root.TryGetProperty("movie", out var movieProp))
             {
                 var title = movieProp.TryGetProperty("title", out var tp) ? tp.GetString() : "Unknown";
                 logs.Add($"[Simulator] Identified Movie context: '{title}'");
+                detectedArrType ??= "Radarr";
+            }
+            else if (root.TryGetProperty("artist", out var artistProp))
+            {
+                var name = artistProp.TryGetProperty("name", out var np) ? np.GetString() : "Unknown";
+                logs.Add($"[Simulator] Identified Music Artist context: '{name}'");
+                detectedArrType ??= "Lidarr";
+            }
+            else if (root.TryGetProperty("author", out var authorProp))
+            {
+                var name = authorProp.TryGetProperty("name", out var np) ? np.GetString() : "Unknown";
+                logs.Add($"[Simulator] Identified Book Author context: '{name}'");
+                detectedArrType ??= "Readarr";
+            }
+
+            if (string.IsNullOrWhiteSpace(detectedArrType) &&
+                (detectedEvent.StartsWith("Indexer", StringComparison.OrdinalIgnoreCase) ||
+                 detectedEvent.Equals("Sync", StringComparison.OrdinalIgnoreCase) ||
+                 detectedEvent.Equals("SyncAll", StringComparison.OrdinalIgnoreCase)))
+            {
+                detectedArrType = "Prowlarr";
             }
 
             if (root.TryGetProperty("release", out var relProp))
@@ -947,37 +1004,134 @@ public class SystemDeveloperController : Controller
                 logs.Add($"[Simulator] Matched Release Title: '{releaseTitle}'");
             }
 
+            var resolvedArrType = detectedArrType ?? "Arr";
+            var shouldDispatch = request.DispatchToPipeline;
+            var webhookController = this.GetWebhookController();
+
+            var statusCode = 200;
+            var isSuccess = true;
+            string resultMessage;
+
+            if (shouldDispatch && webhookController != null)
+            {
+                logs.Add($"[Simulator] Dispatching payload to ArrWebhookController pipeline (ArrType: '{resolvedArrType}')...");
+
+                ArrWebhookPayload payload = null;
+                try
+                {
+                    payload = JsonSerializer.Deserialize<ArrWebhookPayload>(
+                        request.PayloadJson,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                catch (Exception pex)
+                {
+                    logs.Add($"[Simulator] Payload deserialization warning: {pex.Message}");
+                }
+
+                if (payload != null && string.IsNullOrWhiteSpace(payload.EventType))
+                {
+                    payload.EventType = detectedEvent;
+                }
+
+                var actionResult = await webhookController.ProcessWebhookAsync(
+                    resolvedArrType,
+                    payload,
+                    rawPayload: request.PayloadJson,
+                    clientIp: "127.0.0.1",
+                    userAgent: "Leecharr-Developer-Sandbox/1.0",
+                    recordReceipt: false);
+
+                ArrWebhookResult pipelineResult = null;
+                if (actionResult.Result is ObjectResult objResult)
+                {
+                    statusCode = objResult.StatusCode ?? 200;
+                    pipelineResult = objResult.Value as ArrWebhookResult;
+                }
+                else if (actionResult.Result is StatusCodeResult statusResult)
+                {
+                    statusCode = statusResult.StatusCode;
+                }
+                else if (actionResult.Value != null)
+                {
+                    pipelineResult = actionResult.Value;
+                    statusCode = 200;
+                }
+
+                isSuccess = statusCode >= 200 && statusCode < 300 && (pipelineResult == null || pipelineResult.Success);
+                if (pipelineResult != null)
+                {
+                    logs.Add($"[Simulator] Pipeline execution completed: Success={pipelineResult.Success}, Message='{pipelineResult.Message}', Updated={pipelineResult.Updated}");
+                    if (pipelineResult.TorrentId != null)
+                    {
+                        logs.Add($"[Simulator] Matched Torrent ID: {pipelineResult.TorrentId}, InfoHash: {pipelineResult.InfoHash}");
+                    }
+
+                    resultMessage = $"Webhook '{detectedEvent}' simulation parsed and processed through pipeline: {pipelineResult.Message}";
+                }
+                else
+                {
+                    logs.Add($"[Simulator] Pipeline finished with HTTP status {statusCode}");
+                    resultMessage = $"Webhook '{detectedEvent}' simulation pipeline completed with status {statusCode}.";
+                }
+            }
+            else
+            {
+                if (!shouldDispatch)
+                {
+                    logs.Add("[Simulator] Pipeline dispatch skipped per request configuration.");
+                }
+                else
+                {
+                    logs.Add("[Simulator] ArrWebhookController is not registered; running in standalone verification mode.");
+                }
+
+                resultMessage = $"Webhook '{detectedEvent}' simulation parsed and verified successfully.";
+            }
+
             sw.Stop();
-            logs.Add($"[Simulator] Simulated execution completed successfully in {sw.Elapsed.TotalMilliseconds:F2}ms.");
+            logs.Add($"[Simulator] Simulated execution completed in {sw.Elapsed.TotalMilliseconds:F2}ms.");
 
             this.webhookStore?.Record(
                 "Simulator",
                 detectedEvent,
                 "127.0.0.1",
                 "Leecharr-Developer-Sandbox/1.0",
-                200,
+                statusCode,
                 request.PayloadJson,
-                $"Successfully processed {detectedEvent} simulation",
-                true);
+                resultMessage,
+                isSuccess);
 
-            return this.Ok(new DeveloperWebhookSimulateResponse
+            var response = new DeveloperWebhookSimulateResponse
             {
-                Success = true,
-                StatusCode = 200,
-                Message = $"Webhook '{detectedEvent}' simulation parsed and verified successfully.",
+                Success = isSuccess,
+                StatusCode = statusCode,
+                Message = resultMessage,
                 ExecutionTimeMs = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
                 TraceLogs = logs,
-            });
+            };
+
+            return statusCode == 200 ? this.Ok(response) : this.StatusCode(statusCode, response);
         }
         catch (JsonException jex)
         {
             sw.Stop();
             logs.Add($"[Simulator] JSON Syntax Error: {jex.Message}");
+            var errMessage = $"Invalid JSON payload: {jex.Message}";
+            this.webhookStore?.Record(
+                "Simulator",
+                request?.EventType ?? "Unknown",
+                "127.0.0.1",
+                "Leecharr-Developer-Sandbox/1.0",
+                400,
+                request?.PayloadJson ?? string.Empty,
+                errMessage,
+                false);
+
             return this.BadRequest(new DeveloperWebhookSimulateResponse
             {
                 Success = false,
                 StatusCode = 400,
-                Message = $"Invalid JSON payload: {jex.Message}",
+                Message = errMessage,
                 ExecutionTimeMs = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
                 TraceLogs = logs,
             });
@@ -986,15 +1140,54 @@ public class SystemDeveloperController : Controller
         {
             sw.Stop();
             logs.Add($"[Simulator] Execution Error: {ex.Message}");
+            var errMessage = $"Simulation failure: {ex.Message}";
+            this.webhookStore?.Record(
+                "Simulator",
+                request?.EventType ?? "Unknown",
+                "127.0.0.1",
+                "Leecharr-Developer-Sandbox/1.0",
+                500,
+                request?.PayloadJson ?? string.Empty,
+                errMessage,
+                false);
+
             return this.StatusCode(500, new DeveloperWebhookSimulateResponse
             {
                 Success = false,
                 StatusCode = 500,
-                Message = $"Simulation failure: {ex.Message}",
+                Message = errMessage,
                 ExecutionTimeMs = Math.Round(sw.Elapsed.TotalMilliseconds, 2),
                 TraceLogs = logs,
             });
         }
+    }
+
+    private ArrWebhookController GetWebhookController()
+    {
+        if (this.arrWebhookController != null)
+        {
+            return this.arrWebhookController;
+        }
+
+        if (this.serviceProvider != null)
+        {
+            try
+            {
+                var controller = this.serviceProvider.GetService(typeof(ArrWebhookController)) as ArrWebhookController;
+                if (controller != null)
+                {
+                    return controller;
+                }
+
+                return ActivatorUtilities.CreateInstance<ArrWebhookController>(this.serviceProvider);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to resolve ArrWebhookController from service provider");
+            }
+        }
+
+        return null;
     }
 
     // ==========================================
