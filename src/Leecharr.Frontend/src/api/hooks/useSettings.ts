@@ -362,7 +362,9 @@ export function useImportDownloadClientTorrent(clientId?: number) {
     mutationFn: (param) => {
       const hash = typeof param === "string" ? param : param.infoHash;
       const targetId =
-        typeof param === "object" && param.clientId ? param.clientId : clientId;
+        typeof param === "object" && param.clientId !== undefined
+          ? param.clientId
+          : (clientId ?? 0);
       return apiClient.post(`/downloadclients/${targetId}/import/${hash}`);
     },
     onSuccess: () => {
@@ -384,7 +386,9 @@ export function useImportDownloadClientTorrents(clientId?: number) {
     mutationFn: (param) => {
       const hashes = Array.isArray(param) ? param : param.infoHashes;
       const targetId =
-        !Array.isArray(param) && param.clientId ? param.clientId : clientId;
+        !Array.isArray(param) && param.clientId !== undefined
+          ? param.clientId
+          : (clientId ?? 0);
       return apiClient.post(`/downloadclients/${targetId}/import`, {
         infoHashes: hashes,
         hashes,

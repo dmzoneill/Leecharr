@@ -262,7 +262,7 @@ public class DownloadClientController : Controller
     [HttpPost("{id:int}/import/{hash}")]
     public async Task<ActionResult<TorrentResource>> ImportTorrent(int id, string hash)
     {
-        var client = this.repository.Get(id);
+        var client = await this.FindClientAsync(id, hash);
         if (client == null)
         {
             return this.NotFound();
@@ -285,23 +285,56 @@ public class DownloadClientController : Controller
     }
 
     [HttpPost("{id:int}/import")]
+    [HttpPost("import")]
     public async Task<ActionResult<SyncResultResource>> ImportTorrents(int id, [FromBody] ImportRequest request)
     {
-        var client = this.repository.Get(id);
-        if (client == null)
-        {
-            return this.NotFound();
-        }
-
         var hashes = request?.EffectiveHashes?.ToList() ?? new List<string>();
         if (hashes.Count == 0)
         {
             return this.BadRequest("No torrent hashes specified for import.");
         }
 
-        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService);
-        var itemMap = items.Where(i => !string.IsNullOrWhiteSpace(i.InfoHash))
-            .ToDictionary(i => i.InfoHash, StringComparer.OrdinalIgnoreCase);
+        List<DownloadClientDefinition> clients;
+        if (id <= 0)
+        {
+            clients = this.repository.All().Where(c => c.Enabled).ToList();
+            if (clients.Count == 0)
+            {
+                return this.NotFound();
+            }
+        }
+        else
+        {
+            var client = this.repository.Get(id);
+            if (client == null)
+            {
+                return this.NotFound();
+            }
+
+            clients = new List<DownloadClientDefinition> { client };
+        }
+
+        var http = this.GetHttpClient();
+        var itemMap = new Dictionary<string, (DownloadClientRemoteItem Item, DownloadClientDefinition Client)>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var client in clients)
+        {
+            try
+            {
+                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService);
+                foreach (var item in items.Where(i => !string.IsNullOrWhiteSpace(i.InfoHash)))
+                {
+                    if (!itemMap.ContainsKey(item.InfoHash))
+                    {
+                        itemMap[item.InfoHash] = (item, client);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to query items for client {0} during import", client.Name);
+            }
+        }
 
         var importedCount = 0;
         var skippedCount = 0;
@@ -320,9 +353,11 @@ public class DownloadClientController : Controller
                 continue;
             }
 
-            itemMap.TryGetValue(hash, out var remoteItem);
+            itemMap.TryGetValue(hash, out var remoteEntry);
+            var remoteItem = remoteEntry.Item;
+            var client = remoteEntry.Client ?? clients.FirstOrDefault();
             var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
-            var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client.Category;
+            var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client?.Category;
             var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
 
             try
@@ -332,11 +367,12 @@ public class DownloadClientController : Controller
             }
             catch (Exception ex)
             {
-                this.logger.Warn(ex, "Failed to import torrent {0} from {1}", hash, client.Name);
+                this.logger.Warn(ex, "Failed to import torrent {0} from {1}", hash, client?.Name ?? "unknown");
                 skippedCount++;
             }
         }
 
+        var clientNameMsg = clients.Count == 1 ? clients[0].Name : $"{clients.Count} clients";
         return this.Ok(new SyncResultResource
         {
             Success = true,
@@ -345,8 +381,90 @@ public class DownloadClientController : Controller
             Added = importedCount,
             Skipped = skippedCount,
             Failed = 0,
-            Message = $"Imported {importedCount} torrent(s) from {client.Name}.",
+            Message = $"Imported {importedCount} torrent(s) from {clientNameMsg}.",
         });
+    }
+
+    [HttpPost("{id:int}/torrents/{infoHash}/pause")]
+    public async Task<ActionResult> PauseRemoteTorrent(int id, string infoHash)
+    {
+        var client = await this.FindClientAsync(id, infoHash);
+        if (client == null)
+        {
+            return this.NotFound();
+        }
+
+        var success = await DownloadClientRemoteQuery.PauseTorrentAsync(client, infoHash, this.GetHttpClient(), this.safeHttpClientService);
+        if (!success)
+        {
+            return this.StatusCode((int)HttpStatusCode.BadGateway, new { success = false, message = $"Failed to pause torrent on {client.Name}" });
+        }
+
+        return this.Ok(new { success = true });
+    }
+
+    [HttpPost("{id:int}/torrents/{infoHash}/resume")]
+    public async Task<ActionResult> ResumeRemoteTorrent(int id, string infoHash)
+    {
+        var client = await this.FindClientAsync(id, infoHash);
+        if (client == null)
+        {
+            return this.NotFound();
+        }
+
+        var success = await DownloadClientRemoteQuery.ResumeTorrentAsync(client, infoHash, this.GetHttpClient(), this.safeHttpClientService);
+        if (!success)
+        {
+            return this.StatusCode((int)HttpStatusCode.BadGateway, new { success = false, message = $"Failed to resume torrent on {client.Name}" });
+        }
+
+        return this.Ok(new { success = true });
+    }
+
+    [HttpDelete("{id:int}/torrents/{infoHash}")]
+    public async Task<ActionResult> DeleteRemoteTorrent(int id, string infoHash, [FromQuery] bool deleteData = false)
+    {
+        var client = await this.FindClientAsync(id, infoHash);
+        if (client == null)
+        {
+            return this.NotFound();
+        }
+
+        var success = await DownloadClientRemoteQuery.DeleteTorrentAsync(client, infoHash, deleteData, this.GetHttpClient(), this.safeHttpClientService);
+        if (!success)
+        {
+            return this.StatusCode((int)HttpStatusCode.BadGateway, new { success = false, message = $"Failed to delete torrent on {client.Name}" });
+        }
+
+        return this.Ok(new { success = true });
+    }
+
+    private async Task<DownloadClientDefinition> FindClientAsync(int id, string infoHash)
+    {
+        if (id > 0)
+        {
+            return this.repository.Get(id);
+        }
+
+        var clients = this.repository.All().Where(c => c.Enabled).ToList();
+        var http = this.GetHttpClient();
+        foreach (var client in clients)
+        {
+            try
+            {
+                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService);
+                if (items.Any(i => string.Equals(i.InfoHash, infoHash, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return client;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to query client {0} while locating torrent {1}", client.Name, infoHash);
+            }
+        }
+
+        return null;
     }
 
     private static DownloadClientResource ToResource(DownloadClientDefinition model)
