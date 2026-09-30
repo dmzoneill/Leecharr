@@ -10,6 +10,8 @@ import {
   TorrentCreationTab,
 } from "./addtorrent";
 
+export { parseMagnetPreview, type MagnetInfo } from "./addtorrent";
+
 export interface AddTorrentFormProps {
   initialMode?: "file" | "magnet" | "search" | "create";
   initialQuery?: string;
@@ -32,6 +34,7 @@ export function AddTorrentForm({
   const [files, setFiles] = useState<File[]>([]);
   const [magnetLink, setMagnetLink] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [savePath, setSavePath] = useState("");
   const [isPaused, setIsPaused] = useState(false);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
@@ -53,7 +56,12 @@ export function AddTorrentForm({
     if (mode === "file" && files.length > 0) {
       setResultMessage(null);
       addTorrent.mutate(
-        { files, category: selectedCategory, isPaused },
+        {
+          files,
+          category: selectedCategory,
+          savePath: savePath.trim() || undefined,
+          isPaused,
+        },
         {
           onSuccess: (result: AddTorrentResult) => {
             trackTorrentAdd(
@@ -110,7 +118,12 @@ export function AddTorrentForm({
       );
     } else if (mode === "magnet" && magnetLink.trim()) {
       addTorrent.mutate(
-        { magnetLink: magnetLink.trim(), category: selectedCategory, isPaused },
+        {
+          magnetLink: magnetLink.trim(),
+          category: selectedCategory,
+          savePath: savePath.trim() || undefined,
+          isPaused,
+        },
         {
           onSuccess: () => {
             trackTorrentAdd("magnet", 1, selectedCategory, {
@@ -270,6 +283,8 @@ export function AddTorrentForm({
         <IndexerSearchTab
           initialQuery={initialQuery}
           selectedCategory={selectedCategory}
+          savePath={savePath}
+          isPaused={isPaused}
           isModal={isModal}
         />
       )}
@@ -279,8 +294,8 @@ export function AddTorrentForm({
         <TorrentCreationTab isModal={isModal} onClose={onClose} />
       )}
 
-      {/* Category & Download Options in File and Magnet modes */}
-      {mode !== "search" && mode !== "create" && (
+      {/* Category & Download Options in File, Magnet and Search modes */}
+      {mode !== "create" && (
         <div
           style={{
             display: "flex",
@@ -335,6 +350,35 @@ export function AddTorrentForm({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label
+              htmlFor="torrentSavePathInput"
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary, #c7c5d3)",
+              }}
+            >
+              Save Path:
+            </label>
+            <input
+              id="torrentSavePathInput"
+              type="text"
+              value={savePath}
+              onChange={(e) => setSavePath(e.target.value)}
+              placeholder="Default download directory"
+              className="form-input"
+              style={{
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.85rem",
+                borderRadius: "4px",
+                backgroundColor: "var(--bg-primary, #10111a)",
+                color: "inherit",
+                border: "1px solid var(--border-light, #1c203b)",
+                minWidth: "200px",
+              }}
+            />
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>

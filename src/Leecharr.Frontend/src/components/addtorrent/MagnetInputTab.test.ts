@@ -48,4 +48,12 @@ describe("MagnetInputTab: parseMagnetPreview (#1015)", () => {
     assert.equal(preview.name, "Cleaned");
     assert.equal(preview.hash, "0123456789abcdef0123456789abcdef01234567");
   });
+
+  it("safely handles unescaped or decoded percent signs in dn without throwing (#110)", () => {
+    const uri =
+      "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Album+100%25+Original";
+    const preview = parseMagnetPreview(uri);
+    assert.ok(preview);
+    assert.equal(preview.name, "Album 100% Original");
+  });
 });
