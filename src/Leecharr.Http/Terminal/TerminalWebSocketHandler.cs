@@ -229,10 +229,10 @@ public static class TerminalWebSocketHandler
                                         }
                                     }
                                     else if (type == "resize" &&
-                                             root.TryGetProperty("cols", out var colsProp) &&
-                                             root.TryGetProperty("rows", out var rowsProp) &&
-                                             colsProp.TryGetInt32(out var cols) &&
-                                             rowsProp.TryGetInt32(out var rows))
+                                        root.TryGetProperty("cols", out var colsProp) &&
+                                        root.TryGetProperty("rows", out var rowsProp) &&
+                                        colsProp.TryGetInt32(out var cols) &&
+                                        rowsProp.TryGetInt32(out var rows))
                                     {
                                         session.Resize(cols, rows);
                                     }
