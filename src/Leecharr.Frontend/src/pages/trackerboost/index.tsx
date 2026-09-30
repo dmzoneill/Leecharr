@@ -62,7 +62,7 @@ export function TrackerBoost() {
         seenHashes.add(hash);
         list.push({
           key: `history-${h.id}`,
-          id: h.torrentId || 0,
+          id: undefined,
           infoHash: h.infoHash,
           name: h.title,
           totalSize: h.totalSize,
