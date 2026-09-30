@@ -366,6 +366,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
           }}
         >
           <label
+            htmlFor="tb-auto-boost-enabled"
             style={{
               display: "flex",
               alignItems: "center",
@@ -374,6 +375,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             }}
           >
             <input
+              id="tb-auto-boost-enabled"
               type="checkbox"
               checked={settings?.autoBoostEnabled ?? true}
               onChange={() => handleToggleSetting("autoBoostEnabled")}
@@ -396,6 +398,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
           </label>
 
           <label
+            htmlFor="tb-auto-harvest-enabled"
             style={{
               display: "flex",
               alignItems: "center",
@@ -404,6 +407,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             }}
           >
             <input
+              id="tb-auto-harvest-enabled"
               type="checkbox"
               checked={settings?.autoHarvestEnabled ?? true}
               onChange={() => handleToggleSetting("autoHarvestEnabled")}
@@ -426,6 +430,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
           </label>
 
           <label
+            htmlFor="tb-only-verified"
             style={{
               display: "flex",
               alignItems: "center",
@@ -434,6 +439,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
             }}
           >
             <input
+              id="tb-only-verified"
               type="checkbox"
               checked={settings?.onlyVerified ?? true}
               onChange={() => handleToggleSetting("onlyVerified")}
