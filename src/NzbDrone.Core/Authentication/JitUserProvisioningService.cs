@@ -30,8 +30,8 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         IIdentityProviderRepository identityProviderRepository,
         IClaimsRoleMappingService roleMapper,
         Logger logger,
-        IUserSessionRepository userSessionRepository = null,
-        IUserSessionCache userSessionCache = null)
+        IUserSessionRepository userSessionRepository,
+        IUserSessionCache userSessionCache)
     {
         this.userRepository = userRepository;
         this.identityProviderRepository = identityProviderRepository;

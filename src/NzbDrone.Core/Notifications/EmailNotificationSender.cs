@@ -260,7 +260,15 @@ public static class EmailNotificationSender
         if (ignoreSslErrors)
         {
             previousCallback = ServicePointManager.ServerCertificateValidationCallback;
-            ServicePointManager.ServerCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
+            ServicePointManager.ServerCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) =>
+            {
+                if (sslPolicyErrors == SslPolicyErrors.None)
+                {
+                    return true;
+                }
+
+                return ignoreSslErrors;
+            };
         }
 
         try
