@@ -70,6 +70,11 @@ public class DownloadClientSyncController : Controller
                             continue;
                         }
 
+                        if (!string.IsNullOrWhiteSpace(client.Category) && !DownloadClientRemoteQuery.MatchesCategory(item, client.Category))
+                        {
+                            continue;
+                        }
+
                         if (!InFlightInfoHashes.TryAdd(item.InfoHash, 0))
                         {
                             continue;

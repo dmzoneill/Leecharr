@@ -93,7 +93,7 @@ public class DownloadClientControllerTest
         });
         using var httpClient = new HttpClient(handler);
 
-        var clientDef = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Category = "default-cat", Enable = true };
+        var clientDef = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Category = "distro", Enable = true };
         this.repository.Get(1).Returns(clientDef);
         this.torrentService.GetByInfoHash("1122334455667788990011223344556677889900").Returns((Torrent)null!);
 
@@ -565,6 +565,181 @@ public class DownloadClientControllerTest
         var result = controller.Create(resource);
 
         result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void Update_WhenPasswordIsEmptyString_ClearsPassword()
+    {
+        var existing = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "ExistingClient",
+            ClientType = "qBittorrent",
+            Host = "192.168.1.100",
+            Port = 8080,
+            Password = "enc:OldEncryptedPassword",
+            Enable = true,
+        };
+        this.repository.Get(1).Returns(existing);
+
+        DownloadClientDefinition captured = null!;
+        this.repository.Update(Arg.Do<DownloadClientDefinition>(d => captured = d));
+
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var resource = new DownloadClientResource
+        {
+            Id = 1,
+            Name = "ExistingClient",
+            ClientType = "qBittorrent",
+            Host = "192.168.1.100",
+            Port = 8080,
+            Password = string.Empty,
+            Enabled = true,
+        };
+
+        var result = controller.Update(1, resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var returned = okResult!.Value as DownloadClientResource;
+        returned!.Password.Should().BeEmpty();
+
+        captured.Should().NotBeNull();
+        captured.Password.Should().BeEmpty();
+    }
+
+    [Test]
+    public void Update_WhenPasswordIsMaskedOrOmitted_PreservesExistingPassword()
+    {
+        var existing = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "ExistingClient",
+            ClientType = "qBittorrent",
+            Host = "192.168.1.100",
+            Port = 8080,
+            Password = "enc:PreservedPassword",
+            Enable = true,
+        };
+        this.repository.Get(1).Returns(existing);
+
+        DownloadClientDefinition captured = null!;
+        this.repository.Update(Arg.Do<DownloadClientDefinition>(d => captured = d));
+
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var resource = new DownloadClientResource
+        {
+            Id = 1,
+            Name = "ExistingClient",
+            ClientType = "qBittorrent",
+            Host = "192.168.1.100",
+            Port = 8080,
+            Password = "********",
+            Enabled = true,
+        };
+
+        var result = controller.Update(1, resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        captured.Should().NotBeNull();
+        captured.Password.Should().Be("enc:PreservedPassword");
+    }
+
+    [Test]
+    public async Task TestDirect_WhenPasswordIsEmptyString_DoesNotRestoreExistingPassword()
+    {
+        var existing = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "ExistingClient",
+            ClientType = "qBittorrent",
+            Host = "192.168.1.100",
+            Port = 8080,
+            Password = DownloadClientPasswordHelper.Protect("old-password"),
+            Enable = true,
+        };
+        this.repository.Get(1).Returns(existing);
+
+        HttpRequestMessage capturedRequest = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("Ok.", Encoding.UTF8, "text/plain"),
+            };
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient);
+        var resource = new DownloadClientResource
+        {
+            Id = 1,
+            Name = "ExistingClient",
+            ClientType = "qBittorrent",
+            Host = "192.168.1.100",
+            Port = 8080,
+            Password = string.Empty,
+        };
+
+        var result = await controller.TestDirect(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as DownloadClientTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        capturedRequest.Should().NotBeNull();
+        var body = await capturedRequest.Content!.ReadAsStringAsync();
+        body.Should().NotContain("old-password");
+    }
+
+    [Test]
+    public void ValidateSsrf_WhenUseSslIsTrue_UsesHttpsScheme()
+    {
+        var safeClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new DownloadClientController(
+            this.repository,
+            this.torrentService,
+            safeHttpClientService: safeClient);
+
+        var resource = new DownloadClientResource
+        {
+            Name = "SslClient",
+            ClientType = "qBittorrent",
+            Host = "example.internal",
+            Port = 8443,
+            UseSsl = true,
+        };
+
+        controller.Create(resource);
+
+        safeClient.Received(1).ValidateUrl("https://example.internal:8443");
+    }
+
+    [Test]
+    public void ValidateSsrf_WhenUseSslIsFalse_UsesHttpScheme()
+    {
+        var safeClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new DownloadClientController(
+            this.repository,
+            this.torrentService,
+            safeHttpClientService: safeClient);
+
+        var resource = new DownloadClientResource
+        {
+            Name = "PlainClient",
+            ClientType = "qBittorrent",
+            Host = "example.internal",
+            Port = 8080,
+            UseSsl = false,
+        };
+
+        controller.Create(resource);
+
+        safeClient.Received(1).ValidateUrl("http://example.internal:8080");
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
