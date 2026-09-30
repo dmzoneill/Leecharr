@@ -14,6 +14,7 @@ import { useTorrentStore } from "../stores/useTorrentStore";
 import { useToast } from "../context/ToastContext";
 import { apiClient } from "../api/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { secureRandom } from "../utils/random";
 
 interface SimNode extends d3.SimulationNodeDatum, PeerGraphNode {}
 interface SimLink extends d3.SimulationLinkDatum<SimNode> {
@@ -325,11 +326,11 @@ function PeerMap() {
             ? nodes.find((node) => node.id === torrentId)
             : null;
           if (parent && parent.x !== undefined && parent.y !== undefined) {
-            n.x = parent.x + (Math.random() - 0.5) * 40;
-            n.y = parent.y + (Math.random() - 0.5) * 40;
+            n.x = parent.x + (secureRandom() - 0.5) * 40;
+            n.y = parent.y + (secureRandom() - 0.5) * 40;
           } else {
-            n.x = width / 2 + (Math.random() - 0.5) * 100;
-            n.y = height / 2 + (Math.random() - 0.5) * 100;
+            n.x = width / 2 + (secureRandom() - 0.5) * 100;
+            n.y = height / 2 + (secureRandom() - 0.5) * 100;
           }
         }
       }
