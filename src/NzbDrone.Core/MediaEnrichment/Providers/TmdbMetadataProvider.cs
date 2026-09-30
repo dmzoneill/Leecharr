@@ -73,7 +73,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
                     (category ?? string.Empty).Contains("show", StringComparison.OrdinalIgnoreCase) ||
                     (category ?? string.Empty).Contains("series", StringComparison.OrdinalIgnoreCase) ||
                     (category ?? string.Empty).Contains("sonarr", StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b")))
+                    (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2))))
                    && !(category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase)
                    && !(category ?? string.Empty).Contains("radarr", StringComparison.OrdinalIgnoreCase);
 
@@ -151,7 +151,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         var parsedYear = year;
         if (parsedYear == 0 && first.TryGetProperty(releaseDateProperty, out var rd) && !string.IsNullOrWhiteSpace(rd.GetString()))
         {
-            var match = Regex.Match(rd.GetString(), @"^(19\d\d|20\d\d)");
+            var match = Regex.Match(rd.GetString(), @"^(19\d\d|20\d\d)", RegexOptions.None, TimeSpan.FromSeconds(2));
             if (match.Success && int.TryParse(match.Value, out var y))
             {
                 parsedYear = y;
@@ -211,7 +211,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
 
                     if (root.TryGetProperty(releaseDateProperty, out var drd) && !string.IsNullOrWhiteSpace(drd.GetString()))
                     {
-                        var match = Regex.Match(drd.GetString(), @"^(19\d\d|20\d\d)");
+                        var match = Regex.Match(drd.GetString(), @"^(19\d\d|20\d\d)", RegexOptions.None, TimeSpan.FromSeconds(2));
                         if (match.Success && int.TryParse(match.Value, out var y))
                         {
                             meta.Year = y;
@@ -284,25 +284,25 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
             return string.Empty;
         }
 
-        var cleaned = Regex.Replace(rawTitle, @"[._]", " ");
+        var cleaned = Regex.Replace(rawTitle, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip TV season/episode markers (e.g. S01E01, S01E01-E04, S01E01E02, 1x05, Season 1, Episode 01, E05)
-        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip edition tags if not at start of title and followed by quality tags, years, or end of string
-        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty);
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip unambiguous quality/source/codec tags
-        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(2160p|1080p|1080i|720p|576p|480p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web-dl|webrip|web-?dl|web-?rip|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|avc|xvid|divx|10bit)\b.*$", string.Empty);
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(2160p|1080p|1080i|720p|576p|480p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web-dl|webrip|web-?dl|web-?rip|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|avc|xvid|divx|10bit)\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         var year = ExtractYear(rawTitle);
         if (year > 0)
         {
-            cleaned = Regex.Replace(cleaned, $@"(?<!^)\s*\b{year}\b.*$", string.Empty);
+            cleaned = Regex.Replace(cleaned, $@"(?<!^)\s*\b{year}\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         }
         else
         {
-            cleaned = Regex.Replace(cleaned, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
+            cleaned = Regex.Replace(cleaned, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         }
 
         cleaned = cleaned.Trim('-', ' ', '.');
@@ -319,13 +319,14 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         var taggedMatch = Regex.Match(
             rawTitle,
             @"\b(19\d\d|20\d\d)\b(?=[.\s_]*(?:1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web|dvd|x264|x265|hevc|h264|h265|\(|$))",
-            RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+            RegexOptions.IgnoreCase | RegexOptions.RightToLeft,
+            TimeSpan.FromSeconds(2));
         if (taggedMatch.Success && int.TryParse(taggedMatch.Value, out var ty) && ty >= 1900 && ty <= DateTime.UtcNow.Year + 2)
         {
             return ty;
         }
 
-        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft);
+        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft, TimeSpan.FromSeconds(2));
         return rightmostMatch.Success && int.TryParse(rightmostMatch.Value, out var y) ? y : 0;
     }
 }

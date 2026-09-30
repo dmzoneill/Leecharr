@@ -66,7 +66,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                     (category ?? string.Empty).Contains("show", StringComparison.OrdinalIgnoreCase) ||
                     (category ?? string.Empty).Contains("series", StringComparison.OrdinalIgnoreCase) ||
                     (category ?? string.Empty).Contains("sonarr", StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b")))
+                    (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2))))
                     && !(category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase)
                     && !(category ?? string.Empty).Contains("radarr", StringComparison.OrdinalIgnoreCase);
         var isMovie = !isTv;
@@ -265,31 +265,31 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             // Fall back to regex parsing if XML parsing fails due to non-standard or malformed NFO text
         }
 
-        var titleMatch = Regex.Match(xmlContent, @"<title>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var titleMatch = Regex.Match(xmlContent, @"<title>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
         if (titleMatch.Success && !string.IsNullOrWhiteSpace(titleMatch.Groups[1].Value))
         {
             meta.Title = titleMatch.Groups[1].Value.Trim();
         }
 
-        var yearMatch = Regex.Match(xmlContent, @"<year>(\d{4})</year>", RegexOptions.IgnoreCase);
+        var yearMatch = Regex.Match(xmlContent, @"<year>(\d{4})</year>", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
         if (yearMatch.Success && int.TryParse(yearMatch.Groups[1].Value, out var yearVal) && yearVal > 0)
         {
             meta.Year = yearVal;
         }
 
-        var plotMatch = Regex.Match(xmlContent, @"<(plot|outline)>(.*?)</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var plotMatch = Regex.Match(xmlContent, @"<(plot|outline)>(.*?)</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
         if (plotMatch.Success && !string.IsNullOrWhiteSpace(plotMatch.Groups[2].Value))
         {
             meta.Overview = plotMatch.Groups[2].Value.Trim();
         }
 
-        var ratingMatch = Regex.Match(xmlContent, @"<rating>([\d.]+)</rating>", RegexOptions.IgnoreCase);
+        var ratingMatch = Regex.Match(xmlContent, @"<rating>([\d.]+)</rating>", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
         if (ratingMatch.Success && double.TryParse(ratingMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var ratingVal))
         {
             meta.Rating = ratingVal;
         }
 
-        var actorMatches = Regex.Matches(xmlContent, @"<actor>(?:(?!</actor>).)*?<name>(.*?)</name>(?:(?:(?!</actor>).)*?<role>(.*?)</role>)?", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var actorMatches = Regex.Matches(xmlContent, @"<actor>(?:(?!</actor>).)*?<name>(.*?)</name>(?:(?:(?!</actor>).)*?<role>(.*?)</role>)?", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
         if (actorMatches.Count > 0)
         {
             var castList = new System.Collections.Generic.List<string>();
@@ -354,25 +354,25 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             return string.Empty;
         }
 
-        var cleaned = Regex.Replace(rawTitle, @"[._]", " ");
+        var cleaned = Regex.Replace(rawTitle, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip TV season/episode markers (e.g. S01E01, S01E01-E04, S01E01E02, 1x05, Season 1, Episode 01, E05)
-        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip edition tags if not at start of title and followed by quality tags, years, or end of string
-        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty);
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip unambiguous quality/source/codec tags
-        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(2160p|1080p|1080i|720p|576p|480p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web-dl|webrip|web-?dl|web-?rip|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|avc|xvid|divx|10bit)\b.*$", string.Empty);
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(2160p|1080p|1080i|720p|576p|480p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web-dl|webrip|web-?dl|web-?rip|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|avc|xvid|divx|10bit)\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         var year = ExtractYear(rawTitle);
         if (year > 0)
         {
-            cleaned = Regex.Replace(cleaned, $@"(?<!^)\s*\b{year}\b.*$", string.Empty);
+            cleaned = Regex.Replace(cleaned, $@"(?<!^)\s*\b{year}\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         }
         else
         {
-            cleaned = Regex.Replace(cleaned, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
+            cleaned = Regex.Replace(cleaned, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         }
 
         cleaned = cleaned.Trim('-', ' ', '.');
@@ -389,13 +389,14 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         var taggedMatch = Regex.Match(
             rawTitle,
             @"\b(19\d\d|20\d\d)\b(?=[.\s_]*(?:1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web|dvd|x264|x265|hevc|h264|h265|\(|$))",
-            RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+            RegexOptions.IgnoreCase | RegexOptions.RightToLeft,
+            TimeSpan.FromSeconds(2));
         if (taggedMatch.Success && int.TryParse(taggedMatch.Value, out var ty) && ty >= 1900 && ty <= DateTime.UtcNow.Year + 2)
         {
             return ty;
         }
 
-        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft);
+        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft, TimeSpan.FromSeconds(2));
         return rightmostMatch.Success && int.TryParse(rightmostMatch.Value, out var y) ? y : 0;
     }
 }

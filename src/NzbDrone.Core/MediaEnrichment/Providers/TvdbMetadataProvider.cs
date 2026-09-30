@@ -541,7 +541,7 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
             return null;
         }
 
-        var match = Regex.Match(rawId, @"\d+");
+        var match = Regex.Match(rawId, @"\d+", RegexOptions.None, TimeSpan.FromSeconds(2));
         return match.Success ? match.Value : rawId;
     }
 
@@ -552,10 +552,10 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
             return string.Empty;
         }
 
-        var cleaned = Regex.Replace(rawTitle, @"[._]", " ");
-        cleaned = Regex.Replace(cleaned, @"(?i)\b(S\d+(?:E\d+)?|\d+x\d+|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
-        cleaned = Regex.Replace(cleaned, @"(?i)\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty);
-        cleaned = Regex.Replace(cleaned, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
+        var cleaned = Regex.Replace(rawTitle, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
+        cleaned = Regex.Replace(cleaned, @"(?i)\b(S\d+(?:E\d+)?|\d+x\d+|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
+        cleaned = Regex.Replace(cleaned, @"(?i)\b(1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web-dl|webrip|x264|x265|hevc|h264|h265|dts|aac|repack|proper|internal|extended|unrated|multi|complete)\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
+        cleaned = Regex.Replace(cleaned, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         cleaned = cleaned.Trim('-', ' ', '.');
         return string.IsNullOrWhiteSpace(cleaned) ? rawTitle.Trim() : cleaned.Trim();
     }
@@ -570,13 +570,14 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
         var taggedMatch = Regex.Match(
             rawTitle,
             @"\b(19\d\d|20\d\d)\b(?=[.\s_]*(?:1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web|dvd|x264|x265|hevc|h264|h265|\(|$))",
-            RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+            RegexOptions.IgnoreCase | RegexOptions.RightToLeft,
+            TimeSpan.FromSeconds(2));
         if (taggedMatch.Success && int.TryParse(taggedMatch.Value, out var ty) && ty >= 1900 && ty <= DateTime.UtcNow.Year + 2)
         {
             return ty;
         }
 
-        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft);
+        var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft, TimeSpan.FromSeconds(2));
         return rightmostMatch.Success && int.TryParse(rightmostMatch.Value, out var y) ? y : 0;
     }
 }

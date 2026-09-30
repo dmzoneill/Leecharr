@@ -75,7 +75,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var cleanTitle = CleanTitle(title);
         var cat = (category ?? string.Empty).ToLowerInvariant();
         var isTv = cat.Contains("tv") || cat.Contains("sonarr") || cat.Contains("show") || cat.Contains("series") ||
-                   (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b"));
+                   (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2)));
         var isMusic = cat.Contains("music") || cat.Contains("lidarr") || cat.Contains("album") || cat.Contains("audio") || cat.Contains("flac");
         var preferredType = isMusic ? "Lidarr" : isTv ? "Sonarr" : "Radarr";
 
@@ -565,7 +565,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
             if (album.TryGetProperty("releaseDate", out var rd) && rd.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(rd.GetString()))
             {
-                var match = Regex.Match(rd.GetString(), @"^(19\d\d|20\d\d)");
+                var match = Regex.Match(rd.GetString(), @"^(19\d\d|20\d\d)", RegexOptions.None, TimeSpan.FromSeconds(2));
                 if (match.Success && int.TryParse(match.Value, out var y))
                 {
                     meta.Year = y;
