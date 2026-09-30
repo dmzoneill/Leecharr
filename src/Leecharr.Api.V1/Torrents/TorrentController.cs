@@ -1100,7 +1100,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         {
             TorrentId = id,
             Url = url,
-            Tier = 0,
+            Tier = request.Tier ?? 0,
             Enabled = true,
             Status = 0,
             Seeders = 0,
