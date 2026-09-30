@@ -32,6 +32,8 @@ public class AiConfigControllerTest
         this.configService.EnableCopilotButton.Returns(true);
         this.configService.EnableNaturalSearch.Returns(true);
         this.configService.EnableSwarmDiagnostics.Returns(true);
+        this.configService.MalwareRiskThreshold.Returns(0.7);
+        this.configService.AutoQuarantineHighRisk.Returns(false);
 
         this.aiManager = Substitute.For<IAiManager>();
         this.aiManager.ActiveProviderId.Returns("RuleHeuristic");
@@ -207,5 +209,22 @@ public class AiConfigControllerTest
         _ = this.aiManager.DidNotReceive().SwitchProviderAsync(Arg.Any<string>());
         result.Result.Should().BeOfType<AcceptedResult>();
         this.configService.Received().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (bool)d["EnableNaturalSearch"] == false));
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenMalwareRiskSettingsProvided_SavesInConfigDictionary()
+    {
+        var resource = new AiConfigResource
+        {
+            ActiveAiProvider = "RuleHeuristic",
+            MalwareRiskThreshold = 0.85,
+            AutoQuarantineHighRisk = true,
+        };
+
+        var result = await this.controller.SaveConfig(resource);
+
+        result.Result.Should().BeOfType<AcceptedResult>();
+        this.configService.Received().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (double)d["MalwareRiskThreshold"] == 0.85 && (bool)d["AutoQuarantineHighRisk"] == true));
     }
 }

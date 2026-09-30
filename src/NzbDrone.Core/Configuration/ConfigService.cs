@@ -79,6 +79,10 @@ public interface IConfigService
 
     bool EnableSwarmDiagnostics { get; }
 
+    double MalwareRiskThreshold { get; }
+
+    bool AutoQuarantineHighRisk { get; }
+
     bool AutoStart { get; }
 
     string Branch { get; }
@@ -821,6 +825,10 @@ public class ConfigService : IConfigService
     public bool EnableNaturalSearch => this.GetValueBoolean("EnableNaturalSearch", true);
 
     public bool EnableSwarmDiagnostics => this.GetValueBoolean("EnableSwarmDiagnostics", true);
+
+    public double MalwareRiskThreshold => this.GetValueDouble("MalwareRiskThreshold", 0.7);
+
+    public bool AutoQuarantineHighRisk => this.GetValueBoolean("AutoQuarantineHighRisk", false);
 
     public bool AutoStart => this.GetValueBoolean("AutoStart", true);
 
