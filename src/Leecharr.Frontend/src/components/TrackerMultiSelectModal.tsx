@@ -218,7 +218,8 @@ export function TrackerMultiSelectModal({
 
   return (
     <div
-      role="dialog"
+      role="button"
+      tabIndex={0}
       aria-modal="true"
       aria-labelledby="tracker-picker-title"
       aria-describedby="tracker-picker-desc"
@@ -237,10 +238,26 @@ export function TrackerMultiSelectModal({
         padding: "1rem",
       }}
       onClick={isAdding ? undefined : onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (!isAdding) {
+            e.preventDefault();
+            onClose();
+          }
+        }
+      }}
     >
       <div
         ref={trapRef}
         className="card"
+        role="button"
+        tabIndex={0}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           width: "720px",
           maxWidth: "94vw",
@@ -484,8 +501,18 @@ export function TrackerMultiSelectModal({
             return (
               <div
                 key={item.url}
+                role="button"
+                tabIndex={isAttached ? -1 : 0}
                 onClick={() => {
                   if (!isAttached) onToggleUrl(item.url);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    if (!isAttached) {
+                      e.preventDefault();
+                      onToggleUrl(item.url);
+                    }
+                  }
                 }}
                 style={{
                   display: "flex",

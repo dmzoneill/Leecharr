@@ -751,7 +751,15 @@ export function CommandPalette({
   return (
     <div
       className="modal-overlay"
+      role="button"
+      tabIndex={0}
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClose();
+        }
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -767,7 +775,14 @@ export function CommandPalette({
       <div
         ref={trapRef}
         className="modal-content command-palette-modal"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           width: "100%",
           maxWidth: "640px",
@@ -877,7 +892,15 @@ export function CommandPalette({
                 <div
                   key={item.id}
                   className={`command-palette-item ${isSelected ? "active" : ""}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={item.action}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      item.action();
+                    }
+                  }}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   style={{
                     display: "flex",

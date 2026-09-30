@@ -277,12 +277,19 @@ export function TorrentContextMenu({
     <>
       <div
         className="context-menu"
+        role="button"
+        tabIndex={0}
         style={{
           left,
           top,
           display: promptConfig ? "none" : undefined,
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
       >
         {effectiveTorrents.length > 0 ? (
           <>

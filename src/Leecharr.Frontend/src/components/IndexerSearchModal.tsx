@@ -217,15 +217,29 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   return (
     <div
       className="modal-overlay"
+      role="button"
+      tabIndex={0}
       onClick={onClose}
-      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClose();
+        }
+      }}
       aria-modal="true"
       aria-labelledby="indexer-search-modal-title"
     >
       <div
         ref={trapRef}
         className="modal-content indexer-search-modal"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{ maxWidth: "800px", width: "100%" }}
       >
         <div className="modal-header">

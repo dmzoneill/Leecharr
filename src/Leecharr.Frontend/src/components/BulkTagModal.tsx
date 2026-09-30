@@ -170,8 +170,17 @@ export function BulkTagModal({
   return (
     <div
       className="modal-overlay"
+      role="button"
+      tabIndex={0}
       onClick={handleBackdropClick}
-      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+            handleClose();
+          }
+        }
+      }}
       aria-modal="true"
       aria-labelledby="bulk-tag-modal-title"
     >

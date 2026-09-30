@@ -404,7 +404,8 @@ export function GettingStartedModal({
   return (
     <div
       className="modal-overlay"
-      role="dialog"
+      role="button"
+      tabIndex={0}
       aria-modal="true"
       aria-labelledby="getting-started-modal-title"
       style={{
@@ -424,11 +425,26 @@ export function GettingStartedModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+            handleClose();
+          }
+        }
+      }}
     >
       <div
         ref={trapRef}
         className="modal"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           maxWidth: 540,
           width: "92vw",
