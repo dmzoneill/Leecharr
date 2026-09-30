@@ -211,13 +211,30 @@ export function ImportPackageModal({
     <div
       ref={modalRef}
       className="modal-overlay"
+      role="button"
+      tabIndex={0}
       onClick={handleBackdropClick}
-      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (e.target === e.currentTarget && !isUploading) {
+            e.preventDefault();
+            onClose();
+          }
+        }
+      }}
       aria-modal="true"
       aria-labelledby="import-package-modal-title"
     >
       <div
         className="modal"
+        role="button"
+        tabIndex={0}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           maxWidth: "680px",
           width: "92%",
@@ -292,7 +309,7 @@ export function ImportPackageModal({
                 justifyContent: "flex-end",
               }}
             >
-              <button className="btn btn-outline" onClick={onClose}>
+              <button type="button" className="btn btn-outline" onClick={onClose}>
                 Close
               </button>
             </div>
@@ -459,10 +476,18 @@ export function ImportPackageModal({
           >
             {/* Drag & Drop Area */}
             <div
+              role="button"
+              tabIndex={0}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
               style={{
                 border: isDragOver
                   ? "2px dashed var(--accent, #38bdf8)"
