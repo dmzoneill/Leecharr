@@ -206,7 +206,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             Path = "/",
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
-            Secure = true,
+            Secure = this.Request?.IsHttps ?? false,
         });
 
         return this.Content("Ok.", "text/plain");
