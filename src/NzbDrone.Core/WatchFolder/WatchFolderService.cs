@@ -162,7 +162,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                 break;
             }
 
-            await Task.Delay(pollInterval).ConfigureAwait(false);
+            await Task.Delay(pollInterval, CancellationToken.None).ConfigureAwait(false);
         }
 
         if (!isReady || initialSize <= 0)
@@ -172,7 +172,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
         if (delay > TimeSpan.Zero)
         {
-            await Task.Delay(delay).ConfigureAwait(false);
+            await Task.Delay(delay, CancellationToken.None).ConfigureAwait(false);
         }
 
         try
@@ -292,7 +292,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             {
                 this.logger.Error(ex, "Error processing created watch folder file: {0}", e?.FullPath);
             }
-        });
+        }, CancellationToken.None);
     }
 
     public async Task HandleFileSystemWatcherCreatedAsync(FileSystemEventArgs e)
@@ -323,7 +323,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             {
                 this.logger.Error(ex, "Error processing changed watch folder file: {0}", e?.FullPath);
             }
-        });
+        }, CancellationToken.None);
     }
 
     public async Task HandleFileSystemWatcherChangedAsync(FileSystemEventArgs e)
@@ -354,7 +354,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             {
                 this.logger.Error(ex, "Error processing renamed watch folder file: {0}", e?.FullPath);
             }
-        });
+        }, CancellationToken.None);
     }
 
     public async Task HandleFileSystemWatcherRenamedAsync(RenamedEventArgs e)

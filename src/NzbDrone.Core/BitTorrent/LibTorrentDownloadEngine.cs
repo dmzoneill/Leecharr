@@ -285,7 +285,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             {
                 if (this.syncLoopTask != null)
                 {
-                    await Task.WhenAny(this.syncLoopTask, Task.Delay(2000));
+                    await Task.WhenAny(this.syncLoopTask, Task.Delay(2000, CancellationToken.None));
                 }
             }
             catch (Exception ex)
@@ -510,7 +510,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             {
                 this.logger.Trace(ex, "Failed to pause libtorrent session during killswitch halt");
             }
-        });
+        }, this.syncCts?.Token ?? CancellationToken.None);
     }
 
     public void Handle(VpnInterfaceRestoredEvent message)
@@ -558,7 +558,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             {
                 this.logger.Warn(ex, "Error updating libtorrent session settings on network binding switch.");
             }
-        });
+        }, this.syncCts?.Token ?? CancellationToken.None);
     }
 
     public async Task ForceRecheckAsync(int torrentId)
@@ -1239,7 +1239,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
             for (var i = 0; i < 15; i++)
             {
-                await Task.Delay(200);
+                await Task.Delay(200, this.syncCts?.Token ?? CancellationToken.None);
                 if (this.daemonProcess == null || this.daemonProcess.HasExited)
                 {
                     this.logger.Warn("Embedded libtorrent daemon exited prematurely (ExitCode: {0}).", this.daemonProcess?.ExitCode);

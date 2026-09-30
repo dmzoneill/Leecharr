@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Lifecycle;
@@ -48,7 +49,7 @@ public class ArrWebhookMaintenanceTask : IHandle<ApplicationStartedEvent>
             {
                 await this.RetryFailedConnectionsAsync(failed);
             }
-        });
+        }, CancellationToken.None);
     }
 
     public List<ArrConnectionDefinition> RegisterAllConnections()

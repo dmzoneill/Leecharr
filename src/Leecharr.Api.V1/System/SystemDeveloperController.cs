@@ -1204,7 +1204,7 @@ public class SystemDeveloperController : Controller
     // ==========================================
 
     [HttpGet("config")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443:Publicly writable directories", Justification = "Secure application subfolder is used instead of system temp.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443:Publicly writable directories", Justification = "Secure application subfolder is used instead of system temp.")]
     public ActionResult<DeveloperConfigResponse> GetConfiguration([FromQuery] bool unmask = false)
     {
         var entries = new List<DeveloperConfigEntry>();
