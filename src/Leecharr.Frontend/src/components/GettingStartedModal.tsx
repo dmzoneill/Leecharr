@@ -303,7 +303,7 @@ export function GettingStartedModal({
 
   const handleSaveIndexer = () => {
     if (indexerForm.indexerType === "Prowlarr") {
-      let prowlarrUrl = (indexerForm.url || "http://prowlarr:9696")
+      let prowlarrUrl = (indexerForm.url || "https://prowlarr:9696")
         .replace(/\/api\/v1\/?$/i, "")
         .replace(/\/api\/?$/i, "");
       while (prowlarrUrl.endsWith("/")) {
