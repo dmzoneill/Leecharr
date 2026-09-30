@@ -68,7 +68,15 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
   return (
     <div
       className={`disk-storage-badge ${isLowSpace ? "low-space" : ""} ${className}`}
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
       title={t("quickSettings.storageVolume", [
         displayPath,
         formatBytes(freeBytes),

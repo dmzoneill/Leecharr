@@ -112,7 +112,15 @@ export default function DeveloperWebhooks() {
               return (
                 <div
                   key={tpl.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => selectTemplate(tpl)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      selectTemplate(tpl);
+                    }
+                  }}
                   style={{
                     padding: "10px",
                     borderRadius: "6px",
