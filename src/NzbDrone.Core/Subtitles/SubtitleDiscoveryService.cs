@@ -36,19 +36,23 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
 
     private static readonly Regex EpisodeRegex = new(
         @"(?i)\b(?:S(?<spad>\d{1,2})E(?<epad>\d{1,3})|(?<sno>\d{1,2})x(?<eno>\d{1,3}))\b",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex TrackIndexPrefixRegex = new(
         @"^(?:\d+[\s._-]+)+",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex ForcedRegex = new(
         @"(?i)\b(forced|forc[eé]e?)\b",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex SdhRegex = new(
         @"(?i)\b(sdh|cc|hearing[\s._-]*impaired)\b",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private record LanguageEntry(string Code, string TwoLetter, string DisplayName);
 

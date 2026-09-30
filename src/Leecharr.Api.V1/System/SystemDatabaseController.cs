@@ -23,11 +23,18 @@ public class SystemDatabaseController : Controller
 {
     private static readonly Regex WritePattern = new(
         @"^\s*(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|VACUUM|ATTACH|DETACH|REINDEX)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex NonTransactionPattern = new(
         @"^\s*(VACUUM|ATTACH|DETACH)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex CleanEntityNamePattern = new(
+        @"[^a-zA-Z0-9_]",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private readonly IMainDatabase mainDatabase;
     private readonly Logger logger;
@@ -728,7 +735,7 @@ public class SystemDatabaseController : Controller
 
     private static string CleanEntityName(string name)
     {
-        return Regex.Replace(name, @"[^a-zA-Z0-9_]", "_");
+        return CleanEntityNamePattern.Replace(name, "_");
     }
 
     private static string CleanType(string type)

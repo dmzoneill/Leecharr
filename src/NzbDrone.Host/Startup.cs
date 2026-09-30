@@ -31,11 +31,14 @@ public class Startup
 
     public Startup(IContainer container)
     {
+        AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(2));
         this.container = container;
     }
 
     public void ConfigureServices(IServiceCollection services)
     {
+        AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(2));
+
         services.AddProblemDetails();
 
         var apiAssembly = Assembly.Load("Leecharr.Api.V1");
