@@ -25,6 +25,10 @@ public class SystemDatabaseController : Controller
         @"^\s*(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|VACUUM|ATTACH|DETACH|REINDEX)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private static readonly Regex NonTransactionPattern = new(
+        @"^\s*(VACUUM|ATTACH|DETACH)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private readonly IMainDatabase mainDatabase;
     private readonly Logger logger;
 
@@ -540,11 +544,21 @@ public class SystemDatabaseController : Controller
 
             if (isWrite && !request.ReadOnly)
             {
-                using var transaction = connection.BeginTransaction();
-                cmd.Transaction = transaction;
+                int affected;
 
-                var affected = cmd.ExecuteNonQuery();
-                transaction.Commit();
+                if (NonTransactionPattern.IsMatch(trimmedQuery))
+                {
+                    affected = cmd.ExecuteNonQuery();
+                }
+                else
+                {
+                    using var transaction = connection.BeginTransaction();
+                    cmd.Transaction = transaction;
+
+                    affected = cmd.ExecuteNonQuery();
+                    transaction.Commit();
+                }
+
                 sw.Stop();
 
                 return this.Ok(new DatabaseQueryResult
