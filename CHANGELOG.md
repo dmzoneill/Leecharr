@@ -6,6 +6,198 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.5) - 2026-09-30
+
+### ✨ Features
+- feat(auth): wire AuthenticationRequiredType to ConfigFileProvider and auth pipeline (#797)
+- feat(torrents): support initial tags, limits, and sequential download in AddTorrentForm (#1016)
+- feat(arr): add syncCategories, category, savePath, and path mappings in ConnectionsTab (#1043)
+- feat(arr): add syncCategories, category, savePath, and path mappings in ConnectionsTab (#1043)
+- feat(ai): add Malware Risk Threshold slider and Auto-Quarantine toggle in AiTab (#1047)
+- feat(speed): add download distribution spread control in SpeedSettingsTab (#952)
+- feat(system): add Check for Updates and Install Update controls in SystemUpdates (#967)
+- feat(system): add Restart Server and Shutdown Leecharr controls to SystemStatus (#969)
+- feat(indexers): add bulk delete endpoint and multi-selection UI in IndexersTab (#989)
+- feat(protocols): render NumberInputs for failover backoff parameters in ProtocolsSettingsTab (#973)
+- feat(notifications): add CustomScript template, preserve script settings, and add tag selection in NotificationsTab (#984)
+- feat(settings): add directory browsing and manual scan trigger to WatchFolderSettingsTab and CustomScriptsTab (#986)
+- feat(indexers): add manual Sync Prowlarr control and sync on Prowlarr update in IndexersTab (#988)
+- feat(network): add test port endpoint, interface selection, and bindInterface synchronization (#1013)
+- feat(host): add branch selection control and backend configuration for update channel (#1000)
+
+### 🐛 Bug Fixes
+- fix(test): configure default mock kill switch state in VpnKillSwitchServiceTest SetUp
+- fix(ci): fix VPN killswitch config override, client category filtering, and dht test assertion
+- fix(core): add missing using System.Linq to DiskSpaceService
+- fix(ci): fix remote item category filtering, auto recheck move latch, and disk space volume deduplication
+- fix(ci): fix client import nullability, dht version property access, and request handler capture in tests
+- fix(ci): resolve unit test regressions in SAML redirect, cookie security, and test assertions
+- fix(ci): make End SonarCloud Scanner non-blocking when Automatic Analysis is active
+- fix(ci): fix ArrConnectionDefinitions table queries and make test non-blocking in sonar workflow
+- fix(ci): fix ArrConnectionDefinitions table query and remove incompatible sonar properties file
+- fix(ci): fix test compilation errors and remove invalid scanner properties path
+- fix(deps): bump serialize-javascript from 7.1.1 to 7.1.2 (CVE-2026-97711)
+- fix(quality): enforce https prowlarr default and load sonar-project.properties in scanner (S5332)
+- fix(frontend): add button roles and keyboard handlers in Settings tabs (S6848)
+- fix(frontend): simplify inline markdown and size stripper regexes in AiCopilotDrawer (S8786)
+- fix(frontend): add explicit aria-labels on ImportTools form labels (S6853)
+- fix(media): add regex execution timeouts across TagLib and WatchFolder patterns (S6444)
+- fix(frontend): add accessible aria-labels to tracker boost form labels (S6853)
+- fix(quality): add regex execution timeouts across test suites and sanitizer helpers (S6444)
+- fix(frontend): add button roles and keyboard handlers across remaining interactive elements (S6848)
+- fix(backend): add regex execution timeouts across config, organizer, transport, and controllers (S6444)
+- fix(backend): fix nullability, unreachable conditions, and security smells (S2259, S2583, S5693, S4036, S5332)
+- fix(devops): harden container, shell scripts, python daemon, and github workflows
+- fix(quality): add multicriteria suppressions for admin consoles and security false positives
+- fix(frontend): simplify regexes, remove duplicate props and invalid tabIndex (S8786, S5850, S6845, S1534)
+- fix(frontend): associate form labels with controls and ensure accessible text (S6853)
+- fix(frontend): remove autoFocus attributes across modal components (S9379)
+- fix(frontend): add button roles and keyboard handlers to Settings tabs and HarvesterPanel (S6848)
+- fix(frontend): add button roles and keyboard handlers to History, PeerMap, and System pages (S6848)
+- fix(frontend): handle or explicitly ignore floating promises (S9383)
+- fix(extraction): add regex execution timeouts in ArchiveTimeoutCalculator (S6444)
+- fix(notifications): add regex execution timeouts across notification and indexer services (S6444)
+- fix(media): add regex execution timeouts across LocalNfo, Tmdb, and Tvdb providers (S6444)
+- fix(media): add regex execution timeouts across TagLib media streams (S6444)
+- fix(automation): add regex execution timeouts in YamlScriptRunner and ArchiveExtractor (S6444)
+- fix(frontend): add button roles and keyboard handlers to Tags and TorrentTable (S6848)
+- fix(frontend): clean up redundant type assertions and empty interfaces (S9383)
+- fix(security): configure suppressions for developer stacktraces and sample IPs (S6776, S1313)
+- fix(backend): add regex execution timeouts in IndexerController and ArrWebhookController (S6444)
+- fix(terminal): await CancelAsync and WriteAsync in TerminalWebSocketHandler (S6966)
+- fix(frontend): remove autoFocus attributes to improve usability and accessibility (S9379)
+- fix(frontend): add button roles and keyboard handlers to all modal overlays (S6848)
+- fix(system): add regex execution timeout in SystemController (S6444)
+- fix(frontend): add button roles and keyboard handlers to Tags and Tracker interactive elements (S6848)
+- fix(ai): add regex execution timeouts across RuleHeuristicAiProvider (S6444)
+- fix(security): enforce Secure flag on auth cookies and update https placeholders (S2092, S5332)
+- fix(frontend): clean up redundant type assertions and empty interfaces (S9383)
+- fix(core): resolve null safety and unreachable condition warnings (S2583, S2259)
+- fix(system): use absolute path for systemctl and systemd-inhibit (S4036)
+- fix(http): pass context.RequestAborted and cancellation tokens to response writers (S8949)
+- fix(frontend): add button roles and keyboard handlers to interactive table elements (S6848)
+- fix(security): suppress integration SSRF rule and clean up unreachable null checks (S5144, S2583)
+- fix(core): add regex execution timeouts across extraction, indexers, and notifications (S6444)
+- fix(frontend): simplify regular expressions to eliminate catastrophic backtracking (S8786)
+- fix(core): resolve null dereference and unreachable condition bugs (S2583, S2259)
+- fix(organizer): add execution timeouts to Regex.Replace in FileNameBuilder and AutomationService (S6444)
+- fix(frontend): add button roles and keyboard handlers to interactive elements (S6848, S7773)
+- fix(media): add regex execution timeouts across ServarrSync and TagLib providers (S6444)
+- fix(frontend): add aria-labels to icon buttons across components (S6853)
+- fix(core): bulk add regex execution timeouts across core services (S6444)
+- fix(backend): pass cancellation tokens to async operations across core services (S8949)
+- fix(repo): use constant table queries in DownloadHistory and BasicRepository (S2077)
+- fix(backend): await asynchronous methods to avoid blocking threads (S6966)
+- fix(frontend): add button roles and keyboard handlers to interactive page elements (S6848)
+- fix(frontend): add button roles and keyboard handlers to modal interactive elements (S6848)
+- fix(repo): use constant table queries across remaining core repositories (S2077)
+- fix(media): add regex execution timeouts in media inspection and notification builders (S6444)
+- fix(frontend): add button roles and keyboard handlers to interactive divs (S6848)
+- fix(repo): use parameterized SQL queries across tracker, torrent, and command repositories (S2077)
+- fix(media): add regex execution timeouts in media inspection and notification builders (S6444)
+- fix(frontend): add button roles and keyboard handlers to interactive elements (S6848)
+- fix(backend): configure regex execution timeouts across services (S6444)
+- fix(sonar): pass cancellation tokens to async operations (S8949)
+- fix(sonar): resolve S3649, S5443, and S5146 blocker and critical issues
+- fix(sonar): replace Math.random with crypto.getRandomValues across frontend (S2245)
+- fix(sonar): resolve S8786, S2245, S6848, and S6505 in frontend and workflows
+- fix(sonar): resolve S8949 and S6932 in backend engines and controllers
+- fix(sonar): resolve S3427, S5146, S2930, S5443, S2083, and S4830 in security and auth
+- fix(sonar): resolve S3649, S5443, S2871, S2631, and S1523 in system and frontend
+- fix(sonar): resolve S3237, S3869, S2551, and S4790 in BitTorrent engine
+- fix(config): resolve DiskCacheBytes overflow, VPN kill switch deactivation, env aliases, and CLI precedence (#597)
+- fix(developer): record inbound Arr webhooks in store and dispatch simulation to pipeline (#982)
+- fix(bittorrent): subscribe LibTorrentDownloadEngine to ConfigSavedEvent and update daemon settings (#971)
+- fix(developer): record unwrapped synthetic event name/payload and dispatch to event aggregator (#979)
+- fix(downloadclients): filter remote queries by category, allow clearing password, and respect SSL in SSRF check (#1044)
+- fix(bittorrent): patch ClientIdentifier, BEP 10 handshake version, and tracker decompression (#879)
+- fix(developer): support case-insensitive command parameter deserialization and nullable inputs (#981)
+- fix(db): renumber duplicate migration 39 to 40 and ensure SonarCloud upload on always()
+- fix(downloadclients): filter remote queries by category, allow clearing password, and respect SSL in SSRF check (#1044)
+- fix(copilot): format markdown responses, auto-submit prompt pills, and allow event toggle in AiCopilotDrawer (#1020)
+- fix(torrents): support savePath on upload, safe magnet preview, and category in search (#110)
+- fix(engine): update active torrents on PEX, connection limits, and sequential changes in Quick Settings (#1028)
+- fix(build): resolve DownloadHistory and DownloadClient build issues
+- fix(theme): preserve themeStyle and data-accent across page reloads in ThemeContext (#108)
+- fix(monitoring): prevent graph freeze on subsecond updates, show 0 speed, and align peer chart length (#120)
+- fix(frontend): add loading states, error handling, and inactive state checks in TorrentDetailPanel (#109)
+- fix(frontend): support guarded navigation, Copilot action, and Developer pages in CommandPalette (#1021)
+- fix(history): support backend date range filtering and fix duplicate Reconcile button label (#1039)
+- fix(history): match DataJson, Trackers, and Source in history query search (#1038)
+- fix(downloadclients): implement remote pause/resume/delete endpoints and fix all-clients bulk import (#944)
+- fix(automation): execute ShouldRecheck, ShouldReannounce, and TrackersToReplace in AutomationService (#946)
+- fix(shortcuts): refine Alt+M, global Escape modal dismissal, and QuickSettings hotkeys (#710)
+- fix(backup): avoid masked API key in backup download URL in SystemBackup (#716)
+- fix(diskspace): resolve symlinks in GetBestMatchingDrive and permit disabling alerts (#889)
+- fix(automation): implement SyncArrCommand and handler for CommandWorker (#949)
+- fix(bandwidth): permit -1 paused limits and validate Days bitmask in SpeedScheduleController (#899)
+- fix(build): resolve C# compilation and nullable annotations across solution
+- fix(torrents): enforce torrent file ownership, 404 checks, and batch priority endpoint (#909)
+- fix(torrents): persist Threshold and SmallTorrentLimit in Torrent entity and TorrentController (#975)
+- fix(tags): persist Color and Seeding Policies in Tag model and TagController (#945)
+- fix(automation): support syncArr serialization and parsing in Visual Pipeline (#947)
+- fix(blocklist): support saving BlocklistAutoUpdateEnabled in BlocklistController (#950)
+- fix(developer): execute VACUUM outside transaction in SystemDatabaseController (#948)
+- fix(trackerboost): route historical and external downloads to hash-based actions in HarvesterPanel (#954)
+- fix(queue): initialize autoShutdownCondition to WhenDownloadsComplete in QueueSettingsTab (#951)
+- fix(auth): prompt exclusively for password in IdleLockModal (#966)
+- fix(indexers): unpack IndexerSearchEnvelope results in useIndexerSearch hook (#955)
+- fix(queue): allow min=0 for unlimited downloads and seeds in QueueSettingsTab (#953)
+- fix(indexers): add router navigation and filter state fallback in Indexers page (#957)
+- fix(signalr): ensure tracker, seeding, and schedule query invalidations run on receiveMessage (#956)
+- fix(tasks): support typeName task execution, return 404 for invalid tasks, and add command cancellation (#968)
+- fix(logs): include apikey query parameter in SystemLogFiles download URL (#958)
+- fix(frontend): preserve target directory query parameter in FileBrowser Open in CLI (#959)
+- fix(logs): map Fatal to Error and Warning to Warn in SystemLogs toLogLevel (#960)
+- fix(frontend): use safe copyToClipboard in TerminalView and RadarView and attach link in export (#962)
+- fix(media): prepend getUrlBase() to mediaPlayer stream, download, and playlist URLs (#961)
+- fix(packages): prefix ImportPackageModal upload with getUrlBase and set X-Api-Key header (#963)
+- fix(trackers): render custom URLs in TrackerMultiSelectModal and await batch addition (#965)
+- fix(bittorrent): wire DhtBootstrapNodes to MonoTorrent DHT engine (#972)
+- fix(torrent-creation): parse empty lines as tracker tiers in TorrentCreationTab (#964)
+- fix(trackers): preserve tier parameter in AddTracker request and DTO (#977)
+- fix(arr): unmask API key when testing existing connection by ID (#970)
+- fix(trackers): support removing fallback tracker (Id 0) and clear torrent TrackerUrl (#976)
+- fix(proxy): reset forceProxy when proxy disabled and require configured proxy in IsProxyActive (#974)
+- fix(filebrowser): propagate apikey query parameter to downloads, uploads, and playlists (#1003)
+- fix(peers): separate disconnect and ban actions, support IPv6, and add UI actions (#1001)
+- fix(frontend): pass globalRatio to SeedingSimulator and support tracker query param in TorrentIndex (#980)
+- fix(peers): include GeoIP metadata in peer graph, display country info, and fix open in torrents navigation (#1002)
+- fix(notifications): support PUT method, inject Basic Auth headers, and preserve Discord test webhook options (#983)
+- fix(storage): add directory browsing in StorageSettingsTab, fix Windows path navigation, and execute AutoRecheckOnCompletion (#1014)
+- fix(categories): prevent deleting default category in controller and disable UI action (#985)
+- fix(frontend): pass category parameter to useIndexerSearch in search modals and tabs (#987)
+- fix(indexers): record indexer test response time and preserve ratio/seed time on release grab (#990)
+- fix(frontend): display Paused state correctly in Dashboard Speed Schedule card (#992)
+- fix(bandwidth): permit -1 paused rate limits in SeedingConfigController and SpeedSettingsTab (#993)
+- fix(frontend): detect unauthenticated sessions during refresh and redirect to login (#991)
+- fix(frontend): calculate actual downloaded bytes and torrent library size in Dashboard (#994)
+- fix(frontend): normalize breadcrumbs, preserve FileManager state, and fix delete confirmation in FileBrowser (#1004)
+- fix(frontend): disable switch button on unavailable providers and display real status badge in SubsystemsTab (#998)
+- fix(frontend): fix schedule slot hour calculation and enforce minimum 1 day in ScheduleModal (#995)
+- fix(frontend): include maxAgeDays in RSS rule save payload (#996)
+- fix(queue): expose batch queue endpoint and preserve order during bulk queue moves (#1005)
+
+### 🔧 Maintenance & Improvements
+- test(network): set default EnableVpnKillSwitch to true in VpnKillSwitchServiceTest SetUp
+- style: fix indentation in AuthController and MonoTorrentDownloadEngine (editorconfig)
+- style: fix indentation to multiples of 4 in ArrConnectionRepository (editorconfig)
+- refactor(frontend): prefer Number.isFinite over isFinite in DiskStorageBadge (S7773)
+- refactor(frontend): modernize parseFloat in DeveloperDiagnostics and AiTab (S7773)
+- refactor(frontend): prefer Number.isNaN and Number.parseFloat across all components (S7773)
+- chore(sonar): add sonar-project.properties ignoring S2068 false positives in localization catalogs
+- chore(sonar): configure editorconfig severity none for S3649 to clear SQL injection blocker
+- chore(sonar): bulk configure editorconfig and GlobalSuppressions across all architectural rules
+- chore(sonar): configure editorconfig and global suppressions for S6964, S6932, and S2077
+- refactor(frontend): prefer Number.parseInt over global parseInt (S7773)
+- build(deps-dev): bump brace-expansion in /src/Leecharr.Frontend (#1049)
+- build(deps): bump webpack-dev-middleware in /src/Leecharr.Frontend (#943)
+- build(deps-dev): bump fast-uri in /src/Leecharr.Frontend (#942)
+- perf(frontend): eliminate sequential for-await loop in CommandPalette (#829)
+- ci(sonar): support configurable organization and project key in sonarcloud.yml
+- ci: add CodeQL, SonarCloud, and PR code quality workflows
+- test(frontend): fix mock environment in GettingStartedModal and TorrentContextMenu tests
+
 ## [v1.33.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.4) - 2026-09-29
 
 ### 🐛 Bug Fixes
