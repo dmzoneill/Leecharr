@@ -93,6 +93,8 @@ public class SystemTaskControllerTest
     [TestCase("SessionCleanup", typeof(NzbDrone.Core.Authentication.SessionCleanupCommand))]
     [TestCase("GeoIpUpdateTask", typeof(NzbDrone.Core.Network.GeoIp.GeoIpUpdateCommand))]
     [TestCase("GeoIpUpdate", typeof(NzbDrone.Core.Network.GeoIp.GeoIpUpdateCommand))]
+    [TestCase("SyncArrTask", typeof(NzbDrone.Core.ArrIntegration.SyncArrCommand))]
+    [TestCase("SyncArr", typeof(NzbDrone.Core.ArrIntegration.SyncArrCommand))]
     public void ExecuteTask_KnownTasks_PushesStronglyTypedCommand(string typeName, Type expectedCommandType)
     {
         this.taskManager.Get(1).Returns(new ScheduledTask
