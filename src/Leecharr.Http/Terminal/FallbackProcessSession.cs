@@ -59,7 +59,8 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
             CreateNoWindow = true,
         };
 
-        if (!string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd)) // NOSONAR
+        // NOSONAR
+        if (!string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd))
         {
             startInfo.WorkingDirectory = cwd;
         }
