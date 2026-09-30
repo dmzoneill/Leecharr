@@ -67,6 +67,17 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
       }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (onClick && index !== undefined) {
+          onClick(mergedTorrent, index, e as unknown as React.MouseEvent);
+        } else {
+          onSelect(mergedTorrent);
+        }
+      }
+    };
+
     const handleContextMenu = (e: React.MouseEvent) => {
       if (onContextMenu) {
         onContextMenu(e, mergedTorrent);
@@ -91,7 +102,10 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
     return (
       <div
         className={`card torrent-grid-card ${isSelected ? "torrent-grid-card-selected" : ""} ${isChecked ? "torrent-grid-card-checked" : ""}`}
+        role="button"
+        tabIndex={0}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         onContextMenu={handleContextMenu}
         style={{
           display: "flex",
@@ -129,7 +143,14 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
           {onToggleSelect && (
             <div
               className="torrent-grid-checkbox-container"
+              role="button"
+              tabIndex={0}
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                }
+              }}
               onContextMenu={(e) => e.stopPropagation()}
               style={{
                 position: "absolute",
@@ -407,7 +428,14 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               marginTop: "auto",
               paddingTop: "6px",
             }}
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
           >
             {isPaused ? (
               <button
