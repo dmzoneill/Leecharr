@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using DryIoc;
 using DryIoc.Microsoft.DependencyInjection;
@@ -45,6 +46,8 @@ public static class Bootstrap
         "Leecharr.Api.V1",
     };
 
+    [SuppressMessage("csharpsquid", "S5332", Justification = "Internal localhost binding and configurable listening address.")]
+    [SuppressMessage("Security", "S5332:Cleartext HTTP traffic should not be used", Justification = "Internal localhost binding and configurable listening address.")]
     public static WebApplication CreateApplication(StartupContext startupContext, string[] urls = null)
     {
         AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(2));
