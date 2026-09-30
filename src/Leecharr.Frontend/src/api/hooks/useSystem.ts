@@ -3,6 +3,7 @@ import { apiClient } from "../client";
 import { useIsSignalRConnected, useIsDocumentVisible } from "../signalr";
 import type {
   SystemStatus,
+  SystemLifecycleResponse,
   HealthCheckResult,
   DiskSpaceInfo,
   NetworkStatus,
@@ -62,6 +63,18 @@ export function useSystemStatus() {
     queryKey: ["system", "status"],
     queryFn: () => apiClient.get("/system/status"),
     refetchInterval: interval,
+  });
+}
+
+export function useRestartSystem() {
+  return useMutation<SystemLifecycleResponse, Error, void>({
+    mutationFn: () => apiClient.post<SystemLifecycleResponse>("/system/restart"),
+  });
+}
+
+export function useShutdownSystem() {
+  return useMutation<SystemLifecycleResponse, Error, void>({
+    mutationFn: () => apiClient.post<SystemLifecycleResponse>("/system/shutdown"),
   });
 }
 

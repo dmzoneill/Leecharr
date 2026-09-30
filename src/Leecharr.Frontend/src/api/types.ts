@@ -231,6 +231,10 @@ export interface TorrentSpeedSnapshot {
   downloadSpeed: number;
 }
 
+export interface SystemLifecycleResponse {
+  message: string;
+}
+
 export interface SystemStatus {
   appName: string;
   version: string;

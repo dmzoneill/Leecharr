@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useTranslation } from "../i18n";
 import { Link } from "react-router";
 import {
@@ -7,8 +8,14 @@ import {
   useArrConnections,
   useDownloadClients,
   useIndexers,
+  useRestartSystem,
+  useShutdownSystem,
 } from "../api/hooks";
 import { formatBytes, formatUptime } from "../utils/formatters";
+import { useConfirm } from "../context/ConfirmContext";
+import { useToast } from "../context/ToastContext";
+import { trackSystemLifecycle } from "../utils/analytics";
+import { apiClient } from "../api/client";
 
 export function isHealthError(check: { type?: string }): boolean {
   return check.type?.toLowerCase() === "error";
@@ -16,12 +23,98 @@ export function isHealthError(check: { type?: string }): boolean {
 
 function SystemStatus() {
   const { t } = useTranslation();
+  const confirm = useConfirm();
+  const { showToast } = useToast();
+  const restartSystem = useRestartSystem();
+  const shutdownSystem = useShutdownSystem();
+  const [systemAction, setSystemAction] = useState<
+    "idle" | "restarting" | "shutdown"
+  >("idle");
+
   const { data: status, isLoading: statusLoading } = useSystemStatus();
   const { data: health, isLoading: healthLoading } = useHealthChecks();
   const { data: diskSpace, isLoading: diskLoading } = useDiskSpace();
   const { data: arrConnections } = useArrConnections();
   const { data: downloadClients } = useDownloadClients();
   const { data: indexers } = useIndexers();
+
+  useEffect(() => {
+    if (systemAction !== "restarting") return;
+
+    let isMounted = true;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const initialDelay = setTimeout(() => {
+      pollInterval = setInterval(async () => {
+        try {
+          await apiClient.get("/system/status");
+          if (isMounted) {
+            if (pollInterval) clearInterval(pollInterval);
+            setSystemAction("idle");
+            window.location.reload();
+          }
+        } catch {
+          // Service is still restarting
+        }
+      }, 2000);
+    }, 3000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(initialDelay);
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [systemAction]);
+
+  const handleRestart = async () => {
+    const ok = await confirm({
+      title: t("system.restartServer"),
+      message:
+        "Are you sure you want to restart Leecharr? The service will be temporarily unavailable while restarting.",
+      confirmText: t("system.restartServer"),
+      cancelText: t("confirmModal.cancel"),
+      danger: true,
+    });
+
+    if (!ok) return;
+
+    try {
+      trackSystemLifecycle("restart");
+      setSystemAction("restarting");
+      const res = await restartSystem.mutateAsync();
+      showToast(res?.message || t("system.restartServer"), "info");
+    } catch (err: unknown) {
+      setSystemAction("idle");
+      const message =
+        err instanceof Error ? err.message : "Failed to restart server";
+      showToast(message, "error");
+    }
+  };
+
+  const handleShutdown = async () => {
+    const ok = await confirm({
+      title: t("system.shutdownServer"),
+      message:
+        "Are you sure you want to shut down Leecharr? The service will stop and must be manually restarted on the host.",
+      confirmText: t("system.shutdownServer"),
+      cancelText: t("confirmModal.cancel"),
+      danger: true,
+    });
+
+    if (!ok) return;
+
+    try {
+      trackSystemLifecycle("shutdown");
+      setSystemAction("shutdown");
+      const res = await shutdownSystem.mutateAsync();
+      showToast(res?.message || t("system.shutdownServer"), "info");
+    } catch (err: unknown) {
+      setSystemAction("idle");
+      const message =
+        err instanceof Error ? err.message : "Failed to shut down server";
+      showToast(message, "error");
+    }
+  };
 
   const isLoading = statusLoading || healthLoading || diskLoading;
 
@@ -104,6 +197,50 @@ function SystemStatus() {
             >
               <span>📊</span> {t("system.liveTelemetry")}
             </Link>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={handleRestart}
+              disabled={
+                systemAction !== "idle" ||
+                restartSystem.isPending ||
+                shutdownSystem.isPending
+              }
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                backgroundColor: "rgba(245, 158, 11, 0.15)",
+                color: "#f59e0b",
+                border: "1px solid rgba(245, 158, 11, 0.3)",
+                cursor: systemAction !== "idle" ? "not-allowed" : "pointer",
+              }}
+              title={t("system.restartServer")}
+            >
+              <span>🔄</span> {t("system.restartServer")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={handleShutdown}
+              disabled={
+                systemAction !== "idle" ||
+                restartSystem.isPending ||
+                shutdownSystem.isPending
+              }
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                color: "#ef4444",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                cursor: systemAction !== "idle" ? "not-allowed" : "pointer",
+              }}
+              title={t("system.shutdownServer")}
+            >
+              <span>⏻</span> {t("system.shutdownServer")}
+            </button>
             <span
               className="badge badge-seeding"
               style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}
@@ -122,6 +259,59 @@ function SystemStatus() {
           </div>
         )}
       </div>
+
+      {systemAction === "restarting" && (
+        <div
+          className="health-alert health-alert-warning"
+          style={{
+            marginBottom: "1.25rem",
+            padding: "1rem",
+            borderRadius: "8px",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            className="spinner"
+            style={{ width: "1.2rem", height: "1.2rem" }}
+          />
+          <div>
+            <strong>Restarting Leecharr...</strong>
+            <div style={{ marginTop: "0.25rem", fontSize: "0.85rem" }}>
+              The server is restarting. The web interface will automatically
+              reconnect once the service is back online.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {systemAction === "shutdown" && (
+        <div
+          className="health-alert health-alert-error"
+          style={{
+            marginBottom: "1.25rem",
+            padding: "1rem",
+            borderRadius: "8px",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <span style={{ fontSize: "1.3rem" }}>🛑</span>
+          <div>
+            <strong>Leecharr is shut down</strong>
+            <div style={{ marginTop: "0.25rem", fontSize: "0.85rem" }}>
+              The server process has terminated. You will need to manually start
+              the server again on the host machine.
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading && <p className="loading">{t("system.loadingStatus")}</p>}
 
@@ -759,6 +949,61 @@ function SystemStatus() {
                     {status.isDebug ? " (Debug)" : ""}
                   </span>
                 </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  marginTop: "0.75rem",
+                  paddingTop: "0.75rem",
+                  borderTop: "1px solid var(--border-light)",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  onClick={handleRestart}
+                  disabled={
+                    systemAction !== "idle" ||
+                    restartSystem.isPending ||
+                    shutdownSystem.isPending
+                  }
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    backgroundColor: "rgba(245, 158, 11, 0.15)",
+                    color: "#f59e0b",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    cursor: systemAction !== "idle" ? "not-allowed" : "pointer",
+                  }}
+                  title={t("system.restartServer")}
+                >
+                  <span>🔄</span> {t("system.restartServer")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  onClick={handleShutdown}
+                  disabled={
+                    systemAction !== "idle" ||
+                    restartSystem.isPending ||
+                    shutdownSystem.isPending
+                  }
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    backgroundColor: "rgba(239, 68, 68, 0.15)",
+                    color: "#ef4444",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    cursor: systemAction !== "idle" ? "not-allowed" : "pointer",
+                  }}
+                  title={t("system.shutdownServer")}
+                >
+                  <span>⏻</span> {t("system.shutdownServer")}
+                </button>
               </div>
             </div>
           </div>
