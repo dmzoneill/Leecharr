@@ -46,8 +46,21 @@ public class TagControllerTest
     {
         var tags = new List<Tag>
         {
-            new() { Id = 1, Label = "anime" },
-            new() { Id = 2, Label = "movies" },
+            new()
+            {
+                Id = 1,
+                Label = "anime",
+                Color = "#3b82f6",
+                UploadLimitKbps = 1000,
+                DownloadLimitKbps = 5000,
+                MinSeedRatio = 2.0,
+                MinSeedTimeSeconds = 86400,
+            },
+            new()
+            {
+                Id = 2,
+                Label = "movies",
+            },
         };
 
         this.tagRepository.All().Returns(tags);
@@ -61,14 +74,33 @@ public class TagControllerTest
         resources!.Should().HaveCount(2);
         resources[0].Id.Should().Be(1);
         resources[0].Label.Should().Be("anime");
+        resources[0].Color.Should().Be("#3b82f6");
+        resources[0].UploadLimitKbps.Should().Be(1000);
+        resources[0].DownloadLimitKbps.Should().Be(5000);
+        resources[0].MinSeedRatio.Should().Be(2.0);
+        resources[0].MinSeedTimeSeconds.Should().Be(86400);
         resources[1].Id.Should().Be(2);
         resources[1].Label.Should().Be("movies");
+        resources[1].Color.Should().BeNull();
+        resources[1].UploadLimitKbps.Should().BeNull();
+        resources[1].DownloadLimitKbps.Should().BeNull();
+        resources[1].MinSeedRatio.Should().BeNull();
+        resources[1].MinSeedTimeSeconds.Should().BeNull();
     }
 
     [Test]
     public void Get_WhenExists_ReturnsTagResource()
     {
-        var tag = new Tag { Id = 5, Label = "4k" };
+        var tag = new Tag
+        {
+            Id = 5,
+            Label = "4k",
+            Color = "#ef4444",
+            UploadLimitKbps = 2500,
+            DownloadLimitKbps = 10000,
+            MinSeedRatio = 3.5,
+            MinSeedTimeSeconds = 172800,
+        };
         this.tagRepository.Get(5).Returns(tag);
 
         var result = this.controller.Get(5);
@@ -79,6 +111,11 @@ public class TagControllerTest
         resource.Should().NotBeNull();
         resource!.Id.Should().Be(5);
         resource.Label.Should().Be("4k");
+        resource.Color.Should().Be("#ef4444");
+        resource.UploadLimitKbps.Should().Be(2500);
+        resource.DownloadLimitKbps.Should().Be(10000);
+        resource.MinSeedRatio.Should().Be(3.5);
+        resource.MinSeedTimeSeconds.Should().Be(172800);
     }
 
     [Test]
@@ -140,6 +177,50 @@ public class TagControllerTest
     }
 
     [Test]
+    public void Create_WhenValidWithColorAndPolicies_InsertsAndReturnsTagResource()
+    {
+        this.tagRepository.GetByLabel("seeding-tag").Returns((Tag)null!);
+        this.tagRepository.Insert(Arg.Any<Tag>()).Returns(callInfo =>
+        {
+            var t = callInfo.Arg<Tag>();
+            t.Id = 11;
+            return t;
+        });
+
+        var request = new TagResource
+        {
+            Label = "seeding-tag",
+            Color = "#3b82f6",
+            UploadLimitKbps = 1000,
+            DownloadLimitKbps = 5000,
+            MinSeedRatio = 2.5,
+            MinSeedTimeSeconds = 86400,
+        };
+
+        var result = this.controller.Create(request);
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var resource = okResult!.Value as TagResource;
+        resource.Should().NotBeNull();
+        resource!.Id.Should().Be(11);
+        resource.Label.Should().Be("seeding-tag");
+        resource.Color.Should().Be("#3b82f6");
+        resource.UploadLimitKbps.Should().Be(1000);
+        resource.DownloadLimitKbps.Should().Be(5000);
+        resource.MinSeedRatio.Should().Be(2.5);
+        resource.MinSeedTimeSeconds.Should().Be(86400);
+
+        this.tagRepository.Received(1).Insert(Arg.Is<Tag>(t =>
+            t.Label == "seeding-tag" &&
+            t.Color == "#3b82f6" &&
+            t.UploadLimitKbps == 1000 &&
+            t.DownloadLimitKbps == 5000 &&
+            t.MinSeedRatio == 2.5 &&
+            t.MinSeedTimeSeconds == 86400));
+    }
+
+    [Test]
     public void Update_WhenInvalid_ReturnsBadRequest()
     {
         var result1 = this.controller.Update(null!);
@@ -176,6 +257,56 @@ public class TagControllerTest
         resource!.Id.Should().Be(10);
         resource.Label.Should().Be("updated");
         this.tagRepository.Received(1).Update(Arg.Is<Tag>(t => t.Id == 10 && t.Label == "updated"));
+    }
+
+    [Test]
+    public void Update_WhenValidWithColorAndPolicies_UpdatesAndReturnsTagResource()
+    {
+        var existing = new Tag
+        {
+            Id = 10,
+            Label = "old",
+            Color = "#ef4444",
+            UploadLimitKbps = 500,
+            DownloadLimitKbps = 2000,
+            MinSeedRatio = 1.5,
+            MinSeedTimeSeconds = 43200,
+        };
+        this.tagRepository.Get(10).Returns(existing);
+
+        var request = new TagResource
+        {
+            Id = 10,
+            Label = "updated",
+            Color = "#10b981",
+            UploadLimitKbps = 2000,
+            DownloadLimitKbps = 8000,
+            MinSeedRatio = 3.0,
+            MinSeedTimeSeconds = 172800,
+        };
+
+        var result = this.controller.Update(request);
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var resource = okResult!.Value as TagResource;
+        resource.Should().NotBeNull();
+        resource!.Id.Should().Be(10);
+        resource.Label.Should().Be("updated");
+        resource.Color.Should().Be("#10b981");
+        resource.UploadLimitKbps.Should().Be(2000);
+        resource.DownloadLimitKbps.Should().Be(8000);
+        resource.MinSeedRatio.Should().Be(3.0);
+        resource.MinSeedTimeSeconds.Should().Be(172800);
+
+        this.tagRepository.Received(1).Update(Arg.Is<Tag>(t =>
+            t.Id == 10 &&
+            t.Label == "updated" &&
+            t.Color == "#10b981" &&
+            t.UploadLimitKbps == 2000 &&
+            t.DownloadLimitKbps == 8000 &&
+            t.MinSeedRatio == 3.0 &&
+            t.MinSeedTimeSeconds == 172800));
     }
 
     [Test]

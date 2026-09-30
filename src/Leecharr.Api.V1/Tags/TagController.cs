@@ -15,11 +15,6 @@ using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Tags;
 
-public class TagResource : RestResource
-{
-    public string Label { get; set; }
-}
-
 [V1ApiController("tag")]
 [Route("api/v1/tags")]
 [Authorize(Policy = "RequireOperator")]
@@ -48,11 +43,7 @@ public class TagController : Controller
     [HttpGet]
     public ActionResult<List<TagResource>> GetAll()
     {
-        var tags = this.tagRepository.All().Select(t => new TagResource
-        {
-            Id = t.Id,
-            Label = t.Label,
-        }).ToList();
+        var tags = this.tagRepository.All().Select(ToResource).ToList();
 
         return this.Ok(tags);
     }
@@ -66,11 +57,7 @@ public class TagController : Controller
             return this.NotFound();
         }
 
-        return this.Ok(new TagResource
-        {
-            Id = tag.Id,
-            Label = tag.Label,
-        });
+        return this.Ok(ToResource(tag));
     }
 
     [HttpPost]
@@ -90,24 +77,21 @@ public class TagController : Controller
         var existing = this.tagRepository.GetByLabel(trimmedLabel);
         if (existing != null)
         {
-            return this.Ok(new TagResource
-            {
-                Id = existing.Id,
-                Label = existing.Label,
-            });
+            return this.Ok(ToResource(existing));
         }
 
         var model = new Tag
         {
             Label = trimmedLabel,
+            Color = resource.Color,
+            UploadLimitKbps = resource.UploadLimitKbps,
+            DownloadLimitKbps = resource.DownloadLimitKbps,
+            MinSeedRatio = resource.MinSeedRatio,
+            MinSeedTimeSeconds = resource.MinSeedTimeSeconds,
         };
 
         var inserted = this.tagRepository.Insert(model);
-        return this.Ok(new TagResource
-        {
-            Id = inserted.Id,
-            Label = inserted.Label,
-        });
+        return this.Ok(ToResource(inserted));
     }
 
     [HttpPut]
@@ -144,13 +128,28 @@ public class TagController : Controller
         }
 
         existing.Label = trimmedLabel;
+        existing.Color = resource.Color;
+        existing.UploadLimitKbps = resource.UploadLimitKbps;
+        existing.DownloadLimitKbps = resource.DownloadLimitKbps;
+        existing.MinSeedRatio = resource.MinSeedRatio;
+        existing.MinSeedTimeSeconds = resource.MinSeedTimeSeconds;
         this.tagRepository.Update(existing);
 
-        return this.Ok(new TagResource
+        return this.Ok(ToResource(existing));
+    }
+
+    private static TagResource ToResource(Tag tag)
+    {
+        return new TagResource
         {
-            Id = existing.Id,
-            Label = existing.Label,
-        });
+            Id = tag.Id,
+            Label = tag.Label,
+            Color = tag.Color,
+            UploadLimitKbps = tag.UploadLimitKbps,
+            DownloadLimitKbps = tag.DownloadLimitKbps,
+            MinSeedRatio = tag.MinSeedRatio,
+            MinSeedTimeSeconds = tag.MinSeedTimeSeconds,
+        };
     }
 
     [HttpDelete("{id:int}")]

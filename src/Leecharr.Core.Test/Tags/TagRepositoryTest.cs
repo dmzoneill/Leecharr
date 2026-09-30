@@ -97,4 +97,30 @@ public class TagRepositoryTest
         var result = this.repository.GetByLabel(label);
         result.Should().BeNull();
     }
+
+    [Test]
+    public void InsertAndGet_PersistsColorAndSeedingPolicies()
+    {
+        var tag = new Tag
+        {
+            Label = "Anime",
+            Color = "#8b5cf6",
+            UploadLimitKbps = 1500,
+            DownloadLimitKbps = 6000,
+            MinSeedRatio = 2.0,
+            MinSeedTimeSeconds = 7200,
+        };
+
+        var inserted = this.repository.Insert(tag);
+        inserted.Id.Should().BeGreaterThan(0);
+
+        var retrieved = this.repository.Get(inserted.Id);
+        retrieved.Should().NotBeNull();
+        retrieved!.Label.Should().Be("Anime");
+        retrieved.Color.Should().Be("#8b5cf6");
+        retrieved.UploadLimitKbps.Should().Be(1500);
+        retrieved.DownloadLimitKbps.Should().Be(6000);
+        retrieved.MinSeedRatio.Should().Be(2.0);
+        retrieved.MinSeedTimeSeconds.Should().Be(7200);
+    }
 }
