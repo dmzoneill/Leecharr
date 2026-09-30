@@ -1151,6 +1151,148 @@ public class ClientImportAndProxyTest
         result.Result.Should().BeOfType<BadRequestResult>();
     }
 
+    [Test]
+    public async Task PauseTorrentAsync_WhenClientIsQBittorrent_DispatchesToQBittorrentPauseEndpoint()
+    {
+        var requestedUrls = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requestedUrls.Add(req.RequestUri!.ToString());
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var http = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "QBitClient",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+        };
+
+        var result = await DownloadClientRemoteQuery.PauseTorrentAsync(client, "1111111111111111111111111111111111111111", http);
+        result.Should().BeTrue();
+        requestedUrls.Should().Contain(u => u.Contains("/api/v2/torrents/pause"));
+    }
+
+    [Test]
+    public async Task ResumeTorrentAsync_WhenClientIsTransmission_DispatchesToTransmissionRpcEndpoint()
+    {
+        string capturedBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var http = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Id = 2,
+            Name = "TransClient",
+            ClientType = "Transmission",
+            Host = "127.0.0.1",
+            Port = 9091,
+        };
+
+        var result = await DownloadClientRemoteQuery.ResumeTorrentAsync(client, "2222222222222222222222222222222222222222", http);
+        result.Should().BeTrue();
+        capturedBody.Should().Contain("torrent-start");
+        capturedBody.Should().Contain("2222222222222222222222222222222222222222");
+    }
+
+    [Test]
+    public async Task DeleteTorrentAsync_WhenClientIsDeluge_DispatchesToDelugeJsonEndpoint()
+    {
+        string capturedBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var http = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Id = 3,
+            Name = "DelugeClient",
+            ClientType = "Deluge",
+            Host = "127.0.0.1",
+            Port = 8112,
+        };
+
+        var result = await DownloadClientRemoteQuery.DeleteTorrentAsync(client, "3333333333333333333333333333333333333333", true, http);
+        result.Should().BeTrue();
+        capturedBody.Should().Contain("core.remove_torrent");
+        capturedBody.Should().Contain("3333333333333333333333333333333333333333");
+    }
+
+    [Test]
+    public async Task PauseRemoteTorrent_WhenClientExists_ReturnsOk()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var http = new HttpClient(handler);
+        var client = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "127.0.0.1", Port = 8080 };
+        this.repository.Get(1).Returns(client);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, http);
+        var actionResult = await controller.PauseRemoteTorrent(1, "1111111111111111111111111111111111111111");
+
+        actionResult.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task ResumeRemoteTorrent_WhenClientDoesNotExist_ReturnsNotFound()
+    {
+        this.repository.Get(99).Returns((DownloadClientDefinition)null!);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var actionResult = await controller.ResumeRemoteTorrent(99, "1111111111111111111111111111111111111111");
+
+        actionResult.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task DeleteRemoteTorrent_WhenClientExists_ReturnsOk()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var http = new HttpClient(handler);
+        var client = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "127.0.0.1", Port = 8080 };
+        this.repository.Get(1).Returns(client);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, http);
+        var actionResult = await controller.DeleteRemoteTorrent(1, "1111111111111111111111111111111111111111", true);
+
+        actionResult.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task ImportTorrents_WhenIdIsZero_ImportsAcrossAllEnabledClients()
+    {
+        var hash1 = "1111111111111111111111111111111111111111";
+        var json1 = $"[{{\"hash\":\"{hash1}\",\"name\":\"Torrent 1\",\"save_path\":\"/path1\",\"category\":\"cat1\"}}]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json1, Encoding.UTF8, "application/json"),
+        });
+
+        using var http = new HttpClient(handler);
+        var client = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "127.0.0.1", Port = 8080, Enabled = true };
+        this.repository.All().Returns(new List<DownloadClientDefinition> { client });
+        this.torrentService.GetByInfoHash(hash1).Returns((Torrent)null!);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, http);
+        var actionResult = await controller.ImportTorrents(0, new ImportRequest { Hashes = new List<string> { hash1 } });
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var syncResult = okResult!.Value as SyncResultResource;
+        syncResult.Should().NotBeNull();
+        syncResult!.Success.Should().BeTrue();
+        syncResult.SyncedCount.Should().Be(1);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
