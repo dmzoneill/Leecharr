@@ -481,7 +481,6 @@ export const Indexers: React.FC<IndexersProps> = ({
               border: "1px solid var(--border-light)",
               color: "inherit",
             }}
-            autoFocus
           />
           <button
             type="submit"
