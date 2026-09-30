@@ -18,7 +18,7 @@ public class AutomationScriptRepository : BasicRepository<AutomationScript>, IAu
     {
         using var connection = database.OpenConnection();
         return connection.Query<AutomationScript>(
-            $"SELECT * FROM \"{table}\" WHERE \"Trigger\" = @Trigger AND \"IsEnabled\" = 1",
+            "SELECT * FROM \"AutomationScripts\" WHERE \"Trigger\" = @Trigger AND \"IsEnabled\" = 1",
             new { Trigger = (int)trigger }).ToList();
     }
 
@@ -26,6 +26,6 @@ public class AutomationScriptRepository : BasicRepository<AutomationScript>, IAu
     {
         using var connection = database.OpenConnection();
         return connection.Query<AutomationScript>(
-            $"SELECT * FROM \"{table}\" WHERE \"IsEnabled\" = 1").ToList();
+            "SELECT * FROM \"AutomationScripts\" WHERE \"IsEnabled\" = 1").ToList();
     }
 }

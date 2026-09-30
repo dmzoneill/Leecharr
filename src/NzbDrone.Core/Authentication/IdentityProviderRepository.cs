@@ -17,7 +17,7 @@ public class IdentityProviderRepository : BasicRepository<IdentityProviderDefini
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<IdentityProviderDefinition>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = @IsEnabled ORDER BY \"Id\"",
+                "SELECT * FROM \"IdentityProviders\" WHERE \"IsEnabled\" = @IsEnabled ORDER BY \"Id\"",
                 new { IsEnabled = true }));
     }
 
@@ -25,7 +25,7 @@ public class IdentityProviderRepository : BasicRepository<IdentityProviderDefini
     {
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<IdentityProviderDefinition>(
-                $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"ProviderId\") = LOWER(@ProviderId)",
+                "SELECT * FROM \"IdentityProviders\" WHERE LOWER(\"ProviderId\") = LOWER(@ProviderId)",
                 new { ProviderId = providerId }));
     }
 }

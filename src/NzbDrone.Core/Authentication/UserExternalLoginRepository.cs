@@ -17,7 +17,7 @@ public class UserExternalLoginRepository : BasicRepository<UserExternalLogin>, I
     {
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<UserExternalLogin>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"LoginProvider\" = @LoginProvider AND \"ProviderKey\" = @ProviderKey",
+                "SELECT * FROM \"UserExternalLogins\" WHERE \"LoginProvider\" = @LoginProvider AND \"ProviderKey\" = @ProviderKey",
                 new { LoginProvider = loginProvider, ProviderKey = providerKey }));
     }
 
@@ -25,7 +25,7 @@ public class UserExternalLoginRepository : BasicRepository<UserExternalLogin>, I
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<UserExternalLogin>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"UserId\" = @UserId ORDER BY \"LinkedAt\" DESC",
+                "SELECT * FROM \"UserExternalLogins\" WHERE \"UserId\" = @UserId ORDER BY \"LinkedAt\" DESC",
                 new { UserId = userId }));
     }
 
@@ -33,7 +33,7 @@ public class UserExternalLoginRepository : BasicRepository<UserExternalLogin>, I
     {
         this.ExecuteWithRetry(connection =>
             connection.Execute(
-                $"DELETE FROM \"{this.table}\" WHERE \"UserId\" = @UserId",
+                "DELETE FROM \"UserExternalLogins\" WHERE \"UserId\" = @UserId",
                 new { UserId = userId }));
     }
 }

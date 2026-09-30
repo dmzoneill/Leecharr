@@ -114,7 +114,8 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
                         {
                             conn.Open();
                             using var cmd = conn.CreateCommand();
-                            cmd.CommandText = $"VACUUM INTO '{tempSnapshotPath.Replace("'", "''")}';";
+                            cmd.CommandText = "VACUUM INTO @snapshotPath;";
+                            cmd.Parameters.AddWithValue("@snapshotPath", tempSnapshotPath);
                             cmd.ExecuteNonQuery();
                         }
 
