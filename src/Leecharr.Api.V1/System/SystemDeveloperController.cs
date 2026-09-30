@@ -50,6 +50,7 @@ public class SystemDeveloperController : Controller
     private readonly IEventAggregator eventAggregator;
     private readonly ArrWebhookController arrWebhookController;
     private readonly IServiceProvider serviceProvider;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
 
     public SystemDeveloperController(
@@ -63,7 +64,8 @@ public class SystemDeveloperController : Controller
         IMainDatabase mainDatabase = null,
         IEventAggregator eventAggregator = null,
         ArrWebhookController arrWebhookController = null,
-        IServiceProvider serviceProvider = null)
+        IServiceProvider serviceProvider = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.eventStore = eventStore;
         this.httpTrafficStore = httpTrafficStore;
@@ -76,6 +78,7 @@ public class SystemDeveloperController : Controller
         this.eventAggregator = eventAggregator;
         this.arrWebhookController = arrWebhookController;
         this.serviceProvider = serviceProvider;
+        this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -1195,6 +1198,7 @@ public class SystemDeveloperController : Controller
     // ==========================================
 
     [HttpGet("config")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443:Publicly writable directories", Justification = "Secure application subfolder is used instead of system temp.")]
     public ActionResult<DeveloperConfigResponse> GetConfiguration([FromQuery] bool unmask = false)
     {
         var entries = new List<DeveloperConfigEntry>();
@@ -1278,6 +1282,23 @@ public class SystemDeveloperController : Controller
             }
         }
 
+        var appData = this.appFolderInfo?.AppDataFolder
+            ?? Environment.GetEnvironmentVariable("LEECHARR__APP_DATA")
+            ?? Environment.GetEnvironmentVariable("SEEDARR__APP_DATA")
+            ?? "/config";
+        var tempDirectory = Path.Combine(appData, "temp");
+        if (!Directory.Exists(tempDirectory))
+        {
+            try
+            {
+                Directory.CreateDirectory(tempDirectory);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Could not pre-create developer temp directory: {0}", tempDirectory);
+            }
+        }
+
         var proc = Process.GetCurrentProcess();
         var hostEnv = new DeveloperHostEnvironment
         {
@@ -1290,8 +1311,8 @@ public class SystemDeveloperController : Controller
             ProcessStartTimeUtc = proc.StartTime.ToUniversalTime(),
             ProcessUptimeSeconds = Math.Round((DateTime.UtcNow - proc.StartTime.ToUniversalTime()).TotalSeconds, 1),
             WorkingSetBytes = proc.WorkingSet64,
-            AppDataDirectory = Environment.GetEnvironmentVariable("LEECHARR__APP_DATA") ?? Environment.GetEnvironmentVariable("SEEDARR__APP_DATA") ?? "/config",
-            TempDirectory = Path.GetTempPath(),
+            AppDataDirectory = appData,
+            TempDirectory = tempDirectory,
             CurrentDirectory = Directory.GetCurrentDirectory(),
             EnvironmentVariables = envVars,
         };

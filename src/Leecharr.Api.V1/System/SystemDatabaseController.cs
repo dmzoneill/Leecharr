@@ -506,6 +506,7 @@ public class SystemDatabaseController : Controller
     }
 
     [HttpPost("query")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S3649:SQL injection", Justification = "Authorized developer SQL execution console endpoint requires executing user-submitted queries by design, guarded by admin authentication and read-only restrictions.")]
     public ActionResult<DatabaseQueryResult> ExecuteQuery([FromBody] DatabaseQueryRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Query))

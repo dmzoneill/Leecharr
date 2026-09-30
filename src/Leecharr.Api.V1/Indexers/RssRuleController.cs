@@ -182,7 +182,7 @@ public class RssRuleController : Controller
 
         try
         {
-            _ = new Regex(pattern);
+            _ = new Regex(pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
             errorMessage = null;
             return true;
         }
