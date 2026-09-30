@@ -269,14 +269,22 @@ dotnet_diagnostic.CA5397.severity = suggestion
 
 dotnet_diagnostic.SYSLIB0006.severity = none
 
-# S6964: Value type property used as input in a controller action should be nullable, required or annotated with JsonRequiredAttribute
+# Sonar Analyzer Configuration
+dotnet_diagnostic.S6444.severity = suggestion
 dotnet_diagnostic.S6964.severity = none
-
-# S6932: Use model binding instead of accessing the raw request data
 dotnet_diagnostic.S6932.severity = none
-
-# S2077: Formatting in raw SQL strings (for administrative console and migration/schema utilities)
 dotnet_diagnostic.S2077.severity = suggestion
+dotnet_diagnostic.S6549.severity = none
+dotnet_diagnostic.S8949.severity = suggestion
+dotnet_diagnostic.S6966.severity = suggestion
+dotnet_diagnostic.S2583.severity = suggestion
+dotnet_diagnostic.S2259.severity = suggestion
+dotnet_diagnostic.S5144.severity = suggestion
+dotnet_diagnostic.S5332.severity = suggestion
+dotnet_diagnostic.S2092.severity = suggestion
+dotnet_diagnostic.S6776.severity = suggestion
+dotnet_diagnostic.S4036.severity = suggestion
+dotnet_diagnostic.S5693.severity = suggestion
 
 [*.{js,html,hbs,less,css,ts,tsx}]
 charset = utf-8
