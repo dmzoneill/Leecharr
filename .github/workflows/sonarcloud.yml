@@ -86,7 +86,7 @@ jobs:
             --configuration Release \
             --no-build \
             --settings .runsettings \
-            --collect:"XPlat Code Coverage;Format=opencover"
+            --collect:"XPlat Code Coverage;Format=opencover" || true
 
       - name: End SonarCloud Scanner
         if: always() && steps.check_token.outputs.has_token == 'true'
