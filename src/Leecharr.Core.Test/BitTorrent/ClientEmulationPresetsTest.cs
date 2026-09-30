@@ -9,6 +9,7 @@ using NzbDrone.Core.BitTorrent;
 namespace Leecharr.Core.Test.BitTorrent;
 
 [TestFixture]
+[NonParallelizable]
 public class ClientEmulationPresetsTest
 {
     [TestCase("qBittorrent", "qBittorrent/4.6.5", "-qB4650-")]

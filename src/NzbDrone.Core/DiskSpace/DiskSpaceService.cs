@@ -164,9 +164,7 @@ public class DiskSpaceService : IDiskSpaceService
                 }
                 else
                 {
-                    var root = Path.GetPathRoot(path);
-                    driveRoot = root;
-                    volumeKey = !string.IsNullOrEmpty(root) ? $"{totalSpace.Value}_{root}" : $"{totalSpace.Value}_{path}";
+                    volumeKey = $"{totalSpace.Value}_{path}";
                 }
 
                 if (!seenVolumes.Contains(volumeKey) && !seen.Contains(path) && (string.IsNullOrWhiteSpace(driveRoot) || !seen.Contains(driveRoot)))

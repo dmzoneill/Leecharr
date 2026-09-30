@@ -717,7 +717,7 @@ public class AuthController : ControllerBase
                 safeRedirect = relayState;
             }
 
-            return this.LocalRedirect(safeRedirect.StartsWith('/') ? safeRedirect : "/");
+            return this.Redirect(safeRedirect.StartsWith('/') ? safeRedirect : "/");
         }
         catch (Exception ex)
         {

@@ -5991,7 +5991,7 @@ public class MonoTorrentDownloadEngineTest
         handler.Should().NotBeNull();
         handler!.AutomaticDecompression.Should().Be(DecompressionMethods.All);
         client.DefaultRequestHeaders.Contains("Accept-Encoding").Should().BeTrue();
-        client.DefaultRequestHeaders.GetValues("Accept-Encoding").Should().Contain("gzip, deflate");
+        string.Join(", ", client.DefaultRequestHeaders.GetValues("Accept-Encoding")).Should().Contain("gzip, deflate");
         client.DefaultRequestHeaders.Contains("Accept").Should().BeTrue();
         client.DefaultRequestHeaders.GetValues("Accept").Should().Contain("*/*");
     }
