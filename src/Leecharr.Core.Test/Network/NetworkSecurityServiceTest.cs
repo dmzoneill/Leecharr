@@ -155,6 +155,28 @@ public class NetworkSecurityServiceTest
     }
 
     [Test]
+    public void GetCurrentSettings_WhenConfigServiceDisablesKillSwitch_ReturnsFalse()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.EnableVpnKillSwitch.Returns(false);
+        configService.BindInterface.Returns("tun0");
+
+        var settings = new NetworkSettings
+        {
+            Id = 1,
+            EnableVpnKillSwitch = true,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        var serviceWithConfig = new NetworkSecurityService(this.repository, this.eventAggregator, configService);
+        var current = serviceWithConfig.GetCurrentSettings();
+
+        current.EnableVpnKillSwitch.Should().BeFalse();
+        current.BindInterface.Should().Be("tun0");
+    }
+
+    [Test]
     public void SaveSettings_WhenCalledWithKillSwitchDisabled_UpdatesConfigAndChecksVpnState()
     {
         var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();

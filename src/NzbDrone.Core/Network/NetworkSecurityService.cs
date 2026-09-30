@@ -184,10 +184,7 @@ public class NetworkSecurityService : INetworkSecurityService, IExecute<VpnKillS
                 settings.BindInterface = this.configService.NetworkInterfaceBinding;
             }
 
-            if (this.configService.EnableVpnKillSwitch)
-            {
-                settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
-            }
+            settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
         }
 
         return settings;
