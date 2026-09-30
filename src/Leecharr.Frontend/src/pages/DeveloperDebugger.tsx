@@ -261,6 +261,7 @@ export default function DeveloperDebugger() {
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button
+            type="button"
             onClick={() => setShowAddModal(true)}
             style={{
               display: "inline-flex",
@@ -280,6 +281,7 @@ export default function DeveloperDebugger() {
           </button>
 
           <button
+            type="button"
             onClick={handleSimulateSnapshot}
             style={{
               padding: "7px 12px",
@@ -296,6 +298,7 @@ export default function DeveloperDebugger() {
           </button>
 
           <button
+            type="button"
             onClick={fetchAll}
             style={{
               padding: "7px 12px",
@@ -476,7 +479,15 @@ export default function DeveloperDebugger() {
                       >
                         {/* Gutter: Line Number & Breakpoint Dot */}
                         <td
+                          role="button"
+                          tabIndex={0}
                           onClick={() => handleToggleBreakpoint(lineNum)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleToggleBreakpoint(lineNum);
+                            }
+                          }}
                           style={{
                             width: "55px",
                             padding: "0 8px 0 10px",
@@ -601,6 +612,7 @@ export default function DeveloperDebugger() {
                         {tp.hitCount ?? 0} hits
                       </span>
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (tp.id) handleRemoveTracepoint(tp.id);
@@ -651,6 +663,7 @@ export default function DeveloperDebugger() {
               </span>
               {snapshots.length > 0 && (
                 <button
+                  type="button"
                   onClick={handleClearSnapshots}
                   style={{
                     background: "transparent",
