@@ -141,7 +141,7 @@ export function BulkTagModal({
       !hasExactMatch
     ) {
       e.preventDefault();
-      handleQuickCreateTag();
+      void handleQuickCreateTag();
     }
   };
 

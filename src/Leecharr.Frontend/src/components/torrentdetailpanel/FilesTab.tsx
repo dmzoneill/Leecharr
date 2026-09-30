@@ -926,7 +926,7 @@ export function FilesTab({
               flexShrink: 0,
             }}
             onClick={() => {
-              navigator.clipboard.writeText(savePath);
+              void navigator.clipboard.writeText(savePath);
               setCopiedPath(true);
               setTimeout(() => setCopiedPath(false), 2000);
             }}
@@ -1550,7 +1550,7 @@ export function FilesTab({
               }}
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleConfirmRename();
+                if (e.key === "Enter") void handleConfirmRename();
                 if (e.key === "Escape") setRenamingNode(null);
               }}
             />
