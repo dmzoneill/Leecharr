@@ -47,6 +47,8 @@ public static class Bootstrap
 
     public static WebApplication CreateApplication(StartupContext startupContext, string[] urls = null)
     {
+        AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(2));
+
         Logger.Info("Starting Leecharr - {0}", BuildInfo.Version);
 
         var container = new Container(rules => rules.WithNzbDroneRules());
