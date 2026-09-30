@@ -4,7 +4,7 @@ using FluentMigrator;
 
 namespace NzbDrone.Core.Datastore.Migration;
 
-[Migration(39)]
+[Migration(40)]
 public class AddTorrentThresholdAndSmallTorrentLimit : NzbDroneMigrationBase
 {
     public override void Up()
