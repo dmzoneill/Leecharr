@@ -508,7 +508,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
         var enableSsl = this.configFileProvider?.EnableSsl == true;
         var scheme = enableSsl ? "https" : "http";
-        var port = enableSsl ? (this.configFileProvider?.SslPort ?? 7890) : (this.configFileProvider?.Port ?? 7889);
+        var port = enableSsl ? this.configFileProvider.SslPort : (this.configFileProvider?.Port ?? 7889);
 
         var hostCandidate = connection?.WebhookHost;
         if (!string.IsNullOrWhiteSpace(hostCandidate))
