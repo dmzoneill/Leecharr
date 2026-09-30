@@ -47,6 +47,16 @@ public class CommandExecutor : ICommandExecutor
             return;
         }
 
+        if (command.Id != 0)
+        {
+            var existing = this.repository?.Get(command.Id);
+            if (existing?.Status == CommandStatus.Cancelled)
+            {
+                this.logger.Info("Command {0} (ID: {1}) was cancelled, skipping execution", command.Name, command.Id);
+                return;
+            }
+        }
+
         this.logger.Trace("Executing {0}", command.Name);
 
         object handler = null;
@@ -139,8 +149,26 @@ public class CommandExecutor : ICommandExecutor
                 }
             }
 
-            command.Status = CommandStatus.Completed;
-            this.logger.Debug("Completed {0}", command.Name);
+            if (command.Id != 0)
+            {
+                var latest = this.repository?.Get(command.Id);
+                if (latest?.Status == CommandStatus.Cancelled)
+                {
+                    command.Status = CommandStatus.Cancelled;
+                    command.Message = latest.Message ?? "Command execution cancelled.";
+                    this.logger.Warn("Command {0} was cancelled", command.Name);
+                }
+                else
+                {
+                    command.Status = CommandStatus.Completed;
+                    this.logger.Debug("Completed {0}", command.Name);
+                }
+            }
+            else
+            {
+                command.Status = CommandStatus.Completed;
+                this.logger.Debug("Completed {0}", command.Name);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

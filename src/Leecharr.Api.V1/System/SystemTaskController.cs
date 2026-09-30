@@ -130,52 +130,117 @@ public class SystemTaskController : Controller
     public ActionResult ExecuteTask(int id)
     {
         var dbTask = this.taskManager?.Get(id) ?? this.scheduledTaskRepository?.Get(id);
-        var name = dbTask != null && !string.IsNullOrWhiteSpace(dbTask.TypeName)
-            ? dbTask.TypeName.Replace("Task", string.Empty)
-            : "SystemTask";
+        if (dbTask == null)
+        {
+            return this.NotFound("Task not found");
+        }
 
-        if (string.Equals(name, "WatchFolderScan", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "WatchFolderScanTask", StringComparison.OrdinalIgnoreCase))
+        return this.DispatchTask(dbTask.TypeName);
+    }
+
+    [HttpPost("{typeName}")]
+    [HttpPost("{typeName}/execute")]
+    public ActionResult ExecuteTaskByName(string typeName)
+    {
+        if (string.IsNullOrWhiteSpace(typeName))
+        {
+            return this.NotFound("Task not found");
+        }
+
+        var dbTask = this.taskManager?.GetByTypeName(typeName) ?? this.scheduledTaskRepository?.GetByTypeName(typeName);
+        if (dbTask == null && !typeName.EndsWith("Task", StringComparison.OrdinalIgnoreCase))
+        {
+            dbTask = this.taskManager?.GetByTypeName(typeName + "Task") ?? this.scheduledTaskRepository?.GetByTypeName(typeName + "Task");
+        }
+
+        if (dbTask == null)
+        {
+            var all = this.taskManager?.GetAll() ?? this.scheduledTaskRepository?.All();
+            dbTask = all?.FirstOrDefault(t =>
+                string.Equals(t.TypeName, typeName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.TypeName?.Replace("Task", string.Empty), typeName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var resolvedTypeName = dbTask?.TypeName;
+        if (string.IsNullOrWhiteSpace(resolvedTypeName) && IsKnownTask(typeName))
+        {
+            resolvedTypeName = typeName;
+        }
+
+        if (string.IsNullOrWhiteSpace(resolvedTypeName))
+        {
+            return this.NotFound("Task not found");
+        }
+
+        return this.DispatchTask(resolvedTypeName);
+    }
+
+    private static bool IsKnownTask(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        var clean = name.EndsWith("Task", StringComparison.OrdinalIgnoreCase)
+            ? name.Substring(0, name.Length - 4)
+            : name;
+
+        return string.Equals(clean, "WatchFolderScan", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "RssSync", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "VpnKillSwitchCheck", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "Backup", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "SessionCleanup", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "GeoIpUpdate", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private ActionResult DispatchTask(string typeName)
+    {
+        if (string.IsNullOrWhiteSpace(typeName))
+        {
+            return this.NotFound("Task not found");
+        }
+
+        var name = typeName.EndsWith("Task", StringComparison.OrdinalIgnoreCase)
+            ? typeName.Substring(0, typeName.Length - 4)
+            : typeName;
+
+        if (string.Equals(name, "WatchFolderScan", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new WatchFolderScanCommand(), CommandTrigger.Manual);
         }
-        else if (string.Equals(name, "RssSync", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "RssSyncTask", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(name, "RssSync", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new RssSyncCommand(), CommandTrigger.Manual);
         }
-        else if (string.Equals(name, "VpnKillSwitchCheck", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "VpnKillSwitchCheckTask", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(name, "VpnKillSwitchCheck", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new VpnKillSwitchCheckCommand(), CommandTrigger.Manual);
         }
-        else if (string.Equals(name, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "ProwlarrSyncTask", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(name, "ProwlarrSync", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new ProwlarrSyncCommand(), CommandTrigger.Manual);
         }
-        else if (string.Equals(name, "Backup", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "BackupTask", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(name, "Backup", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new BackupCommand(), CommandTrigger.Manual);
         }
-        else if (string.Equals(name, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "BlocklistUpdateTask", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(name, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new BlocklistUpdateCommand(), CommandTrigger.Manual);
         }
-        else if (string.Equals(name, "SessionCleanup", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "SessionCleanupTask", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(name, "SessionCleanup", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new SessionCleanupCommand(), CommandTrigger.Manual);
         }
-        else if (string.Equals(name, "GeoIpUpdate", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "GeoIpUpdateTask", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(name, "GeoIpUpdate", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new GeoIpUpdateCommand(), CommandTrigger.Manual);
         }
-        else if (string.Equals(name, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "DownloadHistoryCleanupTask", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(name, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new DownloadHistoryCleanupCommand(), CommandTrigger.Manual);
         }
@@ -210,7 +275,7 @@ public class SystemCommandController : Controller
         var commands = this.commandQueueManager.GetAll().Select(c =>
         {
             var duration = (c.EndedAt ?? DateTime.UtcNow) - (c.StartedAt ?? c.QueuedAt);
-            var result = c.Status == CommandStatus.Completed ? "Successful" : (c.Status == CommandStatus.Failed ? "Failed" : "Pending");
+            var result = c.Status == CommandStatus.Completed ? "Successful" : (c.Status == CommandStatus.Failed ? "Failed" : (c.Status == CommandStatus.Cancelled ? "Cancelled" : "Pending"));
 
             return new CommandResource
             {
@@ -227,6 +292,24 @@ public class SystemCommandController : Controller
         }).ToList();
 
         return this.Ok(commands);
+    }
+
+    [HttpDelete("{id:int}")]
+    [HttpPost("{id:int}/cancel")]
+    public ActionResult Cancel(int id)
+    {
+        if (this.commandQueueManager == null)
+        {
+            return this.NotFound("Command not found");
+        }
+
+        var cancelled = this.commandQueueManager.Cancel(id);
+        if (!cancelled)
+        {
+            return this.NotFound("Command not found");
+        }
+
+        return this.Ok(new { success = true });
     }
 
     [HttpPost]

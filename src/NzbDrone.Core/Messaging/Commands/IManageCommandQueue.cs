@@ -18,4 +18,6 @@ public interface IManageCommandQueue
     IEnumerable<CommandModel> GetQueued();
 
     void FailStaleCommands();
+
+    bool Cancel(int id);
 }
