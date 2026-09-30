@@ -5,6 +5,7 @@ import { useToast } from "../context/ToastContext";
 import { formatBytes, formatDate } from "../utils/formatters";
 import { useTranslation } from "../i18n";
 import { UploadIcon } from "./icons/UIIcons";
+import { getUrlBase, apiClient } from "../api/client";
 import type { PackageImportResult } from "../api/types";
 
 export interface ImportPackageModalProps {
@@ -187,8 +188,12 @@ export function ImportPackageModal({
     const queryString = queryParams.toString();
     xhr.open(
       "POST",
-      `/api/v1/packages/import${queryString ? `?${queryString}` : ""}`,
+      `${getUrlBase()}/api/v1/packages/import${queryString ? `?${queryString}` : ""}`,
     );
+    const apiKey = apiClient.getApiKey();
+    if (apiKey) {
+      xhr.setRequestHeader("X-Api-Key", apiKey);
+    }
     xhr.send(formData);
   };
 
