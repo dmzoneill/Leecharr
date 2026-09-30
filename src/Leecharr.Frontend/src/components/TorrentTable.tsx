@@ -2174,11 +2174,19 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
                   {/* Resize handle — right edge */}
                   <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={t("torrents.table.dragToResize")}
                     onMouseDown={(e) => {
                       const th = e.currentTarget.parentElement as HTMLElement;
                       handleResizeMouseDown(e, c.key, th);
                     }}
                     onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                      }
+                    }}
                     title={t("torrents.table.dragToResize")}
                     style={{
                       position: "absolute",

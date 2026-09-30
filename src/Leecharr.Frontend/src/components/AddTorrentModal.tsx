@@ -52,8 +52,17 @@ export function AddTorrentModal({
   return (
     <div
       className="modal-overlay"
+      role="button"
+      tabIndex={0}
       onClick={handleBackdropClick}
-      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+            onClose();
+          }
+        }
+      }}
       aria-modal="true"
       aria-labelledby="add-torrent-modal-title"
       style={{
