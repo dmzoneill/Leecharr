@@ -1467,6 +1467,9 @@ export function FilesTab({
 
       {renamingNode && (
         <div
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
           style={{
             position: "fixed",
             inset: 0,
@@ -1478,8 +1481,15 @@ export function FilesTab({
             backdropFilter: "blur(4px)",
           }}
           onClick={() => !isRenaming && setRenamingNode(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && !isRenaming) {
+              setRenamingNode(null);
+            }
+          }}
         >
           <div
+            role="button"
+            tabIndex={0}
             style={{
               backgroundColor: "var(--bg-card, #171b35)",
               border: "1px solid var(--border)",
@@ -1490,6 +1500,11 @@ export function FilesTab({
               boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
             }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
           >
             <h3
               style={{
