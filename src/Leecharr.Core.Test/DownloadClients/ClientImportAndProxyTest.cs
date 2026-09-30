@@ -1293,6 +1293,75 @@ public class ClientImportAndProxyTest
         syncResult.SyncedCount.Should().Be(1);
     }
 
+    [Test]
+    public async Task QueryRemoteClientItemsAsync_WhenCategoryFilterConfigured_FiltersNonMatchingItems()
+    {
+        var json = @"[
+            {""hash"":""1111111111111111111111111111111111111111"",""name"":""Movie 1"",""category"":""movies""},
+            {""hash"":""2222222222222222222222222222222222222222"",""name"":""TV Show 1"",""category"":""tv""}
+        ]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        });
+
+        using var http = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Category = "movies",
+        };
+
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http);
+
+        items.Should().HaveCount(1);
+        items[0].InfoHash.Should().Be("1111111111111111111111111111111111111111");
+        items[0].Category.Should().Be("movies");
+    }
+
+    [Test]
+    public async Task QueryRemoteClientItemsAsync_WhenTagMatchesCategoryFilter_ReturnsItem()
+    {
+        var json = @"[
+            {""hash"":""3333333333333333333333333333333333333333"",""name"":""Tagged Item"",""category"":"""",""tags"":""radarr, 4k""},
+            {""hash"":""4444444444444444444444444444444444444444"",""name"":""Other Item"",""category"":"""",""tags"":""sonarr""}
+        ]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        });
+
+        using var http = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Category = "radarr",
+        };
+
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http);
+
+        items.Should().HaveCount(1);
+        items[0].InfoHash.Should().Be("3333333333333333333333333333333333333333");
+    }
+
+    [Test]
+    public void MatchesCategory_MatchesCategoryOrTags_CaseInsensitively()
+    {
+        var itemWithCat = new DownloadClientRemoteItem { Category = "Radarr", Tags = "hd" };
+        var itemWithTag = new DownloadClientRemoteItem { Category = "other", Tags = "radarr, 1080p" };
+        var itemNone = new DownloadClientRemoteItem { Category = "sonarr", Tags = "tv" };
+
+        DownloadClientRemoteQuery.MatchesCategory(itemWithCat, "radarr").Should().BeTrue();
+        DownloadClientRemoteQuery.MatchesCategory(itemWithTag, "radarr").Should().BeTrue();
+        DownloadClientRemoteQuery.MatchesCategory(itemNone, "radarr").Should().BeFalse();
+        DownloadClientRemoteQuery.MatchesCategory(itemNone, "").Should().BeTrue();
+        DownloadClientRemoteQuery.MatchesCategory(itemNone, null!).Should().BeTrue();
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;

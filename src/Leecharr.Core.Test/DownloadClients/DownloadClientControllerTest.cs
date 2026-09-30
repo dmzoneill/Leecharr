@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.DownloadClients;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.DownloadClients;
@@ -667,7 +668,7 @@ public class DownloadClientControllerTest
             capturedRequest = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("Ok.", Encoding.UTF8, "text/plain"),
+                Content = new StringContent("Ok."),
             };
         });
         using var httpClient = new HttpClient(handler);
