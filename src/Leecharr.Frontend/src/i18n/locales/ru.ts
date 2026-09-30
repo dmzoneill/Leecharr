@@ -2023,8 +2023,8 @@ const ru: I18nTranslations = {
     "inactivityWarning": "Предупреждение о неактивности",
     "inactivityWarningDesc": "Ваш сеанс будет автоматически заблокирован из-за неактивности:",
     "activityHint": "Двигайте мышью или нажмите любую клавишу, чтобы оставаться активным.",
-    "passwordPlaceholder": "Введите пароль или ключ API",
-    "passwordRequired": "Требуется пароль или ключ API",
+    "passwordPlaceholder": "Введите пароль",
+    "passwordRequired": "Требуется пароль",
     "invalidPassword": "Неверный пароль или учетные данные",
     "sessionUnlocked": "Сессия успешно разблокирована",
     "lockScreen": "Экран блокировки"
