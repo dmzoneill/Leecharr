@@ -691,6 +691,16 @@ export interface ArrConnection {
   webhookHost: string;
   implementation: string;
   configContract: string;
+  syncCategories?: boolean;
+  category?: string;
+  savePath?: string;
+}
+
+export interface RemotePathMapping {
+  id: number;
+  host: string;
+  remotePath: string;
+  localPath: string;
 }
 
 export interface DownloadClientDefinition {
