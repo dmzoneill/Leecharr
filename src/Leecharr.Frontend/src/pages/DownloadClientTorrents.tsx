@@ -18,7 +18,7 @@ import { getMediaDeepLink, getDownloadClientUrl } from "../utils/arrLinks";
 import type { BatchImportItemResult } from "../api/types";
 
 function getProgressPercent(progress: number | undefined | null): number {
-  if (progress == null || isNaN(progress)) return 0;
+  if (progress == null || Number.isNaN(progress)) return 0;
   const pct = progress <= 1.0 ? progress * 100 : progress;
   return Math.min(100, Math.max(0, pct));
 }
@@ -556,15 +556,13 @@ export default function DownloadClientTorrents() {
         >
           {/* View Mode Toggle */}
           <div className="view-toggle">
-            <button
-              className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+            <button type="button" className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
               onClick={() => setViewMode("grid")}
               title="Poster Card Grid View"
             >
               🎬 Posters
             </button>
-            <button
-              className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+            <button type="button" className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
               onClick={() => setViewMode("table")}
               title="Detailed Table View"
             >
@@ -585,16 +583,14 @@ export default function DownloadClientTorrents() {
             </a>
           )}
 
-          <button
-            className="btn btn-outline"
+          <button type="button" className="btn btn-outline"
             onClick={() => refetch()}
             disabled={isFetching}
           >
             {isFetching ? "Refreshing..." : "↻ Refresh"}
           </button>
 
-          <button
-            className="btn btn-primary"
+          <button type="button" className="btn btn-primary"
             onClick={handleImportSelected}
             disabled={selectedHashes.size === 0 || importAllMutation.isPending}
             title={
@@ -608,8 +604,7 @@ export default function DownloadClientTorrents() {
               : `Import Selected (${selectedHashes.size})`}
           </button>
 
-          <button
-            className="btn btn-primary"
+          <button type="button" className="btn btn-primary"
             onClick={handleImportAllMissing}
             disabled={missingCount === 0 || importAllMutation.isPending}
             title={
@@ -650,8 +645,7 @@ export default function DownloadClientTorrents() {
             flexWrap: "wrap",
           }}
         >
-          <button
-            className={`btn ${filterMode === "all" ? "btn-primary" : "btn-outline"}`}
+          <button type="button" className={`btn ${filterMode === "all" ? "btn-primary" : "btn-outline"}`}
             style={{
               fontSize: "0.82rem",
               padding: "0.35rem 0.85rem",
@@ -662,8 +656,7 @@ export default function DownloadClientTorrents() {
           >
             All ({totalCount})
           </button>
-          <button
-            className={`btn ${filterMode === "missing" ? "btn-primary" : "btn-outline"}`}
+          <button type="button" className={`btn ${filterMode === "missing" ? "btn-primary" : "btn-outline"}`}
             style={{
               fontSize: "0.82rem",
               padding: "0.35rem 0.85rem",
@@ -674,8 +667,7 @@ export default function DownloadClientTorrents() {
           >
             Not in Library ({missingCount})
           </button>
-          <button
-            className={`btn ${filterMode === "library" ? "btn-primary" : "btn-outline"}`}
+          <button type="button" className={`btn ${filterMode === "library" ? "btn-primary" : "btn-outline"}`}
             style={{
               fontSize: "0.82rem",
               padding: "0.35rem 0.85rem",
@@ -715,8 +707,7 @@ export default function DownloadClientTorrents() {
             }}
           />
           {searchTerm && (
-            <button
-              className="btn btn-outline"
+            <button type="button" className="btn btn-outline"
               onClick={() => setSearchTerm("")}
               style={{
                 fontSize: "0.75rem",
@@ -1124,8 +1115,7 @@ export default function DownloadClientTorrents() {
                         }}
                       >
                         {!item.isPrivate ? (
-                          <button
-                            className="btn btn-primary btn-small"
+                          <button type="button" className="btn btn-primary btn-small"
                             style={{
                               fontSize: "0.78rem",
                               padding: "0.2rem 0.55rem",
@@ -1162,8 +1152,7 @@ export default function DownloadClientTorrents() {
                         )}
 
                         {item.isInLibrary ? (
-                          <button
-                            className="btn btn-outline btn-small"
+                          <button type="button" className="btn btn-outline btn-small"
                             style={{
                               fontSize: "0.78rem",
                               padding: "0.2rem 0.55rem",
@@ -1180,8 +1169,7 @@ export default function DownloadClientTorrents() {
                             View ↗
                           </button>
                         ) : (
-                          <button
-                            className="btn btn-success btn-small"
+                          <button type="button" className="btn btn-success btn-small"
                             style={{
                               fontSize: "0.78rem",
                               padding: "0.2rem 0.55rem",
@@ -1202,8 +1190,7 @@ export default function DownloadClientTorrents() {
 
                         {item.status?.toLowerCase() === "paused" ||
                         item.status?.toLowerCase() === "stopped" ? (
-                          <button
-                            className="btn btn-outline btn-small"
+                          <button type="button" className="btn btn-outline btn-small"
                             style={{
                               fontSize: "0.78rem",
                               padding: "0.2rem 0.55rem",
@@ -1222,8 +1209,7 @@ export default function DownloadClientTorrents() {
                             ▶ Resume
                           </button>
                         ) : (
-                          <button
-                            className="btn btn-outline btn-small"
+                          <button type="button" className="btn btn-outline btn-small"
                             style={{
                               fontSize: "0.78rem",
                               padding: "0.2rem 0.55rem",
@@ -1243,8 +1229,7 @@ export default function DownloadClientTorrents() {
                           </button>
                         )}
 
-                        <button
-                          className="btn btn-danger btn-small"
+                        <button type="button" className="btn btn-danger btn-small"
                           style={{
                             fontSize: "0.78rem",
                             padding: "0.2rem 0.55rem",
@@ -1685,8 +1670,7 @@ export default function DownloadClientTorrents() {
                             }}
                           >
                             {!item.isPrivate ? (
-                              <button
-                                className="btn btn-primary"
+                              <button type="button" className="btn btn-primary"
                                 style={{
                                   fontSize: "0.78rem",
                                   padding: "0.3rem 0.65rem",
@@ -1729,8 +1713,7 @@ export default function DownloadClientTorrents() {
                             )}
 
                             {item.isInLibrary ? (
-                              <button
-                                className="btn btn-outline"
+                              <button type="button" className="btn btn-outline"
                                 style={{
                                   fontSize: "0.78rem",
                                   padding: "0.3rem 0.65rem",
@@ -1753,8 +1736,7 @@ export default function DownloadClientTorrents() {
                                 View
                               </button>
                             ) : (
-                              <button
-                                className="btn btn-success"
+                              <button type="button" className="btn btn-success"
                                 style={{
                                   fontSize: "0.78rem",
                                   padding: "0.3rem 0.65rem",
@@ -1786,8 +1768,7 @@ export default function DownloadClientTorrents() {
 
                             {item.status?.toLowerCase() === "paused" ||
                             item.status?.toLowerCase() === "stopped" ? (
-                              <button
-                                className="btn btn-outline"
+                              <button type="button" className="btn btn-outline"
                                 style={{
                                   fontSize: "0.78rem",
                                   padding: "0.3rem 0.65rem",
@@ -1811,8 +1792,7 @@ export default function DownloadClientTorrents() {
                                 <span>Resume</span>
                               </button>
                             ) : (
-                              <button
-                                className="btn btn-outline"
+                              <button type="button" className="btn btn-outline"
                                 style={{
                                   fontSize: "0.78rem",
                                   padding: "0.3rem 0.65rem",
@@ -1837,8 +1817,7 @@ export default function DownloadClientTorrents() {
                               </button>
                             )}
 
-                            <button
-                              className="btn btn-danger"
+                            <button type="button" className="btn btn-danger"
                               style={{
                                 fontSize: "0.78rem",
                                 padding: "0.3rem 0.65rem",
@@ -1986,15 +1965,13 @@ export default function DownloadClientTorrents() {
                 marginTop: "1.5rem",
               }}
             >
-              <button
-                className="btn btn-outline"
+              <button type="button" className="btn btn-outline"
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleteRemoteMutation.isPending}
               >
                 Cancel
               </button>
-              <button
-                className="btn btn-danger"
+              <button type="button" className="btn btn-danger"
                 onClick={confirmDeleteTorrent}
                 disabled={deleteRemoteMutation.isPending}
               >
@@ -2155,8 +2132,7 @@ export default function DownloadClientTorrents() {
                           textAlign: "right",
                         }}
                       >
-                        <button
-                          className="btn btn-outline btn-small"
+                        <button type="button" className="btn btn-outline btn-small"
                           style={{
                             fontSize: "0.75rem",
                             padding: "0.25rem 0.55rem",
@@ -2205,8 +2181,7 @@ export default function DownloadClientTorrents() {
                 gap: "0.5rem",
               }}
             >
-              <button
-                className="btn btn-primary"
+              <button type="button" className="btn btn-primary"
                 onClick={() => setFailedImportItems(null)}
               >
                 Dismiss
