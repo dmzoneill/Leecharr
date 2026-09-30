@@ -98,17 +98,17 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
                 score += 20;
             }
             else if ((cat.Contains("movie", StringComparison.OrdinalIgnoreCase) || cat.Contains("film", StringComparison.OrdinalIgnoreCase)) &&
-                     string.Equals(conn.ArrType, "Radarr", StringComparison.OrdinalIgnoreCase))
+                string.Equals(conn.ArrType, "Radarr", StringComparison.OrdinalIgnoreCase))
             {
                 score += 20;
             }
             else if ((cat.Contains("music", StringComparison.OrdinalIgnoreCase) || cat.Contains("audio", StringComparison.OrdinalIgnoreCase) || cat.Contains("flac", StringComparison.OrdinalIgnoreCase)) &&
-                     string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase))
+                string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase))
             {
                 score += 20;
             }
             else if ((cat.Contains("book", StringComparison.OrdinalIgnoreCase) || cat.Contains("read", StringComparison.OrdinalIgnoreCase) || cat.Contains("ebook", StringComparison.OrdinalIgnoreCase)) &&
-                     string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase))
+                string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase))
             {
                 score += 20;
             }
