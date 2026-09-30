@@ -4,6 +4,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { apiClient, getUrlBase } from "../../api/client";
+import { copyToClipboard } from "../../utils/clipboard";
 
 export interface TerminalViewProps {
   cwd?: string;
@@ -327,9 +328,10 @@ export function TerminalView({
     return () => observer.disconnect();
   }, [handleResize]);
 
-  const handleCopyPath = () => {
+  const handleCopyPath = async () => {
     if (!cwd) return;
-    navigator.clipboard.writeText(cwd);
+    const ok = await copyToClipboard(cwd);
+    if (!ok) return;
     setCopied(true);
     if (copyTimeoutRef.current) {
       window.clearTimeout(copyTimeoutRef.current);

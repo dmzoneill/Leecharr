@@ -7,6 +7,7 @@ import {
 import { useToast } from "../../context/ToastContext";
 import TrackerFavicon from "../../components/TrackerFavicon";
 import { useTranslation } from "../../i18n";
+import { copyToClipboard } from "../../utils/clipboard";
 
 export interface RadarViewProps {
   onOpenBulkImport?: () => void;
@@ -25,12 +26,12 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
   const [newTrackerUrl, setNewTrackerUrl] = useState("");
   const [isAddingTracker, setIsAddingTracker] = useState(false);
 
-  const handleCopyAllTrackers = () => {
+  const handleCopyAllTrackers = async () => {
     if (!trackers || trackers.length === 0) return;
     const uniqueUrls = Array.from(new Set(trackers.map((t) => t.url))).join(
       "\n",
     );
-    navigator.clipboard.writeText(uniqueUrls);
+    await copyToClipboard(uniqueUrls);
     showToast(
       t(
         "trackerBoost.radar.copiedUrlsToast",
@@ -60,7 +61,9 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
     const link = document.createElement("a");
     link.href = url;
     link.download = `leecharr-trackers-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
     showToast(
       t(
