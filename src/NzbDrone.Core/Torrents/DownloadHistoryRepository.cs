@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -75,8 +76,8 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
         string status = null,
         int limit = 500,
         int offset = 0,
-        DateTime? startDate = null,
-        DateTime? endDate = null)
+        System.DateTime? startDate = null,
+        System.DateTime? endDate = null)
     {
         var sql = new StringBuilder($"SELECT * FROM \"{this.table}\" WHERE 1=1");
         var parameters = new DynamicParameters();

@@ -1278,7 +1278,7 @@ public class ClientImportAndProxyTest
         });
 
         using var http = new HttpClient(handler);
-        var client = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "127.0.0.1", Port = 8080, Enabled = true };
+        var client = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "127.0.0.1", Port = 8080, Enable = true };
         this.repository.All().Returns(new List<DownloadClientDefinition> { client });
         this.torrentService.GetByInfoHash(hash1).Returns((Torrent)null!);
 
