@@ -53,6 +53,8 @@ public interface IConfigService
 
     bool BlocklistEnabled { get; }
 
+    bool BlocklistAutoUpdateEnabled { get; set; }
+
     string BlocklistUrl { get; }
 
     string BlocklistPath { get; }
@@ -789,6 +791,12 @@ public class ConfigService : IConfigService
     public string ActiveBlocklistProvider => this.GetValue("ActiveBlocklistProvider", "RadixTree");
 
     public bool BlocklistEnabled => this.GetValueBoolean("BlocklistEnabled", false);
+
+    public bool BlocklistAutoUpdateEnabled
+    {
+        get => this.GetValueBoolean("BlocklistAutoUpdateEnabled", true);
+        set => this.SaveConfigDictionary(new Dictionary<string, object> { { "BlocklistAutoUpdateEnabled", value } });
+    }
 
     public string BlocklistUrl => this.GetValue("BlocklistUrl", string.Empty);
 
