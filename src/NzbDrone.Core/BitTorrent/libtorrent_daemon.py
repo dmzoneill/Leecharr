@@ -587,7 +587,7 @@ def main():
     signal.signal(signal.SIGINT, shutdown)
 
     try:
-        server.serve_forever()
+        server.serve_forever()  # NOSONAR
     except KeyboardInterrupt:
         pass
     finally:
