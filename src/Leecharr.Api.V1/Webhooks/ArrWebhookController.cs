@@ -861,7 +861,7 @@ public class ArrWebhookController : Controller
     private static bool IsWordBoundaryMatch(string fullText, string phrase)
     {
         var pattern = @"(^|[\s._\-\[\]\(\)])" + Regex.Escape(phrase) + @"([\s._\-\[\]\(\)]|$)";
-        return Regex.IsMatch(fullText, pattern, RegexOptions.IgnoreCase);
+        return Regex.IsMatch(fullText, pattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
     }
 
     private bool IsDeleteEvent(string eventType)
