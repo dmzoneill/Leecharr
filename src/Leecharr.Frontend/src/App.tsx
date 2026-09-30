@@ -2140,6 +2140,7 @@ export function App() {
         <CommandPalette
           isOpen={showCommandPalette}
           onClose={() => setShowCommandPalette(false)}
+          onNavigate={guardedNavigate}
           onOpenAddTorrent={openAddModal}
           onOpenIndexerSearch={openSearchModal}
           onOpenShortcuts={openShortcutsModal}
