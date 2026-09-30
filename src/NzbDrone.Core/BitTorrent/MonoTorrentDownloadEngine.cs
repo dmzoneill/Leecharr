@@ -109,6 +109,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private string lastAppliedProxyPassword = string.Empty;
     private bool lastAppliedAnonymousMode;
     private string lastAppliedDhtBootstrapNodes = string.Empty;
+    private string lastAppliedPiecePickerStrategy = string.Empty;
 
     internal string LastAppliedInterfaceBinding => this.lastAppliedInterfaceBinding;
 
@@ -127,6 +128,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     internal bool LastAppliedAnonymousMode => this.lastAppliedAnonymousMode;
 
     internal string LastAppliedDhtBootstrapNodes => this.lastAppliedDhtBootstrapNodes;
+
+    internal string LastAppliedPiecePickerStrategy => this.lastAppliedPiecePickerStrategy;
 
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
@@ -292,6 +295,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastAppliedProxyPassword = this.configService?.ProxyPassword ?? string.Empty;
         this.lastAppliedAnonymousMode = this.configService?.AnonymousMode ?? false;
         this.lastAppliedDhtBootstrapNodes = this.configService?.DhtBootstrapNodes ?? string.Empty;
+        this.lastAppliedPiecePickerStrategy = this.configService?.PiecePickerStrategy ?? string.Empty;
     }
 
     public async Task StartAsync()
@@ -5074,6 +5078,58 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         this.logger.Debug(ex, "Failed to apply updated DHT bootstrap nodes");
                     }
                 });
+            }
+        }
+
+        var maxPerTorrent = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50;
+        var enablePex = this.configService.EnablePex;
+        var currentPiecePickerStrategy = this.configService.PiecePickerStrategy ?? string.Empty;
+        var piecePickerChangedToSequential = !string.Equals(this.lastAppliedPiecePickerStrategy, currentPiecePickerStrategy, StringComparison.OrdinalIgnoreCase) &&
+                                            string.Equals(currentPiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase);
+
+        this.lastAppliedPiecePickerStrategy = currentPiecePickerStrategy;
+
+        foreach (var task in this.tasks.Values)
+        {
+            if (task.Manager != null)
+            {
+                try
+                {
+                    var allowPex = !task.IsPrivate && enablePex;
+                    var currentSettings = task.Manager.Settings;
+                    if (currentSettings == null ||
+                        currentSettings.AllowPeerExchange != allowPex ||
+                        currentSettings.MaximumConnections != maxPerTorrent)
+                    {
+                        var settingsBuilder = currentSettings != null
+                            ? new TorrentSettingsBuilder(currentSettings)
+                            : new TorrentSettingsBuilder();
+
+                        settingsBuilder.AllowPeerExchange = allowPex;
+                        settingsBuilder.MaximumConnections = maxPerTorrent;
+
+                        await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings()).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to update torrent settings for {0}", task.InfoHash);
+                }
+            }
+
+            if (piecePickerChangedToSequential)
+            {
+                try
+                {
+                    if (!task.SequentialDownload && (task.Status == TorrentStatus.Downloading || (task.Manager != null && task.Manager.State == TorrentState.Downloading)))
+                    {
+                        await this.SetSequentialDownloadAsync(task.TorrentId, true).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to enable sequential download for torrent {0}", task.TorrentId);
+                }
             }
         }
     }
