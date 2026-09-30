@@ -987,12 +987,33 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
       [onContextMenu, t],
     );
 
+    const handleRowKeyDown = useCallback(
+      (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          const telTorrent = applyTelemetry(
+            t,
+            useTorrentStore.getState().telemetry[t.id],
+          );
+          if (onRowClick) {
+            onRowClick(telTorrent, rowIndex, e as unknown as React.MouseEvent);
+          } else {
+            onSelect?.(telTorrent);
+          }
+        }
+      },
+      [onRowClick, onSelect, t, rowIndex],
+    );
+
     return (
       <tr
         ref={measureElement}
         data-index={rowIndex}
         className={`torrent-table-row ${isSelected ? "torrent-table-row-selected" : ""}`}
+        role="button"
+        tabIndex={0}
         onClick={handleRowClick}
+        onKeyDown={handleRowKeyDown}
         onContextMenu={handleRowContextMenu}
         style={{
           cursor: "pointer",
@@ -1007,8 +1028,15 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
       >
         {onToggleSelect && (
           <td
+            role="button"
+            tabIndex={0}
             style={{ textAlign: "center", padding: "0.5rem" }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
           >
             <input
               type="checkbox"
@@ -2107,7 +2135,19 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   onDragOver={(e) => handleColDragOver(e, c.key)}
                   onDrop={(e) => handleColDrop(e, c.key)}
                   onDragEnd={handleColDragEnd}
+                  role={c.sortable ? "button" : undefined}
+                  tabIndex={c.sortable ? 0 : undefined}
                   onClick={() => c.sortable && handleSort(c.key)}
+                  onKeyDown={
+                    c.sortable
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleSort(c.key);
+                          }
+                        }
+                      : undefined
+                  }
                   style={{
                     cursor: c.sortable ? "pointer" : "default",
                     userSelect: "none",
