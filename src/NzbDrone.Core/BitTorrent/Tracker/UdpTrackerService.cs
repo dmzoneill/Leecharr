@@ -27,6 +27,7 @@ public class UdpTrackerService : IUdpTrackerService
     private readonly ConcurrentDictionary<long, (IPAddress Ip, DateTime ExpiresUtc)> connectionIds = new();
     private readonly ConcurrentDictionary<IPAddress, (int Count, long WindowMinute)> clientRateLimits = new();
     private readonly object pruneLock = new();
+    private readonly object syncRoot = new();
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private DateTime lastPruneUtc = DateTime.UtcNow;
 
@@ -47,7 +48,7 @@ public class UdpTrackerService : IUdpTrackerService
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        lock (this)
+        lock (this.syncRoot)
         {
             if (this.IsRunning)
             {
@@ -106,7 +107,7 @@ public class UdpTrackerService : IUdpTrackerService
         CancellationTokenSource tokenSource;
         Task task;
 
-        lock (this)
+        lock (this.syncRoot)
         {
             if (!this.IsRunning)
             {
