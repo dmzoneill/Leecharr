@@ -29,6 +29,8 @@ const ALL_LEVELS: LogLevel[] = ["Trace", "Debug", "Info", "Warn", "Error"];
 function toLogLevel(level: string): LogLevel {
   const normalized =
     level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
+  if (normalized === "Fatal") return "Error";
+  if (normalized === "Warning") return "Warn";
   if (ALL_LEVELS.includes(normalized as LogLevel)) {
     return normalized as LogLevel;
   }
