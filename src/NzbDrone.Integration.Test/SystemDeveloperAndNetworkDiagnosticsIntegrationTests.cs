@@ -27,7 +27,10 @@ public class SystemDeveloperAndNetworkDiagnosticsIntegrationTests : IntegrationT
         var getResp = await this.Client.GetAsync("/api/v1/system/developer/events");
         getResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var doc = JsonDocument.Parse(await getResp.Content.ReadAsStringAsync());
-        doc.RootElement.TryGetProperty("events", out _).Should().BeTrue();
+        doc.RootElement.TryGetProperty("events", out var eventsArray).Should().BeTrue();
+        eventsArray.GetArrayLength().Should().Be(1);
+        eventsArray[0].GetProperty("eventName").GetString().Should().Be("IntegrationTestHeartbeat");
+        eventsArray[0].GetProperty("payloadJson").GetString().Should().Be("{\"status\":\"healthy\",\"source\":\"nunit\"}");
 
         // 3. Clear developer events
         var delResp = await this.Client.DeleteAsync("/api/v1/system/developer/events");

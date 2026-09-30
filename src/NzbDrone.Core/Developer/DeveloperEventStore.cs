@@ -13,9 +13,34 @@ public class DeveloperEventStore : IDeveloperEventStore
     private const int MaxEntries = 250;
     private readonly ConcurrentQueue<DeveloperEventEntry> events = new();
 
+    public void RecordEvent(DeveloperEventEntry entry)
+    {
+        if (entry == null)
+        {
+            return;
+        }
+
+        this.events.Enqueue(entry);
+
+        while (this.events.Count > MaxEntries && this.events.TryDequeue(out _))
+        {
+        }
+    }
+
     public void RecordEvent(object @event)
     {
         if (@event == null)
+        {
+            return;
+        }
+
+        if (@event is DeveloperEventEntry entry)
+        {
+            this.RecordEvent(entry);
+            return;
+        }
+
+        if (@event.GetType().Name == "DeveloperSyntheticEvent")
         {
             return;
         }
@@ -31,7 +56,7 @@ public class DeveloperEventStore : IDeveloperEventStore
             payloadJson = $"{{\"error\":\"Serialization failed: {ex.Message.Replace("\"", "\\\"")}\"}}";
         }
 
-        var entry = new DeveloperEventEntry
+        var newEntry = new DeveloperEventEntry
         {
             Id = Guid.NewGuid().ToString("N"),
             TimestampUtc = DateTime.UtcNow,
@@ -41,11 +66,7 @@ public class DeveloperEventStore : IDeveloperEventStore
             PayloadJson = payloadJson,
         };
 
-        this.events.Enqueue(entry);
-
-        while (this.events.Count > MaxEntries && this.events.TryDequeue(out _))
-        {
-        }
+        this.RecordEvent(newEntry);
     }
 
     public List<DeveloperEventEntry> GetRecentEvents(int limit = 100, string search = null)
