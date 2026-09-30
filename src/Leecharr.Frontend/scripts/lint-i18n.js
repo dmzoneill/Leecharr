@@ -28,7 +28,8 @@ function loadLocale(langCode) {
     return JSON.parse(match[1]);
   } catch {
     const sanitized = match[1]
-      .replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1")
+      .replace(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, "")
+      .replace(/(^|[^\\:])\/\/.*$/gm, "$1")
       .replace(/,\s*([\]}])/g, "$1");
     return JSON.parse(sanitized);
   }
