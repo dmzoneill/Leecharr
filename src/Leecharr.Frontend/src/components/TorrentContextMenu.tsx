@@ -646,7 +646,7 @@ export function TorrentContextMenu({
                         confirmText: t("common.save"),
                         validate: (val) => {
                           const num = Number.parseInt(val, 10);
-                          if (isNaN(num) || num < 0) {
+                          if (Number.isNaN(num) || num < 0) {
                             return t(
                               "torrents.contextMenu.invalidLimitValidation",
                               "Please enter a valid non-negative number (0 = unlimited)",
@@ -656,7 +656,7 @@ export function TorrentContextMenu({
                         },
                         onConfirm: (limit) => {
                           const val = Number.parseInt(limit, 10);
-                          if (!isNaN(val) && val >= 0) {
+                          if (!Number.isNaN(val) && val >= 0) {
                             handleUpdateAll((t) => ({
                               ...t,
                               uploadLimit: val,
@@ -681,7 +681,7 @@ export function TorrentContextMenu({
                         confirmText: t("common.save"),
                         validate: (val) => {
                           const num = Number.parseInt(val, 10);
-                          if (isNaN(num) || num < 0) {
+                          if (Number.isNaN(num) || num < 0) {
                             return t(
                               "torrents.contextMenu.invalidLimitValidation",
                               "Please enter a valid non-negative number (0 = unlimited)",
@@ -691,7 +691,7 @@ export function TorrentContextMenu({
                         },
                         onConfirm: (limit) => {
                           const val = Number.parseInt(limit, 10);
-                          if (!isNaN(val) && val >= 0) {
+                          if (!Number.isNaN(val) && val >= 0) {
                             handleUpdateAll((t) => ({
                               ...t,
                               downloadLimit: val,
