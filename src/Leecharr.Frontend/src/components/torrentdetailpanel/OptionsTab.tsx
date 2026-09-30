@@ -318,12 +318,18 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             }}
           >
             <label
+              htmlFor="opt-active-seeding"
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
               {t("torrents.detail.activeSeeding")}
             </label>
-            <label className="toggle-switch">
+            <label
+              htmlFor="opt-active-seeding"
+              className="toggle-switch"
+              aria-label={t("torrents.detail.activeSeeding")}
+            >
               <input
+                id="opt-active-seeding"
                 type="checkbox"
                 checked={active}
                 onChange={(e) => mark(setActive)(e.target.checked)}
@@ -340,12 +346,18 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             }}
           >
             <label
+              htmlFor="opt-super-seeding"
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
               {t("torrents.detail.superSeeding")}
             </label>
-            <label className="toggle-switch">
+            <label
+              htmlFor="opt-super-seeding"
+              className="toggle-switch"
+              aria-label={t("torrents.detail.superSeeding")}
+            >
               <input
+                id="opt-super-seeding"
                 type="checkbox"
                 checked={initialSeeding}
                 onChange={(e) => mark(setInitialSeeding)(e.target.checked)}
@@ -442,12 +454,18 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             }}
           >
             <label
+              htmlFor="opt-force-start"
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
               {t("torrents.detail.forceStart")}
             </label>
-            <label className="toggle-switch">
+            <label
+              htmlFor="opt-force-start"
+              className="toggle-switch"
+              aria-label={t("torrents.detail.forceStart")}
+            >
               <input
+                id="opt-force-start"
                 type="checkbox"
                 checked={forceStart}
                 onChange={(e) => mark(setForceStart)(e.target.checked)}
@@ -464,12 +482,18 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             }}
           >
             <label
+              htmlFor="opt-sequential-download"
               style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
             >
               {t("torrents.detail.sequentialDownload")}
             </label>
-            <label className="toggle-switch">
+            <label
+              htmlFor="opt-sequential-download"
+              className="toggle-switch"
+              aria-label={t("torrents.detail.sequentialDownload")}
+            >
               <input
+                id="opt-sequential-download"
                 type="checkbox"
                 checked={sequentialDownload}
                 onChange={(e) => mark(setSequentialDownload)(e.target.checked)}
@@ -487,6 +511,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
           >
             <div>
               <label
+                htmlFor="opt-private-swarm"
                 style={{
                   fontSize: "0.8rem",
                   color: "var(--text-secondary)",
@@ -505,8 +530,13 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 {t("torrents.detail.privateSwarmHint")}
               </div>
             </div>
-            <label className="toggle-switch">
+            <label
+              htmlFor="opt-private-swarm"
+              className="toggle-switch"
+              aria-label={t("torrents.detail.privateSwarmOption")}
+            >
               <input
+                id="opt-private-swarm"
                 type="checkbox"
                 checked={isPrivate}
                 onChange={(e) => mark(setIsPrivate)(e.target.checked)}
