@@ -1402,7 +1402,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         [FromForm] List<IFormFile> files = null,
         [FromForm] string category = null,
         [FromForm(Name = "downloadPath")] string downloadPath = null,
-        [FromForm(Name = "savePath")] string savePath = null,
+        [FromForm] string savePath = null,
         [FromForm(Name = "paused")] bool? paused = null,
         [FromForm(Name = "isPaused")] bool? isPaused = null,
         [FromForm(Name = "startPaused")] bool? startPaused = null,
