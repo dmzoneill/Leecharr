@@ -52,6 +52,12 @@ export type AddTorrentInput = {
   isPaused?: boolean;
   paused?: boolean;
   savePath?: string;
+  tags?: number[];
+  tagIds?: number[];
+  downloadLimit?: number;
+  uploadLimit?: number;
+  sequentialDownload?: boolean;
+  firstLastPiecePriority?: boolean;
 };
 
 export interface TorrentUploadFailure {
@@ -261,12 +267,28 @@ export function useAddTorrent() {
   return useMutation<AddTorrentResult, Error, AddTorrentInput>({
     mutationFn: async (input) => {
       const isPaused = input.isPaused ?? input.paused ?? false;
+      const tagList = input.tags ?? input.tagIds;
       if (input.files && input.files.length > 0) {
         const formData = new FormData();
         input.files.forEach((file) => formData.append("file", file));
         if (input.category) formData.append("category", input.category);
         if (isPaused) formData.append("paused", "true");
         if (input.savePath) formData.append("savePath", input.savePath);
+        if (input.sequentialDownload !== undefined) {
+          formData.append("sequentialDownload", String(input.sequentialDownload));
+        }
+        if (input.firstLastPiecePriority !== undefined) {
+          formData.append("firstLastPiecePriority", String(input.firstLastPiecePriority));
+        }
+        if (input.downloadLimit !== undefined) {
+          formData.append("downloadLimit", String(input.downloadLimit));
+        }
+        if (input.uploadLimit !== undefined) {
+          formData.append("uploadLimit", String(input.uploadLimit));
+        }
+        if (tagList && tagList.length > 0) {
+          tagList.forEach((tagId) => formData.append("tags", String(tagId)));
+        }
         return apiClient.postForm<AddTorrentResult>(
           "/torrents/upload",
           formData,
@@ -277,6 +299,11 @@ export function useAddTorrent() {
         category: input.category,
         paused: isPaused,
         savePath: input.savePath,
+        sequentialDownload: input.sequentialDownload,
+        firstLastPiecePriority: input.firstLastPiecePriority,
+        downloadLimit: input.downloadLimit,
+        uploadLimit: input.uploadLimit,
+        tags: tagList,
       });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["torrents"] }),

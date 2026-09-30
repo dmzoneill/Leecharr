@@ -28,6 +28,7 @@ export interface Torrent {
   forceStart: boolean;
   label: string | null;
   sequentialDownload: boolean;
+  firstLastPiecePriority?: boolean;
   announceInterval: number;
   nextUpdate: number;
   sessionUploaded: number;

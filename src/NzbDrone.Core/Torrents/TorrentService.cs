@@ -169,7 +169,19 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         bool startPaused = false,
         byte[] rawBytes = null)
     {
-        return this.AddFromParsedTorrentAsync(parsed, category, savePath, startPaused, rawBytes, null, null);
+        return this.AddFromParsedTorrentAsync(parsed, category, savePath, startPaused, rawBytes, null, null, null, null, null);
+    }
+
+    public Task<Torrent> AddFromParsedTorrentAsync(
+        ParsedTorrent parsed,
+        string category,
+        string savePath,
+        bool startPaused,
+        byte[] rawBytes,
+        bool? sequentialDownload,
+        bool? firstLastPiecePriority)
+    {
+        return this.AddFromParsedTorrentAsync(parsed, category, savePath, startPaused, rawBytes, sequentialDownload, firstLastPiecePriority, null, null, null);
     }
 
     public async Task<Torrent> AddFromParsedTorrentAsync(
@@ -179,7 +191,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         bool startPaused,
         byte[] rawBytes,
         bool? sequentialDownload,
-        bool? firstLastPiecePriority)
+        bool? firstLastPiecePriority,
+        List<int> tags,
+        int? downloadLimit = null,
+        int? uploadLimit = null)
     {
         if (parsed == null)
         {
@@ -224,7 +239,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             SavePath = effectiveSavePath,
             QueuePosition = 0,
             DateAdded = DateTime.UtcNow,
-            TagIds = new List<int>(),
+            TagIds = tags != null ? tags.Distinct().ToList() : new List<int>(),
+            DownloadLimit = downloadLimit ?? 0,
+            UploadLimit = uploadLimit ?? 0,
             SequentialDownload = sequentialDownload ?? string.Equals(this.configService?.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase),
             FirstLastPiecePriority = firstLastPiecePriority ?? false,
         };
@@ -410,7 +427,18 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         string savePath = null,
         bool startPaused = false)
     {
-        return this.AddFromMagnetAsync(magnetUri, category, savePath, startPaused, null, null);
+        return this.AddFromMagnetAsync(magnetUri, category, savePath, startPaused, null, null, null, null, null);
+    }
+
+    public Task<Torrent> AddFromMagnetAsync(
+        string magnetUri,
+        string category,
+        string savePath,
+        bool startPaused,
+        bool? sequentialDownload,
+        bool? firstLastPiecePriority)
+    {
+        return this.AddFromMagnetAsync(magnetUri, category, savePath, startPaused, sequentialDownload, firstLastPiecePriority, null, null, null);
     }
 
     public async Task<Torrent> AddFromMagnetAsync(
@@ -419,7 +447,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         string savePath,
         bool startPaused,
         bool? sequentialDownload,
-        bool? firstLastPiecePriority)
+        bool? firstLastPiecePriority,
+        List<int> tags,
+        int? downloadLimit = null,
+        int? uploadLimit = null)
     {
         var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
         var existing = this.GetByInfoHash(parsedMagnet?.InfoHash) ?? (!string.IsNullOrWhiteSpace(parsedMagnet?.V2InfoHash) ? this.GetByInfoHash(parsedMagnet.V2InfoHash) : null);
@@ -456,7 +487,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             SavePath = effectiveSavePath,
             QueuePosition = 0,
             DateAdded = DateTime.UtcNow,
-            TagIds = new List<int>(),
+            TagIds = tags != null ? tags.Distinct().ToList() : new List<int>(),
+            DownloadLimit = downloadLimit ?? 0,
+            UploadLimit = uploadLimit ?? 0,
             SequentialDownload = sequentialDownload ?? string.Equals(this.configService?.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase),
             FirstLastPiecePriority = firstLastPiecePriority ?? false,
         };
