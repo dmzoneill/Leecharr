@@ -753,8 +753,8 @@ public class SystemDatabaseController : Controller
         return "string";
     }
 
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private static void SetCommandQuery(System.Data.IDbCommand command, string query)
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void SetCommandQuery(global::System.Data.IDbCommand command, string query)
     {
         command.CommandText = query;
     }
