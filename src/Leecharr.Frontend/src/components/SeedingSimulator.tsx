@@ -142,7 +142,7 @@ export function SeedingSimulator({
             min="0.1"
             max="100"
             value={targetRatio}
-            onChange={(e) => setTargetRatio(parseFloat(e.target.value) || 1.0)}
+            onChange={(e) => setTargetRatio(Number.parseFloat(e.target.value) || 1.0)}
             className="form-control"
             style={{
               width: "70px",

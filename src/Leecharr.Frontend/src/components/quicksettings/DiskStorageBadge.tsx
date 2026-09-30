@@ -54,7 +54,7 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
   const calculatedUsedPct =
     totalBytes > 0 ? Math.round((usedBytes / totalBytes) * 100) : 0;
   const usedPct =
-    !isNaN(calculatedUsedPct) && isFinite(calculatedUsedPct)
+    !Number.isNaN(calculatedUsedPct) && isFinite(calculatedUsedPct)
       ? Math.min(100, Math.max(0, calculatedUsedPct))
       : 0;
   const freePct = totalBytes > 0 ? Math.max(0, 100 - usedPct) : 0;

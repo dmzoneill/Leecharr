@@ -3077,7 +3077,7 @@ if (torrent) {
                               )
                                 return null;
                               const num = Number(step.conditionRight);
-                              if (isNaN(num)) return null;
+                              if (Number.isNaN(num)) return null;
                               if (propDef.unit === "bytes") {
                                 return formatBytes(num);
                               }

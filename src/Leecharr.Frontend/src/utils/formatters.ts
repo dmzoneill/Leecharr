@@ -1,7 +1,7 @@
 export function formatBytes(bytes: number | null | undefined): string {
   if (
     bytes == null ||
-    isNaN(Number(bytes)) ||
+    Number.isNaN(Number(bytes)) ||
     !Number.isFinite(Number(bytes)) ||
     Number(bytes) === 0
   ) {
@@ -24,7 +24,7 @@ export function formatSpeed(bytesPerSecond: number | null | undefined): string {
 }
 
 export function formatRatio(ratio?: number | null): string {
-  if (ratio == null || isNaN(Number(ratio)) || !Number.isFinite(Number(ratio)))
+  if (ratio == null || Number.isNaN(Number(ratio)) || !Number.isFinite(Number(ratio)))
     return "-";
   return Number(ratio).toFixed(2);
 }
@@ -49,7 +49,7 @@ export function formatDuration(startDate: string): string {
 }
 
 export function formatSeconds(seconds: number | undefined | null): string {
-  if (!seconds || isNaN(Number(seconds)) || Number(seconds) <= 0) return "-";
+  if (!seconds || Number.isNaN(Number(seconds)) || Number(seconds) <= 0) return "-";
   const sec = Math.floor(Number(seconds));
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
@@ -60,7 +60,7 @@ export function formatSeconds(seconds: number | undefined | null): string {
 }
 
 export function formatUptime(seconds: number | undefined | null): string {
-  if (!seconds || isNaN(Number(seconds)) || Number(seconds) <= 0) return "0m";
+  if (!seconds || Number.isNaN(Number(seconds)) || Number(seconds) <= 0) return "0m";
   const sec = Number(seconds);
   const days = Math.floor(sec / 86400);
   const hours = Math.floor((sec % 86400) / 3600);
