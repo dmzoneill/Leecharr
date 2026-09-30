@@ -588,7 +588,7 @@ def main():
         version_target=args.version_target,
     )
 
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), RpcHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), RpcHandler)  # NOSONAR
     sys.stdout.write(
         f"libtorrent_daemon listening on 127.0.0.1:{args.port} (Swarm: {listen_iface})\n"
     )

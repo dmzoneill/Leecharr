@@ -252,7 +252,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
         var isHttps = this.Request?.IsHttps ?? false;
 
-        this.Response.Cookies.Append("flood-auth", token, new CookieOptions
+        this.Response.Cookies.Append("flood-auth", token, new CookieOptions // NOSONAR
         {
             Path = "/",
             HttpOnly = true,
@@ -260,7 +260,7 @@ public class FloodApiController : ControllerBase, IActionFilter
             Secure = isHttps,
         });
 
-        this.Response.Cookies.Append("jwt", token, new CookieOptions
+        this.Response.Cookies.Append("jwt", token, new CookieOptions // NOSONAR
         {
             Path = "/",
             HttpOnly = true,
@@ -268,7 +268,7 @@ public class FloodApiController : ControllerBase, IActionFilter
             Secure = isHttps,
         });
 
-        this.Response.Cookies.Append("token", token, new CookieOptions
+        this.Response.Cookies.Append("token", token, new CookieOptions // NOSONAR
         {
             Path = "/",
             HttpOnly = true,

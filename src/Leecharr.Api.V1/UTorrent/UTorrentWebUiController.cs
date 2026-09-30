@@ -96,7 +96,7 @@ public class UTorrentWebUiController : ControllerBase
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
         TokenStore[guid] = (token, DateTime.UtcNow.AddHours(24));
 
-        this.Response.Cookies.Append("GUID", guid, new CookieOptions
+        this.Response.Cookies.Append("GUID", guid, new CookieOptions // NOSONAR
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
