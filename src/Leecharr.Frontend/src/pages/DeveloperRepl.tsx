@@ -150,6 +150,7 @@ export default function DeveloperRepl() {
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button
+            type="button"
             onClick={handleResetSession}
             style={{
               padding: "7px 14px",
@@ -191,6 +192,7 @@ export default function DeveloperRepl() {
         {PRESET_SCRIPTS.map((preset) => (
           <button
             key={preset.name}
+            type="button"
             onClick={() => setCode(preset.code)}
             style={{
               padding: "5px 12px",
@@ -257,6 +259,7 @@ export default function DeveloperRepl() {
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }}>
             <button
+              type="button"
               onClick={handleExecute}
               disabled={isExecuting || !code.trim()}
               style={{
@@ -295,6 +298,7 @@ export default function DeveloperRepl() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <div style={{ display: "flex", gap: "8px" }}>
               <button
+                type="button"
                 onClick={() => setActiveTab("result")}
                 style={{
                   padding: "4px 10px",
@@ -310,6 +314,7 @@ export default function DeveloperRepl() {
                 Result JSON
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("logs")}
                 style={{
                   padding: "4px 10px",
@@ -373,6 +378,7 @@ export default function DeveloperRepl() {
               <span>📜</span> Command History
             </h3>
             <button
+              type="button"
               onClick={handleClearHistory}
               style={{
                 background: "transparent",
