@@ -200,6 +200,8 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
       <div
         ref={trapRef}
         className="modal-content"
+        role="button"
+        tabIndex={0}
         style={{
           maxWidth: "650px",
           width: "90%",
@@ -209,6 +211,11 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
           boxShadow: "0 8px 30px rgba(0, 0, 0, 0.4)",
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
       >
         <div
           style={{

@@ -500,6 +500,8 @@ export function TerminalView({
       {/* Terminal Canvas Container */}
       <div
         ref={containerRef}
+        role="button"
+        tabIndex={0}
         style={{
           flex: "1 1 auto",
           minHeight: 0,
@@ -508,6 +510,12 @@ export function TerminalView({
           backgroundColor: "#0c0e1a",
         }}
         onClick={() => termRef.current?.focus()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            termRef.current?.focus();
+          }
+        }}
       />
     </div>
   );
