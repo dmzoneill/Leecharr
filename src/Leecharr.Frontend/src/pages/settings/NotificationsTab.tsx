@@ -1002,10 +1002,19 @@ export function NotificationsTab() {
             setEditing(null);
             setModalTestResult(null);
           }}
+          role="dialog"
+          aria-modal="true"
         >
           <div
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 580,
               maxHeight: "90vh",
