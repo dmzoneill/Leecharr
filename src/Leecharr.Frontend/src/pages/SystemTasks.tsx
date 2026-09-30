@@ -145,9 +145,9 @@ function formatDuration(durationStr?: string | null): string {
   const match = durationStr.match(/^(\d+):(\d+):(\d+)/);
   if (!match) return durationStr;
   const [, h, m, s] = match;
-  const hours = parseInt(h, 10);
-  const minutes = parseInt(m, 10);
-  const seconds = parseInt(s, 10);
+  const hours = Number.parseInt(h, 10);
+  const minutes = Number.parseInt(m, 10);
+  const seconds = Number.parseInt(s, 10);
   if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
   if (minutes > 0) return `${minutes}m ${seconds}s`;
   return `${seconds}s`;

@@ -120,7 +120,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   useEffect(() => {
     const idParam = searchParams.get("id");
     if (idParam) {
-      const parsedId = parseInt(idParam, 10);
+      const parsedId = Number.parseInt(idParam, 10);
       if (!isNaN(parsedId)) {
         setSelectedTorrentId(parsedId);
       }

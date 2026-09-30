@@ -338,7 +338,7 @@ export function TorrentCreationTab({
           </label>
           <select
             value={createPieceLength}
-            onChange={(e) => setCreatePieceLength(parseInt(e.target.value, 10))}
+            onChange={(e) => setCreatePieceLength(Number.parseInt(e.target.value, 10))}
             className="form-input"
             style={{
               width: "100%",

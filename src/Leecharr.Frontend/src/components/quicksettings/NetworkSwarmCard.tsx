@@ -144,7 +144,7 @@ export const NetworkSwarmCard: React.FC = () => {
                 value={globalConns}
                 onChange={(e) =>
                   handleNetUpdate({
-                    maxGlobalConnections: parseInt(e.target.value, 10),
+                    maxGlobalConnections: Number.parseInt(e.target.value, 10),
                   })
                 }
               >
@@ -172,7 +172,7 @@ export const NetworkSwarmCard: React.FC = () => {
                 value={perTorrentConns}
                 onChange={(e) =>
                   handleNetUpdate({
-                    maxPerTorrentConnections: parseInt(e.target.value, 10),
+                    maxPerTorrentConnections: Number.parseInt(e.target.value, 10),
                   })
                 }
               >

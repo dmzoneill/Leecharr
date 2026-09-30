@@ -422,7 +422,7 @@ export function AddTorrentForm({
                 setDownloadLimit(
                   e.target.value === ""
                     ? ""
-                    : Math.max(0, parseInt(e.target.value, 10) || 0),
+                    : Math.max(0, Number.parseInt(e.target.value, 10) || 0),
                 )
               }
               className="form-input"
@@ -458,7 +458,7 @@ export function AddTorrentForm({
                 setUploadLimit(
                   e.target.value === ""
                     ? ""
-                    : Math.max(0, parseInt(e.target.value, 10) || 0),
+                    : Math.max(0, Number.parseInt(e.target.value, 10) || 0),
                 )
               }
               className="form-input"

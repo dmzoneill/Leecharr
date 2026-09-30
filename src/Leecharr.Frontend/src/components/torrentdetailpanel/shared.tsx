@@ -30,7 +30,7 @@ export function PanelEmpty({ children }: { children: string }) {
 export function usePanelHeight() {
   const [height, setHeight] = useState(() => {
     const stored = localStorage.getItem("leecharr-detail-height");
-    return stored ? parseInt(stored, 10) : 280;
+    return stored ? Number.parseInt(stored, 10) : 280;
   });
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);

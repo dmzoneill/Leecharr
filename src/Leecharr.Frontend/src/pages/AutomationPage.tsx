@@ -4161,7 +4161,7 @@ if (torrent) {
                                             stepIdx,
                                             actIdx,
                                             (extra) => {
-                                              extra.timeoutSeconds = parseInt(
+                                              extra.timeoutSeconds = Number.parseInt(
                                                 e.target.value,
                                                 10,
                                               );

@@ -330,7 +330,7 @@ function ScheduleModal({
                     maxUploadSpeed:
                       e.target.value === ""
                         ? 0
-                        : Math.max(-1, parseInt(e.target.value, 10) || 0),
+                        : Math.max(-1, Number.parseInt(e.target.value, 10) || 0),
                   })
                 }
                 placeholder="0"
@@ -383,7 +383,7 @@ function ScheduleModal({
                     maxDownloadSpeed:
                       e.target.value === ""
                         ? 0
-                        : Math.max(-1, parseInt(e.target.value, 10) || 0),
+                        : Math.max(-1, Number.parseInt(e.target.value, 10) || 0),
                   })
                 }
                 placeholder="0"
@@ -682,8 +682,8 @@ function WeeklyCalendar({
       cell.dataset.dayIdx !== undefined &&
       cell.dataset.hour !== undefined
     ) {
-      const d = parseInt(cell.dataset.dayIdx, 10);
-      const h = parseInt(cell.dataset.hour, 10);
+      const d = Number.parseInt(cell.dataset.dayIdx, 10);
+      const h = Number.parseInt(cell.dataset.hour, 10);
       if (!isNaN(d) && !isNaN(h)) {
         if (
           dragStartRef.current &&
