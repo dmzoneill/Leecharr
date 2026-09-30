@@ -1846,6 +1846,12 @@ const hi: I18nTranslations = {
     "active": "सक्रिय",
     "inactive": "निष्क्रिय",
     "time": "समय",
+    "installUpdate": "अद्यतन स्थापित करें",
+    "installingUpdate": "अद्यतन स्थापित किया जा रहा है...",
+    "confirmInstallUpdate": "क्या आप वाकई यह अपडेट इंस्टॉल करना चाहते हैं? लीचर परिवर्तन लागू करने के लिए पुनः आरंभ करेगा।",
+    "confirmInstallSpecificUpdate": "क्या आप वाकई अद्यतन v{{version}} इंस्टॉल करना चाहते हैं? लीचर परिवर्तन लागू करने के लिए पुनः आरंभ करेगा।",
+    "updateInstallStarted": "अद्यतन प्रारंभ किया गया. लीचर को पुनः प्रारंभ किया जा रहा है...",
+    "updateInstallFailed": "अद्यतन स्थापित करने में विफल: {{error}}",
     "websiteUrl": "www.leecharr.net"
   },
   "developer": {
@@ -2492,8 +2498,13 @@ const hi: I18nTranslations = {
       "deleteIndexerFailed": "अनुक्रमणिका हटाने में विफल",
       "selectAll": "सभी चुनें",
       "deselectAll": "सभी अचयनित करें",
+      "selectedCount": "{{count}} चयनित",
       "deleteSelected": "चयनित हटाएं",
       "deletingSelected": "हटाया जा रहा है...",
+      "deleteSelectedTitle": "चयनित अनुक्रमणिका हटाएँ",
+      "deleteSelectedConfirmMessage": "क्या आप वाकई {{count}} चयनित इंडेक्सर को हटाना चाहते हैं?",
+      "bulkDeleteSuccess": "हटाए गए {{count}} अनुक्रमणिका",
+      "bulkDeleteFailed": "चयनित अनुक्रमणिका हटाने में विफल",
       "badgeRss": "RSS",
       "badgeSearch": "खोजें",
       "connectionPassed": "✓ कनेक्शन पारित हो गया",
@@ -2563,12 +2574,7 @@ const hi: I18nTranslations = {
       "indexerUpdated": "इंडेक्सर \"{{name}}\" अपडेट किया गया",
       "indexerCreated": "इंडेक्सर \"{{name}}\" बनाया गया",
       "updateFailed": "अनुक्रमणिका अद्यतन करने में विफल",
-      "createFailed": "अनुक्रमणिका बनाने में विफल",
-      "selectedCount": "{{count}} चयनित",
-      "deleteSelectedTitle": "चयनित अनुक्रमणिका हटाएँ",
-      "deleteSelectedConfirmMessage": "क्या आप वाकई {{count}} चयनित इंडेक्सर को हटाना चाहते हैं?",
-      "bulkDeleteSuccess": "हटाए गए {{count}} अनुक्रमणिका",
-      "bulkDeleteFailed": "चयनित अनुक्रमणिका हटाने में विफल"
+      "createFailed": "अनुक्रमणिका बनाने में विफल"
     },
     "nav": {
       "groups": {
