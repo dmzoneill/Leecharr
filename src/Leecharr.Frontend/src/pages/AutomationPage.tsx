@@ -2598,6 +2598,7 @@ if (torrent) {
                   fontSize: "1rem",
                 }}
                 onClick={() => setEditorOpen(false)}
+                aria-label={t("common.close", "Close")}
               >
                 ✕
               </button>
@@ -4209,6 +4210,7 @@ if (torrent) {
                                     borderRadius: "6px",
                                   }}
                                   title={t("automation.ui.deleteAction")}
+                                  aria-label={t("automation.ui.deleteAction")}
                                   onClick={() => {
                                     const copy = [...visualSteps];
                                     copy[stepIdx].actions = copy[
@@ -4568,6 +4570,7 @@ if (torrent) {
                   borderRadius: "6px",
                 }}
                 onClick={() => setLogModalOpen(false)}
+                aria-label={t("common.close", "Close")}
               >
                 ✕
               </button>
