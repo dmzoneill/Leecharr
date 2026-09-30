@@ -127,6 +127,7 @@ public class DtoModelValidationAndPreviewTest
             StartTime = "invalid-time",
             EndTime = "25:99:99",
             MaxDownloadSpeed = -100,
+            MaxUploadSpeed = -2,
         };
 
         var results = ValidateModel(invalid);
@@ -136,6 +137,7 @@ public class DtoModelValidationAndPreviewTest
         results.Should().Contain(r => r.MemberNames.Contains(nameof(SpeedScheduleResource.StartTime)));
         results.Should().Contain(r => r.MemberNames.Contains(nameof(SpeedScheduleResource.EndTime)));
         results.Should().Contain(r => r.MemberNames.Contains(nameof(SpeedScheduleResource.MaxDownloadSpeed)));
+        results.Should().Contain(r => r.MemberNames.Contains(nameof(SpeedScheduleResource.MaxUploadSpeed)));
 
         var valid = new SpeedScheduleResource
         {
@@ -149,6 +151,19 @@ public class DtoModelValidationAndPreviewTest
 
         var validResults = ValidateModel(valid);
         validResults.Should().BeEmpty();
+
+        var paused = new SpeedScheduleResource
+        {
+            Name = "Paused Window",
+            Days = 127,
+            StartTime = "02:00:00",
+            EndTime = "06:00:00",
+            MaxDownloadSpeed = -1,
+            MaxUploadSpeed = -1,
+        };
+
+        var pausedResults = ValidateModel(paused);
+        pausedResults.Should().BeEmpty();
     }
 
     [Test]

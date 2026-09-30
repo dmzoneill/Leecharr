@@ -152,4 +152,32 @@ public class SpeedScheduleControllerTests : IntegrationTestBase
         var limits = await this.GetJsonAsync<SpeedLimitsResource>("/api/v1/speedschedule/active");
         limits.Should().NotBeNull();
     }
+
+    [Test]
+    public async Task Create_WithMinusOneSpeedLimits_PassesModelValidationAndSucceeds()
+    {
+        var newSchedule = new SpeedScheduleResource
+        {
+            Name = "Integration Paused Schedule",
+            Days = 127,
+            StartTime = "02:00:00",
+            EndTime = "06:00:00",
+            MaxDownloadSpeed = -1,
+            MaxUploadSpeed = -1,
+            IsEnabled = true,
+            Priority = 1,
+        };
+
+        var postResponse = await this.PostJsonAsync("/api/v1/speedschedule", newSchedule);
+        postResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var created = Deserialize<SpeedScheduleResource>(await postResponse.Content.ReadAsStringAsync());
+        created.Id.Should().BeGreaterThan(0);
+        created.MaxDownloadSpeed.Should().Be(-1);
+        created.MaxUploadSpeed.Should().Be(-1);
+
+        // Cleanup
+        var deleteResponse = await this.DeleteAsync($"/api/v1/speedschedule/{created.Id}");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }

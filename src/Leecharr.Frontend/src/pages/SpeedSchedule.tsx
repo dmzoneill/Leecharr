@@ -322,20 +322,43 @@ function ScheduleModal({
               <input
                 className="form-input"
                 type="number"
-                min={0}
+                min={-1}
                 value={form.maxUploadSpeed || ""}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    maxUploadSpeed: Math.max(
-                      0,
-                      parseInt(e.target.value, 10) || 0,
-                    ),
+                    maxUploadSpeed:
+                      e.target.value === ""
+                        ? 0
+                        : Math.max(-1, parseInt(e.target.value, 10) || 0),
                   })
                 }
                 placeholder="0"
                 style={{ width: "100%", borderRadius: "6px" }}
               />
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: "0.35rem",
+                  cursor: "pointer",
+                  fontSize: "0.78rem",
+                  color: "var(--text-muted)",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.maxUploadSpeed === -1}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      maxUploadSpeed: e.target.checked ? -1 : 0,
+                    })
+                  }
+                />
+                <span>{t("speedSchedule.paused")}</span>
+              </label>
             </label>
             <label style={{ flex: 1 }}>
               <span
@@ -352,20 +375,43 @@ function ScheduleModal({
               <input
                 className="form-input"
                 type="number"
-                min={0}
+                min={-1}
                 value={form.maxDownloadSpeed || ""}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    maxDownloadSpeed: Math.max(
-                      0,
-                      parseInt(e.target.value, 10) || 0,
-                    ),
+                    maxDownloadSpeed:
+                      e.target.value === ""
+                        ? 0
+                        : Math.max(-1, parseInt(e.target.value, 10) || 0),
                   })
                 }
                 placeholder="0"
                 style={{ width: "100%", borderRadius: "6px" }}
               />
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: "0.35rem",
+                  cursor: "pointer",
+                  fontSize: "0.78rem",
+                  color: "var(--text-muted)",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.maxDownloadSpeed === -1}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      maxDownloadSpeed: e.target.checked ? -1 : 0,
+                    })
+                  }
+                />
+                <span>{t("speedSchedule.paused")}</span>
+              </label>
             </label>
           </div>
 
