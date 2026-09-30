@@ -397,7 +397,15 @@ export default function DeveloperRepl() {
             {history.slice(0, 8).map((h) => (
               <div
                 key={h.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => setCode(h.code)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setCode(h.code);
+                  }
+                }}
                 style={{
                   padding: "8px 14px",
                   display: "flex",
