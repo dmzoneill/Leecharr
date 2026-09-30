@@ -145,6 +145,11 @@ function getDeveloperSubItems(t: (key: string, defaultValue?: string) => string)
   ];
 }
 
+function RedirectWithSearch({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
+}
+
 export function App() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -2030,31 +2035,31 @@ export function App() {
               {/* Legacy Navigation Redirects */}
               <Route
                 path="/terminal"
-                element={<Navigate to="/developer/terminal" replace />}
+                element={<RedirectWithSearch to="/developer/terminal" />}
               />
               <Route
                 path="/system/terminal"
-                element={<Navigate to="/developer/terminal" replace />}
+                element={<RedirectWithSearch to="/developer/terminal" />}
               />
               <Route
                 path="/system/database"
-                element={<Navigate to="/developer/database" replace />}
+                element={<RedirectWithSearch to="/developer/database" />}
               />
               <Route
                 path="/system/api"
-                element={<Navigate to="/developer/api" replace />}
+                element={<RedirectWithSearch to="/developer/api" />}
               />
               <Route
                 path="/system/api-docs"
-                element={<Navigate to="/developer/api" replace />}
+                element={<RedirectWithSearch to="/developer/api" />}
               />
               <Route
                 path="/system/swagger"
-                element={<Navigate to="/developer/api" replace />}
+                element={<RedirectWithSearch to="/developer/api" />}
               />
               <Route
                 path="/api-docs"
-                element={<Navigate to="/developer/api" replace />}
+                element={<RedirectWithSearch to="/developer/api" />}
               />
 
               {/* File Browser */}
