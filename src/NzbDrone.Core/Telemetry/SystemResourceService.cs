@@ -465,7 +465,7 @@ public class SystemResourceService : ISystemResourceService
         }
         catch
         {
-            extractorHealthy = extractor?.IsAvailable ?? false;
+            extractorHealthy = extractor.IsAvailable;
         }
 
         var extractorCaps = extractor?.Capabilities;
@@ -505,7 +505,7 @@ public class SystemResourceService : ISystemResourceService
         }
         catch
         {
-            inspectorHealthy = inspector?.IsAvailable ?? false;
+            inspectorHealthy = inspector.IsAvailable;
         }
 
         var inspectorCaps = inspector?.Capabilities;
@@ -544,7 +544,7 @@ public class SystemResourceService : ISystemResourceService
         }
         catch
         {
-            geoIpHealthy = geoIp?.IsAvailable ?? false;
+            geoIpHealthy = geoIp.IsAvailable;
         }
 
         var geoCaps = geoIp?.Capabilities ?? GeoIpCapabilities.None;
@@ -582,7 +582,7 @@ public class SystemResourceService : ISystemResourceService
         }
         catch
         {
-            blocklistHealthy = blocklist?.IsAvailable ?? false;
+            blocklistHealthy = blocklist.IsAvailable;
         }
 
         var blockCaps = blocklist?.Capabilities ?? BlocklistCapabilities.None;
@@ -705,7 +705,7 @@ public class SystemResourceService : ISystemResourceService
         }
         catch
         {
-            httpHealthy = httpTransport?.IsAvailable ?? false;
+            httpHealthy = httpTransport.IsAvailable;
         }
 
         var httpCaps = httpTransport?.Capabilities;
@@ -742,7 +742,7 @@ public class SystemResourceService : ISystemResourceService
         }
         catch
         {
-            aiHealthy = ai?.IsAvailable ?? false;
+            aiHealthy = ai.IsAvailable;
         }
 
         var aiCaps = ai?.Capabilities ?? AiCapabilities.None;

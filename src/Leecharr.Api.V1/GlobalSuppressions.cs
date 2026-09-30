@@ -14,3 +14,5 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("csharpsquid", "S8949", Justification = "Asynchronous operations utilize standard background task tokens where applicable.")]
 [assembly: SuppressMessage("csharpsquid", "S6966", Justification = "Asynchronous methods are awaited where thread scheduling allows.")]
 [assembly: SuppressMessage("csharpsquid", "S5332", Justification = "Localhost, internal loopback, and documentation URLs.")]
+[assembly: SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5144", Justification = "Outbound integration tests and webhooks to user-configured Arr and indexer instances.")]
+
