@@ -354,8 +354,15 @@ export function KeyboardShortcutsModal({
   return (
     <div
       className="modal-overlay"
+      role="button"
+      tabIndex={0}
       onClick={onClose}
-      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClose();
+        }
+      }}
       aria-modal="true"
       style={{
         position: "fixed",
@@ -372,7 +379,14 @@ export function KeyboardShortcutsModal({
       <div
         ref={trapRef}
         className="modal-content"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           width: "100%",
           maxWidth: "680px",

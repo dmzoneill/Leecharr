@@ -406,7 +406,8 @@ export function MediaPlayerModal({
   return (
     <div
       className="modal-overlay"
-      role="dialog"
+      role="button"
+      tabIndex={0}
       aria-modal="true"
       aria-labelledby="media-player-title"
       style={{
@@ -424,6 +425,12 @@ export function MediaPlayerModal({
         padding: "1rem",
       }}
       onClick={handleClose}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClose();
+        }
+      }}
     >
       <style>{`
         .media-player-dialog video::cue {
