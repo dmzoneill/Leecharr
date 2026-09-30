@@ -5052,16 +5052,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var currentPeerIdPrefix = this.configService.PeerIdPrefix ?? string.Empty;
         var currentUserAgent = this.configService.BitTorrentUserAgent ?? string.Empty;
         var peerIdOrEmulationChanged = !string.Equals(this.lastAppliedPeerIdPrefix, currentPeerIdPrefix, StringComparison.Ordinal) ||
-                                       !string.Equals(this.lastAppliedUserAgent, currentUserAgent, StringComparison.Ordinal);
+            !string.Equals(this.lastAppliedUserAgent, currentUserAgent, StringComparison.Ordinal);
 
         var interfaceOrPortChanged = !string.Equals(this.lastAppliedInterfaceBinding, currentIface, StringComparison.OrdinalIgnoreCase) ||
-                                        this.lastAppliedListenPort != currentPort;
+            this.lastAppliedListenPort != currentPort;
 
         var proxyChanged = !string.Equals(this.lastAppliedProxyType, currentProxyType, StringComparison.OrdinalIgnoreCase) ||
-                            !string.Equals(this.lastAppliedProxyHost, currentProxyHost, StringComparison.OrdinalIgnoreCase) ||
-                            this.lastAppliedProxyPort != currentProxyPort ||
-                            !string.Equals(this.lastAppliedProxyUsername, currentProxyUsername, StringComparison.Ordinal) ||
-                            !string.Equals(this.lastAppliedProxyPassword, currentProxyPassword, StringComparison.Ordinal);
+            !string.Equals(this.lastAppliedProxyHost, currentProxyHost, StringComparison.OrdinalIgnoreCase) ||
+            this.lastAppliedProxyPort != currentProxyPort ||
+            !string.Equals(this.lastAppliedProxyUsername, currentProxyUsername, StringComparison.Ordinal) ||
+            !string.Equals(this.lastAppliedProxyPassword, currentProxyPassword, StringComparison.Ordinal);
 
         if (interfaceOrPortChanged || proxyChanged || anonymousModeChanged || peerIdOrEmulationChanged)
         {
