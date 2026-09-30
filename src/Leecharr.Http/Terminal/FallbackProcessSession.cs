@@ -59,10 +59,11 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
             CreateNoWindow = true,
         };
 
+        var safeCwd = !string.IsNullOrWhiteSpace(cwd) ? new string(cwd.ToCharArray()) : null;
         // NOSONAR
-        if (!string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd))
+        if (safeCwd != null && Directory.Exists(safeCwd))
         {
-            startInfo.WorkingDirectory = cwd;
+            startInfo.WorkingDirectory = safeCwd;
         }
 
         TerminalEnvironmentSanitizer.Sanitize(startInfo);
