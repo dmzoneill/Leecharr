@@ -952,7 +952,10 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
         }
 
         this.disposed = true;
-        this.pruneTimer?.Dispose();
+        if (this.pruneTimer != null)
+        {
+            await this.pruneTimer.DisposeAsync();
+        }
         this.snapshotChannel.Writer.TryComplete();
 
         if (this.flushTask != null)
