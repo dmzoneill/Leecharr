@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.7](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.7) - 2026-09-30
+
+### ✨ Features
+- Add Codacy security scan workflow
+
+### 🐛 Bug Fixes
+- fix(security): resolve floating promise S9383 and add NOSONAR to false positive S2068/S6549
+
+### 🔧 Maintenance & Improvements
+- Delete .github/workflows/snyk-security.yml
+- ci(snyk): only run snyk scan when SNYK_TOKEN secret is configured
+- snyk
+- style(csharp): place NOSONAR before block statements and disable SA1108 in .editorconfig
+- style(csharp): fix left padding indentation in TerminalWebSocketHandler.cs
+
 ## [v1.33.6](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.6) - 2026-09-30
 
 ### 🐛 Bug Fixes
