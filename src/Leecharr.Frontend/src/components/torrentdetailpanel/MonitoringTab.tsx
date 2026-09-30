@@ -238,9 +238,9 @@ export function MonitoringTab({
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { data: history } = useTorrentSpeedHistory(effectiveId);
   const histRef = useRef<{ up: number[]; down: number[]; peers: number[] }>({
-    up: Array(30).fill(0),
-    down: Array(30).fill(0),
-    peers: Array(30).fill(0),
+    up: Array(MAX_PTS).fill(0),
+    down: Array(MAX_PTS).fill(0),
+    peers: Array(MAX_PTS).fill(0),
   });
   const seededRef = useRef(false);
   const prevRef = useRef<{
@@ -254,9 +254,9 @@ export function MonitoringTab({
   useEffect(() => {
     seededRef.current = false;
     histRef.current = {
-      up: Array(30).fill(0),
-      down: Array(30).fill(0),
-      peers: Array(30).fill(0),
+      up: Array(MAX_PTS).fill(0),
+      down: Array(MAX_PTS).fill(0),
+      peers: Array(MAX_PTS).fill(0),
     };
     prevRef.current = null;
     prevIdRef.current = effectiveId;
@@ -266,8 +266,12 @@ export function MonitoringTab({
   useEffect(() => {
     if (!history || history.length === 0 || seededRef.current) return;
     seededRef.current = true;
-    histRef.current.up = history.map((s) => s.uploadSpeed);
-    histRef.current.down = history.map((s) => s.downloadSpeed);
+    const upArr = history.map((s) => s.uploadSpeed);
+    const downArr = history.map((s) => s.downloadSpeed);
+    histRef.current.up = [...histRef.current.up, ...upArr].slice(-MAX_PTS);
+    histRef.current.down = [...histRef.current.down, ...downArr].slice(
+      -MAX_PTS,
+    );
     setTick((t) => t + 1);
   }, [history]);
 
@@ -277,53 +281,51 @@ export function MonitoringTab({
     const prev = prevRef.current;
     const idChanged = prevIdRef.current !== torrent.id;
     prevIdRef.current = torrent.id;
-    if (prev && !idChanged) {
-      const dt = (now - prev.ts) / 1000;
-      if (dt >= 1) {
-        const push = (arr: number[], val: number) => {
-          const next = [...arr, val];
-          return next.length > MAX_PTS
-            ? next.slice(next.length - MAX_PTS)
-            : next;
-        };
-        histRef.current.up = push(
-          histRef.current.up,
-          Math.max(
-            0,
-            torrent.uploadSpeed || (torrent.uploaded - prev.uploaded) / dt,
-          ),
-        );
-        histRef.current.down = push(
-          histRef.current.down,
-          Math.max(
-            0,
-            torrent.downloadSpeed ||
-              (torrent.downloaded - prev.downloaded) / dt,
-          ),
-        );
-        histRef.current.peers = push(
-          histRef.current.peers,
-          (torrent.seeders || 0) + (torrent.leechers || 0),
-        );
-        setTick((t) => t + 1);
-      }
+
+    if (!prev || idChanged) {
+      prevRef.current = {
+        uploaded: torrent.uploaded,
+        downloaded: torrent.downloaded,
+        ts: now,
+      };
+      return;
     }
-    prevRef.current = {
-      uploaded: torrent.uploaded,
-      downloaded: torrent.downloaded,
-      ts: now,
-    };
+
+    const dt = (now - prev.ts) / 1000;
+    if (dt >= 1) {
+      const upSpeed =
+        torrent.uploadSpeed !== undefined
+          ? torrent.uploadSpeed
+          : Math.max(0, (torrent.uploaded - prev.uploaded) / dt);
+      const downSpeed =
+        torrent.downloadSpeed !== undefined
+          ? torrent.downloadSpeed
+          : Math.max(0, (torrent.downloaded - prev.downloaded) / dt);
+      const peers = (torrent.seeders || 0) + (torrent.leechers || 0);
+
+      histRef.current.up = [...histRef.current.up.slice(1), upSpeed];
+      histRef.current.down = [...histRef.current.down.slice(1), downSpeed];
+      histRef.current.peers = [...histRef.current.peers.slice(1), peers];
+
+      prevRef.current = {
+        uploaded: torrent.uploaded,
+        downloaded: torrent.downloaded,
+        ts: now,
+      };
+
+      setTick((t) => t + 1);
+    }
   }, [torrent]);
 
   const h = histRef.current;
   const curUp =
-    torrent?.uploadSpeed && torrent.uploadSpeed > 0
+    torrent?.uploadSpeed !== undefined
       ? torrent.uploadSpeed
       : h.up.length > 0
         ? h.up[h.up.length - 1]
         : 0;
   const curDown =
-    torrent?.downloadSpeed && torrent.downloadSpeed > 0
+    torrent?.downloadSpeed !== undefined
       ? torrent.downloadSpeed
       : h.down.length > 0
         ? h.down[h.down.length - 1]
