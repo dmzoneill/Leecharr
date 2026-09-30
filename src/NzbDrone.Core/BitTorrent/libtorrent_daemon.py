@@ -230,6 +230,110 @@ class LibTorrentManager:
             settings["download_rate_limit"] = int(params["download_rate_limit"])
         if "upload_rate_limit" in params:
             settings["upload_rate_limit"] = int(params["upload_rate_limit"])
+
+        # Proxy configuration
+        proxy_type = params.get("proxy_type")
+        if proxy_type is not None:
+            if isinstance(proxy_type, str):
+                p_map = {
+                    "none": 0,
+                    "disabled": 0,
+                    "socks4": 1,
+                    "socks5": 2,
+                    "socks5_pw": 3,
+                    "http": 4,
+                    "http_pw": 5,
+                    "https": 4,
+                    "i2p": 6,
+                    "i2p_proxy": 6,
+                }
+                pt = p_map.get(proxy_type.strip().lower(), 0)
+                has_auth = bool(
+                    params.get("proxy_username")
+                    or params.get("proxy_password")
+                    or params.get("proxy_auth_username")
+                    or params.get("proxy_auth_password")
+                )
+                if has_auth:
+                    if pt == 2:
+                        pt = 3
+                    elif pt == 4:
+                        pt = 5
+                settings["proxy_type"] = pt
+            else:
+                settings["proxy_type"] = int(proxy_type)
+
+        if "proxy_hostname" in params:
+            settings["proxy_hostname"] = str(params["proxy_hostname"])
+        elif "proxy_host" in params:
+            settings["proxy_hostname"] = str(params["proxy_host"])
+
+        if "proxy_port" in params:
+            settings["proxy_port"] = int(params["proxy_port"])
+
+        if "proxy_username" in params:
+            settings["proxy_username"] = str(params["proxy_username"])
+        elif "proxy_auth_username" in params:
+            settings["proxy_username"] = str(params["proxy_auth_username"])
+
+        if "proxy_password" in params:
+            settings["proxy_password"] = str(params["proxy_password"])
+        elif "proxy_auth_password" in params:
+            settings["proxy_password"] = str(params["proxy_auth_password"])
+
+        if "force_proxy" in params:
+            settings["force_proxy"] = bool(params["force_proxy"])
+        if "proxy_peer_connections" in params:
+            settings["proxy_peer_connections"] = bool(params["proxy_peer_connections"])
+        if "proxy_tracker_connections" in params:
+            settings["proxy_tracker_connections"] = bool(params["proxy_tracker_connections"])
+        if "proxy_hostnames" in params:
+            settings["proxy_hostnames"] = bool(params["proxy_hostnames"])
+
+        # DHT settings
+        if "enable_dht" in params:
+            settings["enable_dht"] = bool(params["enable_dht"])
+        elif "dht_enabled" in params:
+            settings["enable_dht"] = bool(params["dht_enabled"])
+
+        if "dht_bootstrap_nodes" in params:
+            nodes = params["dht_bootstrap_nodes"]
+            if isinstance(nodes, list):
+                nodes = ",".join(str(n) for n in nodes)
+            settings["dht_bootstrap_nodes"] = str(nodes)
+
+        # Anonymous mode
+        if "anonymous_mode" in params:
+            settings["anonymous_mode"] = bool(params["anonymous_mode"])
+
+        # Listening interfaces & port
+        if "listen_interfaces" in params:
+            settings["listen_interfaces"] = str(params["listen_interfaces"])
+        elif "listening_port" in params or "listen_port" in params:
+            port = int(params.get("listening_port") or params.get("listen_port"))
+            listen_ip = str(params.get("listen_ip") or params.get("bind_interface") or "0.0.0.0")
+            if listen_ip in ("", "Any", "all"):
+                listen_ip = "0.0.0.0"
+            settings["listen_interfaces"] = f"{listen_ip}:{port}"
+
+        # Connections limit
+        if "connections_limit" in params:
+            settings["connections_limit"] = int(params["connections_limit"])
+        elif "max_connections" in params or "max_global_connections" in params:
+            settings["connections_limit"] = int(params.get("max_connections") or params.get("max_global_connections"))
+
+        # Discovery protocols (UPnP, NAT-PMP, LSD)
+        if "enable_upnp" in params:
+            settings["enable_upnp"] = bool(params["enable_upnp"])
+        elif "upnp_enabled" in params:
+            settings["enable_upnp"] = bool(params["upnp_enabled"])
+
+        if "enable_natpmp" in params:
+            settings["enable_natpmp"] = bool(params["enable_natpmp"])
+
+        if "enable_lsd" in params:
+            settings["enable_lsd"] = bool(params["enable_lsd"])
+
         if settings:
             with self.lock:
                 self.session.apply_settings(settings)
