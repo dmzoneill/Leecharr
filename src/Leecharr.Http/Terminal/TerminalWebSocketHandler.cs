@@ -79,22 +79,9 @@ public static class TerminalWebSocketHandler
 
         // Determine working directory
         string requestedCwd = context.Request.Query["cwd"];
-        var safeRequestedCwd = !string.IsNullOrWhiteSpace(requestedCwd) ? new string(requestedCwd.ToCharArray()) : null;
-        string cwd = null;
-
-        // NOSONAR
-        if (safeRequestedCwd != null && Directory.Exists(safeRequestedCwd))
-        {
-            cwd = safeRequestedCwd;
-        }
-        else if (!string.IsNullOrWhiteSpace(configService.DownloadDir) && Directory.Exists(configService.DownloadDir))
-        {
-            cwd = configService.DownloadDir;
-        }
-        else
-        {
-            cwd = Directory.GetCurrentDirectory();
-        }
+        string cwd = !string.IsNullOrWhiteSpace(requestedCwd)
+            ? requestedCwd
+            : (!string.IsNullOrWhiteSpace(configService.DownloadDir) ? configService.DownloadDir : Directory.GetCurrentDirectory());
 
         var cols = int.TryParse(context.Request.Query["cols"], out var c) ? Math.Max(10, c) : 100;
         var rows = int.TryParse(context.Request.Query["rows"], out var r) ? Math.Max(5, r) : 30;
