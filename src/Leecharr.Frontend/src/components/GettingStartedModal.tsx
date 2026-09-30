@@ -1061,7 +1061,7 @@ export function GettingStartedModal({
                       });
                       setSonarrTestResult(null);
                     }}
-                    placeholder="http://my-domain.com:8989"
+                    placeholder="https://my-domain.com:8989"
                     hint={t(
                       "gettingStarted.externalUrlHint",
                       "Optional public URL for browser deep links (e.g. when accessing Leecharr remotely).",
@@ -1324,7 +1324,7 @@ export function GettingStartedModal({
                       });
                       setRadarrTestResult(null);
                     }}
-                    placeholder="http://my-domain.com:7878"
+                    placeholder="https://my-domain.com:7878"
                     hint={t(
                       "gettingStarted.externalUrlHint",
                       "Optional public URL for browser deep links (e.g. when accessing Leecharr remotely).",
@@ -1587,7 +1587,7 @@ export function GettingStartedModal({
                       });
                       setLidarrTestResult(null);
                     }}
-                    placeholder="http://my-domain.com:8686"
+                    placeholder="https://my-domain.com:8686"
                     hint={t(
                       "gettingStarted.externalUrlHint",
                       "Optional public URL for browser deep links (e.g. when accessing Leecharr remotely).",

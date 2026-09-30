@@ -100,7 +100,7 @@ public class UTorrentWebUiController : ControllerBase
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
-            Secure = this.Request.IsHttps,
+            Secure = true,
         });
         var html = $"<html><div id=\"token\">{token}</div></html>";
         return this.Content(html, "text/html", Encoding.UTF8);
