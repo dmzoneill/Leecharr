@@ -470,7 +470,15 @@ export function HarvesterPanel({
                 return (
                   <div
                     key={item.key}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectKey(item.key)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelectKey(item.key);
+                      }
+                    }}
                     style={{
                       padding: "0.75rem",
                       borderRadius: "6px",
