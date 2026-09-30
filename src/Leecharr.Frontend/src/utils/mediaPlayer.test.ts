@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   isPlayableFile,
@@ -170,6 +170,78 @@ describe("mediaPlayer: URL builders", () => {
       mpv,
       "mpv://http://127.0.0.1:5000/api/v1/torrent/15/files/1/stream",
     );
+  });
+
+  describe("with reverse proxy subpath", () => {
+    const originalWindow = globalThis.window;
+
+    afterEach(() => {
+      globalThis.window = originalWindow;
+    });
+
+    it("should prepend getUrlBase() when reverse proxy subpath is configured", () => {
+      (globalThis as unknown as { window: unknown }).window = {
+        Leecharr: { urlBase: "/leecharr" },
+      };
+      assert.equal(
+        buildStreamUrl(42, 7),
+        "/leecharr/api/v1/torrent/42/files/7/stream",
+      );
+      assert.equal(
+        buildDownloadUrl(42, 7),
+        "/leecharr/api/v1/torrent/42/files/7/download",
+      );
+      assert.equal(
+        buildPlaylistUrl(42, 7),
+        "/leecharr/api/v1/torrent/42/files/7/stream.m3u",
+      );
+      assert.equal(
+        buildFileStreamUrl("/downloads/movie.mkv"),
+        "/leecharr/api/v1/files/stream?path=%2Fdownloads%2Fmovie.mkv",
+      );
+      assert.equal(
+        buildFileDownloadUrl("/downloads/movie.mkv"),
+        "/leecharr/api/v1/files/download?path=%2Fdownloads%2Fmovie.mkv",
+      );
+      assert.equal(
+        buildFilePlaylistUrl("/downloads/movie.mkv"),
+        "/leecharr/api/v1/files/stream.m3u?path=%2Fdownloads%2Fmovie.mkv",
+      );
+    });
+
+    it("should build external player deep links accounting for getUrlBase()", () => {
+      (globalThis as unknown as { window: unknown }).window = {
+        Leecharr: { urlBase: "/leecharr" },
+      };
+      const streamUrl = buildStreamUrl(15, 1);
+      const origin = "http://127.0.0.1:5000";
+
+      const vlc = buildExternalPlayerUrl("vlc", streamUrl, origin);
+      assert.equal(
+        vlc,
+        "vlc://http://127.0.0.1:5000/leecharr/api/v1/torrent/15/files/1/stream",
+      );
+
+      const mpv = buildExternalPlayerUrl("mpv", streamUrl, origin);
+      assert.equal(
+        mpv,
+        "mpv://http://127.0.0.1:5000/leecharr/api/v1/torrent/15/files/1/stream",
+      );
+    });
+
+    it("should build absolute URL accounting for getUrlBase() even if streamUrl lacks prefix", () => {
+      (globalThis as unknown as { window: unknown }).window = {
+        Leecharr: { urlBase: "/leecharr" },
+      };
+      const streamUrl = "/api/v1/torrent/15/files/1/stream";
+      const origin = "http://127.0.0.1:5000";
+
+      const abs = getAbsoluteUrl(streamUrl, origin);
+      assert.equal(
+        abs,
+        "http://127.0.0.1:5000/leecharr/api/v1/torrent/15/files/1/stream",
+      );
+    });
   });
 });
 
