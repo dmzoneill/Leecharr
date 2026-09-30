@@ -388,6 +388,46 @@ public class VpnKillSwitchServiceTest
     }
 
     [Test]
+    public void IsKillSwitchEnabled_WhenRepositoryHasTrueButConfigServiceHasFalse_ReturnsFalse()
+    {
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        this.service.IsKillSwitchEnabled.Should().BeFalse();
+    }
+
+    [Test]
+    public void CheckVpnState_WhenRepositoryHasTrueButConfigServiceDisablesKillSwitch_DisengagesFailClosed()
+    {
+        var settings = new NetworkSettings
+        {
+            EnableVpnKillSwitch = true,
+            BindInterface = "tun0",
+        };
+        this.repository.GetSettings().Returns(settings);
+        this.configService.EnableVpnKillSwitch.Returns(true);
+
+        // 1. Engage fail-closed
+        this.service.InterfaceStatusCheck = _ => false;
+        this.service.CheckVpnState();
+        this.service.IsFailClosedActive.Should().BeTrue();
+
+        // 2. Disable kill switch via ConfigService while repository still returns old True
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        var triggered = this.service.CheckVpnState();
+
+        triggered.Should().BeFalse();
+        this.service.IsFailClosedActive.Should().BeFalse();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<VpnInterfaceRestoredEvent>(e => e.InterfaceName == "tun0"));
+    }
+
+    [Test]
     public void Handle_ConfigSavedEvent_TriggersCheckVpnState()
     {
         this.configService.EnableVpnKillSwitch.Returns(true);
