@@ -811,7 +811,12 @@ export function useIndexerSearch(
       params.category,
       params.indexerId,
     ],
-    queryFn: () => apiClient.get(`/indexers/search?${queryString}`),
+    queryFn: async () => {
+      const data = await apiClient.get<
+        ReleaseInfo[] | { results?: ReleaseInfo[] }
+      >(`/indexers/search?${queryString}`);
+      return Array.isArray(data) ? data : (data?.results ?? []);
+    },
     enabled: enabled && Boolean(params.query?.trim()),
     staleTime: 30_000,
   });
