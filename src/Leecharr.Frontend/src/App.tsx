@@ -566,8 +566,12 @@ export function App() {
         return;
       }
 
-      // Sidebar toggle shortcut: Alt+M (allowed anywhere, supports Mac KeyM)
-      if (e.altKey && (e.key.toLowerCase() === "m" || e.code === "KeyM")) {
+      // Sidebar toggle shortcut: Alt+M (allowed when not in input, supports Mac KeyM)
+      if (
+        !isInput &&
+        e.altKey &&
+        (e.key.toLowerCase() === "m" || e.code === "KeyM")
+      ) {
         e.preventDefault();
         setIsSidebarCollapsed((prev) => {
           const next = !prev;
@@ -577,9 +581,8 @@ export function App() {
         return;
       }
 
-      // Global Esc dismissal: dismiss open modals, palette, and quick settings (only when not in input)
+      // Global Esc dismissal: dismiss open modals, palette, and quick settings
       if (e.key === "Escape") {
-        if (isInput) return;
         setIsMobileMenuOpen(false);
         setShowCommandPalette(false);
         setShowShortcutsModal(false);
@@ -612,17 +615,26 @@ export function App() {
         }
       }
 
-      // Quick settings drawer toggle: 'q' / 'Q'
+      // Quick settings drawer toggle: 'q' / 'Q' (only on routes where Quick Settings is available)
+      const hasQuickSettings =
+        location.pathname === "/torrents" ||
+        location.pathname === "/torrents/";
       if (
+        hasQuickSettings &&
         (e.key === "q" || e.key === "Q") &&
         !e.ctrlKey &&
         !e.metaKey &&
         !e.altKey &&
         !e.shiftKey
       ) {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent("toggle-quick-settings"));
-        return;
+        const isModalOpen = !!document.querySelector(
+          'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
+        );
+        if (!isModalOpen) {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent("toggle-quick-settings"));
+          return;
+        }
       }
 
       // Shortcuts Modal hotkey: '?' or Shift+'/'
@@ -686,7 +698,7 @@ export function App() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [guardedNavigate, openShortcutsModal]);
+  }, [guardedNavigate, location.pathname, openShortcutsModal]);
 
   useEffect(() => {
     const staleInterval = setInterval(() => {
