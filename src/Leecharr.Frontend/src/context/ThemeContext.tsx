@@ -7,19 +7,22 @@ import {
   useMemo,
   ReactNode,
 } from "react";
-import { useGeneralConfig } from "../api/hooks";
+import { useGeneralConfig, useSaveGeneralConfig } from "../api/hooks";
 import { trackThemeChange } from "../utils/analytics";
 
 export type ThemeStyle =
-  "dark" | "light" | "indigo" | "oled" | "slate" | "system";
+  "dark" | "indigo" | "oled" | "slate" | "light" | "system";
 
 export type ColorScheme =
   "auto" | "blue" | "emerald" | "purple" | "rose" | "cyan" | "amber";
+
+export type AccentPalette = ColorScheme;
 
 export interface ThemeContextValue {
   theme: string;
   themeStyle: ThemeStyle;
   colorScheme: ColorScheme;
+  accent: ColorScheme;
   isDark: boolean;
   toggleTheme: () => void;
   setThemeStyle: (style: ThemeStyle) => void;
@@ -49,10 +52,10 @@ function getInitialThemeStyle(): ThemeStyle {
       localStorage.getItem("seedarr-theme-style");
     if (
       stored === "dark" ||
-      stored === "light" ||
       stored === "indigo" ||
       stored === "oled" ||
       stored === "slate" ||
+      stored === "light" ||
       stored === "system"
     ) {
       return stored as ThemeStyle;
@@ -64,7 +67,7 @@ function getInitialThemeStyle(): ThemeStyle {
       return legacy;
     }
   } catch {
-    // localStorage unavailable
+    /* localStorage unavailable */
   }
   return "dark";
 }
@@ -73,6 +76,7 @@ function getInitialColorScheme(): ColorScheme {
   try {
     const stored =
       localStorage.getItem(STORAGE_KEY_ACCENT) ||
+      localStorage.getItem("leecharr-accent") ||
       localStorage.getItem("seedarr-color-scheme") ||
       localStorage.getItem("seedarr-accent");
     if (
@@ -87,13 +91,56 @@ function getInitialColorScheme(): ColorScheme {
       return stored as ColorScheme;
     }
   } catch {
-    // localStorage unavailable
+    /* localStorage unavailable */
   }
   return "auto";
 }
 
+function hasStoredThemeStyle(): boolean {
+  try {
+    return Boolean(
+      localStorage.getItem(STORAGE_KEY_THEME) ||
+      localStorage.getItem("seedarr-theme-style") ||
+      localStorage.getItem("leecharr-theme") ||
+      localStorage.getItem("seedarr-theme"),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasStoredColorScheme(): boolean {
+  try {
+    return Boolean(
+      localStorage.getItem(STORAGE_KEY_ACCENT) ||
+      localStorage.getItem("leecharr-accent") ||
+      localStorage.getItem("seedarr-color-scheme") ||
+      localStorage.getItem("seedarr-accent"),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function applyThemeToDocument(theme: string, accent: string) {
+  if (typeof document !== "undefined") {
+    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.setAttribute("data-accent", accent);
+  }
+}
+
+try {
+  const initTheme = getInitialThemeStyle();
+  const initAccent = getInitialColorScheme();
+  const resolved = initTheme === "system" ? resolveSystemTheme() : initTheme;
+  applyThemeToDocument(resolved, initAccent);
+} catch {
+  /* SSR or test environment */
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { data: generalConfig } = useGeneralConfig();
+  const saveGeneralConfig = useSaveGeneralConfig();
 
   const [themeStyle, setThemeStyleState] =
     useState<ThemeStyle>(getInitialThemeStyle);
@@ -104,17 +151,37 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => resolveSystemTheme() === "light",
   );
 
-  // Sync with server generalConfig when it loads
   useEffect(() => {
-    if (generalConfig?.themeStyle) {
+    if (!hasStoredThemeStyle() && generalConfig?.themeStyle) {
       setThemeStyleState(generalConfig.themeStyle as ThemeStyle);
     }
-    if (generalConfig?.colorScheme) {
+    if (!hasStoredColorScheme() && generalConfig?.colorScheme) {
       setColorSchemeState(generalConfig.colorScheme as ColorScheme);
     }
   }, [generalConfig?.themeStyle, generalConfig?.colorScheme]);
 
-  // Listen to system prefers-color-scheme changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleStorage = (e: StorageEvent) => {
+      if (
+        (e.key === STORAGE_KEY_THEME || e.key === "seedarr-theme-style") &&
+        e.newValue
+      ) {
+        setThemeStyleState(e.newValue as ThemeStyle);
+      } else if (
+        (e.key === STORAGE_KEY_ACCENT ||
+          e.key === "leecharr-accent" ||
+          e.key === "seedarr-color-scheme" ||
+          e.key === "seedarr-accent") &&
+        e.newValue
+      ) {
+        setColorSchemeState(e.newValue as ColorScheme);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
@@ -134,13 +201,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const isDark = effectiveTheme !== "light";
 
-  // Apply data-theme and data-accent attributes to document root
   useEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute("data-theme", effectiveTheme);
-      document.documentElement.setAttribute("data-accent", colorScheme);
+    applyThemeToDocument(effectiveTheme, colorScheme);
+    try {
+      localStorage.setItem(STORAGE_KEY_THEME, themeStyle);
+      localStorage.setItem(STORAGE_KEY_ACCENT, colorScheme);
+      localStorage.setItem("leecharr-accent", colorScheme);
+      localStorage.setItem(
+        "leecharr-theme",
+        effectiveTheme === "light" ? "light" : "dark",
+      );
+    } catch {
+      /* storage quota exceeded or restricted */
     }
-  }, [effectiveTheme, colorScheme]);
+  }, [effectiveTheme, themeStyle, colorScheme]);
 
   const setThemeStyle = useCallback((style: ThemeStyle) => {
     trackThemeChange(style);
@@ -160,6 +234,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setColorSchemeState(scheme);
     try {
       localStorage.setItem(STORAGE_KEY_ACCENT, scheme);
+      localStorage.setItem("leecharr-accent", scheme);
     } catch {
       /* storage quota exceeded or restricted */
     }
@@ -182,15 +257,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       } catch {
         /* storage quota exceeded or restricted */
       }
+      if (generalConfig) {
+        saveGeneralConfig.mutate({
+          ...generalConfig,
+          themeStyle: next,
+        });
+      }
       return next;
     });
-  }, [systemIsLight]);
+  }, [systemIsLight, generalConfig, saveGeneralConfig]);
 
   const value = useMemo(
     () => ({
       theme: effectiveTheme,
       themeStyle,
       colorScheme,
+      accent: colorScheme,
       isDark,
       toggleTheme,
       setThemeStyle,
