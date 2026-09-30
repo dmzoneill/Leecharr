@@ -1845,6 +1845,12 @@ const zhCN: I18nTranslations = {
     "active": "积极的",
     "inactive": "已停用",
     "time": "时间",
+    "installUpdate": "安装更新",
+    "installingUpdate": "正在安装更新...",
+    "confirmInstallUpdate": "您确定要安装此更新吗？ Leecharr 将重新启动以应用更改。",
+    "confirmInstallSpecificUpdate": "您确定要安装更新 v{{version}} 吗？ Leecharr 将重新启动以应用更改。",
+    "updateInstallStarted": "更新已启动。正在重新启动 Leecharr...",
+    "updateInstallFailed": "无法安装更新：{{error}}",
     "websiteUrl": "www.leecharr.net",
     "tcpUdp": "TCP/UDP"
   },
@@ -2492,8 +2498,13 @@ const zhCN: I18nTranslations = {
       "deleteIndexerFailed": "删除索引器失败",
       "selectAll": "全选",
       "deselectAll": "取消全选",
+      "selectedCount": "{{count}} 已选择",
       "deleteSelected": "删除所选种子",
       "deletingSelected": "正在删除...",
+      "deleteSelectedTitle": "删除选定的索引器",
+      "deleteSelectedConfirmMessage": "您确定要删除 {{count}} 选定的索引器吗？",
+      "bulkDeleteSuccess": "已删除 {{count}} 索引器",
+      "bulkDeleteFailed": "无法删除选定的索引器",
       "badgeRss": "RSS",
       "badgeSearch": "搜索",
       "connectionPassed": "✓ 连接已通过",
@@ -2563,12 +2574,7 @@ const zhCN: I18nTranslations = {
       "indexerUpdated": "索引器“{{name}}”已更新",
       "indexerCreated": "已创建索引器“{{name}}”",
       "updateFailed": "无法更新索引器",
-      "createFailed": "创建索引器失败",
-      "selectedCount": "{{count}} 已选择",
-      "deleteSelectedTitle": "删除选定的索引器",
-      "deleteSelectedConfirmMessage": "您确定要删除 {{count}} 选定的索引器吗？",
-      "bulkDeleteSuccess": "已删除 {{count}} 索引器",
-      "bulkDeleteFailed": "无法删除选定的索引器"
+      "createFailed": "创建索引器失败"
     },
     "nav": {
       "groups": {

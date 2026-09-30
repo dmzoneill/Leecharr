@@ -1845,6 +1845,12 @@ const ru: I18nTranslations = {
     "active": "Активный",
     "inactive": "Неактивный",
     "time": "Время",
+    "installUpdate": "Установить обновление",
+    "installingUpdate": "Установка обновления...",
+    "confirmInstallUpdate": "Вы уверены, что хотите установить это обновление? Личарр перезапустится, чтобы применить изменения.",
+    "confirmInstallSpecificUpdate": "Вы уверены, что хотите установить обновление v{{version}}? Личарр перезапустится, чтобы применить изменения.",
+    "updateInstallStarted": "Обновление запущено. Перезапуск Личарра...",
+    "updateInstallFailed": "Не удалось установить обновление: {{error}}.",
     "websiteUrl": "www.leecharr.net",
     "tcpUdp": "TCP/UDP"
   },
@@ -2492,8 +2498,13 @@ const ru: I18nTranslations = {
       "deleteIndexerFailed": "Не удалось удалить индексатор.",
       "selectAll": "Выбрать все",
       "deselectAll": "Снять выбор",
+      "selectedCount": "{{count}} выбрано",
       "deleteSelected": "Удалить выбранные",
       "deletingSelected": "Удаление...",
+      "deleteSelectedTitle": "Удалить выбранные индексаторы",
+      "deleteSelectedConfirmMessage": "Вы уверены, что хотите удалить {{count}} выбранных индексаторов?",
+      "bulkDeleteSuccess": "Удалены индексаторы {{count}}.",
+      "bulkDeleteFailed": "Не удалось удалить выбранные индексаторы.",
       "badgeRss": "RSS",
       "badgeSearch": "Поиск",
       "connectionPassed": "✓ Соединение пройдено",
@@ -2563,12 +2574,7 @@ const ru: I18nTranslations = {
       "indexerUpdated": "Индексатор \"{{name}}\" обновлен.",
       "indexerCreated": "Индексатор \"{{name}}\" создан.",
       "updateFailed": "Не удалось обновить индексатор.",
-      "createFailed": "Не удалось создать индексатор.",
-      "selectedCount": "{{count}} выбрано",
-      "deleteSelectedTitle": "Удалить выбранные индексаторы",
-      "deleteSelectedConfirmMessage": "Вы уверены, что хотите удалить {{count}} выбранных индексаторов?",
-      "bulkDeleteSuccess": "Удалены индексаторы {{count}}.",
-      "bulkDeleteFailed": "Не удалось удалить выбранные индексаторы."
+      "createFailed": "Не удалось создать индексатор."
     },
     "nav": {
       "groups": {
