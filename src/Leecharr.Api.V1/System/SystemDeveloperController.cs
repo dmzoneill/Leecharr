@@ -116,7 +116,8 @@ public class SystemDeveloperController : Controller
             PayloadJson = string.IsNullOrWhiteSpace(request.PayloadJson) ? "{}" : request.PayloadJson,
         };
 
-        this.eventStore?.RecordEvent(new DeveloperSyntheticEvent(request.EventName, item.PayloadJson));
+        this.eventStore?.RecordEvent(item);
+        this.eventAggregator?.PublishEvent(new DeveloperSyntheticEvent(request.EventName, item.PayloadJson));
 
         return this.Ok(new DeveloperEventItem
         {
@@ -1145,6 +1146,10 @@ public class DeveloperSyntheticEvent : IEvent
     public string Name { get; }
 
     public string Payload { get; }
+
+    public string EventName => this.Name;
+
+    public string PayloadJson => this.Payload;
 
     public DeveloperSyntheticEvent(string name, string payload)
     {
