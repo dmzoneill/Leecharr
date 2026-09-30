@@ -57,8 +57,8 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         this.telemetryChannel = System.Threading.Channels.Channel.CreateBounded<SignalRMessage>(telemetryOptions);
         this.guaranteedChannel = System.Threading.Channels.Channel.CreateBounded<SignalRMessage>(guaranteedOptions);
 
-        this.telemetryProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.telemetryChannel, "telemetry"), this.cancellationTokenSource?.Token ?? CancellationToken.None);
-        this.guaranteedProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.guaranteedChannel, "guaranteed"), this.cancellationTokenSource?.Token ?? CancellationToken.None);
+        this.telemetryProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.telemetryChannel, "telemetry"), this.cancellationTokenSource.Token);
+        this.guaranteedProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.guaranteedChannel, "guaranteed"), this.cancellationTokenSource.Token);
     }
 
     public virtual bool IsConnected => MessageHub.IsConnected;

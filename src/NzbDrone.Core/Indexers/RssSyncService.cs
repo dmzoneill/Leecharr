@@ -166,41 +166,43 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                     this.indexerStatusService?.RecordSuccess(indexer.Id);
                     foreach (var release in releases)
                     {
-                        if (release != null)
+                        if (release == null)
                         {
-                            if (!string.IsNullOrWhiteSpace(release.InfoHash))
+                            continue;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(release.InfoHash))
+                        {
+                            release.InfoHash = MagnetLinkParser.NormalizeInfoHash(release.InfoHash);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(release.MagnetUrl))
+                        {
+                            try
                             {
-                                release.InfoHash = MagnetLinkParser.NormalizeInfoHash(release.InfoHash);
-                            }
-                            else if (!string.IsNullOrWhiteSpace(release.MagnetUrl))
-                            {
-                                try
+                                var parsed = MagnetLinkParser.Parse(release.MagnetUrl);
+                                if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
                                 {
-                                    var parsed = MagnetLinkParser.Parse(release.MagnetUrl);
-                                    if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
-                                    {
-                                        release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    this.logger.Trace(ex, "Failed to parse infohash from release MagnetUrl for '{Title}'", release.Title);
+                                    release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
                                 }
                             }
-                            else if (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true)
+                            catch (Exception ex)
                             {
-                                try
+                                this.logger.Trace(ex, "Failed to parse infohash from release MagnetUrl for '{Title}'", release.Title);
+                            }
+                        }
+                        else if (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            try
+                            {
+                                var parsed = MagnetLinkParser.Parse(release.DownloadUrl);
+                                if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
                                 {
-                                    var parsed = MagnetLinkParser.Parse(release.DownloadUrl);
-                                    if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
-                                    {
-                                        release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
-                                    }
+                                    release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
                                 }
-                                catch (Exception ex)
-                                {
-                                    this.logger.Trace(ex, "Failed to parse infohash from release DownloadUrl for '{Title}'", release.Title);
-                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                this.logger.Trace(ex, "Failed to parse infohash from release DownloadUrl for '{Title}'", release.Title);
                             }
                         }
 
