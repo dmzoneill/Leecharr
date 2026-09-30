@@ -3475,6 +3475,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to perform auto hash check on completion for torrent {0}", torrentId);
+                return;
             }
         }
 

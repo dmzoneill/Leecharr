@@ -477,6 +477,11 @@ public class DownloadClientController : Controller
 
     private static DownloadClientResource ToResource(DownloadClientDefinition model)
     {
+        if (model == null)
+        {
+            return null;
+        }
+
         return new DownloadClientResource
         {
             Id = model.Id,
@@ -620,7 +625,7 @@ public class DownloadClientController : Controller
         {
             if (string.Equals(resource.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrWhiteSpace(resource.Username) || !string.IsNullOrWhiteSpace(password))
+                if (resource.Username != null || password != null)
                 {
                     var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
                     {

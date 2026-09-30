@@ -622,7 +622,7 @@ public class DelugeJsonRpcController : ControllerBase
                 HttpOnly = true,
                 SameSite = SameSiteMode.Lax,
                 Path = "/",
-                Secure = true,
+                Secure = this.Request?.IsHttps ?? false,
             };
             this.Response?.Cookies.Append("_session_id", sid, cookieOptions);
             this.Response?.Cookies.Append("deluge-session", sid, cookieOptions);
