@@ -35,7 +35,8 @@ public class DeveloperTestResult
 
     public string ErrorMessage { get; set; } = string.Empty;
 
-    public string StackTrace { get; set; } = string.Empty;
+    [System.Text.Json.Serialization.JsonPropertyName("stackTrace")]
+    public string ErrorDetails { get; set; } = string.Empty;
 
     public DateTime ExecutedAtUtc { get; set; } = DateTime.UtcNow;
 }
