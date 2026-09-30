@@ -64,7 +64,7 @@ public class TorznabClient : ITorznabClient
 {
     private static readonly XNamespace TorznabNs = "http://torznab.com/schemas/2015/feed";
     private static readonly XNamespace NewznabNs = "http://www.newznab.com/DTD/2010/feeds/attributes/";
-    private static readonly Regex MagnetRegex = new(@"magnet:\?xt=urn:bt[im]h:[^\s""'<>`\]\[]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex MagnetRegex = new(@"magnet:\?xt=urn:bt[im]h:[^\s""'<>`\]\[]+", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
 
     public static readonly Dictionary<int, List<int>> CategoryHierarchy = new()
     {
@@ -913,7 +913,9 @@ public class TorznabClient : ITorznabClient
         var normalized = Regex.Replace(
             trimmed,
             @"\b([A-Za-z]{1,5})\b",
-            m => TimeZoneOffsets.TryGetValue(m.Value, out var offset) ? offset : m.Value);
+            m => TimeZoneOffsets.TryGetValue(m.Value, out var offset) ? offset : m.Value,
+            RegexOptions.None,
+            TimeSpan.FromSeconds(2));
 
         if (DateTimeOffset.TryParse(normalized, CultureInfo.InvariantCulture, styles, out var normalizedDto))
         {
@@ -994,7 +996,7 @@ public class TorznabClient : ITorznabClient
         }
         catch (XmlException)
         {
-            var escaped = Regex.Replace(sanitized, @"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)", "&amp;");
+            var escaped = Regex.Replace(sanitized, @"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)", "&amp;", RegexOptions.None, TimeSpan.FromSeconds(2));
             return SafeXmlParser.Parse(escaped);
         }
     }
@@ -1006,7 +1008,7 @@ public class TorznabClient : ITorznabClient
             return defaultValue;
         }
 
-        var match = Regex.Match(value, @"-?\d+");
+        var match = Regex.Match(value, @"-?\d+", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (match.Success && int.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
         {
             return result;
@@ -1022,7 +1024,7 @@ public class TorznabClient : ITorznabClient
             return defaultValue;
         }
 
-        var match = Regex.Match(value, @"-?\d+");
+        var match = Regex.Match(value, @"-?\d+", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (match.Success && long.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
         {
             return result;
@@ -1039,7 +1041,7 @@ public class TorznabClient : ITorznabClient
         }
 
         var normalized = value.Trim().Replace(',', '.');
-        var match = Regex.Match(normalized, @"-?\d+(?:\.\d+)?");
+        var match = Regex.Match(normalized, @"-?\d+(?:\.\d+)?", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (match.Success && double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
         {
             return result;
@@ -1056,7 +1058,7 @@ public class TorznabClient : ITorznabClient
         }
 
         var normalized = value.Trim().Replace(',', '.');
-        var match = Regex.Match(normalized, @"-?\d+(?:\.\d+)?");
+        var match = Regex.Match(normalized, @"-?\d+(?:\.\d+)?", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (match.Success && double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
         {
             return result;
@@ -1072,7 +1074,7 @@ public class TorznabClient : ITorznabClient
             return null;
         }
 
-        var match = Regex.Match(value, @"-?\d+");
+        var match = Regex.Match(value, @"-?\d+", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (match.Success && long.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
         {
             return result;
