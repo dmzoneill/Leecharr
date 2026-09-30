@@ -748,7 +748,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             try
             {
-                inFlight.Cancel();
+                await inFlight.CancelAsync();
             }
             catch (Exception ex)
             {
@@ -1613,7 +1613,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             try
             {
-                inFlightCts.Cancel();
+                await inFlightCts.CancelAsync();
             }
             catch (ObjectDisposedException ex)
             {
@@ -3231,7 +3231,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         {
                             if (!string.IsNullOrWhiteSpace(manager.MetadataPath) && File.Exists(manager.MetadataPath))
                             {
-                                rawBytes = File.ReadAllBytes(manager.MetadataPath);
+                                rawBytes = await File.ReadAllBytesAsync(manager.MetadataPath);
                             }
 
                             if (rawBytes == null)
