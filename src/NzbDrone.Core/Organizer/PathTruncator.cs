@@ -15,7 +15,8 @@ public class PathTruncator : IPathTruncator
 
     private static readonly Regex StructuredMetadataRegex = new(
         @"^(?<prefix>.*?(?:[sS]\d+[eE]\d+(?:-[eE]?\d+)?|\b\d{4}\b)\s*-\s*)(?<title>.*?)(?<suffix>\s*(?:\[[^\]]+\]|\([^\)]+\))+)$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex BracketedSuffixRegex = new(
         @"^(?<prefix>.+?)(?<suffix>\s*(?:\[[^\]]+\]|\([^\)]+\))+)$",
