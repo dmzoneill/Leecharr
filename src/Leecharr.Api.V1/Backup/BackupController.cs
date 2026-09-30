@@ -584,16 +584,22 @@ public class BackupController : Controller
             return null;
         }
 
-        var safePath = new string(fileNameOrPath.ToCharArray());
-        // NOSONAR
-        if (Path.IsPathRooted(safePath) && global::System.IO.File.Exists(safePath))
+        if (Path.IsPathRooted(fileNameOrPath))
         {
             var fullBackupDir = Path.GetFullPath(backupDir);
-            var fullGivenPath = Path.GetFullPath(safePath);
+            var fullGivenPath = Path.GetFullPath(fileNameOrPath);
             if (fullGivenPath.StartsWith(fullBackupDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(fullGivenPath, fullBackupDir, StringComparison.OrdinalIgnoreCase))
             {
-                return fullGivenPath;
+                try
+                {
+                    using var s = global::System.IO.File.OpenRead(fullGivenPath);
+                    return fullGivenPath;
+                }
+                catch
+                {
+                    // Not accessible
+                }
             }
         }
 
