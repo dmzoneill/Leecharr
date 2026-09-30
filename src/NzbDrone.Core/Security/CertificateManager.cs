@@ -78,9 +78,7 @@ public class CertificateManager : ICertificateManager
                 var trimmedPath = certPath.Trim();
                 var canonicalPath = Path.GetFullPath(trimmedPath);
                 var dir = Path.GetDirectoryName(canonicalPath);
-                var safeDir = !string.IsNullOrEmpty(dir) ? new string(dir.ToCharArray()) : string.Empty;
-                // NOSONAR
-                if (string.IsNullOrEmpty(safeDir) || !Directory.Exists(safeDir))
+                if (string.IsNullOrEmpty(dir))
                 {
                     result.IsValid = false;
                     result.Message = $"Certificate file not found at '{trimmedPath}'.";
@@ -95,7 +93,11 @@ public class CertificateManager : ICertificateManager
                     return result;
                 }
 
-                if (!File.Exists(canonicalPath))
+                try
+                {
+                    using var stream = File.OpenRead(canonicalPath);
+                }
+                catch (Exception)
                 {
                     result.IsValid = false;
                     result.Message = $"Certificate file not found at '{trimmedPath}'.";
@@ -265,9 +267,7 @@ public class CertificateManager : ICertificateManager
 
         var fullPath = Path.GetFullPath(path.Trim());
         var dir = Path.GetDirectoryName(fullPath);
-        var safeDir = !string.IsNullOrEmpty(dir) ? new string(dir.ToCharArray()) : string.Empty;
-        // NOSONAR
-        if (string.IsNullOrEmpty(safeDir) || !Directory.Exists(safeDir))
+        if (string.IsNullOrEmpty(dir))
         {
             throw new DirectoryNotFoundException($"Directory for certificate '{fullPath}' does not exist.");
         }
@@ -278,7 +278,15 @@ public class CertificateManager : ICertificateManager
             throw new UnauthorizedAccessException($"Certificate path '{fullPath}' is outside its directory.");
         }
 
-        if (!File.Exists(fullPath))
+        try
+        {
+            using var stream = File.OpenRead(fullPath);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            throw new DirectoryNotFoundException($"Directory for certificate '{fullPath}' does not exist.");
+        }
+        catch (FileNotFoundException)
         {
             throw new FileNotFoundException($"Certificate file not found at '{fullPath}'.", fullPath);
         }
@@ -308,8 +316,20 @@ public class CertificateManager : ICertificateManager
             throw new InvalidOperationException($"Certificate file '{validatedCertPath}' does not contain any valid certificates.");
         }
 
-        var hasExplicitKey = !string.IsNullOrWhiteSpace(keyPath) && File.Exists(Path.GetFullPath(new string(keyPath.Trim().ToCharArray()))); // NOSONAR
-        var effectiveKeyPath = hasExplicitKey ? ValidateCertificatePath(keyPath.Trim()) : validatedCertPath;
+        string effectiveKeyPath = validatedCertPath;
+        var hasExplicitKey = false;
+        if (!string.IsNullOrWhiteSpace(keyPath))
+        {
+            try
+            {
+                effectiveKeyPath = ValidateCertificatePath(keyPath.Trim());
+                hasExplicitKey = true;
+            }
+            catch (Exception)
+            {
+                hasExplicitKey = false;
+            }
+        }
 
         if (!hasExplicitKey)
         {

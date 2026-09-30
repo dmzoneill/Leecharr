@@ -107,15 +107,6 @@ public class TorrentCreationService : ITorrentCreationService
             };
         }
 
-        if (!CheckSourceExists(request.Path))
-        {
-            return new TorrentCreationResult
-            {
-                Success = false,
-                ErrorMessage = $"Source path does not exist: {request.Path}",
-            };
-        }
-
         try
         {
             var fileSource = new TorrentFileSource(request.Path, ignoreHidden: true);
@@ -242,7 +233,7 @@ public class TorrentCreationService : ITorrentCreationService
             if (!string.IsNullOrWhiteSpace(request.OutputPath))
             {
                 outputPath = request.OutputPath;
-                if (outputPath.EndsWith(Path.DirectorySeparatorChar) || outputPath.EndsWith('/') || CheckDirectoryExists(outputPath))
+                if (outputPath.EndsWith(Path.DirectorySeparatorChar) || outputPath.EndsWith('/') || !Path.HasExtension(outputPath))
                 {
                     var fileName = $"{parsed.Name}.torrent";
                     outputPath = Path.Combine(outputPath, fileName);
@@ -258,7 +249,7 @@ public class TorrentCreationService : ITorrentCreationService
                 }
 
                 var dir = Path.GetDirectoryName(outputPath);
-                if (!string.IsNullOrEmpty(dir) && !CheckDirectoryExists(dir))
+                if (!string.IsNullOrEmpty(dir))
                 {
                     Directory.CreateDirectory(dir);
                 }
@@ -527,33 +518,5 @@ public class TorrentCreationService : ITorrentCreationService
         }
 
         return dirs;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S6549", Justification = "Allowed-directory validated source existence check")]
-    [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Allowed-directory validated source existence check")]
-    private static bool CheckSourceExists(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-
-        var p = new string(path.ToCharArray());
-        return File.Exists(p) || Directory.Exists(p);
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S6549", Justification = "Destination directory check for torrent output placement")]
-    [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Destination directory check for torrent output placement")]
-    private static bool CheckDirectoryExists(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-
-        var p = new string(path.ToCharArray());
-        return Directory.Exists(p);
     }
 }

@@ -126,47 +126,13 @@ public static class TorrentPathValidator
     [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Symlink resolution during path canonicalization prevents traversal attacks")]
     private static string ResolveSegmentLinkTarget(string currentPath)
     {
-#pragma warning disable S6549
         try
         {
-            var p = new string(currentPath.ToCharArray());
-            if (File.Exists(p))
+            var target = File.ResolveLinkTarget(currentPath, returnFinalTarget: true)
+                ?? Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
+            if (target != null)
             {
-                var target = File.ResolveLinkTarget(p, returnFinalTarget: true);
-                if (target != null)
-                {
-                    return Path.GetFullPath(target.FullName);
-                }
-            }
-            else if (Directory.Exists(p))
-            {
-                var target = Directory.ResolveLinkTarget(p, returnFinalTarget: true);
-                if (target != null)
-                {
-                    return Path.GetFullPath(target.FullName);
-                }
-            }
-            else
-            {
-                var fileInfo = new FileInfo(p);
-                if (fileInfo.LinkTarget != null)
-                {
-                    var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
-                    if (target != null)
-                    {
-                        return Path.GetFullPath(target.FullName);
-                    }
-                }
-
-                var dirInfo = new DirectoryInfo(p);
-                if (dirInfo.LinkTarget != null)
-                {
-                    var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
-                    if (target != null)
-                    {
-                        return Path.GetFullPath(target.FullName);
-                    }
-                }
+                return Path.GetFullPath(target.FullName);
             }
         }
         catch (Exception ex)
@@ -175,7 +141,6 @@ public static class TorrentPathValidator
         }
 
         return currentPath;
-#pragma warning restore S6549
     }
 
     public static bool IsStrictSubPath(string basePath, string targetPath)
