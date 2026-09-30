@@ -16,7 +16,7 @@ function formatBytes(bytes: number): string {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
 interface PlanTreeNode extends QueryPlanNode {
@@ -366,7 +366,7 @@ export default function DatabaseExplorer() {
 
   const copyMermaid = () => {
     if (!schema?.mermaidErd) return;
-    navigator.clipboard.writeText(schema.mermaidErd);
+    void navigator.clipboard.writeText(schema.mermaidErd);
     setCopyFeedback("Copied Mermaid ERD to clipboard!");
     setTimeout(() => setCopyFeedback(null), 3000);
   };
@@ -376,7 +376,7 @@ export default function DatabaseExplorer() {
     setQuery(newQuery);
     setSelectedTable(name);
     setActiveTab("console");
-    runQuery(newQuery, false);
+    void runQuery(newQuery, false);
   };
 
   // Filtered tables for canvas/inspector
@@ -527,8 +527,7 @@ export default function DatabaseExplorer() {
             </span>
           </div>
 
-          <button
-            className="btn btn-outline btn-small"
+          <button type="button" className="btn btn-outline btn-small"
             onClick={fetchSchema}
             disabled={isLoadingSchema}
             title="Refresh database schema"
@@ -563,15 +562,13 @@ export default function DatabaseExplorer() {
           flexShrink: 0,
         }}
       >
-        <button
-          className={`btn ${activeTab === "diagram" ? "btn-primary" : "btn-outline"}`}
+        <button type="button" className={`btn ${activeTab === "diagram" ? "btn-primary" : "btn-outline"}`}
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
           onClick={() => setActiveTab("diagram")}
         >
           <span>📊</span> Relational ER Diagram
         </button>
-        <button
-          className={`btn ${activeTab === "treemap" ? "btn-primary" : "btn-outline"}`}
+        <button type="button" className={`btn ${activeTab === "treemap" ? "btn-primary" : "btn-outline"}`}
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
           onClick={() => {
             setActiveTab("treemap");
@@ -580,15 +577,13 @@ export default function DatabaseExplorer() {
         >
           <span>🗺️</span> Storage Treemap
         </button>
-        <button
-          className={`btn ${activeTab === "console" ? "btn-primary" : "btn-outline"}`}
+        <button type="button" className={`btn ${activeTab === "console" ? "btn-primary" : "btn-outline"}`}
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
           onClick={() => setActiveTab("console")}
         >
           <span>💻</span> SQL Console
         </button>
-        <button
-          className={`btn ${activeTab === "inspector" ? "btn-primary" : "btn-outline"}`}
+        <button type="button" className={`btn ${activeTab === "inspector" ? "btn-primary" : "btn-outline"}`}
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
           onClick={() => setActiveTab("inspector")}
         >
@@ -639,38 +634,33 @@ export default function DatabaseExplorer() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <button
-                className="btn btn-outline btn-small"
+              <button type="button" className="btn btn-outline btn-small"
                 onClick={() => handleZoom(1.25)}
                 title="Zoom In"
                 aria-label="Zoom In"
               >
                 +
               </button>
-              <button
-                className="btn btn-outline btn-small"
+              <button type="button" className="btn btn-outline btn-small"
                 onClick={() => handleZoom(0.8)}
                 title="Zoom Out"
                 aria-label="Zoom Out"
               >
                 -
               </button>
-              <button
-                className="btn btn-outline btn-small"
+              <button type="button" className="btn btn-outline btn-small"
                 onClick={handleResetZoom}
                 title="Reset View"
               >
                 Fit / Reset
               </button>
-              <button
-                className="btn btn-outline btn-small"
+              <button type="button" className="btn btn-outline btn-small"
                 onClick={copyMermaid}
                 title="Copy Mermaid.js ERD representation"
               >
                 {copyFeedback || "📋 Copy Mermaid ERD"}
               </button>
-              <button
-                className="btn btn-outline btn-small"
+              <button type="button" className="btn btn-outline btn-small"
                 onClick={() => setShowMermaidModal(true)}
                 title="View Mermaid Code"
               >
@@ -943,20 +933,17 @@ export default function DatabaseExplorer() {
             {/* Filters */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Show:</span>
-              <button
-                className={`btn btn-small ${storageFilter === "all" ? "btn-primary" : "btn-outline"}`}
+              <button type="button" className={`btn btn-small ${storageFilter === "all" ? "btn-primary" : "btn-outline"}`}
                 onClick={() => setStorageFilter("all")}
               >
                 All Objects
               </button>
-              <button
-                className={`btn btn-small ${storageFilter === "table" ? "btn-primary" : "btn-outline"}`}
+              <button type="button" className={`btn btn-small ${storageFilter === "table" ? "btn-primary" : "btn-outline"}`}
                 onClick={() => setStorageFilter("table")}
               >
                 Tables Only
               </button>
-              <button
-                className={`btn btn-small ${storageFilter === "index" ? "btn-primary" : "btn-outline"}`}
+              <button type="button" className={`btn btn-small ${storageFilter === "index" ? "btn-primary" : "btn-outline"}`}
                 onClick={() => setStorageFilter("index")}
               >
                 Indexes Only
@@ -992,8 +979,7 @@ export default function DatabaseExplorer() {
                   width: "180px",
                 }}
               />
-              <button
-                className="btn btn-outline btn-small"
+              <button type="button" className="btn btn-outline btn-small"
                 onClick={fetchStorage}
                 disabled={isLoadingStorage}
                 title="Refresh Storage Treemap"
@@ -1092,7 +1078,15 @@ export default function DatabaseExplorer() {
                       key={`${item.name}-${idx}`}
                       transform={`translate(${leaf.x0}, ${leaf.y0})`}
                       style={{ cursor: "pointer" }}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedStorageItem(item)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedStorageItem(item);
+                        }
+                      }}
                       onMouseEnter={() => setHoveredStorageItem(item)}
                       onMouseLeave={() => setHoveredStorageItem(null)}
                     >
@@ -1247,8 +1241,7 @@ export default function DatabaseExplorer() {
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 {selectedStorageItem.type === "table" && (
                   <>
-                    <button
-                      className="btn btn-outline btn-small"
+                    <button type="button" className="btn btn-outline btn-small"
                       onClick={() => {
                         setSelectedTable(selectedStorageItem.tableName);
                         setActiveTab("inspector");
@@ -1256,8 +1249,7 @@ export default function DatabaseExplorer() {
                     >
                       🔍 Inspect Schema
                     </button>
-                    <button
-                      className="btn btn-primary btn-small"
+                    <button type="button" className="btn btn-primary btn-small"
                       onClick={() => {
                         handleSelectTableForQuery(selectedStorageItem.tableName);
                         setActiveTab("console");
@@ -1267,8 +1259,7 @@ export default function DatabaseExplorer() {
                     </button>
                   </>
                 )}
-                <button
-                  className="btn btn-outline btn-small"
+                <button type="button" className="btn btn-outline btn-small"
                   onClick={() => setSelectedStorageItem(null)}
                 >
                   ✕ Close
@@ -1411,8 +1402,7 @@ export default function DatabaseExplorer() {
 
                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                   <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Ctrl+Enter to run</span>
-                  <button
-                    className="btn btn-primary"
+                  <button type="button" className="btn btn-primary"
                     onClick={() => runQuery()}
                     disabled={isExecuting}
                     style={{ padding: "0.35rem 0.85rem" }}
@@ -1428,7 +1418,7 @@ export default function DatabaseExplorer() {
                 onKeyDown={(e) => {
                   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                     e.preventDefault();
-                    runQuery();
+                    void runQuery();
                   }
                 }}
                 rows={4}
@@ -1495,15 +1485,13 @@ export default function DatabaseExplorer() {
 
                   {queryResult?.queryPlan && queryResult.queryPlan.length > 0 && (
                     <div style={{ display: "flex", gap: "0.25rem", marginLeft: "0.5rem" }}>
-                      <button
-                        className={`btn btn-small ${consoleView === "data" ? "btn-primary" : "btn-outline"}`}
+                      <button type="button" className={`btn btn-small ${consoleView === "data" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
                         onClick={() => setConsoleView("data")}
                       >
                         📊 Data Grid ({queryResult.rows?.length ?? 0})
                       </button>
-                      <button
-                        className={`btn btn-small ${consoleView === "plan" ? "btn-primary" : "btn-outline"}`}
+                      <button type="button" className={`btn btn-small ${consoleView === "plan" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
                         onClick={() => setConsoleView("plan")}
                       >
@@ -1514,7 +1502,7 @@ export default function DatabaseExplorer() {
                 </div>
 
                 {queryResult?.columns && queryResult.columns.length > 0 && consoleView === "data" && (
-                  <button className="btn btn-outline btn-small" onClick={exportCsv}>
+                  <button type="button" className="btn btn-outline btn-small" onClick={exportCsv}>
                     📥 Export CSV
                   </button>
                 )}
@@ -1615,15 +1603,13 @@ export default function DatabaseExplorer() {
                       SQLite Execution Plan DAG (EXPLAIN QUERY PLAN)
                     </div>
                     <div style={{ display: "flex", gap: "0.25rem" }}>
-                      <button
-                        className={`btn btn-small ${planViewMode === "tree" ? "btn-primary" : "btn-outline"}`}
+                      <button type="button" className={`btn btn-small ${planViewMode === "tree" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
                         onClick={() => setPlanViewMode("tree")}
                       >
                         Visual Tree
                       </button>
-                      <button
-                        className={`btn btn-small ${planViewMode === "table" ? "btn-primary" : "btn-outline"}`}
+                      <button type="button" className={`btn btn-small ${planViewMode === "table" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
                         onClick={() => setPlanViewMode("table")}
                       >
@@ -1746,8 +1732,7 @@ export default function DatabaseExplorer() {
               ))}
             </select>
 
-            <button
-              className="btn btn-primary btn-small"
+            <button type="button" className="btn btn-primary btn-small"
               onClick={() => handleSelectTableForQuery(selectedTable)}
             >
               ▶ Query Table
@@ -1896,10 +1881,10 @@ export default function DatabaseExplorer() {
               This may alter or delete stored records permanently.
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
-              <button className="btn btn-outline" onClick={() => setShowConfirmModal(false)}>
+              <button type="button" className="btn btn-outline" onClick={() => setShowConfirmModal(false)}>
                 Cancel
               </button>
-              <button className="btn btn-danger" onClick={() => runQuery(query, true)}>
+              <button type="button" className="btn btn-danger" onClick={() => runQuery(query, true)}>
                 Execute Mutation
               </button>
             </div>
@@ -1946,10 +1931,10 @@ export default function DatabaseExplorer() {
               }}
             />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
-              <button className="btn btn-primary" onClick={copyMermaid}>
+              <button type="button" className="btn btn-primary" onClick={copyMermaid}>
                 {copyFeedback || "📋 Copy to Clipboard"}
               </button>
-              <button className="btn btn-outline" onClick={() => setShowMermaidModal(false)}>
+              <button type="button" className="btn btn-outline" onClick={() => setShowMermaidModal(false)}>
                 Close
               </button>
             </div>

@@ -100,7 +100,7 @@ export default function DeveloperRepl() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
-      handleExecute();
+      void handleExecute();
     }
   };
 
