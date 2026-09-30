@@ -438,12 +438,12 @@ public class CustomScriptService : ICustomScriptService
 
         if (trimmed.Contains("path=", StringComparison.OrdinalIgnoreCase))
         {
-            var matchPath = System.Text.RegularExpressions.Regex.Match(trimmed, @"path=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var matchPath = System.Text.RegularExpressions.Regex.Match(trimmed, @"path=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (matchPath.Success)
             {
                 var path = Uri.UnescapeDataString(matchPath.Groups[1].Value).Trim().Trim('"', '\'');
                 string args = null;
-                var matchArgs = System.Text.RegularExpressions.Regex.Match(trimmed, @"arguments=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var matchArgs = System.Text.RegularExpressions.Regex.Match(trimmed, @"arguments=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
                 if (matchArgs.Success)
                 {
                     args = Uri.UnescapeDataString(matchArgs.Groups[1].Value).Trim();

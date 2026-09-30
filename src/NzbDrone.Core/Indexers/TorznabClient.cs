@@ -335,7 +335,7 @@ public class TorznabClient : ITorznabClient
 
             if (!string.IsNullOrWhiteSpace(criteria.ImdbId))
             {
-                var normalizedImdb = Regex.Replace(criteria.ImdbId.Trim(), @"^tt", string.Empty, RegexOptions.IgnoreCase);
+                var normalizedImdb = Regex.Replace(criteria.ImdbId.Trim(), @"^tt", string.Empty, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
                 queryParams += $"&imdbid={Uri.EscapeDataString(normalizedImdb)}";
             }
 

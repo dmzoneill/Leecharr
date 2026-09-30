@@ -174,8 +174,8 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             var url = idx.Url.Trim().TrimEnd('/');
             if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
             {
-                var path = Regex.Replace(parsed.AbsolutePath, @"/\d+/api/?$", string.Empty, RegexOptions.IgnoreCase);
-                path = Regex.Replace(path, @"/api/?$", string.Empty, RegexOptions.IgnoreCase);
+                var path = Regex.Replace(parsed.AbsolutePath, @"/\d+/api/?$", string.Empty, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+                path = Regex.Replace(path, @"/api/?$", string.Empty, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
                 url = $"{parsed.Scheme}://{parsed.Authority}{path.TrimEnd('/')}";
             }
 

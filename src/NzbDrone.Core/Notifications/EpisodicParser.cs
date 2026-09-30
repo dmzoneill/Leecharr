@@ -21,7 +21,8 @@ public class EpisodicParser : IEpisodicParser
 
     private static readonly Regex SpecialEpisodeRegex = new(
         @"(?i)\b(?:SP|Special)[.\s_-]*(?<ep>\d{1,3})\b",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     public (int? SeasonNumber, int? EpisodeNumber, string EpisodeTitle) ExtractEpisodicInfo(string name)
     {

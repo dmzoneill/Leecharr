@@ -214,7 +214,7 @@ public static class EmailNotificationSender
 
         var torrentName = torrent?.Name ?? NotificationPayloadBuilder.ExtractMessage(genericPayload, eventType);
         var rawSubject = $"[Leecharr] [{eventType}] {torrentName}";
-        var subject = Regex.Replace(rawSubject, @"[\r\n]+", " ").Trim();
+        var subject = Regex.Replace(rawSubject, @"[\r\n]+", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
 
         var torrentDetails = torrent != null
             ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
