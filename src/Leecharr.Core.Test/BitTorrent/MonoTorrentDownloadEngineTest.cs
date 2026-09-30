@@ -6595,4 +6595,93 @@ public class MonoTorrentDownloadEngineTest
 
         await this.engine.StopAsync();
     }
+
+    [Test]
+    public void ParseBootstrapNodeEndpoints_WithStandardCommaSeparatedList_ReturnsExpectedNodes()
+    {
+        var input = "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,dht.aelitis.com:6881";
+        var result = MonoTorrentDownloadEngine.ParseBootstrapNodeEndpoints(input);
+
+        result.Should().HaveCount(4);
+        result[0].Should().Be(("router.bittorrent.com", 6881));
+        result[1].Should().Be(("dht.transmissionbt.com", 6881));
+        result[2].Should().Be(("router.utorrent.com", 6881));
+        result[3].Should().Be(("dht.aelitis.com", 6881));
+    }
+
+    [Test]
+    public void ParseBootstrapNodeEndpoints_WithIpv6AndDefaultPorts_ParsesCorrectly()
+    {
+        var input = "[2001:db8::1]:6881, dht.example.com, [::1], 127.0.0.1:8999";
+        var result = MonoTorrentDownloadEngine.ParseBootstrapNodeEndpoints(input);
+
+        result.Should().HaveCount(4);
+        result[0].Should().Be(("2001:db8::1", 6881));
+        result[1].Should().Be(("dht.example.com", 6881));
+        result[2].Should().Be(("::1", 6881));
+        result[3].Should().Be(("127.0.0.1", 8999));
+    }
+
+    [Test]
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    [TestCase(", , ; ")]
+    public void ParseBootstrapNodeEndpoints_WithNullOrWhitespace_ReturnsEmptyList(string? input)
+    {
+        var result = MonoTorrentDownloadEngine.ParseBootstrapNodeEndpoints(input!);
+        result.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task ConfigureDhtBootstrapNodesAsync_WhenDhtEnabledAndEndpointsConfigured_ConfiguresNodes()
+    {
+        this.configService.EnableDht.Returns(true);
+        this.configService.AnonymousMode.Returns(false);
+        this.configService.ProxyType.Returns("none");
+        this.configService.DhtBootstrapNodes.Returns("127.0.0.1:6881, 127.0.0.2:6882");
+
+        await this.engine.StartAsync();
+
+        var count = await this.engine.ConfigureDhtBootstrapNodesAsync();
+        count.Should().Be(2);
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task ConfigureDhtBootstrapNodesAsync_WhenDhtDisabledOrAnonymous_ReturnsZero()
+    {
+        this.configService.EnableDht.Returns(false);
+        this.configService.DhtBootstrapNodes.Returns("127.0.0.1:6881");
+
+        await this.engine.StartAsync();
+
+        var count = await this.engine.ConfigureDhtBootstrapNodesAsync();
+        count.Should().Be(0);
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_WhenDhtBootstrapNodesChanged_UpdatesLastAppliedDhtBootstrapNodes()
+    {
+        this.configService.EnableDht.Returns(true);
+        this.configService.DhtBootstrapNodes.Returns("127.0.0.1:6881");
+
+        await this.engine.StartAsync();
+        this.engine.LastAppliedDhtBootstrapNodes.Should().Be("127.0.0.1:6881");
+
+        this.configService.DhtBootstrapNodes.Returns("127.0.0.1:6882, 127.0.0.3:6883");
+        this.engine.Handle(new ConfigSavedEvent());
+
+        for (var i = 0; i < 50 && this.engine.LastAppliedDhtBootstrapNodes != "127.0.0.1:6882, 127.0.0.3:6883"; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        this.engine.LastAppliedDhtBootstrapNodes.Should().Be("127.0.0.1:6882, 127.0.0.3:6883");
+
+        await this.engine.StopAsync();
+    }
 }

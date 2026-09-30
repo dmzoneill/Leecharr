@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 using MonoTorrent;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
+using MonoTorrent.Dht;
 using MonoTorrent.PieceWriter;
 using MonoTorrent.PortForwarding;
 using NLog;
@@ -107,6 +108,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private string lastAppliedProxyUsername = string.Empty;
     private string lastAppliedProxyPassword = string.Empty;
     private bool lastAppliedAnonymousMode;
+    private string lastAppliedDhtBootstrapNodes = string.Empty;
 
     internal string LastAppliedInterfaceBinding => this.lastAppliedInterfaceBinding;
 
@@ -123,6 +125,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     internal string LastAppliedProxyPassword => this.lastAppliedProxyPassword;
 
     internal bool LastAppliedAnonymousMode => this.lastAppliedAnonymousMode;
+
+    internal string LastAppliedDhtBootstrapNodes => this.lastAppliedDhtBootstrapNodes;
 
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
@@ -177,23 +181,22 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             try
             {
-                if (this.engine == null)
+                var dht = this.GetDhtEngine();
+                if (dht != null)
                 {
-                    return 0;
+                    return dht.NodeCount;
                 }
 
-                var prop = this.engine.GetType().GetProperty("DhtEngine", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                            ?? this.engine.GetType().GetProperty("Dht", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-                if (prop != null)
+                if (this.engine != null)
                 {
-                    var dht = prop.GetValue(this.engine);
-                    if (dht != null)
+                    var prop = this.engine.GetType().GetProperty("Dht", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (prop != null)
                     {
-                        var nodeCountProp = dht.GetType().GetProperty("NodeCount") ?? dht.GetType().GetProperty("NodesCount");
+                        var dhtWrapper = prop.GetValue(this.engine);
+                        var nodeCountProp = dhtWrapper?.GetType().GetProperty("NodeCount") ?? dhtWrapper?.GetType().GetProperty("NodesCount");
                         if (nodeCountProp != null)
                         {
-                            return Convert.ToInt32(nodeCountProp.GetValue(dht));
+                            return Convert.ToInt32(nodeCountProp.GetValue(dhtWrapper));
                         }
                     }
                 }
@@ -288,6 +291,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastAppliedProxyUsername = this.configService?.ProxyUsername ?? string.Empty;
         this.lastAppliedProxyPassword = this.configService?.ProxyPassword ?? string.Empty;
         this.lastAppliedAnonymousMode = this.configService?.AnonymousMode ?? false;
+        this.lastAppliedDhtBootstrapNodes = this.configService?.DhtBootstrapNodes ?? string.Empty;
     }
 
     public async Task StartAsync()
@@ -645,6 +649,22 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 this.logger.Debug(ex, "Failed to initialize UPnP port forwarder");
             }
+        }
+
+        this.lastAppliedDhtBootstrapNodes = this.configService.DhtBootstrapNodes ?? string.Empty;
+        if (this.configService.EnableDht && !this.configService.AnonymousMode && !this.IsProxyActive())
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await this.ConfigureDhtBootstrapNodesAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to configure initial DHT bootstrap nodes");
+                }
+            });
         }
 
         this.logger.Info("MonoTorrent engine started successfully on {0}:{1}.", listenIp, port);
@@ -4802,6 +4822,183 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         builder.UsePartialFiles = this.configService.AppendIncompleteExtension;
     }
 
+    internal IDhtEngine GetDhtEngine()
+    {
+        if (this.engine == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var prop = this.engine.GetType().GetProperty("DhtEngine", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                        ?? this.engine.GetType().GetProperty("Dht", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (prop != null)
+            {
+                var dht = prop.GetValue(this.engine);
+                if (dht is IDhtEngine dhtEngine)
+                {
+                    return dhtEngine;
+                }
+
+                if (dht != null)
+                {
+                    var innerProp = dht.GetType().GetProperty("Engine", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (innerProp?.GetValue(dht) is IDhtEngine innerEngine)
+                    {
+                        return innerEngine;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Trace(ex, "Failed to retrieve DhtEngine from ClientEngine");
+        }
+
+        return null;
+    }
+
+    internal static List<(string Host, int Port)> ParseBootstrapNodeEndpoints(string bootstrapNodes)
+    {
+        var result = new List<(string Host, int Port)>();
+        if (string.IsNullOrWhiteSpace(bootstrapNodes))
+        {
+            return result;
+        }
+
+        var entries = bootstrapNodes.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var rawEntry in entries)
+        {
+            var entry = rawEntry.Trim();
+            if (string.IsNullOrEmpty(entry))
+            {
+                continue;
+            }
+
+            string host;
+            var port = 6881;
+
+            if (entry.StartsWith("[", StringComparison.Ordinal))
+            {
+                var closingBracket = entry.IndexOf(']');
+                if (closingBracket > 0)
+                {
+                    host = entry.Substring(1, closingBracket - 1);
+                    var colonIndex = entry.IndexOf(':', closingBracket);
+                    if (colonIndex >= 0 && int.TryParse(entry.Substring(colonIndex + 1), out var parsedPort) && parsedPort > 0 && parsedPort <= 65535)
+                    {
+                        port = parsedPort;
+                    }
+                }
+                else
+                {
+                    host = entry.Trim('[', ']');
+                }
+            }
+            else
+            {
+                var lastColon = entry.LastIndexOf(':');
+                if (lastColon > 0 && int.TryParse(entry.Substring(lastColon + 1), out var parsedPort) && parsedPort > 0 && parsedPort <= 65535)
+                {
+                    host = entry.Substring(0, lastColon);
+                    port = parsedPort;
+                }
+                else
+                {
+                    host = entry;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(host))
+            {
+                result.Add((host, port));
+            }
+        }
+
+        return result;
+    }
+
+    internal async Task<List<ReadOnlyMemory<byte>>> ResolveBootstrapNodeMemoriesAsync(string bootstrapNodes)
+    {
+        var endpoints = ParseBootstrapNodeEndpoints(bootstrapNodes);
+        var memories = new List<ReadOnlyMemory<byte>>();
+
+        foreach (var (host, port) in endpoints)
+        {
+            try
+            {
+                IPAddress[] addresses;
+                if (IPAddress.TryParse(host, out var ip))
+                {
+                    addresses = new[] { ip };
+                }
+                else
+                {
+                    var dnsTask = Dns.GetHostAddressesAsync(host);
+                    var completed = await Task.WhenAny(dnsTask, Task.Delay(3000)).ConfigureAwait(false);
+                    if (completed != dnsTask)
+                    {
+                        this.logger.Debug("DNS resolution timed out for DHT bootstrap node '{0}'", host);
+                        continue;
+                    }
+
+                    addresses = await dnsTask.ConfigureAwait(false);
+                }
+
+                foreach (var addr in addresses)
+                {
+                    if (addr.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        var nodeBytes = new byte[26];
+                        RandomNumberGenerator.Fill(nodeBytes.AsSpan(0, 20));
+                        addr.GetAddressBytes().CopyTo(nodeBytes, 20);
+                        nodeBytes[24] = (byte)(port >> 8);
+                        nodeBytes[25] = (byte)(port & 0xFF);
+                        memories.Add(new ReadOnlyMemory<byte>(nodeBytes));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to resolve DHT bootstrap node '{0}:{1}'", host, port);
+            }
+        }
+
+        return memories;
+    }
+
+    internal async Task<int> ConfigureDhtBootstrapNodesAsync()
+    {
+        if (this.engine == null || !this.configService.EnableDht || this.configService.AnonymousMode || this.IsProxyActive())
+        {
+            return 0;
+        }
+
+        var bootstrapNodesConfig = this.configService.DhtBootstrapNodes;
+        if (string.IsNullOrWhiteSpace(bootstrapNodesConfig))
+        {
+            return 0;
+        }
+
+        var dhtEngine = this.GetDhtEngine();
+        if (dhtEngine == null)
+        {
+            this.logger.Debug("DHT engine is not available to configure bootstrap nodes");
+            return 0;
+        }
+
+        var nodeMemories = await this.ResolveBootstrapNodeMemoriesAsync(bootstrapNodesConfig).ConfigureAwait(false);
+        if (nodeMemories.Count > 0)
+        {
+            dhtEngine.Add(nodeMemories);
+            this.logger.Info("Configured {0} DHT bootstrap router node endpoint(s) from settings", nodeMemories.Count);
+        }
+
+        return nodeMemories.Count;
+    }
+
     internal async Task ApplyConfigChangesAsync()
     {
         if (this.engine == null)
@@ -4856,6 +5053,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.lastAppliedProxyUsername = currentProxyUsername;
             this.lastAppliedProxyPassword = currentProxyPassword;
             this.lastAppliedAnonymousMode = currentAnonymousMode;
+        }
+
+        var currentDhtBootstrapNodes = this.configService.DhtBootstrapNodes ?? string.Empty;
+        var bootstrapNodesChanged = !string.Equals(this.lastAppliedDhtBootstrapNodes, currentDhtBootstrapNodes, StringComparison.OrdinalIgnoreCase);
+
+        if (bootstrapNodesChanged)
+        {
+            this.lastAppliedDhtBootstrapNodes = currentDhtBootstrapNodes;
+            if (this.configService.EnableDht && !this.configService.AnonymousMode && !this.IsProxyActive())
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.ConfigureDhtBootstrapNodesAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Failed to apply updated DHT bootstrap nodes");
+                    }
+                });
+            }
         }
     }
 
