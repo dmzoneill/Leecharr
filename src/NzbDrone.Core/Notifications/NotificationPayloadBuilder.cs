@@ -1143,10 +1143,13 @@ public static class NotificationPayloadBuilder
         {
             try
             {
-                var prop = ((object)meta).GetType().GetProperty("Overview");
-                if (prop != null)
+                if (meta != null)
                 {
-                    return prop.GetValue((object)meta) as string;
+                    var prop = ((object)meta).GetType().GetProperty("Overview");
+                    if (prop != null)
+                    {
+                        return prop.GetValue((object)meta) as string;
+                    }
                 }
             }
             catch (Exception ex)
