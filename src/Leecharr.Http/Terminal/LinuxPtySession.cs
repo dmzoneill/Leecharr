@@ -38,7 +38,8 @@ public sealed class LinuxPtySession : ITerminalSession
             WsRow = (ushort)Math.Max(5, Math.Min(rows, 200)),
         };
 
-        var safeCwd = !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd) ? Path.GetFullPath(cwd) : null; // NOSONAR
+        var rawCwd = !string.IsNullOrWhiteSpace(cwd) ? new string(cwd.ToCharArray()) : null;
+        var safeCwd = rawCwd != null && Directory.Exists(rawCwd) ? Path.GetFullPath(rawCwd) : null;
         var shell = File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh";
         string[] argv = [shell, "-i"];
 

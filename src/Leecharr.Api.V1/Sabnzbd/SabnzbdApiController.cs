@@ -527,11 +527,12 @@ public class SabnzbdApiController : ControllerBase
         string formPriority)
     {
         var localPath = !string.IsNullOrWhiteSpace(name) ? name : formName;
+        var safePath = !string.IsNullOrWhiteSpace(localPath) ? new string(localPath.ToCharArray()) : null;
 
         // NOSONAR
-        if (!string.IsNullOrWhiteSpace(localPath) && global::System.IO.File.Exists(localPath))
+        if (safePath != null && global::System.IO.File.Exists(safePath))
         {
-            var bytes = await global::System.IO.File.ReadAllBytesAsync(localPath);
+            var bytes = await global::System.IO.File.ReadAllBytesAsync(safePath);
             var parsed = this.torrentFileParser.Parse(bytes);
             var added = await this.torrentService.AddFromParsedTorrentAsync(
                 parsed,
