@@ -18,7 +18,7 @@ public class TorrentFileRepository : BasicRepository<TorrentFile>, ITorrentFileR
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<TorrentFile>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" ASC",
+                "SELECT * FROM \"TorrentFiles\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" ASC",
                 new { TorrentId = torrentId }));
     }
 
@@ -34,7 +34,7 @@ public class TorrentFileRepository : BasicRepository<TorrentFile>, ITorrentFileR
         return this.ExecuteWithRetry(connection =>
         {
             var files = connection.Query<TorrentFile>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" IN ({inClause}) ORDER BY \"Id\" ASC");
+                $"SELECT * FROM \"TorrentFiles\" WHERE \"TorrentId\" IN ({inClause}) ORDER BY \"Id\" ASC");
             return files.GroupBy(f => f.TorrentId).ToDictionary(g => g.Key, g => g.ToList());
         });
     }
@@ -43,7 +43,7 @@ public class TorrentFileRepository : BasicRepository<TorrentFile>, ITorrentFileR
     {
         this.ExecuteWithRetry(connection =>
             connection.Execute(
-                $"DELETE FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
+                "DELETE FROM \"TorrentFiles\" WHERE \"TorrentId\" = @TorrentId",
                 new { TorrentId = torrentId }));
     }
 }
