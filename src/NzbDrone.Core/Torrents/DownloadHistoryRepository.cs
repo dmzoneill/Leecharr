@@ -59,7 +59,7 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
         var normalized = infoHash.Trim().ToLowerInvariant();
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<DownloadHistory>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
+                "SELECT * FROM \"DownloadHistory\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
                 new { InfoHash = normalized }));
     }
 
@@ -67,7 +67,7 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
     {
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<DownloadHistory>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" DESC",
+                "SELECT * FROM \"DownloadHistory\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" DESC",
                 new { TorrentId = torrentId }));
     }
 
@@ -79,7 +79,7 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
         System.DateTime? startDate = null,
         System.DateTime? endDate = null)
     {
-        var sql = new StringBuilder($"SELECT * FROM \"{this.table}\" WHERE 1=1");
+        var sql = new StringBuilder("SELECT * FROM \"DownloadHistory\" WHERE 1=1");
         var parameters = new DynamicParameters();
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -140,13 +140,13 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
     public void DeleteOlderThan(System.DateTime cutoffDate)
     {
         this.ExecuteWithRetry(connection =>
-            connection.Execute($"DELETE FROM \"{this.table}\" WHERE \"DateAdded\" < @Cutoff", new { Cutoff = cutoffDate }));
+            connection.Execute("DELETE FROM \"DownloadHistory\" WHERE \"DateAdded\" < @Cutoff", new { Cutoff = cutoffDate }));
     }
 
     public void DeleteAll()
     {
         this.ExecuteWithRetry(connection =>
-            connection.Execute($"DELETE FROM \"{this.table}\""));
+            connection.Execute("DELETE FROM \"DownloadHistory\""));
     }
 
     private static void NormalizeDownloadHistory(DownloadHistory model)

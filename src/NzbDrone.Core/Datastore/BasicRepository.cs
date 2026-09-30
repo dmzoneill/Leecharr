@@ -92,12 +92,16 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
     protected readonly IDatabase database;
     private readonly IEventAggregator eventAggregator;
     protected readonly string table;
+    private readonly string selectAllSql;
+    private readonly string selectByIdSql;
 
     public BasicRepository(IDatabase database, IEventAggregator eventAggregator = null)
     {
         this.database = database;
         this.eventAggregator = eventAggregator;
         this.table = TableMapping.GetTableName(typeof(TModel));
+        this.selectAllSql = GetSelectAllSql(this.table);
+        this.selectByIdSql = GetSelectByIdSql(this.table);
     }
 
     protected TResult ExecuteWithRetry<TResult>(Func<IDbConnection, TResult> action)
@@ -139,14 +143,14 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
     public IEnumerable<TModel> All()
     {
         return this.ExecuteWithRetry(connection =>
-            connection.Query<TModel>($"SELECT * FROM \"{this.table}\"").ToList());
+            connection.Query<TModel>(this.selectAllSql).ToList());
     }
 
     public TModel Get(int id)
     {
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<TModel>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"Id\" = @Id",
+                this.selectByIdSql,
                 new { Id = id }));
     }
 
@@ -298,5 +302,79 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
     public void Delete(TModel model)
     {
         this.Delete(model.Id);
+    }
+
+    private static string GetSelectAllSql(string tableName) => tableName switch
+    {
+        "ArrConnectionDefinitions" => "SELECT * FROM \"ArrConnectionDefinitions\"",
+        "ArrConnections" => "SELECT * FROM \"ArrConnections\"",
+        "AutomationScripts" => "SELECT * FROM \"AutomationScripts\"",
+        "Categories" => "SELECT * FROM \"Categories\"",
+        "Commands" => "SELECT * FROM \"Commands\"",
+        "Config" => "SELECT * FROM \"Config\"",
+        "DownloadClientDefinitions" => "SELECT * FROM \"DownloadClientDefinitions\"",
+        "DownloadHistory" => "SELECT * FROM \"DownloadHistory\"",
+        "IdentityProviders" => "SELECT * FROM \"IdentityProviders\"",
+        "IndexerDefinitions" => "SELECT * FROM \"IndexerDefinitions\"",
+        "NetworkSettings" => "SELECT * FROM \"NetworkSettings\"",
+        "NotificationDefinitions" => "SELECT * FROM \"NotificationDefinitions\"",
+        "RssRules" => "SELECT * FROM \"RssRules\"",
+        "ScheduledTasks" => "SELECT * FROM \"ScheduledTasks\"",
+        "SpeedSchedules" => "SELECT * FROM \"SpeedSchedules\"",
+        "Tags" => "SELECT * FROM \"Tags\"",
+        "TorrentEventLogs" => "SELECT * FROM \"TorrentEventLogs\"",
+        "TorrentFiles" => "SELECT * FROM \"TorrentFiles\"",
+        "TorrentMediaMetadata" => "SELECT * FROM \"TorrentMediaMetadata\"",
+        "Torrents" => "SELECT * FROM \"Torrents\"",
+        "TrackerBoostTrackers" => "SELECT * FROM \"TrackerBoostTrackers\"",
+        "TrackerEntries" => "SELECT * FROM \"TrackerEntries\"",
+        "TrackerMetrics" => "SELECT * FROM \"TrackerMetrics\"",
+        "TrackerMetricSnapshots" => "SELECT * FROM \"TrackerMetricSnapshots\"",
+        "UserExternalLogins" => "SELECT * FROM \"UserExternalLogins\"",
+        "Users" => "SELECT * FROM \"Users\"",
+        "UserSessions" => "SELECT * FROM \"UserSessions\"",
+        _ => "SELECT * FROM \"" + SanitizeTableName(tableName) + "\""
+    };
+
+    private static string GetSelectByIdSql(string tableName) => tableName switch
+    {
+        "ArrConnectionDefinitions" => "SELECT * FROM \"ArrConnectionDefinitions\" WHERE \"Id\" = @Id",
+        "ArrConnections" => "SELECT * FROM \"ArrConnections\" WHERE \"Id\" = @Id",
+        "AutomationScripts" => "SELECT * FROM \"AutomationScripts\" WHERE \"Id\" = @Id",
+        "Categories" => "SELECT * FROM \"Categories\" WHERE \"Id\" = @Id",
+        "Commands" => "SELECT * FROM \"Commands\" WHERE \"Id\" = @Id",
+        "Config" => "SELECT * FROM \"Config\" WHERE \"Id\" = @Id",
+        "DownloadClientDefinitions" => "SELECT * FROM \"DownloadClientDefinitions\" WHERE \"Id\" = @Id",
+        "DownloadHistory" => "SELECT * FROM \"DownloadHistory\" WHERE \"Id\" = @Id",
+        "IdentityProviders" => "SELECT * FROM \"IdentityProviders\" WHERE \"Id\" = @Id",
+        "IndexerDefinitions" => "SELECT * FROM \"IndexerDefinitions\" WHERE \"Id\" = @Id",
+        "NetworkSettings" => "SELECT * FROM \"NetworkSettings\" WHERE \"Id\" = @Id",
+        "NotificationDefinitions" => "SELECT * FROM \"NotificationDefinitions\" WHERE \"Id\" = @Id",
+        "RssRules" => "SELECT * FROM \"RssRules\" WHERE \"Id\" = @Id",
+        "ScheduledTasks" => "SELECT * FROM \"ScheduledTasks\" WHERE \"Id\" = @Id",
+        "SpeedSchedules" => "SELECT * FROM \"SpeedSchedules\" WHERE \"Id\" = @Id",
+        "Tags" => "SELECT * FROM \"Tags\" WHERE \"Id\" = @Id",
+        "TorrentEventLogs" => "SELECT * FROM \"TorrentEventLogs\" WHERE \"Id\" = @Id",
+        "TorrentFiles" => "SELECT * FROM \"TorrentFiles\" WHERE \"Id\" = @Id",
+        "TorrentMediaMetadata" => "SELECT * FROM \"TorrentMediaMetadata\" WHERE \"Id\" = @Id",
+        "Torrents" => "SELECT * FROM \"Torrents\" WHERE \"Id\" = @Id",
+        "TrackerBoostTrackers" => "SELECT * FROM \"TrackerBoostTrackers\" WHERE \"Id\" = @Id",
+        "TrackerEntries" => "SELECT * FROM \"TrackerEntries\" WHERE \"Id\" = @Id",
+        "TrackerMetrics" => "SELECT * FROM \"TrackerMetrics\" WHERE \"Id\" = @Id",
+        "TrackerMetricSnapshots" => "SELECT * FROM \"TrackerMetricSnapshots\" WHERE \"Id\" = @Id",
+        "UserExternalLogins" => "SELECT * FROM \"UserExternalLogins\" WHERE \"Id\" = @Id",
+        "Users" => "SELECT * FROM \"Users\" WHERE \"Id\" = @Id",
+        "UserSessions" => "SELECT * FROM \"UserSessions\" WHERE \"Id\" = @Id",
+        _ => "SELECT * FROM \"" + SanitizeTableName(tableName) + "\" WHERE \"Id\" = @Id"
+    };
+
+    private static string SanitizeTableName(string tableName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName) || !tableName.All(c => char.IsLetterOrDigit(c) || c == '_'))
+        {
+            throw new ArgumentException($"Invalid table name: {tableName}", nameof(tableName));
+        }
+
+        return tableName;
     }
 }
