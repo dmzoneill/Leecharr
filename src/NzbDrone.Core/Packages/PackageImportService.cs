@@ -82,7 +82,7 @@ public class PackageImportService : IPackageImportService
             else
             {
                 var ms = new MemoryStream();
-                ms.Write(header, 0, readHeader);
+                await ms.WriteAsync(header.AsMemory(0, readHeader), cancellationToken);
                 await archiveStream.CopyToAsync(ms, cancellationToken);
                 ms.Position = 0;
                 effectiveStream = isGzip ? new GZipStream(ms, CompressionMode.Decompress, leaveOpen: true) : ms;
