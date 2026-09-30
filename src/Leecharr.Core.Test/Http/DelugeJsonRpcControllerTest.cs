@@ -1448,7 +1448,7 @@ public class DelugeJsonRpcControllerTest
         loginResult.Should().BeOfType<JsonResult>();
 
         var cookiesHeader = context.Response.Headers["Set-Cookie"].ToString();
-        var match = System.Text.RegularExpressions.Regex.Match(cookiesHeader, @"_session_id=([a-f0-9]+)");
+        var match = System.Text.RegularExpressions.Regex.Match(cookiesHeader, @"_session_id=([a-f0-9]+)", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(2));
         match.Success.Should().BeTrue();
         var sid = match.Groups[1].Value;
 
@@ -1478,7 +1478,7 @@ public class DelugeJsonRpcControllerTest
         await this.controller.HandleRpc(loginDoc.RootElement);
 
         var cookiesHeader = context.Response.Headers["Set-Cookie"].ToString();
-        var match = System.Text.RegularExpressions.Regex.Match(cookiesHeader, @"_session_id=([a-f0-9]+)");
+        var match = System.Text.RegularExpressions.Regex.Match(cookiesHeader, @"_session_id=([a-f0-9]+)", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(2));
         var sid = match.Groups[1].Value;
 
         // 2. Delete session
