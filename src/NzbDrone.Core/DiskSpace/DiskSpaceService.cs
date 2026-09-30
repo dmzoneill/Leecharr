@@ -167,6 +167,17 @@ public class DiskSpaceService : IDiskSpaceService
                     volumeKey = $"{totalSpace.Value}_{path}";
                 }
 
+                var isSubdirectoryOfSharedVolume = result.Any(existing =>
+                    (path.StartsWith(existing.Path + "/", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith(existing.Path + "\\", StringComparison.OrdinalIgnoreCase)) &&
+                    existing.TotalSpace == totalSpace.Value &&
+                    existing.FreeSpace == freeSpace.Value);
+
+                if (isSubdirectoryOfSharedVolume)
+                {
+                    return;
+                }
+
                 if (!seenVolumes.Contains(volumeKey) && !seen.Contains(path) && (string.IsNullOrWhiteSpace(driveRoot) || !seen.Contains(driveRoot)))
                 {
                     seenVolumes.Add(volumeKey);

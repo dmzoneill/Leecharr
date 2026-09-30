@@ -3418,15 +3418,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return;
         }
 
-        if (existingTask != null)
+        if (existingTask != null && existingTask.IsFilesMovedToCompleted)
         {
-            if (existingTask.IsFilesMovedToCompleted)
-            {
-                this.logger.Debug("Torrent {0} ({1}) files already moved to completed directory; skipping duplicate completion move.", torrentId, torrentName);
-                return;
-            }
-
-            existingTask.IsFilesMovedToCompleted = true;
+            this.logger.Debug("Torrent {0} ({1}) files already moved to completed directory; skipping duplicate completion move.", torrentId, torrentName);
+            return;
         }
 
         // Flush dirty write cache blocks to disk before moving files
@@ -3474,9 +3469,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
             catch (Exception ex)
             {
+                if (existingTask != null)
+                {
+                    existingTask.IsFilesMovedToCompleted = false;
+                }
+
                 this.logger.Warn(ex, "Failed to perform auto hash check on completion for torrent {0}", torrentId);
                 return;
             }
+        }
+
+        if (existingTask != null)
+        {
+            existingTask.IsFilesMovedToCompleted = true;
         }
 
         var customSavePath = existingTask?.SavePath;
