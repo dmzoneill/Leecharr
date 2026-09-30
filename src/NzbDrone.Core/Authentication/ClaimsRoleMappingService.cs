@@ -54,7 +54,7 @@ public class ClaimsRoleMappingService : IClaimsRoleMappingService
                             continue;
                         }
 
-                        var regex = new Regex(regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                        var regex = new Regex(regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
                         if (validGroups.Any(g => regex.IsMatch(g)))
                         {
                             assignedRoles.Add(role);

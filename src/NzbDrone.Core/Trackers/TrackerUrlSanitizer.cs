@@ -180,7 +180,7 @@ public static class TrackerUrlSanitizer
 
     private static string SanitizeQueryStringOnly(string url)
     {
-        var regex = new Regex(@"([?&](?:passkey|authkey|torrentpass|torrent_pass|auth|token|pass|key)=)[^&#]+", RegexOptions.IgnoreCase);
+        var regex = new Regex(@"([?&](?:passkey|authkey|torrentpass|torrent_pass|auth|token|pass|key)=)[^&#]+", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
         return regex.Replace(url, $"$1{Mask}");
     }
 }
