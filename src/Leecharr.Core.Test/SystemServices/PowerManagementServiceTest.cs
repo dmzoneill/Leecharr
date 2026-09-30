@@ -264,7 +264,7 @@ public class PowerManagementServiceTest
         var result = await service.ExecutePowerActionAsync(PowerAction.Shutdown);
 
         result.Should().BeTrue();
-        executedCommand.Should().Be("systemctl");
+        executedCommand.Should().EndWith("systemctl");
         executedArguments.Should().Equal(new[] { "poweroff" });
     }
 
@@ -289,7 +289,7 @@ public class PowerManagementServiceTest
         var result = await service.ExecutePowerActionAsync(PowerAction.Suspend);
 
         result.Should().BeTrue();
-        executedCommand.Should().Be("systemctl");
+        executedCommand.Should().EndWith("systemctl");
         executedArguments.Should().Equal(new[] { "suspend" });
     }
 
@@ -314,7 +314,7 @@ public class PowerManagementServiceTest
         var result = await service.ExecutePowerActionAsync(PowerAction.Hibernate);
 
         result.Should().BeTrue();
-        executedCommand.Should().Be("systemctl");
+        executedCommand.Should().EndWith("systemctl");
         executedArguments.Should().Equal(new[] { "hibernate" });
     }
 

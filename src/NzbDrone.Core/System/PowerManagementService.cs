@@ -515,7 +515,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "systemd-inhibit",
+                    FileName = File.Exists("/bin/systemd-inhibit") ? "/bin/systemd-inhibit" : "/usr/bin/systemd-inhibit",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 },
@@ -569,11 +569,12 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
     private async Task<bool> ExecuteLinuxPowerActionAsync(PowerAction action)
     {
+        var systemctl = File.Exists("/bin/systemctl") ? "/bin/systemctl" : "/usr/bin/systemctl";
         var (cmd, args) = action switch
         {
-            PowerAction.Shutdown => ("systemctl", new[] { "poweroff" }),
-            PowerAction.Suspend => ("systemctl", new[] { "suspend" }),
-            PowerAction.Hibernate => ("systemctl", new[] { "hibernate" }),
+            PowerAction.Shutdown => (systemctl, new[] { "poweroff" }),
+            PowerAction.Suspend => (systemctl, new[] { "suspend" }),
+            PowerAction.Hibernate => (systemctl, new[] { "hibernate" }),
             _ => (null, null),
         };
 
