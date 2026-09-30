@@ -1999,7 +1999,7 @@ const es: I18nTranslations = {
     "loginTitle": "Autenticación de Leecharr",
     "welcomeBack": "Inicie sesión para acceder a su instancia de Leecharr.",
     "username": "Usuario",
-    "password": "Contraseña",
+    "password": "Contraseña", // NOSONAR
     "loginBtn": "Iniciar sesión",
     "loggingIn": "Iniciando sesión...",
     "invalidCredentials": "Usuario o contraseña inválidos. Inténtelo de nuevo.",
@@ -3192,7 +3192,7 @@ const es: I18nTranslations = {
       "port": "Puerto",
       "useSsl": "Usar SSL",
       "username": "Usuario",
-      "password": "Contraseña",
+      "password": "Contraseña", // NOSONAR
       "category": "Categoría",
       "categoryHint": "Filtrar por categoría",
       "testingConnectionTo": "Probando la conexión a {{host}}:{{port}}...",

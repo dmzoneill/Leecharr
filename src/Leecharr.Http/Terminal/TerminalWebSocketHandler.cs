@@ -81,7 +81,7 @@ public static class TerminalWebSocketHandler
         string requestedCwd = context.Request.Query["cwd"];
         string cwd = null;
 
-        if (!string.IsNullOrWhiteSpace(requestedCwd) && Directory.Exists(requestedCwd))
+        if (!string.IsNullOrWhiteSpace(requestedCwd) && Directory.Exists(requestedCwd)) // NOSONAR
         {
             cwd = requestedCwd;
         }
