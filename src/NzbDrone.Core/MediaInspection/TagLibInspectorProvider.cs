@@ -658,7 +658,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 ApplyVideoCodecId(info, trackCodecId);
             }
 
-            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b", RegexOptions.IgnoreCase))
+            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
             {
                 context.HasDolbyVision = true;
             }
@@ -2046,7 +2046,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         if (codecId.StartsWith("A_TRUEHD", StringComparison.OrdinalIgnoreCase) ||
             codecId.StartsWith("A_MLP", StringComparison.OrdinalIgnoreCase))
         {
-            var isAtmos = !string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase);
+            var isAtmos = !string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             codecName = isAtmos ? "Dolby TrueHD / Atmos" : "Dolby TrueHD";
             score = 50;
         }
@@ -2071,7 +2071,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
         else if (codecId.StartsWith("A_EAC3", StringComparison.OrdinalIgnoreCase))
         {
-            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
             {
                 codecName = "Dolby Atmos";
                 score = 48;
@@ -3642,31 +3642,31 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         // Video Codec (only if missing)
         if (string.IsNullOrEmpty(info.VideoCodec))
         {
-            if (Regex.IsMatch(normalized, @"\b(HEVC|H\s*265|X265)\b"))
+            if (Regex.IsMatch(normalized, @"\b(HEVC|H\s*265|X265)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.VideoCodec = "HEVC / H.265";
             }
-            else if (Regex.IsMatch(normalized, @"\b(AVC|H\s*264|X264)\b"))
+            else if (Regex.IsMatch(normalized, @"\b(AVC|H\s*264|X264)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.VideoCodec = "AVC / H.264";
             }
-            else if (Regex.IsMatch(normalized, @"\bAV1\b"))
+            else if (Regex.IsMatch(normalized, @"\bAV1\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.VideoCodec = "AV1";
             }
-            else if (Regex.IsMatch(normalized, @"\bVP9\b"))
+            else if (Regex.IsMatch(normalized, @"\bVP9\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.VideoCodec = "VP9";
             }
-            else if (Regex.IsMatch(normalized, @"\bVP8\b"))
+            else if (Regex.IsMatch(normalized, @"\bVP8\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.VideoCodec = "VP8";
             }
-            else if (Regex.IsMatch(normalized, @"\b(MPEG\s*2|MPEG2)\b"))
+            else if (Regex.IsMatch(normalized, @"\b(MPEG\s*2|MPEG2)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.VideoCodec = "MPEG-2";
             }
-            else if (Regex.IsMatch(normalized, @"\b(VC\s*1|VC1|WVC1)\b"))
+            else if (Regex.IsMatch(normalized, @"\b(VC\s*1|VC1|WVC1)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.VideoCodec = "VC-1";
             }
@@ -3677,13 +3677,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             (info.AudioCodec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
             info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
             info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)) &&
-            Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
+            Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             info.AudioCodec = "Dolby Atmos";
         }
 
         if (string.Equals(info.AudioCodec, "Dolby TrueHD", StringComparison.OrdinalIgnoreCase) &&
-            Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
+            Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
         {
             info.AudioCodec = "Dolby TrueHD / Atmos";
         }
@@ -3694,60 +3694,60 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             string hintedCodec = null;
             string hintedChannels = null;
 
-            if (Regex.IsMatch(normalized, @"\b(7\s*1|8CH)\b") || upper.Contains("7.1"))
+            if (Regex.IsMatch(normalized, @"\b(7\s*1|8CH)\b", RegexOptions.None, TimeSpan.FromSeconds(2)) || upper.Contains("7.1"))
             {
                 hintedChannels = "7.1";
             }
-            else if (Regex.IsMatch(normalized, @"\b(5\s*1|6CH|DD5\s*1)\b") || upper.Contains("5.1") || upper.Contains("DD5.1"))
+            else if (Regex.IsMatch(normalized, @"\b(5\s*1|6CH|DD5\s*1)\b", RegexOptions.None, TimeSpan.FromSeconds(2)) || upper.Contains("5.1") || upper.Contains("DD5.1"))
             {
                 hintedChannels = "5.1";
             }
-            else if (Regex.IsMatch(normalized, @"\b(2\s*0|2CH|STEREO)\b") || upper.Contains("2.0"))
+            else if (Regex.IsMatch(normalized, @"\b(2\s*0|2CH|STEREO)\b", RegexOptions.None, TimeSpan.FromSeconds(2)) || upper.Contains("2.0"))
             {
                 hintedChannels = "2.0";
             }
-            else if (Regex.IsMatch(normalized, @"\b(1\s*0|1CH|MONO)\b") || upper.Contains("1.0"))
+            else if (Regex.IsMatch(normalized, @"\b(1\s*0|1CH|MONO)\b", RegexOptions.None, TimeSpan.FromSeconds(2)) || upper.Contains("1.0"))
             {
                 hintedChannels = "1.0";
             }
 
-            if (Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
+            if (Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 hintedCodec = "Dolby Atmos";
             }
-            else if (Regex.IsMatch(normalized, @"\bTRUEHD\b"))
+            else if (Regex.IsMatch(normalized, @"\bTRUEHD\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 hintedCodec = "Dolby TrueHD";
             }
-            else if (Regex.IsMatch(normalized, @"\bDTS\s*HD(\s*MA)?\b"))
+            else if (Regex.IsMatch(normalized, @"\bDTS\s*HD(\s*MA)?\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 hintedCodec = "DTS-HD MA";
             }
-            else if (Regex.IsMatch(normalized, @"\bDTS\b"))
+            else if (Regex.IsMatch(normalized, @"\bDTS\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 hintedCodec = "DTS";
             }
-            else if (Regex.IsMatch(normalized, @"\b(EAC3|DDP)\b") || upper.Contains("DD+"))
+            else if (Regex.IsMatch(normalized, @"\b(EAC3|DDP)\b", RegexOptions.None, TimeSpan.FromSeconds(2)) || upper.Contains("DD+"))
             {
                 hintedCodec = "E-AC3 / DD+";
             }
-            else if (Regex.IsMatch(normalized, @"\b(AC3|DD\s*5\s*1)\b") || upper.Contains("DD5.1") || upper.Contains("DD 5.1"))
+            else if (Regex.IsMatch(normalized, @"\b(AC3|DD\s*5\s*1)\b", RegexOptions.None, TimeSpan.FromSeconds(2)) || upper.Contains("DD5.1") || upper.Contains("DD 5.1"))
             {
                 hintedCodec = "AC3 / Dolby Digital";
             }
-            else if (Regex.IsMatch(normalized, @"\bFLAC\b"))
+            else if (Regex.IsMatch(normalized, @"\bFLAC\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 hintedCodec = "FLAC";
             }
-            else if (Regex.IsMatch(normalized, @"\bAAC\b"))
+            else if (Regex.IsMatch(normalized, @"\bAAC\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 hintedCodec = "AAC";
             }
-            else if (Regex.IsMatch(normalized, @"\bOPUS\b"))
+            else if (Regex.IsMatch(normalized, @"\bOPUS\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 hintedCodec = "Opus";
             }
-            else if (Regex.IsMatch(normalized, @"\bMP3\b"))
+            else if (Regex.IsMatch(normalized, @"\bMP3\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 hintedCodec = "MP3";
             }
@@ -3757,7 +3757,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 info.AudioCodec = hintedCodec;
             }
             else if (string.Equals(info.AudioCodec, "Dolby TrueHD", StringComparison.OrdinalIgnoreCase) &&
-                    Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
+                    Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 info.AudioCodec = "Dolby TrueHD / Atmos";
             }
