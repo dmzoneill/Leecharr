@@ -19,7 +19,7 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<ArrConnectionDefinition>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"Enable\" = @Enable ORDER BY \"Priority\"",
+                "SELECT * FROM \"ArrConnections\" WHERE \"Enable\" = @Enable ORDER BY \"Priority\"",
                 new { Enable = true }));
     }
 
@@ -27,7 +27,7 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
     {
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<ArrConnectionDefinition>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"ArrType\" = @ArrType",
+                "SELECT * FROM \"ArrConnections\" WHERE \"ArrType\" = @ArrType",
                 new { ArrType = arrType }));
     }
 
