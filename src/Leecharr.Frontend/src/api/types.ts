@@ -1016,6 +1016,7 @@ export interface MediaMetadata {
   overview?: string | null;
   posterUrl?: string | null;
   fanartUrl?: string | null;
+  backdropUrl?: string | null;
   bannerUrl?: string | null;
   genres?: string[];
   actors?: MediaActor[];
@@ -1024,7 +1025,11 @@ export interface MediaMetadata {
   imdbId?: string | null;
   tmdbId?: number | null;
   tvdbId?: number | null;
+  musicBrainzId?: string | null;
+  artistName?: string | null;
+  albumTitle?: string | null;
   cast?: string[] | null;
+  mediaInfoJson?: string | null;
 }
 
 export interface DownloadHistoryEntry {
@@ -1243,38 +1248,6 @@ export interface TrackerBoostLogEntry {
   trackerUrl: string;
   infoHash: string;
   message: string;
-}
-
-export interface MediaActor {
-  name: string;
-  character?: string | null;
-  imageUrl?: string | null;
-}
-
-export interface MediaMetadata {
-  mediaType?: string | null;
-  mediaId?: number | null;
-  arrType?: string | null;
-  arrMediaId?: number | null;
-  title?: string | null;
-  year?: number | null;
-  overview?: string | null;
-  posterUrl?: string | null;
-  fanartUrl?: string | null;
-  backdropUrl?: string | null;
-  bannerUrl?: string | null;
-  genres?: string[];
-  actors?: MediaActor[];
-  studioOrNetwork?: string | null;
-  rating?: number | null;
-  imdbId?: string | null;
-  tmdbId?: number | null;
-  tvdbId?: number | null;
-  musicBrainzId?: string | null;
-  artistName?: string | null;
-  albumTitle?: string | null;
-  cast?: string[] | null;
-  mediaInfoJson?: string | null;
 }
 
 export interface TorrentEngineCapabilities {
