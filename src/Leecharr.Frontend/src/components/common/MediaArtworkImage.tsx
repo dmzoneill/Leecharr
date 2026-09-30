@@ -70,8 +70,20 @@ export const MediaArtworkImage: React.FC<MediaArtworkImageProps> = ({
   return (
     <div
       className={`media-artwork-container ${className}`.trim()}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       style={containerStyle}
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick(e as unknown as React.MouseEvent<HTMLDivElement>);
+              }
+            }
+          : undefined
+      }
     >
       {hasValidSrc ? (
         <img

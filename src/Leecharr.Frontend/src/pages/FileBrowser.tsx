@@ -1316,7 +1316,17 @@ export function FileBrowser() {
       {previewPath && (
         <div
           className="modal-overlay"
+          role="button"
+          tabIndex={0}
           onClick={() => setPreviewPath(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              if (e.target === e.currentTarget) {
+                e.preventDefault();
+                setPreviewPath(null);
+              }
+            }
+          }}
           style={{
             position: "fixed",
             inset: 0,
@@ -1331,7 +1341,14 @@ export function FileBrowser() {
         >
           <div
             className="modal-content"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               width: "100%",
               maxWidth: "850px",
