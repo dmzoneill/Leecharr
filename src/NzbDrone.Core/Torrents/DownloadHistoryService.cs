@@ -90,9 +90,9 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     {
     }
 
-    public List<DownloadHistory> GetAll(string query = null, string status = null, int limit = 500, int offset = 0)
+    public List<DownloadHistory> GetAll(string query = null, string status = null, int limit = 500, int offset = 0, DateTime? startDate = null, DateTime? endDate = null)
     {
-        return this.historyRepository.GetHistory(query, status, limit, offset);
+        return this.historyRepository.GetHistory(query, status, limit, offset, startDate, endDate);
     }
 
     public DownloadHistory Get(int id)

@@ -130,7 +130,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
           >
             {isReconciling
               ? t("common.loading")
-              : "🔄 " + t("history.syncArrMetadata")}
+              : "🔄 " + t("history.scanActive", "Scan Active Downloads")}
           </button>
 
           <button
