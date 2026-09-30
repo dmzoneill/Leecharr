@@ -1,6 +1,7 @@
 import { useTranslation } from "../i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
+import { useToast } from "../context/ToastContext";
 import { trackSystemMaintenanceAction } from "../utils/analytics";
 
 interface ScheduledTask {
@@ -193,9 +194,22 @@ function statusClass(status: string): string {
   }
 }
 
+function isCancellable(status?: string): boolean {
+  switch (status?.toLowerCase()) {
+    case "queued":
+    case "running":
+    case "started":
+    case "pending":
+      return true;
+    default:
+      return false;
+  }
+}
+
 function SystemTasks() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const {
     data: tasks,
@@ -227,9 +241,39 @@ function SystemTasks() {
       return apiClient.post(endpoint, {});
     },
     onSuccess: (_, task) => {
+      const taskLabel = formatTaskName(task.name || task.typeName, t);
       trackSystemMaintenanceAction("task_run", task.name || task.typeName);
       queryClient.invalidateQueries({ queryKey: ["system", "tasks"] });
       queryClient.invalidateQueries({ queryKey: ["system", "commands"] });
+      showToast(
+        taskLabel ? `Task started: ${taskLabel}` : "Task queued for execution",
+        "success",
+      );
+    },
+    onError: (err: unknown, task) => {
+      const taskLabel = formatTaskName(task.name || task.typeName, t);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      showToast(
+        taskLabel
+          ? `Failed to execute ${taskLabel}: ${errMsg}`
+          : `Failed to execute task: ${errMsg}`,
+        "error",
+      );
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (commandId: number) => {
+      return apiClient.delete(`/system/command/${commandId}`);
+    },
+    onSuccess: (_, commandId) => {
+      queryClient.invalidateQueries({ queryKey: ["system", "commands"] });
+      queryClient.invalidateQueries({ queryKey: ["system", "tasks"] });
+      showToast(`Command #${commandId} cancelled`, "success");
+    },
+    onError: (err: unknown, commandId) => {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      showToast(`Failed to cancel command #${commandId}: ${errMsg}`, "error");
     },
   });
 
@@ -484,6 +528,9 @@ function SystemTasks() {
                   <th className="torrent-table-th">{t("system.started")}</th>
                   <th className="torrent-table-th">{t("system.ended")}</th>
                   <th className="torrent-table-th">{t("system.duration")}</th>
+                  <th className="torrent-table-th" style={{ textAlign: "right" }}>
+                    {t("common.actions")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -525,6 +572,30 @@ function SystemTasks() {
                       <code style={{ fontSize: "0.8rem" }}>
                         {formatDuration(cmd.duration)}
                       </code>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      {isCancellable(cmd.status) && (
+                        <button
+                          className="btn btn-outline"
+                          style={{
+                            fontSize: "0.75rem",
+                            padding: "0.25rem 0.6rem",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.3rem",
+                            color: "var(--danger, #ef4444)",
+                            borderColor: "var(--danger, #ef4444)",
+                          }}
+                          onClick={() => cancelMutation.mutate(cmd.id)}
+                          disabled={
+                            cancelMutation.isPending &&
+                            cancelMutation.variables === cmd.id
+                          }
+                          title={t("common.cancel")}
+                        >
+                          ✕ {t("common.cancel")}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
