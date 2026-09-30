@@ -295,4 +295,22 @@ public class TorrentResourceMapperTest
         resource.Should().NotBeNull();
         resource.Availability.Should().BeNull();
     }
+
+    [Test]
+    public void ToResource_MapsThresholdAndSmallTorrentLimit()
+    {
+        var torrent = new Torrent
+        {
+            Id = 400,
+            Name = "Swarm Settings Torrent",
+            Threshold = 5,
+            SmallTorrentLimit = 150,
+        };
+
+        var resource = TorrentResourceMapper.ToResource(torrent);
+
+        resource.Should().NotBeNull();
+        resource.Threshold.Should().Be(5);
+        resource.SmallTorrentLimit.Should().Be(150);
+    }
 }
