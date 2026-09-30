@@ -241,6 +241,7 @@ function TrackerServer() {
           {/* View Mode Toggle */}
           <div className="view-toggle">
             <button
+              type="button"
               className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
               onClick={() => setViewMode("grid")}
               title="Poster Card Grid View"
@@ -248,6 +249,7 @@ function TrackerServer() {
               🎬 Posters
             </button>
             <button
+              type="button"
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
               onClick={() => setViewMode("table")}
               title="Detailed Table View"
@@ -258,6 +260,7 @@ function TrackerServer() {
 
           {config && (
             <button
+              type="button"
               className={`btn ${config.trackerServerEnabled ? "btn-danger" : "btn-success"}`}
               onClick={handleToggleEnabled}
               disabled={saveConfig.isPending}
@@ -353,6 +356,7 @@ function TrackerServer() {
                 </code>
               </div>
               <button
+                type="button"
                 className="btn btn-outline"
                 style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
                 onClick={() => copyToClipboard(httpAnnounceUrl, "HTTP URL")}
@@ -391,6 +395,7 @@ function TrackerServer() {
                 </code>
               </div>
               <button
+                type="button"
                 className="btn btn-outline"
                 style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
                 onClick={() => copyToClipboard(udpAnnounceUrl, "UDP URL")}
@@ -434,6 +439,7 @@ function TrackerServer() {
           ).map((scope) => (
             <button
               key={scope.id}
+              type="button"
               className={`btn ${filterScope === scope.id ? "btn-primary" : "btn-outline"}`}
               style={{
                 fontSize: "0.82rem",
@@ -498,6 +504,7 @@ function TrackerServer() {
               <option value="completed">Completed</option>
             </select>
             <button
+              type="button"
               className="btn btn-outline"
               onClick={() =>
                 setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
@@ -544,6 +551,7 @@ function TrackerServer() {
             />
             {searchTerm && (
               <button
+                type="button"
                 className="btn btn-outline"
                 onClick={() => setSearchTerm("")}
                 style={{
@@ -715,6 +723,8 @@ function TrackerServer() {
 
                   {/* Top Left Source Badge */}
                   <div
+                    role="button"
+                    tabIndex={0}
                     style={{
                       position: "absolute",
                       top: "8px",
@@ -729,6 +739,19 @@ function TrackerServer() {
                           "_blank",
                           "noopener,noreferrer",
                         );
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        if (arrLink) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.open(
+                            arrLink.url,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                        }
                       }
                     }}
                   >
