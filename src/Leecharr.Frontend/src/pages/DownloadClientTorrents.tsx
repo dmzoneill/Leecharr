@@ -1877,6 +1877,8 @@ export default function DownloadClientTorrents() {
       {deleteTarget && (
         <div
           className="modal-backdrop"
+          role="button"
+          tabIndex={0}
           style={{
             position: "fixed",
             top: 0,
@@ -1890,9 +1892,17 @@ export default function DownloadClientTorrents() {
             zIndex: 1000,
           }}
           onClick={() => setDeleteTarget(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setDeleteTarget(null);
+            }
+          }}
         >
           <div
             className="modal-dialog"
+            role="button"
+            tabIndex={0}
             style={{
               backgroundColor: "var(--bg-secondary, #1e1e24)",
               borderRadius: "8px",
@@ -1903,6 +1913,11 @@ export default function DownloadClientTorrents() {
               border: "1px solid var(--border-light, #333)",
             }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
           >
             <div
               style={{
@@ -1996,12 +2011,27 @@ export default function DownloadClientTorrents() {
       {failedImportItems && failedImportItems.length > 0 && (
         <div
           className="modal-overlay"
+          role="button"
+          tabIndex={0}
           onClick={() => setFailedImportItems(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setFailedImportItems(null);
+            }
+          }}
           style={{ zIndex: 1100 }}
         >
           <div
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 720,
               width: "90%",

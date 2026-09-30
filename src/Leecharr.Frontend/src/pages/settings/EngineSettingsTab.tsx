@@ -937,11 +937,26 @@ export function EngineSettingsTab() {
       {selectedEngineForSwitch && (
         <div
           className="modal-overlay"
+          role="button"
+          tabIndex={0}
           onClick={() => setSelectedEngineForSwitch(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setSelectedEngineForSwitch(null);
+            }
+          }}
         >
           <div
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{ maxWidth: 460 }}
           >
             <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
@@ -1007,11 +1022,26 @@ export function EngineSettingsTab() {
       {selectedVersionForSwitch && (
         <div
           className="modal-overlay"
+          role="button"
+          tabIndex={0}
           onClick={() => setSelectedVersionForSwitch(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setSelectedVersionForSwitch(null);
+            }
+          }}
         >
           <div
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{ maxWidth: 460 }}
           >
             <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
@@ -1073,10 +1103,28 @@ export function EngineSettingsTab() {
 
       {/* Probe Diagnostic Results Modal */}
       {probeResult && (
-        <div className="modal-overlay" onClick={() => setProbeResult(null)}>
+        <div
+          className="modal-overlay"
+          role="button"
+          tabIndex={0}
+          onClick={() => setProbeResult(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setProbeResult(null);
+            }
+          }}
+        >
           <div
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{ maxWidth: 520 }}
           >
             <div
