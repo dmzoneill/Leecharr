@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { useToast } from "../context/ToastContext";
 import { ConfirmModal } from "../components/ConfirmModal";
-import { getUrlBase } from "../api/client";
+import { apiClient, getUrlBase } from "../api/client";
 
 function DownloadIcon() {
   return (
@@ -99,6 +99,12 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
   const toast = useToast();
 
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+
+  const getDownloadUrl = (filename: string) => {
+    const apiKey = apiClient.getApiKey();
+    const base = `${getUrlBase()}/api/v1/logfile/${encodeURIComponent(filename)}`;
+    return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
+  };
 
   const appData = status?.appDataPath || status?.appDataFolder;
   const logPath = appData ? `${appData}/logs` : "{appData}/logs";
@@ -330,7 +336,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                     <td>{formatFileSize(file.size)}</td>
                     <td style={{ textAlign: "right" }}>
                       <a
-                        href={`${getUrlBase()}/api/v1/logfile/${file.filename}`}
+                        href={getDownloadUrl(file.filename)}
                         className="btn btn-outline btn-small"
                         download
                         style={{
