@@ -347,6 +347,7 @@ public class AuthController : ControllerBase
     [HttpPost("callback/saml/{providerId?}")]
     [HttpPost("callback/saml")]
     [AllowAnonymous]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5146", Justification = "LocalRedirect guarantees only local relative paths are redirected")]
     public async Task<ActionResult> SamlCallback(
         [FromRoute] string providerId = null,
         [FromForm(Name = "SAMLResponse")] string samlResponse = null,
@@ -715,7 +716,7 @@ public class AuthController : ControllerBase
                 safeRedirect = relayState;
             }
 
-            return this.Redirect(safeRedirect);
+            return this.LocalRedirect(safeRedirect.StartsWith('/') ? safeRedirect : "/");
         }
         catch (Exception ex)
         {

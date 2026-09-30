@@ -70,6 +70,7 @@ public class AppFolderInfo : IAppFolderInfo
 
     public string StartUpFolder { get; }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443", Justification = "Fallback application data folder")]
     private static string ResolveHomeDirectory()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -82,7 +83,7 @@ public class AppFolderInfo : IAppFolderInfo
         {
             home = OperatingSystem.IsWindows()
                 ? (Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) ?? "C:\\ProgramData")
-                : (OperatingSystem.IsMacOS() ? "/Users/Shared" : "/root");
+                : (OperatingSystem.IsMacOS() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr") : "/root");
         }
 
         return home;

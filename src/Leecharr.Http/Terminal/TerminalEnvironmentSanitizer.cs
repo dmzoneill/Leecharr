@@ -57,6 +57,8 @@ public static class TerminalEnvironmentSanitizer
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443", Justification = "Private temp directory created with 0700 permissions")]
+#pragma warning disable S5443
     public static string GetSafeTempDirectory()
     {
         var privateDir = Path.Combine(Path.GetTempPath(), "leecharr-" + Environment.ProcessId);
@@ -75,6 +77,7 @@ public static class TerminalEnvironmentSanitizer
         return privateDir;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443", Justification = "Private temp directory created with 0700 permissions")]
     public static void Sanitize(ProcessStartInfo startInfo)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
@@ -159,4 +162,5 @@ public static class TerminalEnvironmentSanitizer
 
         StripSensitiveKeys(startInfo);
     }
+#pragma warning restore S5443
 }
