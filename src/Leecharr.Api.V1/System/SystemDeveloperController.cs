@@ -12,6 +12,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Developer;
@@ -243,7 +244,7 @@ public class SystemDeveloperController : Controller
         try
         {
             var bodyJson = request.Parameters != null && request.Parameters.Count > 0
-                ? JsonSerializer.Serialize(request.Parameters)
+                ? STJson.ToJson(request.Parameters)
                 : "{}";
 
             var model = this.commandQueue.PushRaw(request.CommandName, bodyJson, CommandTrigger.Manual);
