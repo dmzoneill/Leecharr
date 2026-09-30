@@ -17,4 +17,6 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5144", Justification = "Outbound integration tests and webhooks to user-configured Arr and indexer instances.")]
 [assembly: SuppressMessage("roslyn.sonaranalyzer.security.cs", "S6776", Justification = "Authorized developer diagnostics endpoints return thread traces by design.")]
 [assembly: SuppressMessage("Security", "S1313", Justification = "Sample/fallback IP addresses in test runners and diagnostic network discovery.")]
+[assembly: SuppressMessage("roslyn.sonaranalyzer.security.cs", "S3649", Justification = "Admin database query console")]
+[assembly: SuppressMessage("Security", "S3649", Justification = "Admin database query console")]
 
