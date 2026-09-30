@@ -117,7 +117,14 @@ export function DeleteTorrentModal({
       <div
         ref={setContainerRef}
         className="modal-content modal"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           width: "100%",
           maxWidth: "480px",

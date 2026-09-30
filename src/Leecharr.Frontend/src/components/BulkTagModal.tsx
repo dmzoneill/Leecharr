@@ -178,6 +178,8 @@ export function BulkTagModal({
       <div
         ref={setContainerRef}
         className="modal"
+        role="button"
+        tabIndex={0}
         style={{
           maxWidth: "480px",
           width: "90%",
@@ -186,6 +188,11 @@ export function BulkTagModal({
           flexDirection: "column",
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
       >
         {/* Header with Title and Close Button */}
         <div
