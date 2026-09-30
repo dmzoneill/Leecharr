@@ -271,6 +271,8 @@ export function TorrentFilterPanel({
       {/* Tag / Label Section */}
       <div
         className="filter-panel-header"
+        role="button"
+        tabIndex={0}
         style={{
           cursor: "pointer",
           userSelect: "none",
@@ -280,6 +282,12 @@ export function TorrentFilterPanel({
           justifyContent: "space-between",
         }}
         onClick={() => setIsTagOpen(!isTagOpen)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsTagOpen(!isTagOpen);
+          }
+        }}
       >
         <div
           className="filter-panel-section"
