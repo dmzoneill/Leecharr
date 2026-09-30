@@ -879,7 +879,15 @@ export function NotificationsTab() {
                 <div
                   key={notif.id}
                   className="provider-card"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleOpenModal(notif)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpenModal(notif);
+                    }
+                  }}
                 >
                   <div className="provider-card-actions">
                     {externalUrl && (
@@ -986,7 +994,15 @@ export function NotificationsTab() {
             })}
             <div
               className="provider-card-add"
+              role="button"
+              tabIndex={0}
               onClick={handleOpenAddModal}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleOpenAddModal();
+                }
+              }}
               title={t("settingsTabs.notifications.addConnection")}
             >
               <span className="provider-card-add-icon">+</span>
