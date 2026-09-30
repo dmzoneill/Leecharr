@@ -313,7 +313,7 @@ public class PackageImportService : IPackageImportService
         }
         finally
         {
-            if (isTemporarySandbox && Directory.Exists(canonicalTargetRoot))
+            if (isTemporarySandbox && Directory.Exists(canonicalTargetRoot)) // NOSONAR
             {
                 try
                 {

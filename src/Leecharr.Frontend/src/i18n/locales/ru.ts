@@ -2394,8 +2394,8 @@ const ru: I18nTranslations = {
       "recipientAddressHint": "Адрес электронной почты назначения для уведомлений",
       "smtpUsername": "Имя пользователя SMTP",
       "smtpUsernamePlaceholder": "Дополнительное имя пользователя для аутентификации SMTP",
-      "smtpPassword": "SMTP-пароль",
-      "smtpPasswordPlaceholder": "Дополнительный пароль аутентификации SMTP",
+      "smtpPassword": "SMTP-пароль", // NOSONAR
+      "smtpPasswordPlaceholder": "Дополнительный пароль аутентификации SMTP", // NOSONAR
       "customScript": "Пользовательский скрипт",
       "scriptPath": "Путь сценария",
       "scriptPathHint": "Путь к исполняемому файлу сценария на хосте",

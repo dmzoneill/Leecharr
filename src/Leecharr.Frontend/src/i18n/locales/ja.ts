@@ -1946,7 +1946,7 @@ const ja: I18nTranslations = {
     "proxyPort": "プロキシポート",
     "enableProxyAuthentication": "プロキシ認証を有効にする",
     "proxyUsername": "プロキシのユーザー名",
-    "proxyPassword": "プロキシパスワード",
+    "proxyPassword": "プロキシパスワード", // NOSONAR
     "privacyAnonymousRoutingPo": "プライバシーと匿名ルーティング ポリシー",
     "enforceStrictProxyRoutingA": "厳密なプロキシ ルーティングを適用し、プロキシ トンネル外への IP アドレスの漏洩を防ぎます。",
     "anonymousMode": "匿名モード (クライアントの指紋とユーザー エージェントを除去)",
@@ -1999,12 +1999,12 @@ const ja: I18nTranslations = {
     "loginTitle": "Leecharr 認証",
     "welcomeBack": "サインインしてLeecharrにアクセスしてください。",
     "username": "ユーザー名",
-    "password": "パスワード",
+    "password": "パスワード", // NOSONAR
     "loginBtn": "サインイン",
     "loggingIn": "サインイン中...",
     "invalidCredentials": "ユーザー名またはパスワードが無効です。",
     "enterUsername": "ユーザー名を入力してください。",
-    "enterPassword": "パスワードを入力してください。",
+    "enterPassword": "パスワードを入力してください。", // NOSONAR
     "rememberMe": "ログイン状態を保持する",
     "orSignInWith": "または次の方法でサインインします",
     "adminPlaceholder": "管理者",
@@ -2023,9 +2023,9 @@ const ja: I18nTranslations = {
     "inactivityWarning": "非アクティブの警告",
     "inactivityWarningDesc": "以下のアクティビティがないため、セッションは自動的にロックされます。",
     "activityHint": "アクティブな状態を維持するには、マウスを動かすか任意のキーを押します。",
-    "passwordPlaceholder": "パスワードを入力してください",
-    "passwordRequired": "パスワードが必要です",
-    "invalidPassword": "無効なパスワードまたは資格情報",
+    "passwordPlaceholder": "パスワードを入力してください", // NOSONAR
+    "passwordRequired": "パスワードが必要です", // NOSONAR
+    "invalidPassword": "無効なパスワードまたは資格情報", // NOSONAR
     "sessionUnlocked": "セッションのロックが正常に解除されました",
     "lockScreen": "ロック画面"
   },
@@ -2379,8 +2379,8 @@ const ja: I18nTranslations = {
       "customHeadersHint": "HTTP ヘッダーのオプションの JSON キーと値のマップ",
       "basicAuthUsername": "基本認証ユーザー名",
       "basicAuthUsernamePlaceholder": "オプションのHTTP基本認証ユーザー名",
-      "basicAuthPassword": "基本認証パスワード",
-      "basicAuthPasswordPlaceholder": "オプションのHTTP基本認証パスワード",
+      "basicAuthPassword": "基本認証パスワード", // NOSONAR
+      "basicAuthPasswordPlaceholder": "オプションのHTTP基本認証パスワード", // NOSONAR
       "smtpServer": "SMTPサーバー",
       "smtpServerHint": "送信メールサーバーのホスト名",
       "port": "ポート",
@@ -2392,8 +2392,8 @@ const ja: I18nTranslations = {
       "recipientAddressHint": "通知の宛先メールアドレス",
       "smtpUsername": "SMTP ユーザー名",
       "smtpUsernamePlaceholder": "オプションの SMTP 認証ユーザー名",
-      "smtpPassword": "SMTPパスワード",
-      "smtpPasswordPlaceholder": "オプションのSMTP認証パスワード",
+      "smtpPassword": "SMTPパスワード", // NOSONAR
+      "smtpPasswordPlaceholder": "オプションのSMTP認証パスワード", // NOSONAR
       "customScript": "カスタムスクリプト",
       "scriptPath": "スクリプトパス",
       "scriptPathHint": "ホスト上の実行可能スクリプト ファイルへのパス",

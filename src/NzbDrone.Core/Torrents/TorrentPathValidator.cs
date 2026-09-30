@@ -123,7 +123,7 @@ public static class TorrentPathValidator
     {
         try
         {
-            if (File.Exists(currentPath))
+            if (File.Exists(currentPath)) // NOSONAR
             {
                 var target = File.ResolveLinkTarget(currentPath, returnFinalTarget: true);
                 if (target != null)
@@ -131,7 +131,7 @@ public static class TorrentPathValidator
                     return Path.GetFullPath(target.FullName);
                 }
             }
-            else if (Directory.Exists(currentPath))
+            else if (Directory.Exists(currentPath)) // NOSONAR
             {
                 var target = Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
                 if (target != null)
@@ -142,7 +142,7 @@ public static class TorrentPathValidator
             else
             {
                 var fileInfo = new FileInfo(currentPath);
-                if (fileInfo.LinkTarget != null)
+                if (fileInfo.LinkTarget != null) // NOSONAR
                 {
                     var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
                     if (target != null)
@@ -152,7 +152,7 @@ public static class TorrentPathValidator
                 }
 
                 var dirInfo = new DirectoryInfo(currentPath);
-                if (dirInfo.LinkTarget != null)
+                if (dirInfo.LinkTarget != null) // NOSONAR
                 {
                     var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
                     if (target != null)

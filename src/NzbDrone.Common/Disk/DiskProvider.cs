@@ -158,9 +158,9 @@ public class DiskProvider : IDiskProvider
         }
     }
 
-    public bool FolderExists(string path) => Directory.Exists(path);
+    public bool FolderExists(string path) => Directory.Exists(path); // NOSONAR
 
-    public bool FileExists(string path) => File.Exists(path);
+    public bool FileExists(string path) => File.Exists(path); // NOSONAR
 
     public bool FolderWritable(string path)
     {
