@@ -219,8 +219,8 @@ public class AuthController : ControllerBase
     public async Task<ActionResult> Logout()
     {
         var sessionToken = this.User.FindFirst("SessionId")?.Value ??
-                           this.User.FindFirst("TicketId")?.Value ??
-                           this.User.FindFirst("SessionToken")?.Value;
+            this.User.FindFirst("TicketId")?.Value ??
+            this.User.FindFirst("SessionToken")?.Value;
 
         if (!string.IsNullOrEmpty(sessionToken))
         {
@@ -735,11 +735,11 @@ public class AuthController : ControllerBase
 
         var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <md:EntityDescriptor xmlns:md=""urn:oasis:names:tc:SAML:2.0:metadata"" entityID=""{entityId}"">
-  <md:SPSSODescriptor AuthnRequestsSigned=""false"" WantAssertionsSigned=""true"" protocolSupportEnumeration=""urn:oasis:names:tc:SAML:2.0:protocol"">
-    <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
-    <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</md:NameIDFormat>
-    <md:AssertionConsumerService Binding=""urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"" Location=""{acsUrl}"" index=""1"" isDefault=""true""/>
-  </md:SPSSODescriptor>
+    <md:SPSSODescriptor AuthnRequestsSigned=""false"" WantAssertionsSigned=""true"" protocolSupportEnumeration=""urn:oasis:names:tc:SAML:2.0:protocol"">
+        <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
+        <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</md:NameIDFormat>
+        <md:AssertionConsumerService Binding=""urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"" Location=""{acsUrl}"" index=""1"" isDefault=""true""/>
+    </md:SPSSODescriptor>
 </md:EntityDescriptor>";
 
         return this.Content(xml, "application/samlmetadata+xml");
