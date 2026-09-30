@@ -362,7 +362,6 @@ export function TrackerMultiSelectModal({
                 padding: "0.4rem 0.75rem",
                 fontSize: "0.85rem",
               }}
-              autoFocus
             />
 
             <select
