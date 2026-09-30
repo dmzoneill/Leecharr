@@ -358,10 +358,28 @@ function SystemBackup() {
 
       {/* Delete Confirmation Modal */}
       {confirmDelete !== null && (
-        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+        <div
+          className="modal-overlay"
+          role="button"
+          tabIndex={0}
+          onClick={() => setConfirmDelete(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setConfirmDelete(null);
+            }
+          }}
+        >
           <div
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 450,
               borderRadius: "8px",
@@ -417,10 +435,28 @@ function SystemBackup() {
 
       {/* Restore Confirmation Modal */}
       {confirmRestore !== null && (
-        <div className="modal-overlay" onClick={() => setConfirmRestore(null)}>
+        <div
+          className="modal-overlay"
+          role="button"
+          tabIndex={0}
+          onClick={() => setConfirmRestore(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setConfirmRestore(null);
+            }
+          }}
+        >
           <div
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 500,
               borderRadius: "8px",
