@@ -75,8 +75,7 @@ jobs:
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
-            /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**" \
-            /s:"$GITHUB_WORKSPACE/sonar-project.properties"
+            /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**"
 
       - name: Build & Run Unit Tests with Coverage
         if: steps.check_token.outputs.has_token == 'true'

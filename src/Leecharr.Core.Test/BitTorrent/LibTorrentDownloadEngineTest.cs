@@ -244,7 +244,7 @@ public class LibTorrentDownloadEngineTest
         paramsObj.GetProperty("anonymous_mode").GetBoolean().Should().BeTrue();
     }
 
-    private LibTorrentDownloadEngine CreateEngine(HttpClient? client = null)
+    private LibTorrentDownloadEngine CreateEngine(HttpClient client = null)
     {
         return new LibTorrentDownloadEngine(
             this.configService,
