@@ -543,11 +543,11 @@ public class FileNameBuilder : IFileNameBuilder
         }
 
         // Remove drive prefixes (e.g. C:) and root slashes
-        var cleaned = Regex.Replace(built, @"^[a-zA-Z]:[/\\]*", string.Empty);
+        var cleaned = Regex.Replace(built, @"^[a-zA-Z]:[/\\]*", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         cleaned = cleaned.TrimStart('/', '\\');
 
         // Neutralize traversal sequences and path separators in template
-        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty)
+        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2))
             .Replace('/', '-')
             .Replace('\\', '-');
 
@@ -575,11 +575,11 @@ public class FileNameBuilder : IFileNameBuilder
         }
 
         // Strip drive prefix and root slashes
-        var cleaned = Regex.Replace(fullFileName, @"^[a-zA-Z]:[/\\]*", string.Empty);
+        var cleaned = Regex.Replace(fullFileName, @"^[a-zA-Z]:[/\\]*", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         cleaned = cleaned.TrimStart('/', '\\');
 
         // Strip traversal sequences and directory separators
-        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty)
+        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2))
             .Replace('/', '-')
             .Replace('\\', '-');
 
@@ -622,11 +622,11 @@ public class FileNameBuilder : IFileNameBuilder
         }
 
         // Strip drive prefix and root slashes
-        var cleaned = Regex.Replace(folderName, @"^[a-zA-Z]:[/\\]*", string.Empty);
+        var cleaned = Regex.Replace(folderName, @"^[a-zA-Z]:[/\\]*", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         cleaned = cleaned.TrimStart('/', '\\');
 
         // Strip traversal sequences and directory separators
-        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty)
+        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2))
             .Replace('/', '-')
             .Replace('\\', '-');
 

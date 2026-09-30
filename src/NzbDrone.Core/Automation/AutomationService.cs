@@ -918,7 +918,7 @@ public class AutomationService : IAutomationService
         if (trimmed.Contains('*') || trimmed.Contains('?'))
         {
             var regexPattern = "^" + Regex.Escape(trimmed).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
-            return Regex.IsMatch(fileName, regexPattern, RegexOptions.IgnoreCase);
+            return Regex.IsMatch(fileName, regexPattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
         }
 
         return string.Equals(fileName, trimmed, StringComparison.OrdinalIgnoreCase) ||
