@@ -41,6 +41,8 @@ export default function DownloadHistory() {
   } = useDownloadHistory({
     query: searchTerm.trim() || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
   });
 
   const {

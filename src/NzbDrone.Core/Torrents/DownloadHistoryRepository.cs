@@ -70,7 +70,13 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
                 new { TorrentId = torrentId }));
     }
 
-    public List<DownloadHistory> GetHistory(string query = null, string status = null, int limit = 500, int offset = 0)
+    public List<DownloadHistory> GetHistory(
+        string query = null,
+        string status = null,
+        int limit = 500,
+        int offset = 0,
+        DateTime? startDate = null,
+        DateTime? endDate = null)
     {
         var sql = new StringBuilder($"SELECT * FROM \"{this.table}\" WHERE 1=1");
         var parameters = new DynamicParameters();
@@ -85,6 +91,26 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
         {
             sql.Append(" AND \"Status\" = @Status");
             parameters.Add("Status", status.Trim());
+        }
+
+        if (startDate.HasValue)
+        {
+            sql.Append(" AND \"DateAdded\" >= @StartDate");
+            parameters.Add("StartDate", startDate.Value);
+        }
+
+        if (endDate.HasValue)
+        {
+            if (endDate.Value.TimeOfDay == TimeSpan.Zero)
+            {
+                sql.Append(" AND \"DateAdded\" < @EndDate");
+                parameters.Add("EndDate", endDate.Value.Date.AddDays(1));
+            }
+            else
+            {
+                sql.Append(" AND \"DateAdded\" <= @EndDate");
+                parameters.Add("EndDate", endDate.Value);
+            }
         }
 
         sql.Append(" ORDER BY \"DateAdded\" DESC");
