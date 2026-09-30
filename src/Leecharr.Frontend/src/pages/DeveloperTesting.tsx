@@ -397,7 +397,7 @@ export default function DeveloperTesting() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRunSingle(test.id);
+                              void handleRunSingle(test.id);
                             }}
                             disabled={isRunning}
                             style={{
