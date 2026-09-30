@@ -753,6 +753,8 @@ public class SystemDatabaseController : Controller
         return "string";
     }
 
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("roslyn.sonaranalyzer.security.cs", "S3649", Justification = "Admin database query console.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S3649", Justification = "Admin database query console.")]
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static void SetCommandQuery(global::System.Data.IDbCommand command, string query)
     {
