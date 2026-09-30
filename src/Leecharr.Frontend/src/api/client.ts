@@ -5,6 +5,8 @@ import type {
   SystemStatus,
   SystemLifecycleResponse,
   CurrentUser,
+  BulkTorrentActionResource,
+  BulkActionResult,
 } from "./types";
 import { trackException } from "../utils/analytics";
 
@@ -233,6 +235,8 @@ export const api = {
     apiClient.post<Torrent>(`/torrents/${id}/recheck`),
   deleteTorrent: (id: number, deleteFiles = false) =>
     apiClient.delete<void>(`/torrents/${id}?deleteFiles=${deleteFiles}`),
+  bulkAction: (data: BulkTorrentActionResource) =>
+    apiClient.post<BulkActionResult>("/torrent/bulk", data),
   disconnectPeer: (id: number, ip: string) =>
     apiClient.post<{ success: boolean; ip: string; message: string }>(
       `/torrents/${id}/peers/disconnect`,

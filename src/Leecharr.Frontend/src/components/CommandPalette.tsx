@@ -6,6 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "../i18n";
 import { useTorrents } from "../api/hooks";
 import { useTheme } from "../context/ThemeContext";
@@ -49,6 +50,7 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
   const { showToast } = useToast();
   const { data: torrents = [] } = useTorrents();
@@ -84,28 +86,48 @@ export function CommandPalette({
   }, [isOpen]);
 
   const handlePauseAll = useCallback(async () => {
-    const active = torrents.filter(
-      (tor) => (tor.status || "").toLowerCase() !== "paused",
-    );
+    const active = torrents.filter((tor) => {
+      const s = (tor.status || "").toLowerCase();
+      return s !== "paused" && s !== "stopped";
+    });
     if (active.length === 0) {
       showToast("No active torrents to pause", "info");
       return;
     }
-    await Promise.allSettled(active.map((tor) => api.pauseTorrent(tor.id)));
+    try {
+      await api.bulkAction({
+        action: "pause",
+        torrentIds: active.map((t) => t.id),
+      });
+    } catch {
+      await Promise.allSettled(active.map((tor) => api.pauseTorrent(tor.id)));
+    }
+    queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    queryClient.invalidateQueries({ queryKey: ["seeding"] });
     showToast(`Paused ${active.length} torrent(s)`, "info");
-  }, [torrents, showToast]);
+  }, [torrents, showToast, queryClient]);
 
   const handleResumeAll = useCallback(async () => {
-    const paused = torrents.filter(
-      (tor) => (tor.status || "").toLowerCase() === "paused",
-    );
+    const paused = torrents.filter((tor) => {
+      const s = (tor.status || "").toLowerCase();
+      return s === "paused" || s === "stopped" || s === "idle" || s === "error";
+    });
     if (paused.length === 0) {
       showToast("No paused torrents to resume", "info");
       return;
     }
-    await Promise.allSettled(paused.map((tor) => api.resumeTorrent(tor.id)));
+    try {
+      await api.bulkAction({
+        action: "resume",
+        torrentIds: paused.map((t) => t.id),
+      });
+    } catch {
+      await Promise.allSettled(paused.map((tor) => api.resumeTorrent(tor.id)));
+    }
+    queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    queryClient.invalidateQueries({ queryKey: ["seeding"] });
     showToast(`Resumed ${paused.length} torrent(s)`, "success");
-  }, [torrents, showToast]);
+  }, [torrents, showToast, queryClient]);
 
   const allCommands = useMemo<CommandItem[]>(() => {
     const items: CommandItem[] = [];
