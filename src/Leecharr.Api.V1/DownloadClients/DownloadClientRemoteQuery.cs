@@ -19,7 +19,11 @@ public static class DownloadClientRemoteQuery
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-    public static async Task<List<DownloadClientRemoteItem>> QueryRemoteClientItemsAsync(DownloadClientDefinition client, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)
+    public static async Task<List<DownloadClientRemoteItem>> QueryRemoteClientItemsAsync(
+        DownloadClientDefinition client,
+        HttpClient httpClient = null,
+        ISafeHttpClientService safeHttpClientService = null,
+        bool filterByCategory = false)
     {
         var items = new List<DownloadClientRemoteItem>();
         if (client == null)
@@ -314,7 +318,7 @@ public static class DownloadClientRemoteQuery
             localHttp?.Dispose();
         }
 
-        if (!string.IsNullOrWhiteSpace(client.Category))
+        if (filterByCategory && !string.IsNullOrWhiteSpace(client.Category))
         {
             items = items.Where(i => MatchesCategory(i, client.Category)).ToList();
         }
