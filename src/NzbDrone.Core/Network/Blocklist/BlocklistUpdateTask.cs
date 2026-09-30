@@ -47,6 +47,12 @@ public class BlocklistUpdateTask : IBlocklistUpdateTask, IHandle<ApplicationStar
 
     public Task ExecuteAsync(BlocklistUpdateCommand message, CancellationToken cancellationToken = default)
     {
+        if (message != null && message.Trigger == CommandTrigger.Scheduled && !this.configService.BlocklistAutoUpdateEnabled)
+        {
+            this.logger.Debug("Blocklist auto-update is disabled; skipping scheduled execution.");
+            return Task.CompletedTask;
+        }
+
         return this.ExecuteAsync(cancellationToken);
     }
 
@@ -79,7 +85,10 @@ public class BlocklistUpdateTask : IBlocklistUpdateTask, IHandle<ApplicationStar
     private async Task RunUpdateLoopAsync()
     {
         // Initial run on startup
-        await this.ExecuteAsync(this.cts.Token);
+        if (this.configService.BlocklistAutoUpdateEnabled)
+        {
+            await this.ExecuteAsync(this.cts.Token);
+        }
 
         while (!this.cts.Token.IsCancellationRequested)
         {
@@ -87,7 +96,10 @@ public class BlocklistUpdateTask : IBlocklistUpdateTask, IHandle<ApplicationStar
             {
                 var hours = Math.Max(1, this.configService.BlocklistUpdateIntervalHours);
                 await Task.Delay(TimeSpan.FromHours(hours), this.cts.Token);
-                await this.ExecuteAsync(this.cts.Token);
+                if (this.configService.BlocklistAutoUpdateEnabled)
+                {
+                    await this.ExecuteAsync(this.cts.Token);
+                }
             }
             catch (OperationCanceledException)
             {

@@ -30,6 +30,7 @@ public class BlocklistControllerTest
         this.updateService = Substitute.For<IBlocklistUpdateService>();
 
         this.configService.BlocklistEnabled.Returns(true);
+        this.configService.BlocklistAutoUpdateEnabled.Returns(true);
         this.configService.BlocklistUrl.Returns("https://example.com/blocklist.txt");
         this.configService.BlocklistUpdateIntervalHours.Returns(48);
 
@@ -97,6 +98,43 @@ public class BlocklistControllerTest
     }
 
     [Test]
+    public void GetBlocklist_WhenAutoUpdateDisabled_ReturnsAutoUpdateEnabledFalse()
+    {
+        this.configService.BlocklistAutoUpdateEnabled.Returns(false);
+
+        var actionResult = this.controller.GetBlocklist();
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var resource = okResult!.Value as BlocklistResource;
+        resource.Should().NotBeNull();
+        resource!.AutoUpdateEnabled.Should().BeFalse();
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void UpdateBlocklist_WithAutoUpdateEnabled_SavesAutoUpdateEnabled(bool autoUpdate)
+    {
+        Dictionary<string, object> savedUpdates = null!;
+        this.configService.SaveConfigDictionary(Arg.Do<Dictionary<string, object>>(x => savedUpdates = x));
+
+        var request = new BlocklistConfigRequest
+        {
+            AutoUpdateEnabled = autoUpdate,
+        };
+
+        var actionResult = this.controller.UpdateBlocklist(request);
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        savedUpdates.Should().NotBeNull();
+        savedUpdates!.Should().HaveCount(1);
+        savedUpdates.Should().ContainKey("BlocklistAutoUpdateEnabled").WhoseValue.Should().Be(autoUpdate);
+    }
+
+    [Test]
     public void UpdateBlocklist_WhenRequestIsNull_ReturnsBadRequest()
     {
         var actionResult = this.controller.UpdateBlocklist(null!);
@@ -117,6 +155,7 @@ public class BlocklistControllerTest
         {
             Enabled = true,
             Url = "  https://rules.example.org/blacklist.p2p  ",
+            AutoUpdateEnabled = true,
             AutoUpdateIntervalDays = 7,
         };
 
@@ -129,6 +168,7 @@ public class BlocklistControllerTest
         savedUpdates.Should().NotBeNull();
         savedUpdates!.Should().ContainKey("BlocklistEnabled").WhoseValue.Should().Be(true);
         savedUpdates.Should().ContainKey("BlocklistUrl").WhoseValue.Should().Be("https://rules.example.org/blacklist.p2p");
+        savedUpdates.Should().ContainKey("BlocklistAutoUpdateEnabled").WhoseValue.Should().Be(true);
         savedUpdates.Should().ContainKey("BlocklistUpdateIntervalHours").WhoseValue.Should().Be(168);
     }
 
