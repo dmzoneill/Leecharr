@@ -552,8 +552,16 @@ export default function DeveloperDebugger() {
                 tracepoints.map((tp) => (
                   <div
                     key={tp.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       setSelectedFilePath(tp.filePath);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedFilePath(tp.filePath);
+                      }
                     }}
                     style={{
                       padding: "8px 12px",
