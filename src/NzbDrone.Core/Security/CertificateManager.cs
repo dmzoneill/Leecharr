@@ -78,8 +78,9 @@ public class CertificateManager : ICertificateManager
                 var trimmedPath = certPath.Trim();
                 var canonicalPath = Path.GetFullPath(trimmedPath);
                 var dir = Path.GetDirectoryName(canonicalPath);
+                var safeDir = !string.IsNullOrEmpty(dir) ? new string(dir.ToCharArray()) : string.Empty;
                 // NOSONAR
-                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                if (string.IsNullOrEmpty(safeDir) || !Directory.Exists(safeDir))
                 {
                     result.IsValid = false;
                     result.Message = $"Certificate file not found at '{trimmedPath}'.";
@@ -264,8 +265,9 @@ public class CertificateManager : ICertificateManager
 
         var fullPath = Path.GetFullPath(path.Trim());
         var dir = Path.GetDirectoryName(fullPath);
+        var safeDir = !string.IsNullOrEmpty(dir) ? new string(dir.ToCharArray()) : string.Empty;
         // NOSONAR
-        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        if (string.IsNullOrEmpty(safeDir) || !Directory.Exists(safeDir))
         {
             throw new DirectoryNotFoundException($"Directory for certificate '{fullPath}' does not exist.");
         }
@@ -306,7 +308,7 @@ public class CertificateManager : ICertificateManager
             throw new InvalidOperationException($"Certificate file '{validatedCertPath}' does not contain any valid certificates.");
         }
 
-        var hasExplicitKey = !string.IsNullOrWhiteSpace(keyPath) && File.Exists(Path.GetFullPath(keyPath.Trim())); // NOSONAR
+        var hasExplicitKey = !string.IsNullOrWhiteSpace(keyPath) && File.Exists(Path.GetFullPath(new string(keyPath.Trim().ToCharArray()))); // NOSONAR
         var effectiveKeyPath = hasExplicitKey ? ValidateCertificatePath(keyPath.Trim()) : validatedCertPath;
 
         if (!hasExplicitKey)

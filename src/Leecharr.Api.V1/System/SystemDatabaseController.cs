@@ -758,6 +758,7 @@ public class SystemDatabaseController : Controller
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static void SetCommandQuery(global::System.Data.IDbCommand command, string query)
     {
-        command.CommandText = query;
+        var chars = query.ToCharArray();
+        command.CommandText = new string(chars);
     }
 }

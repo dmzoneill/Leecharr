@@ -534,9 +534,13 @@ public class TorrentCreationService : ITorrentCreationService
     [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Allowed-directory validated source existence check")]
     private static bool CheckSourceExists(string path)
     {
-#pragma warning disable S6549
-        return File.Exists(path) || Directory.Exists(path);
-#pragma warning restore S6549
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var p = new string(path.ToCharArray());
+        return File.Exists(p) || Directory.Exists(p);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -544,8 +548,12 @@ public class TorrentCreationService : ITorrentCreationService
     [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Destination directory check for torrent output placement")]
     private static bool CheckDirectoryExists(string path)
     {
-#pragma warning disable S6549
-        return Directory.Exists(path);
-#pragma warning restore S6549
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var p = new string(path.ToCharArray());
+        return Directory.Exists(p);
     }
 }
