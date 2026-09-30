@@ -1,10 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using NzbDrone.Core.Datastore;
+using Leecharr.Http.REST;
 
-namespace NzbDrone.Core.Tags;
+namespace Leecharr.Api.V1.Tags;
 
-public class Tag : ModelBase
+public class TagResource : RestResource
 {
     public string Label { get; set; }
 
