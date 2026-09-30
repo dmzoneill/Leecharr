@@ -494,6 +494,8 @@ export default function DatabaseExplorer() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           {/* Safe Mode Toggle */}
           <div
+            role="button"
+            tabIndex={0}
             style={{
               display: "flex",
               alignItems: "center",
@@ -505,6 +507,12 @@ export default function DatabaseExplorer() {
               cursor: "pointer",
             }}
             onClick={() => setIsSafeMode(!isSafeMode)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setIsSafeMode(!isSafeMode);
+              }
+            }}
             title="When active, safe mode prevents accidental database modifications"
           >
             <span>{isSafeMode ? "🛡️" : "⚠️"}</span>
@@ -1310,7 +1318,15 @@ export default function DatabaseExplorer() {
               {tables.map((t) => (
                 <div
                   key={t.name}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelectTableForQuery(t.name)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSelectTableForQuery(t.name);
+                    }
+                  }}
                   style={{
                     padding: "0.45rem 0.65rem",
                     borderRadius: "6px",

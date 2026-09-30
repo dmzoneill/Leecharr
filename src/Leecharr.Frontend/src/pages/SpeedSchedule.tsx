@@ -146,10 +146,28 @@ function ScheduleModal({
   }
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div
+      className="modal-overlay"
+      onClick={onCancel}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          onCancel();
+        }
+      }}
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
+    >
       <div
         className="modal"
+        role="button"
+        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
         style={{
           maxWidth: 520,
           borderRadius: "8px",
@@ -991,7 +1009,15 @@ function WeeklyCalendar({
           {schedules.map((s, i) => (
             <div
               key={s.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onToggleSchedule?.(s)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onToggleSchedule?.(s);
+                }
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
