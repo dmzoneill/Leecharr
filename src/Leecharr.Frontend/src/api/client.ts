@@ -177,7 +177,7 @@ class ApiClient {
       body:
         body !== undefined
           ? typeof body === "string" || isSpecialBody
-            ? (body as BodyInit)
+            ? body
             : JSON.stringify(body)
           : undefined,
     });
@@ -212,7 +212,7 @@ class ApiClient {
       body:
         body !== undefined
           ? typeof body === "string" || isSpecialBody
-            ? (body as BodyInit)
+            ? body
             : JSON.stringify(body)
           : undefined,
     });
