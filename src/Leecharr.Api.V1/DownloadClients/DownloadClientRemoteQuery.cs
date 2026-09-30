@@ -109,6 +109,11 @@ public static class DownloadClientRemoteQuery
                             var state = el.TryGetProperty("state", out var st) ? st.GetString() : "unknown";
                             var save = el.TryGetProperty("save_path", out var sp) ? sp.GetString() : string.Empty;
                             var cat = el.TryGetProperty("category", out var c) ? c.GetString() : string.Empty;
+                            var tags = el.TryGetProperty("tags", out var tg) ? tg.GetString() : string.Empty;
+                            if (string.IsNullOrWhiteSpace(cat) && !string.IsNullOrWhiteSpace(tags))
+                            {
+                                cat = tags;
+                            }
 
                             items.Add(new DownloadClientRemoteItem
                             {
@@ -120,6 +125,7 @@ public static class DownloadClientRemoteQuery
                                 State = state,
                                 SavePath = save,
                                 Category = cat,
+                                Tags = tags,
                             });
                         }
                     }
@@ -134,7 +140,7 @@ public static class DownloadClientRemoteQuery
                 var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
                 {
                     Content = new StringContent(
-                        "{\"method\":\"torrent-get\",\"arguments\":{\"fields\":[\"id\",\"hashString\",\"name\",\"totalSize\",\"percentDone\",\"status\",\"downloadDir\"]}}",
+                        "{\"method\":\"torrent-get\",\"arguments\":{\"fields\":[\"id\",\"hashString\",\"name\",\"totalSize\",\"percentDone\",\"status\",\"downloadDir\",\"labels\"]}}",
                         Encoding.UTF8,
                         "application/json"),
                 };
@@ -152,7 +158,7 @@ public static class DownloadClientRemoteQuery
                     using var req2 = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
                     {
                         Content = new StringContent(
-                            "{\"method\":\"torrent-get\",\"arguments\":{\"fields\":[\"id\",\"hashString\",\"name\",\"totalSize\",\"percentDone\",\"status\",\"downloadDir\"]}}",
+                            "{\"method\":\"torrent-get\",\"arguments\":{\"fields\":[\"id\",\"hashString\",\"name\",\"totalSize\",\"percentDone\",\"status\",\"downloadDir\",\"labels\"]}}",
                             Encoding.UTF8,
                             "application/json"),
                     };
@@ -181,6 +187,21 @@ public static class DownloadClientRemoteQuery
                             var size = el.TryGetProperty("totalSize", out var s) && s.TryGetInt64(out var sz) ? sz : 0;
                             var prog = el.TryGetProperty("percentDone", out var p) && p.TryGetDouble(out var pr) ? pr : 0.0;
                             var save = el.TryGetProperty("downloadDir", out var sp) ? sp.GetString() : string.Empty;
+                            var labelList = new List<string>();
+                            if (el.TryGetProperty("labels", out var lbls) && lbls.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var l in lbls.EnumerateArray())
+                                {
+                                    var str = l.GetString();
+                                    if (!string.IsNullOrWhiteSpace(str))
+                                    {
+                                        labelList.Add(str.Trim());
+                                    }
+                                }
+                            }
+
+                            var labelsStr = string.Join(", ", labelList);
+                            var cat = labelList.Count > 0 ? labelList[0] : string.Empty;
 
                             items.Add(new DownloadClientRemoteItem
                             {
@@ -191,7 +212,8 @@ public static class DownloadClientRemoteQuery
                                 Progress = prog,
                                 State = "active",
                                 SavePath = save,
-                                Category = string.Empty,
+                                Category = cat,
+                                Tags = labelsStr,
                             });
                         }
                     }
@@ -272,6 +294,7 @@ public static class DownloadClientRemoteQuery
                                 State = state,
                                 SavePath = save,
                                 Category = cat,
+                                Tags = cat,
                             });
                         }
                     }
@@ -291,7 +314,56 @@ public static class DownloadClientRemoteQuery
             localHttp?.Dispose();
         }
 
+        if (!string.IsNullOrWhiteSpace(client.Category))
+        {
+            items = items.Where(i => MatchesCategory(i, client.Category)).ToList();
+        }
+
         return items;
+    }
+
+    public static bool MatchesCategory(DownloadClientRemoteItem item, string targetCategory)
+    {
+        if (string.IsNullOrWhiteSpace(targetCategory))
+        {
+            return true;
+        }
+
+        if (item == null)
+        {
+            return false;
+        }
+
+        var targets = targetCategory.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                                    .Select(t => t.Trim())
+                                    .Where(t => !string.IsNullOrEmpty(t))
+                                    .ToList();
+        if (targets.Count == 0)
+        {
+            return true;
+        }
+
+        var candidateTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(item.Category))
+        {
+            candidateTokens.Add(item.Category.Trim());
+            foreach (var token in item.Category.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                candidateTokens.Add(token.Trim());
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Tags))
+        {
+            candidateTokens.Add(item.Tags.Trim());
+            foreach (var token in item.Tags.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                candidateTokens.Add(token.Trim());
+            }
+        }
+
+        return targets.Any(target => candidateTokens.Contains(target));
     }
 
     public static Task<bool> PauseTorrentAsync(DownloadClientDefinition client, string infoHash, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)

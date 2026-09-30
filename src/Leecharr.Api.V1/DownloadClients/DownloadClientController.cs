@@ -92,7 +92,7 @@ public class DownloadClientController : Controller
 
         try
         {
-            this.ValidateSsrf(resource.Host, resource.Port > 0 ? resource.Port : 8080);
+            this.ValidateSsrf(resource.Host, resource.Port > 0 ? resource.Port : 8080, resource.UseSsl);
         }
         catch (SecurityException ex)
         {
@@ -130,7 +130,7 @@ public class DownloadClientController : Controller
 
         try
         {
-            this.ValidateSsrf(resource.Host, resource.Port > 0 ? resource.Port : 8080);
+            this.ValidateSsrf(resource.Host, resource.Port > 0 ? resource.Port : 8080, resource.UseSsl);
         }
         catch (SecurityException ex)
         {
@@ -139,7 +139,11 @@ public class DownloadClientController : Controller
 
         var model = this.ToModel(resource);
         model.Id = id;
-        if (string.IsNullOrEmpty(resource.Password) || resource.Password.Contains('*'))
+        if (resource.Password == "")
+        {
+            model.Password = string.Empty;
+        }
+        else if (resource.Password == null || resource.Password.Contains('*'))
         {
             model.Password = existing.Password;
         }
@@ -181,7 +185,11 @@ public class DownloadClientController : Controller
         }
 
         var password = resource.Password;
-        if ((string.IsNullOrEmpty(password) || password.Contains('*')) && resource.Id > 0)
+        if (password == "")
+        {
+            password = string.Empty;
+        }
+        else if ((password == null || password.Contains('*')) && resource.Id > 0)
         {
             var existing = this.repository.Get(resource.Id);
             if (existing != null)
@@ -516,14 +524,14 @@ public class DownloadClientController : Controller
         return null;
     }
 
-    private void ValidateSsrf(string host, int port)
+    private void ValidateSsrf(string host, int port, bool useSsl = false)
     {
         if (string.IsNullOrWhiteSpace(host))
         {
             throw new ArgumentException("Host is required.", nameof(host));
         }
 
-        var scheme = "http";
+        var scheme = useSsl ? "https" : "http";
         var baseUrl = $"{scheme}://{host}:{port}";
 
         if (this.safeHttpClientService != null)
@@ -582,7 +590,7 @@ public class DownloadClientController : Controller
 
         try
         {
-            this.ValidateSsrf(resource.Host, port);
+            this.ValidateSsrf(resource.Host, port, resource.UseSsl);
         }
         catch (SecurityException ex)
         {

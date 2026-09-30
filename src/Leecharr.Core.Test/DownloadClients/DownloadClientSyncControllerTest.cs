@@ -69,7 +69,7 @@ public class DownloadClientSyncControllerTest
             ClientType = "qBittorrent",
             Host = "127.0.0.1",
             Port = 8080,
-            Category = "default-cat",
+            Category = "iso",
             Enable = true,
         };
         this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition> { clientDef });
@@ -92,6 +92,48 @@ public class DownloadClientSyncControllerTest
             "iso",
             "/downloads/linux",
             false);
+    }
+
+    [Test]
+    public async Task Sync_WhenTorrentCategoryDoesNotMatchClientCategory_SkipsImport()
+    {
+        var json = "[{\"hash\":\"aabbccddeeff00112233445566778899aabbccdd\",\"name\":\"Ubuntu 22.04\",\"size\":1000000,\"progress\":1.0,\"state\":\"seeding\",\"save_path\":\"/downloads/linux\",\"category\":\"iso\"}]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient);
+
+        var clientDef = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "qBit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Category = "radarr",
+            Enable = true,
+        };
+        this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition> { clientDef });
+        this.torrentService.GetByInfoHash(Arg.Any<string>()).Returns((Torrent)null!);
+
+        var actionResult = await controller.Sync();
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var result = okResult!.Value as SyncResultResource;
+        result.Should().NotBeNull();
+        result!.Success.Should().BeTrue();
+        result.SyncedCount.Should().Be(0);
+        result.Added.Should().Be(0);
+
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
     }
 
     [Test]
