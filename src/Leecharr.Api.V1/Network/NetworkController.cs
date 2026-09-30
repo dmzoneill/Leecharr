@@ -66,8 +66,8 @@ public class NetworkController : Controller
 
         try
         {
-            var interfaces = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
-                .Where(nic => nic.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
+            var interfaces = global::System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+                .Where(nic => nic.OperationalStatus == global::System.Net.NetworkInformation.OperationalStatus.Up)
                 .Select(nic => nic.Name)
                 .ToList();
             return this.Ok(interfaces);
