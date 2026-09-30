@@ -761,7 +761,13 @@ public class AuthController : ControllerBase
 
     public static string SanitizeRedirectUrl(string url)
     {
-        return IsLocalUrl(url) ? url : "/";
+        if (!IsLocalUrl(url))
+        {
+            return "/";
+        }
+
+        var chars = url.ToCharArray();
+        return new string(chars);
     }
 
     private static void CountSamlElements(XmlNode node, ref int responseCount, ref int assertionCount)
