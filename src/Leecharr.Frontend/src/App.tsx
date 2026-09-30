@@ -834,7 +834,15 @@ export function App() {
         <div className="sidebar-header">
           <div
             className="sidebar-logo"
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title="Leecharr"
           >
@@ -877,7 +885,15 @@ export function App() {
           {/* Dashboard */}
           <div
             className={`sidebar-nav-item ${activeNav === "dashboard" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.dashboard")}
           >
@@ -888,7 +904,15 @@ export function App() {
           {/* Torrents (Primary Client / Transfers) */}
           <div
             className={`sidebar-nav-item ${activeNav === "torrents" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/torrents")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/torrents");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.torrents")}
           >
@@ -899,7 +923,15 @@ export function App() {
             <>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "all" ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate("/torrents")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate("/torrents");
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title={t("nav.torrents")}
               >
@@ -907,7 +939,15 @@ export function App() {
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate("/torrents/add")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate("/torrents/add");
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title={t("modals.addTorrent")}
               >
@@ -920,7 +960,15 @@ export function App() {
           {/* Activity (History & Real-time Metrics) */}
           <div
             className={`sidebar-nav-item ${activeNav === "activity" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/activity/history")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/activity/history");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.activity")}
           >
@@ -931,7 +979,15 @@ export function App() {
             <>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "history" ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate("/activity/history")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate("/activity/history");
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title={t("nav.history")}
               >
@@ -941,7 +997,15 @@ export function App() {
                 downloadClients.filter((c) => c.enable).length > 1 && (
                   <div
                     className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === "/activity/client/all" ? "active" : ""}`}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => guardedNavigate("/activity/client/all")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        guardedNavigate("/activity/client/all");
+                      }
+                    }}
                     style={{ cursor: "pointer" }}
                     title="All Clients"
                   >
@@ -954,9 +1018,17 @@ export function App() {
                   <div
                     key={client.id}
                     className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === `/activity/client/${client.id}` ? "active" : ""}`}
+                    role="button"
+                    tabIndex={0}
                     onClick={() =>
                       guardedNavigate(`/activity/client/${client.id}`)
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        guardedNavigate(`/activity/client/${client.id}`);
+                      }
+                    }}
                     style={{ cursor: "pointer" }}
                     title={client.name}
                   >
@@ -965,7 +1037,15 @@ export function App() {
                 ))}
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate("/activity/metrics")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate("/activity/metrics");
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title={t("nav.statistics")}
               >
@@ -977,7 +1057,15 @@ export function App() {
           {/* Indexer Search & Discovery */}
           <div
             className={`sidebar-nav-item ${activeNav === "indexers" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/indexers")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/indexers");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.indexers")}
           >
@@ -988,7 +1076,15 @@ export function App() {
           {/* Peer Map */}
           <div
             className={`sidebar-nav-item ${activeNav === "peermap" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/peermap")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/peermap");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.peerMap")}
           >
@@ -999,7 +1095,15 @@ export function App() {
           {/* Schedule */}
           <div
             className={`sidebar-nav-item ${activeNav === "schedule" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/schedule")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/schedule");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.speedSchedule")}
           >
@@ -1010,7 +1114,15 @@ export function App() {
           {/* Statistics */}
           <div
             className={`sidebar-nav-item ${activeNav === "statistics" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/statistics")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/statistics");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.statistics")}
           >
@@ -1021,7 +1133,15 @@ export function App() {
           {/* Tracker Server & Swarms */}
           <div
             className={`sidebar-nav-item ${activeNav === "tracker" ? "active-parent" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/tracker/inbuilt")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/tracker/inbuilt");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title="Tracker Endpoints, Swarms & Live Metrics"
           >
@@ -1032,7 +1152,15 @@ export function App() {
             <>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "inbuilt" ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate("/tracker/inbuilt")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate("/tracker/inbuilt");
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title="Inbuilt Tracker Server & Swarms"
               >
@@ -1040,7 +1168,15 @@ export function App() {
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "boost" ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate("/tracker/trackerboost")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate("/tracker/trackerboost");
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title="Tracker Boost Swarm Optimization & Discovery"
               >
@@ -1049,7 +1185,15 @@ export function App() {
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate("/tracker/metrics")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate("/tracker/metrics");
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title="Tracker Live Telemetry & Metrics"
               >
@@ -1061,7 +1205,15 @@ export function App() {
           {/* File Browser */}
           <div
             className={`sidebar-nav-item ${activeNav === "files" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/files")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/files");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.browseFiles")}
           >
@@ -1072,7 +1224,15 @@ export function App() {
           {/* Automation & DSL Engine */}
           <div
             className={`sidebar-nav-item ${activeNav === "automation" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/automation")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/automation");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title="Automation Scripting Engine & Marketplace"
           >
@@ -1083,7 +1243,15 @@ export function App() {
           {/* Settings */}
           <div
             className={`sidebar-nav-item ${activeNav === "settings" ? "active-parent" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/settings/host")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/settings/host");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.settings")}
           >
@@ -1101,12 +1269,24 @@ export function App() {
                   <div key={group.id} className="sidebar-group-container">
                     <div
                       className="sidebar-group-header"
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
                         setOpenSettingsGroups((prev) => ({
                           ...prev,
                           [group.id]: !isOpen,
                         }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenSettingsGroups((prev) => ({
+                            ...prev,
+                            [group.id]: !isOpen,
+                          }));
+                        }
                       }}
                       title={`Toggle ${t(group.title)}`}
                     >
@@ -1133,9 +1313,17 @@ export function App() {
                           <div
                             key={page.id}
                             className={`sidebar-settings-subitem ${isPageActive ? "active" : ""}`}
+                            role="button"
+                            tabIndex={0}
                             onClick={() =>
                               guardedNavigate(`/settings/${page.id}`)
                             }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                guardedNavigate(`/settings/${page.id}`);
+                              }
+                            }}
                             title={t(page.description)}
                           >
                             <span
@@ -1192,7 +1380,15 @@ export function App() {
           {/* System */}
           <div
             className={`sidebar-nav-item ${activeNav === "system" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/system/status")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/system/status");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.system")}
           >
@@ -1204,7 +1400,15 @@ export function App() {
               <div
                 key={item.id}
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate(`/system/${item.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate(`/system/${item.id}`);
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title={item.label}
               >
@@ -1216,7 +1420,15 @@ export function App() {
           {/* Developer Tools */}
           <div
             className={`sidebar-nav-item ${activeNav === "developer" ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
             onClick={() => guardedNavigate("/developer/database")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                guardedNavigate("/developer/database");
+              }
+            }}
             style={{ cursor: "pointer" }}
             title={t("nav.developer", "Developer Tools")}
           >
@@ -1228,7 +1440,15 @@ export function App() {
               <div
                 key={item.id}
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => guardedNavigate(`/developer/${item.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    guardedNavigate(`/developer/${item.id}`);
+                  }
+                }}
                 style={{ cursor: "pointer" }}
                 title={item.label}
               >
@@ -1242,8 +1462,16 @@ export function App() {
       {isMobileMenuOpen && (
         <div
           className="sidebar-backdrop"
+          role="button"
+          tabIndex={0}
           onClick={() => setIsMobileMenuOpen(false)}
-          aria-hidden="true"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setIsMobileMenuOpen(false);
+            }
+          }}
+          aria-label="Close navigation"
         />
       )}
 
@@ -1284,7 +1512,15 @@ export function App() {
             </button>
             <div
               className="topbar-search"
+              role="button"
+              tabIndex={0}
               onClick={openCommandPalette}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openCommandPalette();
+                }
+              }}
               style={{ cursor: "pointer" }}
               title={t(
                 "topbar.searchPlaceholder",
@@ -1493,8 +1729,15 @@ export function App() {
                 {showProfileMenu && (
                   <div
                     className="topbar-dropdown"
+                    role="button"
+                    tabIndex={0}
                     style={{ minWidth: "210px" }}
                     onClick={() => setShowProfileMenu(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        setShowProfileMenu(false);
+                      }
+                    }}
                   >
                     <div
                       style={{
