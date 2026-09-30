@@ -20,10 +20,10 @@ public class SpeedScheduleResource : RestResource
     [RegularExpression(@"^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$", ErrorMessage = "EndTime must be a valid time (HH:mm or HH:mm:ss)")]
     public string EndTime { get; set; } = "23:59:59";
 
-    [Range(0, int.MaxValue)]
+    [Range(-1, int.MaxValue)]
     public int MaxDownloadSpeed { get; set; }
 
-    [Range(0, int.MaxValue)]
+    [Range(-1, int.MaxValue)]
     public int MaxUploadSpeed { get; set; }
 
     public bool IsEnabled { get; set; } = true;
