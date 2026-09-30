@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.Webhooks;
 using Leecharr.Http;
@@ -38,6 +39,11 @@ public class SystemDeveloperController : Controller
     {
         "key", "password", "secret", "token", "credential", "auth", "hash",
     };
+
+    private static readonly Regex CommandNameRegex = new(
+        "([a-z])([A-Z])",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private readonly IDeveloperEventStore eventStore;
     private readonly IDeveloperHttpTrafficStore httpTrafficStore;
@@ -1331,7 +1337,7 @@ public class SystemDeveloperController : Controller
             name = name.Substring(0, name.Length - 7);
         }
 
-        return global::System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
+        return CommandNameRegex.Replace(name, "$1 $2");
     }
 
     private static bool IsSensitiveKey(string key)
