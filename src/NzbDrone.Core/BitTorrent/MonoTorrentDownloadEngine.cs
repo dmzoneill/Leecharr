@@ -813,9 +813,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 this.logger.Debug(ex, "Error stopping port forwarder");
             }
 
-            await this.engine.StopAllAsync();
-            this.engine.Dispose();
-            this.engine = null;
+            if (this.engine != null)
+            {
+                await this.engine.StopAllAsync();
+                this.engine.Dispose();
+                this.engine = null;
+            }
 
             lock (this.activePeerListeners)
             {
@@ -4548,7 +4551,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
             !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
-        return isProxyConfigured && (isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider));
+        return isProxyConfigured || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
     }
 
     private bool IsLocalPeerDiscoveryAllowed()
@@ -8078,7 +8081,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
     {
         var isProxyConfigured = this.configService?.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
             !string.IsNullOrWhiteSpace(this.configService?.ProxyHost);
-        var isProxyActive = isProxyConfigured && (isProxyConfigured || (this.configService?.ForceProxy ?? false) || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider));
+        var isProxyActive = isProxyConfigured || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
 
         if (isProxyActive)
         {
@@ -8199,7 +8202,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         var activeProvider = this.networkBindingService?.ActiveProvider;
         var isProxyConfigured = this.configService?.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
             !string.IsNullOrWhiteSpace(this.configService?.ProxyHost);
-        var isProxyActive = isProxyConfigured && (isProxyConfigured || (this.configService?.ForceProxy ?? false) || (activeProvider is IProxyTunnelBindingProvider));
+        var isProxyActive = isProxyConfigured || (activeProvider is IProxyTunnelBindingProvider);
 
         if (isProxyActive && isDatagram)
         {

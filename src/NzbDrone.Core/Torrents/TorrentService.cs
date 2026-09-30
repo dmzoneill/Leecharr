@@ -453,7 +453,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         int? uploadLimit = null)
     {
         var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
-        var existing = this.GetByInfoHash(parsedMagnet?.InfoHash) ?? (!string.IsNullOrWhiteSpace(parsedMagnet?.V2InfoHash) ? this.GetByInfoHash(parsedMagnet.V2InfoHash) : null);
+        if (parsedMagnet == null)
+        {
+            throw new ArgumentException("Magnet URI could not be parsed", nameof(magnetUri));
+        }
+
+        var existing = this.GetByInfoHash(parsedMagnet.InfoHash) ?? (!string.IsNullOrWhiteSpace(parsedMagnet.V2InfoHash) ? this.GetByInfoHash(parsedMagnet.V2InfoHash) : null);
         if (existing != null)
         {
             this.logger.Warn("Torrent with infohash {0} already exists", parsedMagnet.InfoHash);
@@ -729,7 +734,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 await this.DeleteTorrentDataOnDiskAsync(torrent, torrentFiles);
             }
 
-            this.fileRepository.DeleteByTorrentId(id);
+            this.fileRepository?.DeleteByTorrentId(id);
             this.trackerEntryRepository?.DeleteByTorrentId(id);
             this.mediaEnrichmentService.DeleteMetadata(id);
             this.mediaEnrichmentService.CleanupTorrentCache(id);

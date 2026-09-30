@@ -1172,8 +1172,8 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             sessionArgs["proxy-enabled"] = true;
             sessionArgs["proxy-type"] = proxyType;
             sessionArgs["proxy-host"] = this.configService?.ProxyHost ?? string.Empty;
-            sessionArgs["proxy-port"] = this.configService?.ProxyPort ?? 0;
-            sessionArgs["proxy-auth-enabled"] = this.configService?.ProxyAuthEnabled ?? false;
+            sessionArgs["proxy-port"] = this.configService.ProxyPort;
+            sessionArgs["proxy-auth-enabled"] = this.configService.ProxyAuthEnabled;
             sessionArgs["proxy-auth-username"] = this.configService?.ProxyUsername ?? string.Empty;
             sessionArgs["proxy-auth-password"] = this.configService?.ProxyPassword ?? string.Empty;
         }
