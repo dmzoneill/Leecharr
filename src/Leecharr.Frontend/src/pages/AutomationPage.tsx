@@ -794,6 +794,10 @@ function visualStepsToYaml(
           yaml += act.value
             ? `      - notifyArr: '${act.value.replace(/'/g, "''")}'\n`
             : `      - notifyArr: true\n`;
+        } else if (act.type === "syncArr") {
+          yaml += act.value
+            ? `      - syncArr: '${act.value.replace(/'/g, "''")}'\n`
+            : `      - syncArr: true\n`;
         } else if (act.type === "runScript") {
           yaml += `      - runScript: '${act.value.replace(/'/g, "''")}'\n`;
         } else if (act.type === "delay") {
@@ -1161,13 +1165,25 @@ function yamlToVisualSteps(code: string): VisualStep[] {
     } else if (
       currentStep &&
       inActions &&
-      (trimmed.startsWith("- notifyArr:") || trimmed.startsWith("- syncArr:"))
+      trimmed.startsWith("- notifyArr:")
     ) {
-      const v = trimmed.match(/- (?:notifyArr|syncArr):\s*['"]?([^'"]+)['"]?/);
+      const v = trimmed.match(/- notifyArr:\s*['"]?([^'"]+)['"]?/);
       const val = v && v[1] !== "true" ? v[1] : "";
       currentStep.actions.push({
         id: `act-${Date.now()}-${Math.random()}`,
         type: "notifyArr",
+        value: val,
+      });
+    } else if (
+      currentStep &&
+      inActions &&
+      trimmed.startsWith("- syncArr:")
+    ) {
+      const v = trimmed.match(/- syncArr:\s*['"]?([^'"]+)['"]?/);
+      const val = v && v[1] !== "true" ? v[1] : "";
+      currentStep.actions.push({
+        id: `act-${Date.now()}-${Math.random()}`,
+        type: "syncArr",
         value: val,
       });
     } else if (currentStep && inActions && trimmed.startsWith("- runScript:")) {
@@ -3673,7 +3689,10 @@ if (torrent) {
                                     ) {
                                       copy[stepIdx].actions[actIdx].value =
                                         "true";
-                                    } else if (newType === "notifyArr") {
+                                    } else if (
+                                      newType === "notifyArr" ||
+                                      newType === "syncArr"
+                                    ) {
                                       copy[stepIdx].actions[actIdx].value = "";
                                     }
                                     updateVisualSteps(copy);
