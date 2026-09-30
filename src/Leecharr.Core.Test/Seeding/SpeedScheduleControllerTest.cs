@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Seeding;
@@ -500,5 +501,53 @@ public class SpeedScheduleControllerTest
         var actionResult = await this.controller.Update(1, resource);
         var badResult = actionResult.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
         badResult.Value.Should().Be("Speed limits must be -1 (paused) or non-negative (0 for unlimited, >0 for throttled).");
+    }
+
+    [Test]
+    public void SpeedScheduleResource_MinusOneSpeedLimits_PassesModelValidation()
+    {
+        var resource = new SpeedScheduleResource
+        {
+            Name = "Paused Schedule",
+            Days = 127,
+            StartTime = "02:00:00",
+            EndTime = "07:00:00",
+            MaxDownloadSpeed = -1,
+            MaxUploadSpeed = -1,
+            IsEnabled = true,
+            Priority = 1,
+        };
+
+        var validationResults = new List<ValidationResult>();
+        var context = new ValidationContext(resource, null, null);
+        var isValid = Validator.TryValidateObject(resource, context, validationResults, true);
+
+        isValid.Should().BeTrue();
+        validationResults.Should().BeEmpty();
+    }
+
+    [TestCase(-2, 100)]
+    [TestCase(100, -2)]
+    [TestCase(-10, -10)]
+    public void SpeedScheduleResource_SpeedLimitLessThanMinusOne_FailsModelValidation(int downloadSpeed, int uploadSpeed)
+    {
+        var resource = new SpeedScheduleResource
+        {
+            Name = "Invalid Speed Resource",
+            Days = 127,
+            StartTime = "02:00:00",
+            EndTime = "07:00:00",
+            MaxDownloadSpeed = downloadSpeed,
+            MaxUploadSpeed = uploadSpeed,
+            IsEnabled = true,
+            Priority = 1,
+        };
+
+        var validationResults = new List<ValidationResult>();
+        var context = new ValidationContext(resource, null, null);
+        var isValid = Validator.TryValidateObject(resource, context, validationResults, true);
+
+        isValid.Should().BeFalse();
+        validationResults.Should().NotBeEmpty();
     }
 }
