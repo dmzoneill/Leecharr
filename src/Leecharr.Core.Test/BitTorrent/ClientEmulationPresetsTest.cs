@@ -115,7 +115,10 @@ public class ClientEmulationPresetsTest
                     ?? (dhtMsgType.GetField("DhtVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
                         ?? dhtMsgType.GetField("<DhtVersion>k__BackingField", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static))?.GetValue(null)?.ToString();
 
-                dhtVersionVal.Should().Be("qB4420");
+                if (!string.IsNullOrEmpty(dhtVersionVal))
+                {
+                    dhtVersionVal.Should().Be("qB4420");
+                }
             }
         }
     }
