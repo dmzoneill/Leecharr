@@ -289,6 +289,17 @@ public class DownloadClientController : Controller
 
         var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
         var added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
+        if (added == null)
+        {
+            added = new Torrent
+            {
+                InfoHash = hash,
+                Name = remoteItem?.Name ?? hash,
+                Category = category,
+                SavePath = savePath,
+            };
+        }
+
         return this.Ok(TorrentResourceMapper.ToResource(added));
     }
 
