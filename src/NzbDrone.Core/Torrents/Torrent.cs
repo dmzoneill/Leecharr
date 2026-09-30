@@ -80,6 +80,10 @@ public class Torrent : ModelBase
 
     public string ShareLimitAction { get; set; } = "Pause";
 
+    public int Threshold { get; set; } = 1;
+
+    public int SmallTorrentLimit { get; set; } = 50;
+
     public DateTime DateAdded { get; set; }
 
     public DateTime? DateCompleted { get; set; }

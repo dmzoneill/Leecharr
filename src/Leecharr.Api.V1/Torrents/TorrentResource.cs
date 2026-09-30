@@ -83,9 +83,9 @@ public class TorrentResource : RestResource
 
     public int? NextUpdate { get; set; } = 1800;
 
-    public int? Threshold { get; set; } = 1;
+    public int Threshold { get; set; } = 1;
 
-    public int? SmallTorrentLimit { get; set; } = 50;
+    public int SmallTorrentLimit { get; set; } = 50;
 
     public bool? Active { get; set; } = true;
 
