@@ -665,7 +665,11 @@ public class DownloadClientControllerTest
         HttpRequestMessage capturedRequest = null!;
         var handler = new MockHttpMessageHandler(req =>
         {
-            capturedRequest = req;
+            if (req.Content != null)
+            {
+                capturedRequest = req;
+            }
+
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("Ok."),

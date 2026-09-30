@@ -5300,6 +5300,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     var dhtMsgType = asm.GetType("MonoTorrent.Dht.Messages.DhtMessage");
                     if (dhtMsgType != null)
                     {
+                        var dhtVersionProp = dhtMsgType.GetProperty("DhtVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                        if (dhtVersionProp?.CanWrite == true)
+                        {
+                            dhtVersionProp.SetValue(null, new BEncodedString(cleanVersion));
+                        }
+
                         var dhtVersionField = dhtMsgType.GetField("DhtVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                             ?? dhtMsgType.GetField("<DhtVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
                         dhtVersionField?.SetValue(null, new BEncodedString(cleanVersion));
