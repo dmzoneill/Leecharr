@@ -44,7 +44,10 @@ public class Startup
         var apiAssembly = Assembly.Load("Leecharr.Api.V1");
         var httpAssembly = Assembly.Load("Leecharr.Http");
 
-        services.AddControllers()
+        services.AddControllers(options =>
+        {
+            options.InputFormatters.Insert(0, new Leecharr.Api.V1.Transmission.TransmissionRpcInputFormatter());
+        })
             .AddApplicationPart(apiAssembly)
             .AddApplicationPart(httpAssembly)
             .AddJsonOptions(options =>
