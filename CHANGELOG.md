@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.14](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.14) - 2026-10-01
+
+### 🔧 Maintenance & Improvements
+- ci(sonar): specify comprehensive cpd exclusions and project properties
+
 ## [v1.33.13](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.13) - 2026-10-01
 
 ### 🐛 Bug Fixes
