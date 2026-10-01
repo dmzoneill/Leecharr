@@ -1,5 +1,5 @@
 #nullable enable
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// Copyright (c) FeedItOut. All rights reserved.
 
 namespace NzbDrone.Core.Messaging.Commands;
 
