@@ -76,7 +76,7 @@ jobs:
             /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
             /d:sonar.projectBaseDir="${{ github.workspace }}" \
-            /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**" \
+            /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**,**/locales/**,**/i18n/locales/**,src/Leecharr.Frontend/src/i18n/locales/**" \
             /d:sonar.cpd.exclusions="**/locales/**,**/locales/*,**/i18n/**,**/i18n/*,**/Migration/**,**/*Test*/**,**/Migrations/**"
 
       - name: Build & Run Unit Tests with Coverage
