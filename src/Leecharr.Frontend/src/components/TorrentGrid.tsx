@@ -390,7 +390,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 }
               >
                 ↓ {formatSpeed(mergedTorrent.downloadSpeed)}
-                {mergedTorrent.eta && mergedTorrent.eta > 0 && (
+                {Boolean(mergedTorrent.eta && mergedTorrent.eta > 0) && (
                   <span
                     style={{
                       fontWeight: 400,
