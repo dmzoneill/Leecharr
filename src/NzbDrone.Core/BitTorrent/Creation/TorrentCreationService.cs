@@ -279,10 +279,13 @@ public class TorrentCreationService : ITorrentCreationService
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to create torrent for path '{0}'", request.Path);
+            var errorMsg = ex is ArgumentException && ex.Message.Contains("file source", StringComparison.OrdinalIgnoreCase)
+                ? $"Source path does not exist: {request.Path}"
+                : ex.Message;
             return new TorrentCreationResult
             {
                 Success = false,
-                ErrorMessage = ex.Message,
+                ErrorMessage = errorMsg,
             };
         }
     }
