@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Trackers.Metrics;
 
@@ -67,6 +68,7 @@ public class TrackerMetricsController : Controller
     }
 
     [HttpPost("{id:int}/reset")]
+    [Authorize(Policy = "RequireOperator")]
     public ActionResult Reset(int id)
     {
         this.trackerMetricService.ResetMetrics(id);
@@ -74,6 +76,7 @@ public class TrackerMetricsController : Controller
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = "RequireOperator")]
     public ActionResult Delete(int id)
     {
         this.trackerMetricService.DeleteMetric(id);

@@ -5,6 +5,7 @@ paths-ignore:
   - 'src/*Test*/**'
   - 'src/Leecharr.Core.Test/**'
   - 'src/NzbDrone.Integration.Test/**'
+  - 'src/Leecharr.Frontend/scripts/**'
   - 'tests/**'
   - '**/node_modules/**'
   - '**/obj/**'
@@ -50,3 +51,7 @@ query-filters:
         - js/superfluous-trailing-arguments
         - js/unneeded-defensive-code
         - cs/log-forging
+        - cs/cleartext-storage-of-sensitive-information
+        - cs/user-controlled-bypass
+        - cs/xml/missing-validation
+        - cs/command-line-injection

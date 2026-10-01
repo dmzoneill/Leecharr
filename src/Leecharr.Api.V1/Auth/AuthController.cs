@@ -342,7 +342,13 @@ public class AuthController : ControllerBase
         var b64Request = Convert.ToBase64String(Encoding.UTF8.GetBytes(samlRequest));
         var redirectUrl = $"{provider.IssuerUrl}{(provider.IssuerUrl.Contains('?') ? "&" : "?")}SAMLRequest={Uri.EscapeDataString(b64Request)}&RelayState={Uri.EscapeDataString(safeReturnUrl)}";
 
-        return this.Redirect(redirectUrl);
+        if (!Uri.TryCreate(redirectUrl, UriKind.Absolute, out var parsedRedirect) ||
+            (parsedRedirect.Scheme != Uri.UriSchemeHttp && parsedRedirect.Scheme != Uri.UriSchemeHttps))
+        {
+            return this.BadRequest("Invalid SAML redirect URL");
+        }
+
+        return this.Redirect(parsedRedirect.AbsoluteUri);
     }
 
     [HttpPost("callback/saml/{providerId?}")]

@@ -52,14 +52,19 @@ public class PackageImportService : IPackageImportService
         var isTemporarySandbox = false;
         var targetRootDir = options.TargetRootDir;
 
+        var appData = this.appFolderInfo?.AppDataFolder ?? AppContext.BaseDirectory;
         if (string.IsNullOrWhiteSpace(targetRootDir))
         {
-            var appData = this.appFolderInfo?.AppDataFolder ?? AppContext.BaseDirectory;
             targetRootDir = Path.Combine(appData, "temp", "import_" + Guid.NewGuid().ToString("N"));
             isTemporarySandbox = true;
         }
 
         var canonicalTargetRoot = Path.GetFullPath(targetRootDir);
+        var canonicalAppData = Path.GetFullPath(appData);
+        if (isTemporarySandbox && !canonicalTargetRoot.StartsWith(canonicalAppData, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Invalid sandbox destination directory.");
+        }
         Directory.CreateDirectory(canonicalTargetRoot);
 
         try
@@ -170,7 +175,12 @@ public class PackageImportService : IPackageImportService
                             destinationDir,
                             options.PathRemappings);
 
-                        var fullDestPath = Path.GetFullPath(Path.Combine(destinationDir, translatedPath));
+                        var canonicalDestDir = Path.GetFullPath(destinationDir);
+                        var fullDestPath = Path.GetFullPath(Path.Combine(canonicalDestDir, translatedPath));
+                        if (!fullDestPath.StartsWith(canonicalDestDir, StringComparison.Ordinal))
+                        {
+                            throw new InvalidOperationException($"Attempted path traversal extraction outside target directory: {fullDestPath}");
+                        }
                         PackagePathTranslator.ValidateZipSlip(fullDestPath);
 
                         var dir = Path.GetDirectoryName(fullDestPath);

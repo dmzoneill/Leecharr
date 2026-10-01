@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.Media;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
@@ -209,6 +210,7 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = "RequireOperator")]
     public ActionResult Delete(int id)
     {
         this.historyService.Delete(id);
@@ -216,6 +218,7 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpDelete]
+    [Authorize(Policy = "RequireOperator")]
     public ActionResult ClearAll()
     {
         this.historyService.ClearAll();
