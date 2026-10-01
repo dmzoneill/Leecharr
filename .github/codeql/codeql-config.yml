@@ -1,0 +1,33 @@
+name: "Leecharr CodeQL Configuration"
+
+paths-ignore:
+  - 'src/**/*.Test/**'
+  - 'src/*Test*/**'
+  - 'src/Leecharr.Core.Test/**'
+  - 'src/NzbDrone.Integration.Test/**'
+  - 'tests/**'
+  - '**/node_modules/**'
+  - '**/obj/**'
+  - '**/bin/**'
+  - '_output/**'
+  - '_temp/**'
+
+query-filters:
+  - exclude:
+      id:
+        - cs/linq/missed-where
+        - cs/linq/missed-select
+        - cs/catch-of-all-exceptions
+        - cs/complex-condition
+        - cs/constant-condition
+        - cs/useless-upcast
+        - cs/missed-ternary-operator
+        - cs/empty-catch-block
+        - cs/local-not-disposed
+        - cs/missed-using-statement
+        - cs/inefficient-containskey
+        - cs/dereferenced-value-may-be-null
+        - cs/unmanaged-code
+        - cs/call-to-unmanaged-code
+        - cs/path-combine
+        - cs/empty-block
