@@ -1,68 +1,54 @@
-<p align="center">
-  <a href="https://www.leecharr.net" target="_blank" rel="noopener noreferrer">
-    <img src="https://raw.githubusercontent.com/dmzoneill/Leecharr/main/logo/leecharr-skull.svg" alt="Leecharr Skull" width="140"/>
-    <br/>
-    <img src="https://raw.githubusercontent.com/dmzoneill/Leecharr/main/logo/leecharr-text.svg" alt="Leecharr" width="220"/>
-  </a>
-</p>
+# Leecharr
 
-<p align="center">
-  <strong>High-Performance BitTorrent & Media Downloader</strong> &mdash; purpose-built for the Servarr (*arr) ecosystem.
-</p>
+**High-Performance BitTorrent & Media Downloader** — purpose-built for the Servarr (*arr) ecosystem
 
-<p align="center">
-  <a href="https://hub.docker.com/r/feeditout/leecharr"><img src="https://img.shields.io/docker/pulls/feeditout/leecharr?color=blue&logo=docker&style=flat-square" alt="Docker Pulls"></a>
-  <a href="https://hub.docker.com/r/feeditout/leecharr"><img src="https://img.shields.io/docker/image-size/feeditout/leecharr/latest?color=blue&style=flat-square" alt="Docker Image Size"></a>
-  <img src="https://img.shields.io/badge/arch-amd64%20%7C%20arm64-blue?style=flat-square" alt="Architectures">
-  <a href="https://github.com/dmzoneill/Leecharr/releases/latest"><img src="https://img.shields.io/github/v/release/dmzoneill/Leecharr?color=brightgreen&label=release&style=flat-square" alt="Latest Release"></a>
-  <a href="https://github.com/dmzoneill/Leecharr/actions/workflows/main.yml"><img src="https://github.com/dmzoneill/Leecharr/workflows/CICD/badge.svg?style=flat-square" alt="CI/CD Status"></a>
-  <a href="https://github.com/dmzoneill/Leecharr/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dmzoneill/Leecharr?color=blue&style=flat-square" alt="License"></a>
-  <a href="https://www.leecharr.net"><img src="https://img.shields.io/badge/website-leecharr.net-5b8def?style=flat-square" alt="Website"></a>
-</p>
+[![Website](https://img.shields.io/badge/website-leecharr.net-ffd166)](https://www.leecharr.net) [![CI/CD](https://github.com/dmzoneill/Leecharr/workflows/CICD/badge.svg)](https://github.com/dmzoneill/Leecharr/actions/workflows/main.yml) [![Latest Release](https://img.shields.io/github/v/release/dmzoneill/Leecharr?color=brightgreen&label=release)](https://github.com/dmzoneill/Leecharr/releases/latest) [![License](https://img.shields.io/github/license/dmzoneill/Leecharr?color=blue)](https://github.com/dmzoneill/Leecharr/blob/main/LICENSE) [![Docker Pulls](https://img.shields.io/docker/pulls/feeditout/leecharr?color=blue&logo=docker)](https://hub.docker.com/r/feeditout/leecharr) [![GHCR](https://img.shields.io/badge/ghcr.io-leecharr-blue?logo=github)](https://ghcr.io/dmzoneill/leecharr) ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet) ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)
 
 ---
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dmzoneill/Leecharr/main/logo/ss.png" alt="Leecharr Web UI Screenshot" width="100%"/>
-</p>
-
----
-
-## 🚀 What's Changed in this Version
 
 {{CHANGELOG}}
 
-> 📖 **[View Complete Version Changelog on GitHub](https://github.com/dmzoneill/Leecharr/blob/main/CHANGELOG.md)**
+---
+
+## What is Leecharr?
+
+**Leecharr** is a modern, high-performance BitTorrent and media downloader purpose-built for the Servarr (`*arr`) ecosystem (Sonarr, Radarr, Lidarr, Prowlarr, Readarr).
+
+Unlike conventional standalone clients (Deluge, qBittorrent, Transmission) that present torrents as raw filenames and technical progress bars, Leecharr **deeply enriches active downloads with metadata and artwork** directly from Sonarr, Radarr, and Lidarr &mdash; giving you movie posters, TV show banners, episode screenshots, artist fanart, media stream specs, and cast overviews in a unified, beautiful Servarr interface.
 
 ---
 
-## 💡 What is Leecharr?
+## Key Features
 
-**Leecharr** is a high-performance BitTorrent and media downloader purpose-built for the Servarr (`*arr`) ecosystem (Sonarr, Radarr, Lidarr, Prowlarr, Readarr).
+### 🌟 Deep *arr Media Enrichment
+- **Automatic Media Correlation:** Matches torrents by release title, info hash, or `*arr` download ID to pull rich media metadata.
+- **Visual Media Experience:** Displays high-res posters, fanart backdrops, season banners, and episode titles.
+- **Season Pack Hierarchy:** Automatically groups multi-file TV season packs by Show &rarr; Season &rarr; Episode.
+- **Media Stream Info:** Shows resolution (4K, 1080p), HDR format (Dolby Vision, HDR10+), audio codecs (Dolby Atmos, TrueHD, FLAC), and subtitle tracks.
 
-Unlike conventional standalone clients that treat downloads as raw filenames and technical progress bars, Leecharr **deeply enriches active downloads with metadata, artwork, and stream specifications** directly from Sonarr, Radarr, and Lidarr &mdash; providing high-res movie posters, TV show banners, season hierarchy, episode stills, 4K UHD/HDR10+/Dolby Vision/Atmos stream details, and cast overviews in a unified Servarr interface.
+### ⚡ Pure C# .NET 10 BitTorrent Engine
+- **Rarest-First & Endgame Mode:** Optimal swarm health and piece distribution.
+- **Sequential Download Mode:** Enables instant **video streaming and file previewing** while actively downloading.
+- **Per-File Priority Management:** Skip unwanted files or prioritize specific files.
+- **Non-Blocking Async Disk I/O:** Write/read caching (64MB–512MB) and sparse pre-allocation to prevent disk bottlenecking.
+- **Fast Resume Persistence:** Checkpoints piece bitfields and states to SQLite for instant startup without full re-hashing.
+- **MSE/PE Stream Encryption:** Diffie-Hellman 768-bit key exchange + RC4 stream cipher.
+- **BEP Protocol Support:** HTTP & UDP Trackers (BEP 3, BEP 15, BEP 12 Multi-Tracker), DHT (BEP 5), PEX (BEP 11), `ut_metadata` (BEP 9), Fast Extension (BEP 6), LPD (BEP 14), and uTP (BEP 29).
 
-### Key Highlights
-- **⚡ Pure .NET 10 BitTorrent Engine**: High-throughput MonoTorrent engine with rarest-first piece picker, sequential download mode, and async non-blocking disk I/O.
-- **🔌 Drop-In Client Compatibility**: Simultaneous RPC endpoints on port `7889` for:
-  - **qBittorrent WebAPI v2** (`/api/v2/*`)
-  - **Deluge JSON-RPC** (`/json`)
-  - **Transmission RPC** (`/transmission/rpc`)
-  - **Native Leecharr REST API v1 & SignalR** (`/api/v1/*`, `/signalr/messages`)
-- **🔍 Direct Indexer & Integrated Search**: Native Torznab/Newznab search & browse with Freeleech badges and Prowlarr auto-sync.
-- **🛡️ Network & VPN Kill Switch**: Interface binding (`tun0`, `wg0`) with automated socket halt on VPN disconnect, plus SOCKS5/HTTP proxy support.
-- **🔔 Notification Triggers**: Outbound webhooks and alerts for Discord, Telegram, Pushover, Gotify, Email, and Custom Shell Scripts.
-- **📁 Advanced Categories & Save Paths**: Automatic destination folder sorting, ratio goals, and per-category speed limits.
+### 🔌 Download Client Compatibility
+- **Deluge JSON-RPC Adapter:** Connects seamlessly to tools expecting Deluge daemon.
+- **qBittorrent WebAPI v2 Adapter:** Acts as a drop-in qBittorrent client for existing apps.
+- **Transmission RPC Adapter:** Compatible with Transmission remote clients.
+- **Native Leecharr REST API v1 & SignalR:** Sub-second push for speed pulses, piece maps, and swarm events.
 
 ---
 
 ## ⚡ Quick Start
 
-### Single Container Run (`podman run` / `docker run`)
+### Run with Podman / Docker
 
-**Option 1: Docker Hub**
 ```bash
-podman run -d \
+docker run -d \
   --name leecharr \
   -p 7889:7889 \
   -p 7890:7890/tcp \
@@ -73,38 +59,18 @@ podman run -d \
   feeditout/leecharr:latest
 ```
 
-**Option 2: GitHub Container Registry (GHCR)**
-```bash
-podman run -d \
-  --name leecharr \
-  -p 7889:7889 \
-  -p 7890:7890/tcp \
-  -p 7890:7890/udp \
-  -v leecharr-config:/config \
-  -v leecharr-downloads:/downloads \
-  --restart unless-stopped \
-  ghcr.io/dmzoneill/leecharr:latest
-```
-
-Open **http://localhost:7889** in your browser.
-
----
-
-### Container Compose (`podman-compose.yml` / `compose.yaml`)
+### Docker Compose (`docker-compose.yml`)
 
 ```yaml
 services:
   leecharr:
-    # Option 1 (Docker Hub):
     image: feeditout/leecharr:latest
-    # Option 2 (GHCR):
-    # image: ghcr.io/dmzoneill/leecharr:latest
     container_name: leecharr
     restart: unless-stopped
     ports:
-      - "7889:7889"             # Web UI, REST API, & Client RPC endpoints
-      - "7890:7890/tcp"         # BitTorrent Incoming Peer Connections (TCP)
-      - "7890:7890/udp"         # BitTorrent Incoming Peer Connections (uTP/UDP)
+      - "7889:7889"
+      - "7890:7890/tcp"
+      - "7890:7890/udp"
     volumes:
       - /opt/leecharr/config:/config
       - /opt/leecharr/downloads:/downloads
@@ -112,76 +78,16 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7889/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-```
-
-Run with Container Compose:
-```bash
-podman-compose up -d
-# or: docker compose up -d
 ```
 
 ---
 
-## 📁 Storage Volumes & Port Parameters
+## Links & Resources
 
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| **`-p 7889:7889`** | Port | `7889` | Web UI, REST API v1, qBittorrent, Deluge & Transmission RPC adapters |
-| **`-p 7890:7890`** | Port | `7890` | BitTorrent incoming peer communication port (TCP & UDP/uTP) |
-| **`-v /config`** | Volume | `/config` | Application database (`leecharr.db`), runtime settings (`config.xml`), and logs |
-| **`-v /downloads`** | Volume | `/downloads` | Default destination directory for completed and in-progress downloads |
-| **`-e PUID / PGID`** | Env | `1000:1000` | User and Group ID for download filesystem permissions |
-| **`-e TZ`** | Env | `UTC` | Timezone for scheduler matrix and automated logs |
+- **Website:** [https://www.leecharr.net](https://www.leecharr.net)
+- **Source Code:** [https://github.com/dmzoneill/Leecharr](https://github.com/dmzoneill/Leecharr)
+- **Documentation:** [https://github.com/dmzoneill/Leecharr/tree/main/docs](https://github.com/dmzoneill/Leecharr/tree/main/docs)
 
 ---
 
-## 🌐 Reverse Proxy Configuration
-
-### Nginx
-```nginx
-server {
-    listen 80;
-    server_name leecharr.yourdomain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:7889;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # WebSocket / SignalR support
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_read_timeout 86400;
-    }
-}
-```
-
----
-
-## 🛠️ Supported Architectures & Tags
-
-Multi-architecture builds are automatically published to both Docker Hub and GitHub Packages Container Registry (GHCR):
-
-| Architecture | Docker Hub Tag Example | GHCR Tag Example | Status |
-| :--- | :--- | :--- | :--- |
-| **`linux/amd64`** | `feeditout/leecharr:latest` | `ghcr.io/dmzoneill/leecharr:latest` | ✅ Verified Stable |
-| **`linux/arm64`** | `feeditout/leecharr:latest` | `ghcr.io/dmzoneill/leecharr:latest` | ✅ Verified Stable |
-
----
-
-## 🔗 Links & Resources
-
-- **Official Website**: [www.leecharr.net](https://www.leecharr.net)
-- **Source Code**: [github.com/dmzoneill/Leecharr](https://github.com/dmzoneill/Leecharr)
-- **Changelog**: [CHANGELOG.md](https://github.com/dmzoneill/Leecharr/blob/main/CHANGELOG.md)
-- **GitHub Container Registry**: [ghcr.io/dmzoneill/leecharr](https://ghcr.io/dmzoneill/leecharr)
-- **License**: [Apache License 2.0](https://github.com/dmzoneill/Leecharr/blob/main/LICENSE)
+Distributed under the **Apache License 2.0**.
