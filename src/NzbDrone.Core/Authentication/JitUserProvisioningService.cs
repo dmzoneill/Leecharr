@@ -72,7 +72,7 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             {
                 var roles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
                 var newRolesJson = JsonSerializer.Serialize(roles);
-                var rolesChanged = this.HaveRolesChanged(existingUser.Roles, roles, newRolesJson);
+                var rolesChanged = HaveRolesChanged(existingUser.Roles, roles, newRolesJson);
                 existingUser.Roles = newRolesJson;
 
                 if (rolesChanged)
@@ -114,7 +114,7 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             {
                 var roles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
                 var newRolesJson = JsonSerializer.Serialize(roles);
-                var rolesChanged = this.HaveRolesChanged(matchedUser.Roles, roles, newRolesJson);
+                var rolesChanged = HaveRolesChanged(matchedUser.Roles, roles, newRolesJson);
                 matchedUser.Roles = newRolesJson;
 
                 if (rolesChanged)
@@ -192,7 +192,7 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         return $"{candidate}_{suffix}";
     }
 
-    private bool HaveRolesChanged(string currentRolesJson, List<string> newRoles, string newRolesJson)
+    private static bool HaveRolesChanged(string currentRolesJson, List<string> newRoles, string newRolesJson)
     {
         if (string.IsNullOrWhiteSpace(currentRolesJson))
         {

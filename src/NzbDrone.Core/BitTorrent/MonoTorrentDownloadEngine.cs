@@ -4713,6 +4713,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.fastResumeAutoSaveTimer?.Dispose();
         this.fastResumeAutoSaveTimer = null;
 
+        this.engine?.Dispose();
+        this.engine = null;
+
         lock (this.pendingTorrentsLock)
         {
             this.pendingTorrents.Clear();
@@ -5472,6 +5475,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     }
 
     [DllImport("libc", EntryPoint = "posix_fallocate", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern int PosixFallocate(SafeFileHandle fd, long offset, long len);
 
     internal async Task PreallocateFilesAsync(TorrentManager manager, string workingPath, MtTorrent parsedTorrent = null)

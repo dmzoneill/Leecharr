@@ -408,5 +408,6 @@ else:
     }
 
     [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern int MkFifo(string path, uint mode);
 }

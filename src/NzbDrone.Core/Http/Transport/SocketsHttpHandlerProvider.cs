@@ -197,6 +197,7 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
         {
             this.disposed = true;
             this.httpClient.Dispose();
+            this.handler.Dispose();
         }
     }
 }

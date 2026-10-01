@@ -9,6 +9,7 @@ namespace NzbDrone.Core.Torrents;
 public static class InfoHashCalculator
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S4790", Justification = "SHA1 is mandated by the BitTorrent BEP 3 protocol specification for info-hashes")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "SHA1 is mandated by the BitTorrent BEP 3 protocol specification for info-hashes")]
     public static string Calculate(BDictionary infoDictionary)
     {
         if (infoDictionary == null)
@@ -22,6 +23,7 @@ public static class InfoHashCalculator
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S4790", Justification = "SHA1 is mandated by the BitTorrent BEP 3 protocol specification for info-hashes")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "SHA1 is mandated by the BitTorrent BEP 3 protocol specification for info-hashes")]
     public static byte[] CalculateBytes(BDictionary infoDictionary)
     {
         if (infoDictionary == null)

@@ -16,6 +16,7 @@ using NzbDrone.Core.Datastore;
 
 namespace Leecharr.Api.V1.System;
 
+[global::System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "DTO resource properties must be instance members for JSON serialization")]
 public class SystemStatusResource
 {
     public string AppName => "Leecharr";
@@ -54,7 +55,7 @@ public class SystemStatusResource
         }
     }
 
-    public bool IsProduction => !this.IsDebug;
+    public bool IsProduction => !IsDebug;
 
     public string AppDataFolder { get; set; }
 

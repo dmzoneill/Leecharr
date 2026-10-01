@@ -371,4 +371,10 @@ public class ExternalIpService : BackgroundService, IExternalIpService
 
         return false;
     }
+
+    public override void Dispose()
+    {
+        this.fetchLock.Dispose();
+        base.Dispose();
+    }
 }
