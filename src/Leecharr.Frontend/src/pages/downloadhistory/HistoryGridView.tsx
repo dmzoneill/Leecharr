@@ -113,11 +113,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
               {rowItems.map((item) => {
                 const meta = item.metadata;
                 const displayTitle = meta?.title || item.title;
-                const posterSrc =
-                  meta?.posterUrl ||
-                  (item.torrentId
-                    ? `/api/v1/media/artwork/${item.torrentId}/poster`
-                    : "");
+                const posterSrc = meta?.posterUrl || "";
                 const arrLink = getMediaDeepLink(item, arrConnections);
 
                 return (

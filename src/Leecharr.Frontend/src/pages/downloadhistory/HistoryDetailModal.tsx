@@ -164,12 +164,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
             }}
           >
             <MediaArtworkImage
-              src={
-                meta?.posterUrl ||
-                (item.torrentId
-                  ? `/api/v1/media/artwork/${item.torrentId}/poster`
-                  : "")
-              }
+              src={meta?.posterUrl || ""}
               alt={displayTitle}
               width={110}
               height={160}
