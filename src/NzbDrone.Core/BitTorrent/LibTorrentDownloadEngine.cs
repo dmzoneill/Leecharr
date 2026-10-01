@@ -1281,96 +1281,10 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     }
 }
 
-public class LibTorrentDownloadTask : IDownloadTask
+public class LibTorrentDownloadTask : BaseDaemonDownloadTask
 {
-    public int TorrentId { get; }
-
-    public string InfoHash { get; }
-
-    public string Name { get; }
-
-    public string Category { get; set; } = string.Empty;
-
-    public long TotalSize { get; }
-
-    public long TotalBytes => this.TotalSize;
-
-    public TorrentStatus Status { get; set; } = TorrentStatus.Downloading;
-
-    public long DownloadedBytes { get; set; }
-
-    public long UploadedBytes { get; set; }
-
-    public double Progress { get; set; }
-
-    public long DownloadSpeed
-    {
-        get => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : this.downloadSpeed;
-        set => this.downloadSpeed = value;
-    }
-
-    public long UploadSpeed
-    {
-        get => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : this.uploadSpeed;
-        set => this.uploadSpeed = value;
-    }
-
-    public int ConnectedSeeders
-    {
-        get => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : this.connectedSeeders;
-        set => this.connectedSeeders = value;
-    }
-
-    public int ConnectedLeechers
-    {
-        get => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : this.connectedLeechers;
-        set => this.connectedLeechers = value;
-    }
-
-    private long downloadSpeed;
-    private long uploadSpeed;
-    private int connectedSeeders;
-    private int connectedLeechers;
-    private IReadOnlyList<PeerInfo> peers = Array.Empty<PeerInfo>();
-
-    public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
-
-    public int[] PieceAvailability { get; set; } = Array.Empty<int>();
-
-    public TorrentResourceMetrics GetResourceMetrics() => new()
-    {
-        TorrentId = this.TorrentId,
-        InfoHash = this.InfoHash ?? string.Empty,
-        Name = this.Name ?? string.Empty,
-        Category = this.Category ?? string.Empty,
-        Status = this.Status.ToString() ?? "Stopped",
-        Progress = this.Progress,
-        TotalBytes = this.TotalSize,
-        DownloadedPayload = this.DownloadedBytes,
-        UploadedPayload = this.UploadedBytes,
-        PayloadDownloadSpeed = this.DownloadSpeed,
-        PayloadUploadSpeed = this.UploadSpeed,
-        ConnectedSeeds = this.ConnectedSeeders,
-        ConnectedLeechers = this.ConnectedLeechers,
-        ConnectedPeers = this.ConnectedSeeders + this.ConnectedLeechers,
-    };
-
     public LibTorrentDownloadTask(int torrentId, string infoHash, string name, long totalSize, string category = null)
+        : base(torrentId, infoHash, name, totalSize, category)
     {
-        this.TorrentId = torrentId;
-        this.InfoHash = infoHash;
-        this.Name = name;
-        this.TotalSize = totalSize;
-        this.Category = category ?? string.Empty;
-    }
-
-    public IReadOnlyList<PeerInfo> GetPeers()
-    {
-        return this.peers;
-    }
-
-    public void SetPeers(IEnumerable<PeerInfo> peerList)
-    {
-        this.peers = peerList?.ToList() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
     }
 }
