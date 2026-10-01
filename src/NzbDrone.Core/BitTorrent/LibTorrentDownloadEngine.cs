@@ -486,18 +486,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         this.logger.Error("VPN Kill Switch drop detected for interface '{0}'. Halting LibTorrent engine transfers.", message.InterfaceName);
         this.isHaltedByKillSwitch = true;
 
-        lock (this.torrentsHaltedByKillSwitch)
-        {
-            this.torrentsHaltedByKillSwitch.Clear();
-            foreach (var task in this.tasks.Values)
-            {
-                if (task.Status == TorrentStatus.Downloading || task.Status == TorrentStatus.Seeding)
-                {
-                    this.torrentsHaltedByKillSwitch.Add(task.TorrentId);
-                    task.Status = TorrentStatus.Paused;
-                }
-            }
-        }
+        TorrentEngineNetworkHelper.HaltActiveTorrents(
+            this.tasks.Values,
+            this.torrentsHaltedByKillSwitch,
+            t => t.TorrentId,
+            t => t.Status,
+            (t, s) => t.Status = s);
 
         _ = Task.Run(async () =>
         {
@@ -530,19 +524,13 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             }
         }, this.syncCts?.Token ?? CancellationToken.None);
 
-        lock (this.torrentsHaltedByKillSwitch)
-        {
-            foreach (var torrentId in this.torrentsHaltedByKillSwitch)
-            {
-                if (this.tasks.TryGetValue(torrentId, out var task) && task.Status == TorrentStatus.Paused)
-                {
-                    task.Status = task.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading;
-                    _ = this.ResumeTorrentAsync(torrentId);
-                }
-            }
-
-            this.torrentsHaltedByKillSwitch.Clear();
-        }
+        TorrentEngineNetworkHelper.ResumeHaltedTorrents(
+            this.tasks,
+            this.torrentsHaltedByKillSwitch,
+            t => t.Status,
+            (t, s) => t.Status = s,
+            t => t.Progress,
+            id => _ = this.ResumeTorrentAsync(id));
     }
 
     public void Handle(NetworkBindingProviderSwitchedEvent message)
@@ -746,64 +734,11 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
     internal string ResolveBoundIpv4Address()
     {
-        if (this.isHaltedByKillSwitch || this.vpnKillSwitchService?.IsFailClosedActive == true)
-        {
-            return "127.0.0.1";
-        }
-
-        var iface = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
-            ? this.configService.NetworkInterfaceBinding
-            : this.configService?.BindInterface;
-
-        var hasSpecificInterface = !string.IsNullOrWhiteSpace(iface) &&
-            !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
-
-        if (!hasSpecificInterface)
-        {
-            return "0.0.0.0";
-        }
-
-        if (IPAddress.TryParse(iface, out var parsedIp) && parsedIp.AddressFamily == AddressFamily.InterNetwork)
-        {
-            return parsedIp.ToString();
-        }
-
-        if (this.vpnKillSwitchService != null)
-        {
-            if (this.vpnKillSwitchService.IsFailClosedActive)
-            {
-                return "127.0.0.1";
-            }
-
-            var vpnIp = this.vpnKillSwitchService.GetVpnInterfaceIpAddress(AddressFamily.InterNetwork);
-            if (vpnIp != null)
-            {
-                return vpnIp.ToString();
-            }
-        }
-
-        if (this.networkBindingService != null)
-        {
-            if (this.networkBindingService.CheckVpnKillSwitch(iface))
-            {
-                return "127.0.0.1";
-            }
-
-            if (!this.networkBindingService.IsInterfaceUp(iface))
-            {
-                return "127.0.0.1";
-            }
-        }
-
-        var resolved = ManagedSocketBindingProvider.GetInterfaceIp(iface, AddressFamily.InterNetwork);
-        if (resolved != null)
-        {
-            return resolved.ToString();
-        }
-
-        // When a specific interface binding is active but cannot be resolved or is down, fail closed.
-        return "127.0.0.1";
+        return TorrentEngineNetworkHelper.ResolveBoundIpv4Address(
+            this.isHaltedByKillSwitch,
+            this.vpnKillSwitchService,
+            this.configService,
+            this.networkBindingService);
     }
 
     public async Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)

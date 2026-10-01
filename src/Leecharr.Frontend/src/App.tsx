@@ -150,6 +150,122 @@ function RedirectWithSearch({ to }: { to: string }) {
   return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
 }
 
+interface SidebarNavItemProps {
+  active?: boolean;
+  activeParent?: boolean;
+  onClick: () => void;
+  title?: string;
+  icon?: React.ReactNode;
+  label: React.ReactNode;
+  badge?: React.ReactNode;
+  sub?: boolean;
+}
+
+const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
+  active,
+  activeParent,
+  onClick,
+  title,
+  icon,
+  label,
+  badge,
+  sub,
+}) => (
+  <div
+    className={`sidebar-nav-item ${sub ? "sidebar-nav-sub" : ""} ${active ? "active" : ""} ${activeParent ? "active-parent" : ""}`}
+    role="button"
+    tabIndex={0}
+    onClick={onClick}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick();
+      }
+    }}
+    style={{ cursor: "pointer" }}
+    title={title}
+  >
+    {icon}
+    <span>{label}</span>
+    {badge}
+  </div>
+);
+
+interface SidebarSettingsSubItemProps {
+  active: boolean;
+  onClick: () => void;
+  title?: string;
+  icon?: React.ReactNode;
+  label: React.ReactNode;
+  badge?: React.ReactNode;
+}
+
+const SidebarSettingsSubItem: React.FC<SidebarSettingsSubItemProps> = ({
+  active,
+  onClick,
+  title,
+  icon,
+  label,
+  badge,
+}) => (
+  <div
+    className={`sidebar-settings-subitem ${active ? "active" : ""}`}
+    role="button"
+    tabIndex={0}
+    onClick={onClick}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick();
+      }
+    }}
+    title={title}
+  >
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.45rem",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span
+        style={{
+          fontSize: "0.85rem",
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </span>
+      <span
+        style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {label}
+      </span>
+    </span>
+    {badge && (
+      <span
+        className="sidebar-badge"
+        style={{
+          backgroundColor: active
+            ? "var(--accent)"
+            : "rgba(255,255,255,0.06)",
+          color: active
+            ? "#10111a"
+            : "var(--text-muted)",
+        }}
+      >
+        {badge}
+      </span>
+    )}
+  </div>
+);
+
 export function App() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -883,381 +999,195 @@ export function App() {
 
         <nav className="sidebar-nav">
           {/* Dashboard */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "dashboard" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "dashboard"}
             onClick={() => guardedNavigate("/")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.dashboard")}
-          >
-            <DashboardIcon size={16} />
-            <span>{t("nav.dashboard")}</span>
-          </div>
+            icon={<DashboardIcon size={16} />}
+            label={t("nav.dashboard")}
+          />
 
           {/* Torrents (Primary Client / Transfers) */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "torrents" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "torrents"}
             onClick={() => guardedNavigate("/torrents")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/torrents");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.torrents")}
-          >
-            <TorrentIcon size={16} />
-            <span>{t("nav.torrents")}</span>
-          </div>
+            icon={<TorrentIcon size={16} />}
+            label={t("nav.torrents")}
+          />
           {activeNav === "torrents" && (
             <>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "all" ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+              <SidebarNavItem
+                sub
+                active={activeSubNav === "all"}
                 onClick={() => guardedNavigate("/torrents")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate("/torrents");
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title={t("nav.torrents")}
-              >
-                <DashboardIcon size={14} /> <span>{t("nav.torrents")}</span>
-              </div>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+                icon={<DashboardIcon size={14} />}
+                label={t("nav.torrents")}
+              />
+              <SidebarNavItem
+                sub
+                active={activeSubNav === "add"}
                 onClick={() => guardedNavigate("/torrents/add")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate("/torrents/add");
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title={t("modals.addTorrent")}
-              >
-                <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
-                <span>{t("modals.addTorrent")}</span>
-              </div>
+                icon={<span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>}
+                label={t("modals.addTorrent")}
+              />
             </>
           )}
 
           {/* Activity (History & Real-time Metrics) */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "activity" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "activity"}
             onClick={() => guardedNavigate("/activity/history")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/activity/history");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.activity")}
-          >
-            <ActivityIcon size={16} />
-            <span>{t("nav.activity")}</span>
-          </div>
+            icon={<ActivityIcon size={16} />}
+            label={t("nav.activity")}
+          />
           {activeNav === "activity" && (
             <>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "history" ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+              <SidebarNavItem
+                sub
+                active={activeSubNav === "history"}
                 onClick={() => guardedNavigate("/activity/history")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate("/activity/history");
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title={t("nav.history")}
-              >
-                <HistoryIcon /> <span>{t("nav.history")}</span>
-              </div>
+                icon={<HistoryIcon />}
+                label={t("nav.history")}
+              />
               {downloadClients &&
                 downloadClients.filter((c) => c.enable).length > 1 && (
-                  <div
-                    className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === "/activity/client/all" ? "active" : ""}`}
-                    role="button"
-                    tabIndex={0}
+                  <SidebarNavItem
+                    sub
+                    active={location.pathname === "/activity/client/all"}
                     onClick={() => guardedNavigate("/activity/client/all")}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        guardedNavigate("/activity/client/all");
-                      }
-                    }}
-                    style={{ cursor: "pointer" }}
                     title="All Clients"
-                  >
-                    <DownloadAgentIcon size={14} /> <span>All Clients</span>
-                  </div>
+                    icon={<DownloadAgentIcon size={14} />}
+                    label="All Clients"
+                  />
                 )}
               {downloadClients
                 ?.filter((c) => c.enable)
                 .map((client) => (
-                  <div
+                  <SidebarNavItem
                     key={client.id}
-                    className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === `/activity/client/${client.id}` ? "active" : ""}`}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() =>
-                      guardedNavigate(`/activity/client/${client.id}`)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        guardedNavigate(`/activity/client/${client.id}`);
-                      }
-                    }}
-                    style={{ cursor: "pointer" }}
+                    sub
+                    active={location.pathname === `/activity/client/${client.id}`}
+                    onClick={() => guardedNavigate(`/activity/client/${client.id}`)}
                     title={client.name}
-                  >
-                    <DownloadAgentIcon size={14} /> <span>{client.name}</span>
-                  </div>
+                    icon={<DownloadAgentIcon size={14} />}
+                    label={client.name}
+                  />
                 ))}
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+              <SidebarNavItem
+                sub
+                active={activeSubNav === "metrics"}
                 onClick={() => guardedNavigate("/activity/metrics")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate("/activity/metrics");
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title={t("nav.statistics")}
-              >
-                <StatsIcon size={14} /> <span>{t("nav.statistics")}</span>
-              </div>
+                icon={<StatsIcon size={14} />}
+                label={t("nav.statistics")}
+              />
             </>
           )}
 
           {/* Indexer Search & Discovery */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "indexers" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "indexers"}
             onClick={() => guardedNavigate("/indexers")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/indexers");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.indexers")}
-          >
-            <SearchIcon size={16} />
-            <span>{t("nav.indexers")}</span>
-          </div>
+            icon={<SearchIcon size={16} />}
+            label={t("nav.indexers")}
+          />
 
           {/* Peer Map */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "peermap" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "peermap"}
             onClick={() => guardedNavigate("/peermap")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/peermap");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.peerMap")}
-          >
-            <PeerMapIcon size={16} />
-            <span>{t("nav.peerMap")}</span>
-          </div>
+            icon={<PeerMapIcon size={16} />}
+            label={t("nav.peerMap")}
+          />
 
           {/* Schedule */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "schedule" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "schedule"}
             onClick={() => guardedNavigate("/schedule")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/schedule");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.speedSchedule")}
-          >
-            <ScheduleIcon size={16} />
-            <span>{t("nav.speedSchedule")}</span>
-          </div>
+            icon={<ScheduleIcon size={16} />}
+            label={t("nav.speedSchedule")}
+          />
 
           {/* Statistics */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "statistics" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "statistics"}
             onClick={() => guardedNavigate("/statistics")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/statistics");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.statistics")}
-          >
-            <StatsIcon size={16} />
-            <span>{t("nav.statistics")}</span>
-          </div>
+            icon={<StatsIcon size={16} />}
+            label={t("nav.statistics")}
+          />
 
           {/* Tracker Server & Swarms */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "tracker" ? "active-parent" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            activeParent={activeNav === "tracker"}
             onClick={() => guardedNavigate("/tracker/inbuilt")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/tracker/inbuilt");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title="Tracker Endpoints, Swarms & Live Metrics"
-          >
-            <TrackerIcon />
-            <span>Tracker</span>
-          </div>
+            icon={<TrackerIcon />}
+            label="Tracker"
+          />
           {activeNav === "tracker" && (
             <>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "inbuilt" ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+              <SidebarNavItem
+                sub
+                active={activeSubNav === "inbuilt"}
                 onClick={() => guardedNavigate("/tracker/inbuilt")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate("/tracker/inbuilt");
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title="Inbuilt Tracker Server & Swarms"
-              >
-                <TrackerIcon /> <span>Inbuilt</span>
-              </div>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "boost" ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+                icon={<TrackerIcon />}
+                label="Inbuilt"
+              />
+              <SidebarNavItem
+                sub
+                active={activeSubNav === "boost"}
                 onClick={() => guardedNavigate("/tracker/trackerboost")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate("/tracker/trackerboost");
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title="Tracker Boost Swarm Optimization & Discovery"
-              >
-                <TrackerBoostIcon size={14} />{" "}
-                <span>{t("nav.trackerBoost")}</span>
-              </div>
-              <div
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+                icon={<TrackerBoostIcon size={14} />}
+                label={t("nav.trackerBoost")}
+              />
+              <SidebarNavItem
+                sub
+                active={activeSubNav === "metrics"}
                 onClick={() => guardedNavigate("/tracker/metrics")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate("/tracker/metrics");
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title="Tracker Live Telemetry & Metrics"
-              >
-                <StatsIcon size={14} /> <span>Tracker Metrics</span>
-              </div>
+                icon={<StatsIcon size={14} />}
+                label="Tracker Metrics"
+              />
             </>
           )}
 
           {/* File Browser */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "files" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "files"}
             onClick={() => guardedNavigate("/files")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/files");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.browseFiles")}
-          >
-            <FolderIcon size={16} />
-            <span>{t("nav.fileBrowser")}</span>
-          </div>
+            icon={<FolderIcon size={16} />}
+            label={t("nav.fileBrowser")}
+          />
 
           {/* Automation & DSL Engine */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "automation" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "automation"}
             onClick={() => guardedNavigate("/automation")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/automation");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title="Automation Scripting Engine & Marketplace"
-          >
-            <AutomationIcon size={16} />
-            <span>Automation</span>
-          </div>
+            icon={<AutomationIcon size={16} />}
+            label="Automation"
+          />
 
           {/* Settings */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "settings" ? "active-parent" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            activeParent={activeNav === "settings"}
             onClick={() => guardedNavigate("/settings/host")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/settings/host");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.settings")}
-          >
-            <SettingsIcon size={16} />
-            <span>{t("nav.settings")}</span>
-          </div>
+            icon={<SettingsIcon size={16} />}
+            label={t("nav.settings")}
+          />
           {activeNav === "settings" && (
             <div className="sidebar-settings-tree">
               {SETTINGS_GROUPS.map((group) => {
@@ -1307,70 +1237,17 @@ export function App() {
                       </span>
                     </div>
                     {isOpen &&
-                      group.pages.map((page) => {
-                        const isPageActive = activeSubNav === page.id;
-                        return (
-                          <div
-                            key={page.id}
-                            className={`sidebar-settings-subitem ${isPageActive ? "active" : ""}`}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() =>
-                              guardedNavigate(`/settings/${page.id}`)
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                guardedNavigate(`/settings/${page.id}`);
-                              }
-                            }}
-                            title={t(page.description)}
-                          >
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "0.45rem",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: "0.85rem",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {page.icon}
-                              </span>
-                              <span
-                                style={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {t(page.shortLabel)}
-                              </span>
-                            </span>
-                            {page.badge && (
-                              <span
-                                className="sidebar-badge"
-                                style={{
-                                  backgroundColor: isPageActive
-                                    ? "var(--accent)"
-                                    : "rgba(255,255,255,0.06)",
-                                  color: isPageActive
-                                    ? "#10111a"
-                                    : "var(--text-muted)",
-                                }}
-                              >
-                                {t(page.badge)}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
+                      group.pages.map((page) => (
+                        <SidebarSettingsSubItem
+                          key={page.id}
+                          active={activeSubNav === page.id}
+                          onClick={() => guardedNavigate(`/settings/${page.id}`)}
+                          title={t(page.description)}
+                          icon={page.icon}
+                          label={t(page.shortLabel)}
+                          badge={page.badge ? t(page.badge) : undefined}
+                        />
+                      ))}
                   </div>
                 );
               })}
@@ -1378,83 +1255,45 @@ export function App() {
           )}
 
           {/* System */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "system" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "system"}
             onClick={() => guardedNavigate("/system/status")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/system/status");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.system")}
-          >
-            <SystemIcon size={16} />
-            <span>{t("nav.system")}</span>
-          </div>
+            icon={<SystemIcon size={16} />}
+            label={t("nav.system")}
+          />
           {activeNav === "system" &&
             getSystemSubItems(t).map((item) => (
-              <div
+              <SidebarNavItem
                 key={item.id}
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+                sub
+                active={activeSubNav === item.id}
                 onClick={() => guardedNavigate(`/system/${item.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate(`/system/${item.id}`);
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title={item.label}
-              >
-                {item.icon && <span style={{ marginRight: "6px" }}>{item.icon}</span>}
-                <span>{item.label}</span>
-              </div>
+                icon={item.icon ? <span style={{ marginRight: "6px" }}>{item.icon}</span> : undefined}
+                label={item.label}
+              />
             ))}
 
           {/* Developer Tools */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "developer" ? "active" : ""}`}
-            role="button"
-            tabIndex={0}
+          <SidebarNavItem
+            active={activeNav === "developer"}
             onClick={() => guardedNavigate("/developer/database")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                guardedNavigate("/developer/database");
-              }
-            }}
-            style={{ cursor: "pointer" }}
             title={t("nav.developer", "Developer Tools")}
-          >
-            <CodeIcon size={16} />
-            <span>{t("nav.developer", "Developer")}</span>
-          </div>
+            icon={<CodeIcon size={16} />}
+            label={t("nav.developer", "Developer")}
+          />
           {activeNav === "developer" &&
             getDeveloperSubItems(t).map((item) => (
-              <div
+              <SidebarNavItem
                 key={item.id}
-                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
+                sub
+                active={activeSubNav === item.id}
                 onClick={() => guardedNavigate(`/developer/${item.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    guardedNavigate(`/developer/${item.id}`);
-                  }
-                }}
-                style={{ cursor: "pointer" }}
                 title={item.label}
-              >
-                {item.icon && <span style={{ marginRight: "6px" }}>{item.icon}</span>}
-                <span>{item.label}</span>
-              </div>
+                icon={item.icon ? <span style={{ marginRight: "6px" }}>{item.icon}</span> : undefined}
+                label={item.label}
+              />
             ))}
         </nav>
       </aside>

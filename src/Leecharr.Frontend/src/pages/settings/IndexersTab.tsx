@@ -26,6 +26,7 @@ import {
   SelectInput,
   Toggle,
   SectionCard,
+  ModalTestResultBanner,
 } from "./shared";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
@@ -1216,58 +1217,8 @@ export function IndexersTab() {
               </div>
             )}
 
-            {modalTestResult && !testDirectMutation.isPending && (
-              <div
-                style={{
-                  marginTop: "1rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "6px",
-                  fontSize: "0.875rem",
-                  lineHeight: "1.4",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "0.65rem",
-                  backgroundColor: modalTestResult.success
-                    ? "rgba(40, 167, 69, 0.15)"
-                    : "rgba(220, 53, 69, 0.15)",
-                  color: modalTestResult.success
-                    ? "var(--success, #28a745)"
-                    : "var(--danger, #dc3545)",
-                  border: `1px solid ${
-                    modalTestResult.success
-                      ? "rgba(40, 167, 69, 0.35)"
-                      : "rgba(220, 53, 69, 0.35)"
-                  }`,
-                }}
-              >
-                <span
-                  style={{
-                    fontWeight: "bold",
-                    fontSize: "1.1rem",
-                    lineHeight: "1",
-                  }}
-                >
-                  {modalTestResult.success ? "✓" : "✕"}
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>
-                    {modalTestResult.success
-                      ? t("settingsTabs.indexers.connectionSuccessful")
-                      : t("settingsTabs.indexers.connectionFailedModal")}
-                  </div>
-                  {modalTestResult.message && (
-                    <div
-                      style={{
-                        marginTop: "0.25rem",
-                        opacity: 0.95,
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      {modalTestResult.message}
-                    </div>
-                  )}
-                </div>
-              </div>
+            {!testDirectMutation.isPending && (
+              <ModalTestResultBanner result={modalTestResult} />
             )}
 
             {(createMutation.isError || updateMutation.isError) && (
