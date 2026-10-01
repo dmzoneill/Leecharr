@@ -270,12 +270,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                       }}
                     >
                       <MediaArtworkImage
-                        src={
-                          meta?.posterUrl ||
-                          (item.torrentId
-                            ? `/api/v1/media/artwork/${item.torrentId}/poster`
-                            : "")
-                        }
+                        src={meta?.posterUrl || ""}
                         alt={displayTitle}
                         width={38}
                         height={54}
