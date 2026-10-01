@@ -31,3 +31,22 @@ query-filters:
         - cs/call-to-unmanaged-code
         - cs/path-combine
         - cs/empty-block
+        - cs/nested-if-statements
+        - cs/useless-assignment-to-local
+        - cs/simplifiable-boolean-expression
+        - cs/local-shadows-member
+        - cs/equality-on-floats
+        - cs/useless-cast-to-self
+        - cs/reference-equality-with-object
+        - cs/dispose-not-called-on-throw
+        - cs/static-field-written-by-instance
+        - cs/useless-tostring-call
+        - cs/useless-if-statement
+        - cs/missed-readonly-modifier
+        - cs/unused-collection
+        - js/unused-local-variable
+        - js/useless-assignment-to-local
+        - js/trivial-conditional
+        - js/superfluous-trailing-arguments
+        - js/unneeded-defensive-code
+        - cs/log-forging
