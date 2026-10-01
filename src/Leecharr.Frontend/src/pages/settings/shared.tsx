@@ -576,3 +576,70 @@ export function SectionTitle({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+export function ModalTestResultBanner({
+  result,
+  successTitle,
+  failedTitle,
+}: {
+  result: { success: boolean; message?: string } | null;
+  successTitle?: string;
+  failedTitle?: string;
+}) {
+  const { t } = useTranslation();
+  if (!result) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: "1rem",
+        padding: "0.75rem 1rem",
+        borderRadius: "6px",
+        fontSize: "0.875rem",
+        lineHeight: "1.4",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "0.65rem",
+        backgroundColor: result.success
+          ? "rgba(40, 167, 69, 0.15)"
+          : "rgba(220, 53, 69, 0.15)",
+        color: result.success
+          ? "var(--success, #28a745)"
+          : "var(--danger, #dc3545)",
+        border: `1px solid ${
+          result.success
+            ? "rgba(40, 167, 69, 0.35)"
+            : "rgba(220, 53, 69, 0.35)"
+        }`,
+      }}
+    >
+      <span
+        style={{
+          fontWeight: "bold",
+          fontSize: "1.1rem",
+          lineHeight: "1",
+        }}
+      >
+        {result.success ? "✓" : "✕"}
+      </span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 600 }}>
+          {result.success
+            ? (successTitle ?? t("settingsTabs.indexers.connectionSuccessful"))
+            : (failedTitle ?? t("settingsTabs.indexers.connectionFailedModal"))}
+        </div>
+        {result.message && (
+          <div
+            style={{
+              marginTop: "0.25rem",
+              opacity: 0.95,
+              wordBreak: "break-word",
+            }}
+          >
+            {result.message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
