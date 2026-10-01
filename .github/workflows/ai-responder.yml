@@ -36,11 +36,11 @@ jobs:
         run: echo "$GOOGLE_CREDS" > /tmp/gcloud-credentials.json
 
       - name: Install Python dependencies
-        run: pip install requests
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-requests
 
       - name: Download AI responder script
         run: |
-          curl -sSL "https://raw.githubusercontent.com/dmzoneill/dmzoneill/main/ai-responder.py" -o ai-responder.py
+          python3 -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/dmzoneill/dmzoneill/main/ai-responder.py', 'ai-responder.py')"
           chmod +x ai-responder.py
 
       - name: Run AI responder
