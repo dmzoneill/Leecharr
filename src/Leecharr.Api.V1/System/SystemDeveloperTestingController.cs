@@ -42,7 +42,7 @@ public class SystemDeveloperTestingController : Controller
     }
 
     [HttpPost("run/{testId}")]
-    public async Task<ActionResult<DeveloperTestResult>> RunSingleTest(string testId)
+    public async Task<ActionResult<object>> RunSingleTest(string testId)
     {
         if (this.testRunner == null)
         {
