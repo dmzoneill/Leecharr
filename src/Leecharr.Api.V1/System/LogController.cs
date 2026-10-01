@@ -73,7 +73,7 @@ public class LogController : ControllerBase
         var level = ParseLogLevel(request?.Level) ?? LogLevel.Info;
         var message = string.IsNullOrWhiteSpace(request?.Message)
             ? $"Diagnostic test log message generated from UI ({level})"
-            : request.Message.Trim();
+            : request.Message.Trim().Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
 
         Logger.Log(level, message);
 
