@@ -88,6 +88,12 @@ public static class TorrentEngineNetworkHelper
         Func<TTask, TorrentStatus> getStatus,
         Action<TTask, TorrentStatus> setStatus)
     {
+        ArgumentNullException.ThrowIfNull(haltedIds);
+        ArgumentNullException.ThrowIfNull(tasks);
+        ArgumentNullException.ThrowIfNull(getStatus);
+        ArgumentNullException.ThrowIfNull(setStatus);
+        ArgumentNullException.ThrowIfNull(getTorrentId);
+
         lock (haltedIds)
         {
             haltedIds.Clear();
@@ -113,6 +119,13 @@ public static class TorrentEngineNetworkHelper
         Func<TTask, double> getProgress,
         Action<int> resumeTorrentAction)
     {
+        ArgumentNullException.ThrowIfNull(tasks);
+        ArgumentNullException.ThrowIfNull(haltedIds);
+        ArgumentNullException.ThrowIfNull(getStatus);
+        ArgumentNullException.ThrowIfNull(setStatus);
+        ArgumentNullException.ThrowIfNull(getProgress);
+        ArgumentNullException.ThrowIfNull(resumeTorrentAction);
+
         lock (haltedIds)
         {
             var pausedIds = haltedIds
