@@ -172,8 +172,7 @@ public class DiskProvider : IDiskProvider
 
         try
         {
-            var attr = new DirectoryInfo(path).Attributes;
-            return attr != (FileAttributes)(-1) && attr.HasFlag(FileAttributes.Directory);
+            return File.GetAttributes(path).HasFlag(FileAttributes.Directory);
         }
         catch
         {
@@ -193,8 +192,7 @@ public class DiskProvider : IDiskProvider
 
         try
         {
-            var attr = new FileInfo(path).Attributes;
-            return attr != (FileAttributes)(-1) && !attr.HasFlag(FileAttributes.Directory);
+            return !File.GetAttributes(path).HasFlag(FileAttributes.Directory);
         }
         catch
         {
