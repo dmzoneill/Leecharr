@@ -1303,10 +1303,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         var isPaused = request.Paused || request.StartPaused;
         var effectiveTags = (request.Tags != null && request.Tags.Count > 0) ? request.Tags : request.TagIds;
         var hasCustomOptions = request.SequentialDownload.HasValue ||
-                               request.FirstLastPiecePriority.HasValue ||
-                               (effectiveTags != null && effectiveTags.Count > 0) ||
-                               request.DownloadLimit.HasValue ||
-                               request.UploadLimit.HasValue;
+            request.FirstLastPiecePriority.HasValue ||
+            (effectiveTags != null && effectiveTags.Count > 0) ||
+            request.DownloadLimit.HasValue ||
+            request.UploadLimit.HasValue;
 
         if (!string.IsNullOrWhiteSpace(magnet))
         {
