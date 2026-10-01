@@ -656,6 +656,7 @@ public class MonoTorrentDownloadEngineTest
     {
         await this.engine.StartAsync();
         await this.engine.StopAsync();
+        this.engine.IsAvailable.Should().BeTrue();
     }
 
     [Test]

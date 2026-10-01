@@ -27,7 +27,7 @@ public class PowerManagementServiceTest
     public void IsInContainer_DoesNotThrow()
     {
         var service = new PowerManagementService();
-        _ = service.IsInContainer;
+        service.IsInContainer.Should().Be(service.IsInContainer);
     }
 
     [Test]

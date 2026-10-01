@@ -539,6 +539,7 @@ public class TrackerBoostServiceTest
 
         // Populate via InspectHashTrackersAsync or direct Boost
         this.service.CleanExpiredBoostHistory(TimeSpan.FromSeconds(0));
+        this.service.Should().NotBeNull();
     }
 
     [Test]

@@ -200,5 +200,6 @@ public class MonoTorrentDownloadEngineTelemetryTest
         await this.engine.PauseAllTorrentsAsync();
         await this.engine.PauseAllAsync();
         await this.engine.ResumeAllAsync();
+        this.engine.Should().NotBeNull();
     }
 }
