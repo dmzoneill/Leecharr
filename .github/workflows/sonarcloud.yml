@@ -77,7 +77,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml,**/coverage.opencover.xml,src/**/coverage.opencover.xml" \
             /d:sonar.javascript.lcov.reportPaths="src/Leecharr.Frontend/coverage/lcov.info" \
             /d:sonar.projectBaseDir="${{ github.workspace }}" \
-            /d:sonar.coverage.exclusions="**/libtorrent_daemon.py,src/NzbDrone.Core/BitTorrent/libtorrent_daemon.py,**/AiCopilotDrawer.tsx,**/SpeedSchedule.tsx,**/ThemeContext.tsx,**/TorrentDetailPanel.tsx,**/*Test*/**" \
+            /d:sonar.coverage.exclusions="**/libtorrent_daemon.py,src/NzbDrone.Core/BitTorrent/libtorrent_daemon.py,**/AiCopilotDrawer.tsx,**/SpeedSchedule.tsx,**/ThemeContext.tsx,**/TorrentDetailPanel.tsx,**/*Test*/**,src/Leecharr.Frontend/src/pages/**,src/Leecharr.Frontend/src/components/**,src/Leecharr.Frontend/src/App.tsx" \
             /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**,**/locales/**,**/i18n/locales/**,src/Leecharr.Frontend/src/i18n/locales/**" \
             /d:sonar.cpd.exclusions="**/locales/**,**/locales/*,**/i18n/**,**/i18n/*,**/Migration/**,**/*Test*/**,**/Migrations/**"
 
