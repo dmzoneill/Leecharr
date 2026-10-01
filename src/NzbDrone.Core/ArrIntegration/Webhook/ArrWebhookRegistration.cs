@@ -651,7 +651,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
         foreach (var c in s)
         {
-            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+            if (!char.IsAsciiHexDigit(c))
             {
                 return false;
             }

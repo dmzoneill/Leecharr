@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using NzbDrone.Core.Configuration;
@@ -90,14 +91,16 @@ public static class TorrentEngineNetworkHelper
         lock (haltedIds)
         {
             haltedIds.Clear();
-            foreach (var task in tasks)
+            var activeTasks = tasks.Where(t =>
             {
-                var status = getStatus(task);
-                if (status == TorrentStatus.Downloading || status == TorrentStatus.Seeding)
-                {
-                    haltedIds.Add(getTorrentId(task));
-                    setStatus(task, TorrentStatus.Paused);
-                }
+                var status = getStatus(t);
+                return status == TorrentStatus.Downloading || status == TorrentStatus.Seeding;
+            });
+
+            foreach (var task in activeTasks)
+            {
+                haltedIds.Add(getTorrentId(task));
+                setStatus(task, TorrentStatus.Paused);
             }
         }
     }
@@ -112,9 +115,13 @@ public static class TorrentEngineNetworkHelper
     {
         lock (haltedIds)
         {
-            foreach (var torrentId in haltedIds)
+            var pausedIds = haltedIds
+                .Where(id => tasks.TryGetValue(id, out var task) && getStatus(task) == TorrentStatus.Paused)
+                .ToList();
+
+            foreach (var torrentId in pausedIds)
             {
-                if (tasks.TryGetValue(torrentId, out var task) && getStatus(task) == TorrentStatus.Paused)
+                if (tasks.TryGetValue(torrentId, out var task))
                 {
                     setStatus(task, getProgress(task) >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading);
                     resumeTorrentAction(torrentId);
