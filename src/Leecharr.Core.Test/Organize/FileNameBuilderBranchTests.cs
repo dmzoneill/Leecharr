@@ -1,4 +1,4 @@
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// Copyright (c) FeedItOut. All rights reserved.
 
 #pragma warning disable SA1500, SA1516, SA1513, SA1508, SA1512, SA1507, SA1028
 #nullable enable

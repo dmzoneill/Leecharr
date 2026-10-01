@@ -1,4 +1,4 @@
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// Copyright (c) FeedItOut. All rights reserved.
 
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;

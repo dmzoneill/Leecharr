@@ -1,5 +1,5 @@
 #nullable enable
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// Copyright (c) FeedItOut. All rights reserved.
 
 using System;
 using System.Collections.Concurrent;

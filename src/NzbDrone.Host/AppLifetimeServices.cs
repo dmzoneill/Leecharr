@@ -1,4 +1,4 @@
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// Copyright (c) FeedItOut. All rights reserved.
 
 using Leecharr.Http.Authentication;
 using NzbDrone.Common.EnvironmentInfo;
