@@ -236,10 +236,11 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         await this.syncLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (!Uri.TryCreate(prowlarrUrl?.Trim(), UriKind.Absolute, out var parsedUri) ||
+            if (!Uri.TryCreate(prowlarrUrl.Trim(), UriKind.Absolute, out var parsedUri) ||
                 (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps))
             {
-                this.logger.Warn("Invalid Prowlarr URL scheme or format: {0}", prowlarrUrl);
+                var sanitizedUrl = prowlarrUrl.Replace("\r", string.Empty).Replace("\n", string.Empty);
+                this.logger.Warn("Invalid Prowlarr URL scheme or format: {0}", sanitizedUrl);
                 return 0;
             }
 
@@ -279,7 +280,8 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             }
             catch (Exception ex)
             {
-                this.logger.Error(ex, "Failed to connect to Prowlarr at {0}", requestUri);
+                var sanitizedUri = requestUri.ToString().Replace("\r", string.Empty).Replace("\n", string.Empty);
+                this.logger.Error(ex, "Failed to connect to Prowlarr at {0}", sanitizedUri);
                 throw;
             }
 
