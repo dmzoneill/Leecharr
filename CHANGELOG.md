@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.12](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.12) - 2026-10-01
+
+### 🔧 Maintenance & Improvements
+- ci(ai-responder): eliminate pip install and curl in favor of apt python3-requests and urllib
+
 ## [v1.33.11](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.11) - 2026-10-01
 
 ### ✨ Features
