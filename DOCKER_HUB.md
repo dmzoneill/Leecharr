@@ -2,7 +2,22 @@
 
 **High-Performance BitTorrent & Media Downloader** — purpose-built for the Servarr (*arr) ecosystem
 
-[![Website](https://img.shields.io/badge/website-leecharr.net-ffd166)](https://www.leecharr.net) [![CI/CD](https://github.com/dmzoneill/Leecharr/workflows/CICD/badge.svg)](https://github.com/dmzoneill/Leecharr/actions/workflows/main.yml) [![Latest Release](https://img.shields.io/github/v/release/dmzoneill/Leecharr?color=brightgreen&label=release)](https://github.com/dmzoneill/Leecharr/releases/latest) [![License](https://img.shields.io/github/license/dmzoneill/Leecharr?color=blue)](https://github.com/dmzoneill/Leecharr/blob/main/LICENSE) [![Docker Pulls](https://img.shields.io/docker/pulls/feeditout/leecharr?color=blue&logo=docker)](https://hub.docker.com/r/feeditout/leecharr) [![GHCR](https://img.shields.io/badge/ghcr.io-leecharr-blue?logo=github)](https://ghcr.io/dmzoneill/leecharr) ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet) ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)
+<table>
+  <tr>
+    <td><a href="https://www.leecharr.net"><img src="https://img.shields.io/badge/website-leecharr.net-ffd166" alt="Website"></a></td>
+    <td><a href="https://github.com/dmzoneill/Leecharr/actions/workflows/main.yml"><img src="https://github.com/dmzoneill/Leecharr/workflows/CICD/badge.svg" alt="CI/CD"></a></td>
+    <td><a href="https://github.com/dmzoneill/Leecharr/releases/latest"><img src="https://img.shields.io/github/v/release/dmzoneill/Leecharr?color=brightgreen&label=release" alt="Latest Release"></a></td>
+    <td><a href="https://github.com/dmzoneill/Leecharr/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dmzoneill/Leecharr?color=blue" alt="License"></a></td>
+    <td><a href="https://hub.docker.com/r/feeditout/leecharr"><img src="https://img.shields.io/docker/pulls/feeditout/leecharr?color=blue&logo=docker" alt="Docker Pulls"></a></td>
+  </tr>
+  <tr>
+    <td><a href="https://ghcr.io/dmzoneill/leecharr"><img src="https://img.shields.io/badge/ghcr.io-leecharr-blue?logo=github" alt="GHCR"></a></td>
+    <td><img src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet" alt=".NET 10"></td>
+    <td><img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React 19"></td>
+    <td><img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript" alt="TypeScript"></td>
+    <td></td>
+  </tr>
+</table>
 
 ---
 
