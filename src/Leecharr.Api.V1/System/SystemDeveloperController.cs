@@ -1002,8 +1002,8 @@ public class SystemDeveloperController : Controller
 
             if (string.IsNullOrWhiteSpace(detectedArrType) &&
                 (detectedEvent.StartsWith("Indexer", StringComparison.OrdinalIgnoreCase) ||
-                 detectedEvent.Equals("Sync", StringComparison.OrdinalIgnoreCase) ||
-                 detectedEvent.Equals("SyncAll", StringComparison.OrdinalIgnoreCase)))
+                    detectedEvent.Equals("Sync", StringComparison.OrdinalIgnoreCase) ||
+                    detectedEvent.Equals("SyncAll", StringComparison.OrdinalIgnoreCase)))
             {
                 detectedArrType = "Prowlarr";
             }
