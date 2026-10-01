@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.15](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.15) - 2026-10-01
+
+### 🔧 Maintenance & Improvements
+- ci(sonar): exclude i18n locale dictionaries from analysis to eliminate false duplication
+- style(torrents): fix editorconfig indentation in TorrentController
+- ci(codeql): filter code standards rules and combine nested if statements in RpcAuthenticationHelper
+- ci(sonar): remove sonar-project.properties, set projectBaseDir, and deduplicate TorrentController
+- ci(codeql): scope analysis to production code and filter non-security style rules
+
 ## [v1.33.14](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.14) - 2026-10-01
 
 ### 🔧 Maintenance & Improvements
