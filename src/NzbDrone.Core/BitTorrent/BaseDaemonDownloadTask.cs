@@ -68,8 +68,10 @@ public abstract class BaseDaemonDownloadTask : IDownloadTask
         set => this.connectedLeechers = value;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Required by IDownloadTask interface")]
     public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Required by IDownloadTask interface")]
     public int[] PieceAvailability { get; set; } = Array.Empty<int>();
 
     public TorrentResourceMetrics GetResourceMetrics() => new()
