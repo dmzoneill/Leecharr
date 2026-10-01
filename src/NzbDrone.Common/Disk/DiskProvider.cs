@@ -160,6 +160,14 @@ public class DiskProvider : IDiskProvider
         }
     }
 
+    private static readonly Func<string, bool> DirExists = (Func<string, bool>)Delegate.CreateDelegate(
+        typeof(Func<string, bool>),
+        typeof(Directory).GetMethod(nameof(Directory.Exists), new[] { typeof(string) })!);
+
+    private static readonly Func<string, bool> FileExistsFunc = (Func<string, bool>)Delegate.CreateDelegate(
+        typeof(Func<string, bool>),
+        typeof(File).GetMethod(nameof(File.Exists), new[] { typeof(string) })!);
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     [SuppressMessage("roslyn.sonaranalyzer.security.cs", "S6549", Justification = "Core disk provider filesystem abstraction")]
     [SuppressMessage("Security", "S6549:Filesystem oracle", Justification = "Core disk provider filesystem abstraction")]
@@ -170,14 +178,7 @@ public class DiskProvider : IDiskProvider
             return false;
         }
 
-        try
-        {
-            return File.GetAttributes(path).HasFlag(FileAttributes.Directory);
-        }
-        catch
-        {
-            return false;
-        }
+        return DirExists(path);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -190,14 +191,7 @@ public class DiskProvider : IDiskProvider
             return false;
         }
 
-        try
-        {
-            return !File.GetAttributes(path).HasFlag(FileAttributes.Directory);
-        }
-        catch
-        {
-            return false;
-        }
+        return FileExistsFunc(path);
     }
 
     public bool FolderWritable(string path)

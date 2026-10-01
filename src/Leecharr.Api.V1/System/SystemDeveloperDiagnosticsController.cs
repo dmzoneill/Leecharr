@@ -18,7 +18,7 @@ public class SystemDeveloperDiagnosticsController : Controller
     }
 
     [HttpGet("threads")]
-    public ActionResult<IReadOnlyList<ThreadDiagnosticItem>> GetThreads()
+    public ActionResult<object> GetThreads()
     {
         if (this.diagnosticsService == null)
         {
