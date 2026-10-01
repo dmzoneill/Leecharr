@@ -73,8 +73,7 @@ public class MediaController : RestController<MediaMetadataResource>
         var meta = this.mediaEnrichmentService.GetMetadata(torrentId);
         if (meta == null)
         {
-            var fallbackSvg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"300\" viewBox=\"0 0 200 300\"><rect width=\"100%\" height=\"100%\" fill=\"#1a1c23\"/><text x=\"50%\" y=\"50%\" dominant-baseline=\"middle\" text-anchor=\"middle\" fill=\"#6c757d\" font-family=\"sans-serif\" font-size=\"14\">No Artwork</text></svg>";
-            return this.Content(fallbackSvg, "image/svg+xml");
+            return this.NotFound();
         }
 
         string path = null;
@@ -99,8 +98,7 @@ public class MediaController : RestController<MediaMetadataResource>
 
         if (string.IsNullOrEmpty(path) || path.Contains("..") || !global::System.IO.File.Exists(path))
         {
-            var fallbackSvg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"300\" viewBox=\"0 0 200 300\"><rect width=\"100%\" height=\"100%\" fill=\"#1a1c23\"/><text x=\"50%\" y=\"50%\" dominant-baseline=\"middle\" text-anchor=\"middle\" fill=\"#6c757d\" font-family=\"sans-serif\" font-size=\"14\">No Artwork</text></svg>";
-            return this.Content(fallbackSvg, "image/svg+xml");
+            return this.NotFound();
         }
 
         var ext = global::System.IO.Path.GetExtension(path).ToLowerInvariant();
