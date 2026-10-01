@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.4](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.4) - 2026-10-01
+
+### 🐛 Bug Fixes
+- fix(quality): resolve remaining 239 SonarCloud items across tests, logging, grid, and multicriteria S9383
+
 ## [v2.0.3](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.3) - 2026-10-01
 
 ### 🐛 Bug Fixes
