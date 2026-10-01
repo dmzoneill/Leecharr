@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.7](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.7) - 2026-10-01
+
+### 🐛 Bug Fixes
+- fix(transmission): normalize trailing slash route and handle form-encoded json bodies
+- fix(ci): fix editorconfig indentation and mark live container tests explicit
+
+### 🔧 Maintenance & Improvements
+- docs(dockerhub): restore application UI screenshot
+- chore: replace PlaceholderCompany with FeedItOut across file headers
+- test(integration): add live client Testcontainers and transmission-remote CLI tests
+
 ## [v2.0.6](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.6) - 2026-10-01
 
 ### 🔧 Maintenance & Improvements
