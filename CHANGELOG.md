@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.13](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.13) - 2026-10-01
+
+### 🐛 Bug Fixes
+- fix(torrent): resolve namespace import in TorrentEngineNetworkHelper
+
+### 🔧 Maintenance & Improvements
+- refactor: eliminate code duplication across torrent engines and frontend navigation
+
 ## [v1.33.12](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.12) - 2026-10-01
 
 ### 🔧 Maintenance & Improvements
