@@ -52,7 +52,6 @@ public class TransmissionRpcResponse
 
 [ApiController]
 [Route("transmission/rpc")]
-[Route("transmission/rpc/")]
 public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedEvent>
 {
     private const string SessionHeaderName = "X-Transmission-Session-Id";

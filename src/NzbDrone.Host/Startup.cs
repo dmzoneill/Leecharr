@@ -380,6 +380,16 @@ public class Startup
             app.UseHttpsRedirection();
         }
 
+        app.Use(async (context, next) =>
+        {
+            if (string.Equals(context.Request.Path.Value, "/transmission/rpc/", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Request.Path = "/transmission/rpc";
+            }
+
+            await next();
+        });
+
         app.UseRouting();
 
         app.UseAuthentication();
