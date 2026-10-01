@@ -593,10 +593,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
     }
 
-    [HttpGet("{id:int}/subtitles")]
-    public ActionResult<List<SubtitleTrackResource>> GetTorrentSubtitles(int id)
+    private ActionResult<TorrentFile> TryGetPrimaryMediaFile(int id, out Torrent torrent)
     {
-        var torrent = this.torrentService.Get(id);
+        torrent = this.torrentService.Get(id);
         if (torrent == null)
         {
             return this.NotFound("Torrent not found.");
@@ -613,7 +612,19 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return this.NotFound("No media files found in torrent.");
         }
 
-        return this.GetFileSubtitles(id, primaryFile.Id);
+        return primaryFile;
+    }
+
+    [HttpGet("{id:int}/subtitles")]
+    public ActionResult<List<SubtitleTrackResource>> GetTorrentSubtitles(int id)
+    {
+        var result = this.TryGetPrimaryMediaFile(id, out _);
+        if (result.Result != null)
+        {
+            return result.Result;
+        }
+
+        return this.GetFileSubtitles(id, result.Value.Id);
     }
 
     [HttpGet("{id:int}/subtitles/{trackId}.vtt")]
@@ -622,24 +633,13 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpHead("{id:int}/subtitles/{trackId}")]
     public ActionResult GetTorrentSubtitleTrack(int id, string trackId)
     {
-        var torrent = this.torrentService.Get(id);
-        if (torrent == null)
+        var result = this.TryGetPrimaryMediaFile(id, out _);
+        if (result.Result != null)
         {
-            return this.NotFound("Torrent not found.");
+            return result.Result;
         }
 
-        var files = this.torrentFileService.GetFiles(id)
-            .Where(f => !f.IsPaddingFile)
-            .ToList();
-
-        var mediaFiles = files.Where(f => this.subtitleDiscoveryService.IsMediaFile(f.Path)).ToList();
-        var primaryFile = mediaFiles.OrderByDescending(f => f.Size).FirstOrDefault() ?? files.FirstOrDefault();
-        if (primaryFile == null)
-        {
-            return this.NotFound("No media files found in torrent.");
-        }
-
-        return this.GetSubtitleTrack(id, primaryFile.Id, trackId);
+        return this.GetSubtitleTrack(id, result.Value.Id, trackId);
     }
 
     [HttpGet("{id:int}/files/{fileId:int}/stream.m3u")]
@@ -677,24 +677,13 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpHead("{id:int}/playlist.m3u")]
     public ActionResult GetTorrentPlaylistM3u(int id)
     {
-        var torrent = this.torrentService.Get(id);
-        if (torrent == null)
+        var result = this.TryGetPrimaryMediaFile(id, out _);
+        if (result.Result != null)
         {
-            return this.NotFound("Torrent not found.");
+            return result.Result;
         }
 
-        var files = this.torrentFileService.GetFiles(id)
-            .Where(f => !f.IsPaddingFile)
-            .ToList();
-
-        var mediaFiles = files.Where(f => this.subtitleDiscoveryService.IsMediaFile(f.Path)).ToList();
-        var primaryFile = mediaFiles.OrderByDescending(f => f.Size).FirstOrDefault() ?? files.FirstOrDefault();
-        if (primaryFile == null)
-        {
-            return this.NotFound("No media files found in torrent.");
-        }
-
-        return this.GetPlaylistM3u(id, primaryFile.Id);
+        return this.GetPlaylistM3u(id, result.Value.Id);
     }
 
     [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "File path is validated against torrent save directory")]
