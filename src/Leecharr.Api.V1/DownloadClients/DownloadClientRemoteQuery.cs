@@ -501,28 +501,36 @@ public static class DownloadClientRemoteQuery
             else if (string.Equals(client.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
             {
                 string rpcMethod;
-                string rpcArgs;
+                var argumentsDict = new Dictionary<string, object>
+                {
+                    ["ids"] = new[] { infoHash },
+                };
+
                 if (action == "pause")
                 {
                     rpcMethod = "torrent-stop";
-                    rpcArgs = $"{{\"ids\":[\"{infoHash}\"]}}";
                 }
                 else if (action == "resume")
                 {
                     rpcMethod = "torrent-start";
-                    rpcArgs = $"{{\"ids\":[\"{infoHash}\"]}}";
                 }
                 else if (action == "delete")
                 {
                     rpcMethod = "torrent-remove";
-                    rpcArgs = $"{{\"ids\":[\"{infoHash}\"],\"delete-local-data\":{(deleteData ? "true" : "false")}}}";
+                    argumentsDict["delete-local-data"] = deleteData;
                 }
                 else
                 {
                     return false;
                 }
 
-                var rpcContent = $"{{\"method\":\"{rpcMethod}\",\"arguments\":{rpcArgs}}}";
+                var rpcPayload = new Dictionary<string, object>
+                {
+                    ["method"] = rpcMethod,
+                    ["arguments"] = argumentsDict,
+                };
+
+                var rpcContent = JsonSerializer.Serialize(rpcPayload);
 
                 var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
                 {
