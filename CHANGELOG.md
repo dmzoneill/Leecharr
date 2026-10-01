@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.8](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.8) - 2026-10-01
+
+### 🐛 Bug Fixes
+- fix(api): make GetWebhookTemplates instance action and isolate developer events test
+- fix(quality): re-enable CA quality, performance, and security rules and resolve diagnostics
+
+### 🔧 Maintenance & Improvements
+- style: fix indentation in SystemDeveloperController for editorconfig
+- docs: upgrade DOCKER_HUB.md with centered logo, badges table, screenshot, and comprehensive docs
+
 ## [v2.0.7](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.7) - 2026-10-01
 
 ### 🐛 Bug Fixes
