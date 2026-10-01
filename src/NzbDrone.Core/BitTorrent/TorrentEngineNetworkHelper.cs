@@ -1,17 +1,16 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-namespace NzbDrone.Core.BitTorrent;
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using NzbDrone.Common.Network;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
+
+namespace NzbDrone.Core.BitTorrent;
 
 public static class TorrentEngineNetworkHelper
 {
