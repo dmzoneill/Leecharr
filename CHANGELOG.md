@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.6](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.6) - 2026-10-01
+
+### 🔧 Maintenance & Improvements
+- docs(dockerhub): wrap badges in table for horizontal alignment
+
 ## [v2.0.5](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.5) - 2026-10-01
 
 ### 🐛 Bug Fixes
