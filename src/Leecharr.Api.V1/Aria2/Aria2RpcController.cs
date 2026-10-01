@@ -500,7 +500,7 @@ public class Aria2RpcController : ControllerBase
             "aria2.getglobaloption" => this.GetGlobalOptions(),
             "aria2.getoption" => this.HandleGetOption(cleanParams),
             "aria2.changeposition" => await this.HandleChangePositionAsync(cleanParams),
-            "aria2.changeuri" => this.HandleChangeUri(cleanParams),
+            "aria2.changeuri" => HandleChangeUri(cleanParams),
             "aria2.changeoption" or "aria2.changeglobaloption" => await this.HandleChangeOptionAsync(cleanParams),
             "aria2.shutdown" or "aria2.forceshutdown" => "OK",
             "system.multicall" => await this.HandleSystemMulticallAsync(cleanParams),
@@ -711,7 +711,7 @@ public class Aria2RpcController : ControllerBase
         return 0;
     }
 
-    private object HandleChangeUri(List<JsonElement> cleanParams)
+    private static object HandleChangeUri(List<JsonElement> cleanParams)
     {
         var deletedCount = 0;
         var addedCount = 0;

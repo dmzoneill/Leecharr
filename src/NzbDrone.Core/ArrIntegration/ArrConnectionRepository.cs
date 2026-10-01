@@ -60,13 +60,13 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
         }
 
         return candidates
-            .OrderByDescending(c => this.CalculateAffinityScore(c, arrType, category, tag))
+            .OrderByDescending(c => CalculateAffinityScore(c, arrType, category, tag))
             .ThenBy(c => c.Priority)
             .ThenBy(c => c.Id)
             .FirstOrDefault();
     }
 
-    private int CalculateAffinityScore(ArrConnectionDefinition conn, string arrType, string category, string tag)
+    private static int CalculateAffinityScore(ArrConnectionDefinition conn, string arrType, string category, string tag)
     {
         var score = 0;
 

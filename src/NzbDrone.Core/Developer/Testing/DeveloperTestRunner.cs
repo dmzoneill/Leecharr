@@ -612,13 +612,13 @@ public class DeveloperTestRunner : IDeveloperTestRunner
                     result.Output = this.ExecuteDiskPermissionsCheck();
                     break;
                 case "disk-quota":
-                    result.Output = this.ExecuteDiskQuotaCheck();
+                    result.Output = ExecuteDiskQuotaCheck();
                     break;
                 case "disk-temp-dir":
                     result.Output = this.ExecuteDiskTempDirCheck();
                     break;
                 case "disk-path-traversal":
-                    result.Output = this.ExecuteDiskPathTraversalCheck();
+                    result.Output = ExecuteDiskPathTraversalCheck();
                     break;
                 case "disk-appdata":
                     result.Output = this.ExecuteDiskAppDataCheck();
@@ -644,36 +644,36 @@ public class DeveloperTestRunner : IDeveloperTestRunner
                     result.Output = this.ExecuteEngineDhtStateCheck();
                     break;
                 case "engine-encryption":
-                    result.Output = this.ExecuteEngineEncryptionCheck();
+                    result.Output = ExecuteEngineEncryptionCheck();
                     break;
                 case "engine-ports":
-                    result.Output = this.ExecuteEnginePortsCheck();
+                    result.Output = ExecuteEnginePortsCheck();
                     break;
                 case "engine-capabilities":
-                    result.Output = this.ExecuteEngineCapabilitiesCheck();
+                    result.Output = ExecuteEngineCapabilitiesCheck();
                     break;
 
                 // 4. Network
                 case "network-dns":
-                    result.Output = await this.ExecuteDnsCheckAsync();
+                    result.Output = await ExecuteDnsCheckAsync();
                     break;
                 case "network-socket":
-                    result.Output = await this.ExecuteNetworkSocketCheckAsync();
+                    result.Output = await ExecuteNetworkSocketCheckAsync();
                     break;
                 case "network-interfaces":
-                    result.Output = this.ExecuteNetworkInterfacesCheck();
+                    result.Output = ExecuteNetworkInterfacesCheck();
                     break;
                 case "network-ssrf":
-                    result.Output = this.ExecuteNetworkSsrfCheck();
+                    result.Output = ExecuteNetworkSsrfCheck();
                     break;
                 case "network-ssl-certificate":
                     result.Output = this.ExecuteNetworkSslCheck();
                     break;
                 case "network-http-client":
-                    result.Output = this.ExecuteNetworkHttpClientCheck();
+                    result.Output = ExecuteNetworkHttpClientCheck();
                     break;
                 case "network-vpn-binding":
-                    result.Output = this.ExecuteNetworkVpnBindingCheck();
+                    result.Output = ExecuteNetworkVpnBindingCheck();
                     break;
 
                 // 5. Scheduler
@@ -704,42 +704,42 @@ public class DeveloperTestRunner : IDeveloperTestRunner
                     result.Output = this.ExecuteEventBusCheck();
                     break;
                 case "event-wiretap":
-                    result.Output = this.ExecuteEventWiretapCheck();
+                    result.Output = ExecuteEventWiretapCheck();
                     break;
                 case "command-queue":
                     result.Output = this.ExecuteCommandQueueCheck();
                     break;
                 case "command-catalog":
-                    result.Output = this.ExecuteCommandCatalogCheck();
+                    result.Output = ExecuteCommandCatalogCheck();
                     break;
                 case "command-definitions":
                     result.Output = await this.ExecuteCommandDefinitionsCheckAsync();
                     break;
                 case "signalr-hub":
-                    result.Output = this.ExecuteSignalRHubCheck();
+                    result.Output = ExecuteSignalRHubCheck();
                     break;
                 case "event-handlers":
-                    result.Output = this.ExecuteEventHandlersCheck();
+                    result.Output = ExecuteEventHandlersCheck();
                     break;
 
                 // 7. System
                 case "memory-health":
-                    result.Output = this.ExecuteMemoryCheck();
+                    result.Output = ExecuteMemoryCheck();
                     break;
                 case "thread-pool":
-                    result.Output = this.ExecuteThreadPoolCheck();
+                    result.Output = ExecuteThreadPoolCheck();
                     break;
                 case "process-telemetry":
-                    result.Output = this.ExecuteProcessTelemetryCheck();
+                    result.Output = ExecuteProcessTelemetryCheck();
                     break;
                 case "cpu-affinity":
-                    result.Output = this.ExecuteCpuAffinityCheck();
+                    result.Output = ExecuteCpuAffinityCheck();
                     break;
                 case "gc-memory-info":
-                    result.Output = this.ExecuteGcMemoryInfoCheck();
+                    result.Output = ExecuteGcMemoryInfoCheck();
                     break;
                 case "system-uptime":
-                    result.Output = this.ExecuteSystemUptimeCheck();
+                    result.Output = ExecuteSystemUptimeCheck();
                     break;
 
                 // 8. Configuration
@@ -1072,7 +1072,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         try
         {
             var buffer = new byte[65536];
-            Random.Shared.NextBytes(buffer);
+            System.Security.Cryptography.RandomNumberGenerator.Fill(buffer);
 
             await File.WriteAllBytesAsync(testFile, buffer);
             var readBytes = await File.ReadAllBytesAsync(testFile);
@@ -1119,7 +1119,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         }
     }
 
-    private string ExecuteDiskQuotaCheck()
+    private static string ExecuteDiskQuotaCheck()
     {
         var drive = new DriveInfo(Path.GetPathRoot(Directory.GetCurrentDirectory()) ?? "/");
         var freeGb = drive.AvailableFreeSpace / (1024.0 * 1024 * 1024);
@@ -1135,7 +1135,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"System temp directory: '{tempDir}', Accessible={exists}.";
     }
 
-    private string ExecuteDiskPathTraversalCheck()
+    private static string ExecuteDiskPathTraversalCheck()
     {
         var baseDir = "/downloads";
         var untrusted = "../etc/passwd";
@@ -1212,17 +1212,17 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"DHT engine state: {dhtNodes} active node contacts.";
     }
 
-    private string ExecuteEngineEncryptionCheck()
+    private static string ExecuteEngineEncryptionCheck()
     {
         return "Peer wire protocol encryption: PreferEncryption enabled.";
     }
 
-    private string ExecuteEnginePortsCheck()
+    private static string ExecuteEnginePortsCheck()
     {
         return "BitTorrent listening port: Bound on TCP/UDP 6881-6889.";
     }
 
-    private string ExecuteEngineCapabilitiesCheck()
+    private static string ExecuteEngineCapabilitiesCheck()
     {
         return "Engine capabilities: SequentialDownload=True, FastResume=True, DynamicLimits=True.";
     }
@@ -1231,7 +1231,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     // 4. NETWORK IMPLEMENTATIONS
     // ==========================================
 
-    private async Task<string> ExecuteDnsCheckAsync()
+    private static async Task<string> ExecuteDnsCheckAsync()
     {
         try
         {
@@ -1245,7 +1245,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         }
     }
 
-    private async Task<string> ExecuteNetworkSocketCheckAsync()
+    private static async Task<string> ExecuteNetworkSocketCheckAsync()
     {
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
@@ -1258,14 +1258,14 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"Loopback TCP socket connection verified on port {port}.";
     }
 
-    private string ExecuteNetworkInterfacesCheck()
+    private static string ExecuteNetworkInterfacesCheck()
     {
         var interfaces = NetworkInterface.GetAllNetworkInterfaces();
         var upInterfaces = interfaces.Where(i => i.OperationalStatus == OperationalStatus.Up).ToList();
         return $"Network interfaces verified: {upInterfaces.Count} interfaces UP out of {interfaces.Length} total.";
     }
 
-    private string ExecuteNetworkSsrfCheck()
+    private static string ExecuteNetworkSsrfCheck()
     {
         var isLoopback = IPAddress.IsLoopback(IPAddress.Parse("127.0.0.1"));
         var testPrivateIp = IPAddress.Parse("192.168.1.1");
@@ -1282,13 +1282,13 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"HTTPS/SSL configuration: Enabled={sslEnabled}, SslPort={sslPort}.";
     }
 
-    private string ExecuteNetworkHttpClientCheck()
+    private static string ExecuteNetworkHttpClientCheck()
     {
         using var client = new System.Net.Http.HttpClient();
         return $"System HttpClient instantiated successfully (Timeout: {client.Timeout.TotalSeconds}s).";
     }
 
-    private string ExecuteNetworkVpnBindingCheck()
+    private static string ExecuteNetworkVpnBindingCheck()
     {
         return "VPN interface binding: Direct adapter policy active.";
     }
@@ -1365,7 +1365,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return "Dispatched ApplicationStartedEvent verification payload successfully.";
     }
 
-    private string ExecuteEventWiretapCheck()
+    private static string ExecuteEventWiretapCheck()
     {
         return "Developer event store wiretap: In-memory ring buffer operational.";
     }
@@ -1380,7 +1380,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return "Command queue manager instance is active and ready for work dispatch.";
     }
 
-    private string ExecuteCommandCatalogCheck()
+    private static string ExecuteCommandCatalogCheck()
     {
         var commandTypes = typeof(DeveloperTestRunner).Assembly.GetTypes()
             .Where(t => typeof(Command).IsAssignableFrom(t) && !t.IsAbstract)
@@ -1403,12 +1403,12 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"Commands repository verified. Found {count} recorded command executions.";
     }
 
-    private string ExecuteSignalRHubCheck()
+    private static string ExecuteSignalRHubCheck()
     {
         return "SignalR real-time event broadcasting pipeline initialized.";
     }
 
-    private string ExecuteEventHandlersCheck()
+    private static string ExecuteEventHandlersCheck()
     {
         return "Event aggregator subscriber pipeline active.";
     }
@@ -1417,7 +1417,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     // 7. SYSTEM IMPLEMENTATIONS
     // ==========================================
 
-    private string ExecuteMemoryCheck()
+    private static string ExecuteMemoryCheck()
     {
         var allocated = GC.GetTotalMemory(false);
         var gen0 = GC.CollectionCount(0);
@@ -1427,7 +1427,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"Allocated Memory: {allocated:N0} bytes. Collections: Gen0={gen0}, Gen1={gen1}, Gen2={gen2}";
     }
 
-    private string ExecuteThreadPoolCheck()
+    private static string ExecuteThreadPoolCheck()
     {
         ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);
         ThreadPool.GetMaxThreads(out var maxWorker, out var maxCompletion);
@@ -1435,24 +1435,24 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"ThreadPool available: {workerThreads}/{maxWorker} workers, {completionPortThreads}/{maxCompletion} I/O completion ports.";
     }
 
-    private string ExecuteProcessTelemetryCheck()
+    private static string ExecuteProcessTelemetryCheck()
     {
         var proc = Process.GetCurrentProcess();
         return $"PID: {Environment.ProcessId}, Threads: {proc.Threads.Count}, WorkingSet: {proc.WorkingSet64 / (1024 * 1024)} MB, Processors: {Environment.ProcessorCount}";
     }
 
-    private string ExecuteCpuAffinityCheck()
+    private static string ExecuteCpuAffinityCheck()
     {
         return $"Processor count: {Environment.ProcessorCount} logical CPU cores.";
     }
 
-    private string ExecuteGcMemoryInfoCheck()
+    private static string ExecuteGcMemoryInfoCheck()
     {
         var gcInfo = GC.GetGCMemoryInfo();
         return $"GC Heap: {gcInfo.HeapSizeBytes / (1024 * 1024)} MB, Fragmented: {gcInfo.FragmentedBytes / 1024} KB, Pinned: {gcInfo.PinnedObjectsCount}.";
     }
 
-    private string ExecuteSystemUptimeCheck()
+    private static string ExecuteSystemUptimeCheck()
     {
         var uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
         return $"Operating system uptime: {uptime:d\\:hh\\:mm\\:ss}.";

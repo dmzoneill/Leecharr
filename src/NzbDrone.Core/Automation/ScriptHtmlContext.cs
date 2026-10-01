@@ -11,7 +11,7 @@ public class ScriptHtmlContext
 {
     private static readonly HtmlParser Parser = new();
 
-    public HtmlDocumentWrapper parse(string html)
+    public static HtmlDocumentWrapper parse(string html)
     {
         var document = Parser.ParseDocument(html ?? string.Empty);
         return new HtmlDocumentWrapper(document);

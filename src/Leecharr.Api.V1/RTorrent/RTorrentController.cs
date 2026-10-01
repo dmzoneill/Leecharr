@@ -639,19 +639,19 @@ public class RTorrentController : ControllerBase
 
             case "d.custom2":
             case "d.get_custom2":
-                return this.HandleGetCustomField(paramValues, "custom2");
+                return HandleGetCustomField(paramValues, "custom2");
 
             case "d.custom3":
             case "d.get_custom3":
-                return this.HandleGetCustomField(paramValues, "custom3");
+                return HandleGetCustomField(paramValues, "custom3");
 
             case "d.custom4":
             case "d.get_custom4":
-                return this.HandleGetCustomField(paramValues, "custom4");
+                return HandleGetCustomField(paramValues, "custom4");
 
             case "d.custom5":
             case "d.get_custom5":
-                return this.HandleGetCustomField(paramValues, "custom5");
+                return HandleGetCustomField(paramValues, "custom5");
 
             case "d.delete_tied":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToDeleteTied)
@@ -762,19 +762,19 @@ public class RTorrentController : ControllerBase
 
             case "d.custom2.set":
             case "d.set_custom2":
-                return this.HandleSetCustomField(paramValues, "custom2");
+                return HandleSetCustomField(paramValues, "custom2");
 
             case "d.custom3.set":
             case "d.set_custom3":
-                return this.HandleSetCustomField(paramValues, "custom3");
+                return HandleSetCustomField(paramValues, "custom3");
 
             case "d.custom4.set":
             case "d.set_custom4":
-                return this.HandleSetCustomField(paramValues, "custom4");
+                return HandleSetCustomField(paramValues, "custom4");
 
             case "d.custom5.set":
             case "d.set_custom5":
-                return this.HandleSetCustomField(paramValues, "custom5");
+                return HandleSetCustomField(paramValues, "custom5");
 
             case "d.views.has":
                 if (paramValues.Count >= 2 && paramValues[0] != null && paramValues[1] != null)
@@ -1499,7 +1499,7 @@ public class RTorrentController : ControllerBase
         }
     }
 
-    private XElement HandleGetCustomField(List<object> paramValues, string fieldName)
+    private static XElement HandleGetCustomField(List<object> paramValues, string fieldName)
     {
         if (paramValues.Count > 0 && paramValues[0] != null)
         {
@@ -1510,7 +1510,7 @@ public class RTorrentController : ControllerBase
         return new XElement("string", string.Empty);
     }
 
-    private XElement HandleSetCustomField(List<object> paramValues, string fieldName)
+    private static XElement HandleSetCustomField(List<object> paramValues, string fieldName)
     {
         var targetVal = string.Empty;
         if (paramValues.Count >= 2 && paramValues[0] != null)

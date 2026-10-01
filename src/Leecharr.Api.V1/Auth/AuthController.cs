@@ -110,7 +110,7 @@ public class AuthController : ControllerBase
         }
 
         var clientIp = this.GetClientIpAddress();
-        if (this.IsLoginThrottled(clientIp))
+        if (IsLoginThrottled(clientIp))
         {
             return this.StatusCode(StatusCodes.Status429TooManyRequests, new { error = "Too many failed login attempts. Please try again later." });
         }
@@ -118,12 +118,12 @@ public class AuthController : ControllerBase
         var user = this.userService.Authenticate(request.Username, request.Password);
         if (user == null)
         {
-            this.RecordFailedLogin(clientIp);
+            RecordFailedLogin(clientIp);
             await Task.Delay(500, CancellationToken.None);
             return this.Unauthorized(new { error = "Invalid username or password" });
         }
 
-        this.ResetLoginAttempts(clientIp);
+        ResetLoginAttempts(clientIp);
 
         var rolesList = new List<string>();
         try
@@ -977,7 +977,7 @@ public class AuthController : ControllerBase
         }
     }
 
-    private bool IsLoginThrottled(string ipAddress)
+    private static bool IsLoginThrottled(string ipAddress)
     {
         var now = DateTime.UtcNow;
         if (!LoginAttempts.TryGetValue(ipAddress, out var record))
@@ -1005,7 +1005,7 @@ public class AuthController : ControllerBase
         return record.Failures >= MaxFailedAttempts;
     }
 
-    private void RecordFailedLogin(string ipAddress)
+    private static void RecordFailedLogin(string ipAddress)
     {
         PruneExpiredLoginAttempts();
 
@@ -1026,7 +1026,7 @@ public class AuthController : ControllerBase
             });
     }
 
-    private void ResetLoginAttempts(string ipAddress)
+    private static void ResetLoginAttempts(string ipAddress)
     {
         LoginAttempts.TryRemove(ipAddress, out _);
     }

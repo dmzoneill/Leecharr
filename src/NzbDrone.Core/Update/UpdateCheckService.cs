@@ -91,7 +91,7 @@ public class UpdateCheckService : IUpdateCheckService
                 return this.cachedUpdates;
             }
 
-            return this.GetDefaultInstalledReleaseList();
+            return GetDefaultInstalledReleaseList();
         }
         finally
         {
@@ -215,7 +215,7 @@ public class UpdateCheckService : IUpdateCheckService
         }
     }
 
-    private List<UpdatePackage> GetDefaultInstalledReleaseList()
+    private static List<UpdatePackage> GetDefaultInstalledReleaseList()
     {
         var currentVersion = BuildInfo.Version?.ToString() ?? "1.0.25";
         return new List<UpdatePackage>

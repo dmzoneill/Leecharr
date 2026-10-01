@@ -21,7 +21,7 @@ public class ScriptSystemContext
         _result = result;
     }
 
-    public long diskFreeSpace
+    public static long diskFreeSpace
     {
         get
         {
@@ -37,7 +37,7 @@ public class ScriptSystemContext
         }
     }
 
-    public long diskTotalSpace
+    public static long diskTotalSpace
     {
         get
         {
@@ -53,11 +53,11 @@ public class ScriptSystemContext
         }
     }
 
-    public bool vpnActive => true;
+    public static bool vpnActive => true;
 
-    public bool isPortForwarded => true;
+    public static bool isPortForwarded => true;
 
-    public long getDiskFreeSpace(string? path = null)
+    public static long getDiskFreeSpace(string? path = null)
     {
         try
         {

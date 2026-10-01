@@ -1875,7 +1875,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         var fileMapping = this.MapTransmissionFiles(t, requestedFields);
         var trackerMapping = this.MapTransmissionTrackers(t);
 
-        var peersList = this.MapTransmissionPeers(t, downloadTask);
+        var peersList = MapTransmissionPeers(t, downloadTask);
 
         var pieceLength = t.PieceLength > 0 ? t.PieceLength : (downloadTask?.PieceLength > 0 ? downloadTask.PieceLength : 0);
         var pieceCount = t.PieceCount > 0
@@ -2341,7 +2341,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         return new TransmissionTrackerMapping(trackersList, trackerStatsList, trackerListStr, magnetLink);
     }
 
-    private List<object> MapTransmissionPeers(Torrent torrent, IDownloadTask downloadTask)
+    private static List<object> MapTransmissionPeers(Torrent torrent, IDownloadTask downloadTask)
     {
         var peersList = new List<object>();
         var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<PeerInfo>();

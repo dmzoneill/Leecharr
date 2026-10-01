@@ -86,7 +86,7 @@ public class TorrentLogService : ITorrentLogService,
             }
         }
 
-        this.EvictOldestTorrentsIfNeeded();
+        EvictOldestTorrentsIfNeeded();
     }
 
     public IReadOnlyList<TorrentEventLog> GetLogs(int torrentId, int limit = 100)
@@ -258,7 +258,7 @@ public class TorrentLogService : ITorrentLogService,
         }
     }
 
-    private void EvictOldestTorrentsIfNeeded()
+    private static void EvictOldestTorrentsIfNeeded()
     {
         if (LogsByTorrent.Count <= MaxTrackedTorrents)
         {

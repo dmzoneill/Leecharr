@@ -119,7 +119,7 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         {
             try
             {
-                var restoreScript = this.BuildIpSetRestoreScript(ruleList);
+                var restoreScript = BuildIpSetRestoreScript(ruleList);
                 var (exitCode, _, stderr) = await this.ExecuteIpSetCommandAsync("restore", restoreScript).ConfigureAwait(false);
 
                 if (exitCode == 0)
@@ -234,7 +234,7 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         }
     }
 
-    private string BuildIpSetRestoreScript(IEnumerable<string> rules)
+    private static string BuildIpSetRestoreScript(IEnumerable<string> rules)
     {
         var sb = new StringBuilder();
         sb.AppendLine("create leecharr_tmp_v4 hash:net family inet maxelem 1000000 -exist");

@@ -273,6 +273,7 @@ public class Startup
         services.AddHostedService<CommandWorker>();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "ASP.NET Core convention expects instance Configure method")]
     public void Configure(WebApplication app)
     {
         app.UseExceptionHandler();

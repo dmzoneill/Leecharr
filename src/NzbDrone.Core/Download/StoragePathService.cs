@@ -232,7 +232,7 @@ public class StoragePathService : IStoragePathService
         if (this.diskProvider.FileExists(actualSource))
         {
             var rawFileName = Path.GetFileName(actualSource);
-            var cleanFileName = this.StripIncompleteExtensionFromFileName(rawFileName, candidateExtensions);
+            var cleanFileName = StripIncompleteExtensionFromFileName(rawFileName, candidateExtensions);
             var sourceExt = Path.GetExtension(cleanFileName);
 
             string targetFileName;
@@ -444,7 +444,7 @@ public class StoragePathService : IStoragePathService
         return candidateExtensions;
     }
 
-    private string StripIncompleteExtensionFromFileName(string fileName, List<string> candidateExtensions)
+    private static string StripIncompleteExtensionFromFileName(string fileName, List<string> candidateExtensions)
     {
         foreach (var ext in candidateExtensions)
         {

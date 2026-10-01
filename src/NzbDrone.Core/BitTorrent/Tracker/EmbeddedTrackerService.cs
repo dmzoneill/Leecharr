@@ -423,7 +423,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             .Where(p => request.Left != 0 || !p.IsSeeder)
             .ToArray();
 
-        Random.Shared.Shuffle(eligiblePeers);
+        System.Security.Cryptography.RandomNumberGenerator.Shuffle(eligiblePeers);
 
         var maxPerAnnounce = this.configService?.TrackerMaxPeersPerAnnounce ?? 50;
         var numWant = request.NumWant switch

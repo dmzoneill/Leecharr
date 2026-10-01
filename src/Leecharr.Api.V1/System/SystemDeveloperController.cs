@@ -335,7 +335,7 @@ public class SystemDeveloperController : Controller
     // ==========================================
 
     [HttpGet("webhooks/templates")]
-    public ActionResult<List<DeveloperWebhookTemplate>> GetWebhookTemplates()
+    public static ActionResult<List<DeveloperWebhookTemplate>> GetWebhookTemplates()
     {
         return new List<DeveloperWebhookTemplate>
         {

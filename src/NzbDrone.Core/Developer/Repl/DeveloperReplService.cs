@@ -281,7 +281,7 @@ public class DeveloperReplService : IDeveloperReplService
             ?? (_serviceProvider?.GetService(typeof(IMainDatabase)) as IMainDatabase);
     }
 
-    private void SetCompletionResult(ReplExecutionResponse response, JsValue completion)
+    private static void SetCompletionResult(ReplExecutionResponse response, JsValue completion)
     {
         if (completion == null || completion.IsUndefined())
         {
@@ -326,7 +326,7 @@ public class DeveloperReplService : IDeveloperReplService
         }
     }
 
-    private string SerializeJsValue(JsValue value)
+    private static string SerializeJsValue(JsValue value)
     {
         try
         {

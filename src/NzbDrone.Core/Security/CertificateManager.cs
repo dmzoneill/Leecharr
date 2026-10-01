@@ -39,7 +39,7 @@ public class CertificateManager : ICertificateManager
             {
                 try
                 {
-                    var loadedCert = this.LoadCustomCertificate(certPath, config.SslKeyPath, config.SslCertPassword);
+                    var loadedCert = LoadCustomCertificate(certPath, config.SslKeyPath, config.SslCertPassword);
                     if (loadedCert != null)
                     {
                         Logger.Info("Successfully loaded custom SSL certificate from '{0}'", certPath);
@@ -104,7 +104,7 @@ public class CertificateManager : ICertificateManager
                     return result;
                 }
 
-                cert = this.LoadCustomCertificate(canonicalPath, keyPath, password);
+                cert = LoadCustomCertificate(canonicalPath, keyPath, password);
             }
             else
             {
@@ -294,7 +294,7 @@ public class CertificateManager : ICertificateManager
         return fullPath;
     }
 
-    private X509Certificate2 LoadCustomCertificate(string certPath, string keyPath, string password)
+    private static X509Certificate2 LoadCustomCertificate(string certPath, string keyPath, string password)
     {
         var validatedCertPath = ValidateCertificatePath(certPath);
         var ext = Path.GetExtension(validatedCertPath).ToLowerInvariant();
@@ -377,7 +377,7 @@ public class CertificateManager : ICertificateManager
     {
         var cachePath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr-selfsigned.pfx");
         var passwordPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr-selfsigned.pwd");
-        var pfxPassword = this.GetOrGenerateSelfSignedPassword(config, passwordPath);
+        var pfxPassword = GetOrGenerateSelfSignedPassword(config, passwordPath);
 
         if (File.Exists(cachePath))
         {
@@ -402,10 +402,10 @@ public class CertificateManager : ICertificateManager
             }
         }
 
-        return this.GenerateAndSaveSelfSignedCertificate(config, cachePath, pfxPassword);
+        return GenerateAndSaveSelfSignedCertificate(config, cachePath, pfxPassword);
     }
 
-    private string GetOrGenerateSelfSignedPassword(IConfigFileProvider config, string passwordPath)
+    private static string GetOrGenerateSelfSignedPassword(IConfigFileProvider config, string passwordPath)
     {
         if (!string.IsNullOrWhiteSpace(config.SslCertPassword))
         {
@@ -449,7 +449,7 @@ public class CertificateManager : ICertificateManager
         return generatedPassword;
     }
 
-    private X509Certificate2 GenerateAndSaveSelfSignedCertificate(IConfigFileProvider config, string cachePath, string pfxPassword)
+    private static X509Certificate2 GenerateAndSaveSelfSignedCertificate(IConfigFileProvider config, string cachePath, string pfxPassword)
     {
         Logger.Info("Generating new self-signed RSA-2048 SSL certificate for Leecharr...");
 

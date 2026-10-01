@@ -302,12 +302,12 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         {
             if (record.TryGetProperty("movie", out var movie) && movie.ValueKind == JsonValueKind.Object)
             {
-                return this.ParseMovieMetadata(conn, movie);
+                return ParseMovieMetadata(conn, movie);
             }
 
             if (record.TryGetProperty("movieId", out var mId) && mId.ValueKind == JsonValueKind.Number && mId.TryGetInt32(out var movieId) && movieId > 0)
             {
-                return await this.FetchEntityByIdAsync(conn, $"{baseUrl}/api/v3/movie/{movieId}", el => this.ParseMovieMetadata(conn, el));
+                return await this.FetchEntityByIdAsync(conn, $"{baseUrl}/api/v3/movie/{movieId}", el => ParseMovieMetadata(conn, el));
             }
         }
         else if (isMusic)
@@ -317,29 +317,29 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
             if (artist.ValueKind == JsonValueKind.Object || album.ValueKind == JsonValueKind.Object)
             {
-                return this.ParseLidarrMetadata(conn, artist, album);
+                return ParseLidarrMetadata(conn, artist, album);
             }
 
             if (record.TryGetProperty("artistId", out var aId) && aId.ValueKind == JsonValueKind.Number && aId.TryGetInt32(out var artistId) && artistId > 0)
             {
-                return await this.FetchEntityByIdAsync(conn, $"{baseUrl}/api/v1/artist/{artistId}", el => this.ParseLidarrMetadata(conn, el, default));
+                return await this.FetchEntityByIdAsync(conn, $"{baseUrl}/api/v1/artist/{artistId}", el => ParseLidarrMetadata(conn, el, default));
             }
 
             if (record.TryGetProperty("albumId", out var albId) && albId.ValueKind == JsonValueKind.Number && albId.TryGetInt32(out var albumId) && albumId > 0)
             {
-                return await this.FetchEntityByIdAsync(conn, $"{baseUrl}/api/v1/album/{albumId}", el => this.ParseLidarrMetadata(conn, default, el));
+                return await this.FetchEntityByIdAsync(conn, $"{baseUrl}/api/v1/album/{albumId}", el => ParseLidarrMetadata(conn, default, el));
             }
         }
         else
         {
             if (record.TryGetProperty("series", out var series) && series.ValueKind == JsonValueKind.Object)
             {
-                return this.ParseSeriesMetadata(conn, series);
+                return ParseSeriesMetadata(conn, series);
             }
 
             if (record.TryGetProperty("seriesId", out var sId) && sId.ValueKind == JsonValueKind.Number && sId.TryGetInt32(out var seriesId) && seriesId > 0)
             {
-                return await this.FetchEntityByIdAsync(conn, $"{baseUrl}/api/v3/series/{seriesId}", el => this.ParseSeriesMetadata(conn, el));
+                return await this.FetchEntityByIdAsync(conn, $"{baseUrl}/api/v3/series/{seriesId}", el => ParseSeriesMetadata(conn, el));
             }
         }
 
@@ -375,7 +375,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         return null;
     }
 
-    private MediaMetadata ParseSeriesMetadata(ArrConnectionDefinition conn, JsonElement series)
+    private static MediaMetadata ParseSeriesMetadata(ArrConnectionDefinition conn, JsonElement series)
     {
         var baseUrl = conn.Url.TrimEnd('/');
         var meta = new MediaMetadata
@@ -417,7 +417,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
         if (series.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
         {
-            this.PopulateImages(conn, baseUrl, images, meta);
+            PopulateImages(conn, baseUrl, images, meta);
         }
 
         meta.Cast = ExtractCast(series);
@@ -425,7 +425,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         return meta;
     }
 
-    private MediaMetadata ParseMovieMetadata(ArrConnectionDefinition conn, JsonElement movie)
+    private static MediaMetadata ParseMovieMetadata(ArrConnectionDefinition conn, JsonElement movie)
     {
         var baseUrl = conn.Url.TrimEnd('/');
         var meta = new MediaMetadata
@@ -467,7 +467,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
         if (movie.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
         {
-            this.PopulateImages(conn, baseUrl, images, meta);
+            PopulateImages(conn, baseUrl, images, meta);
         }
 
         meta.Cast = ExtractCast(movie);
@@ -475,7 +475,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         return meta;
     }
 
-    private MediaMetadata ParseLidarrMetadata(ArrConnectionDefinition conn, JsonElement artist, JsonElement album)
+    private static MediaMetadata ParseLidarrMetadata(ArrConnectionDefinition conn, JsonElement artist, JsonElement album)
     {
         var baseUrl = conn.Url.TrimEnd('/');
         var meta = new MediaMetadata
@@ -534,7 +534,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
             if (artist.TryGetProperty("images", out var aImages) && aImages.ValueKind == JsonValueKind.Array)
             {
-                this.PopulateImages(conn, baseUrl, aImages, meta);
+                PopulateImages(conn, baseUrl, aImages, meta);
             }
         }
 
@@ -589,7 +589,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
             if (album.TryGetProperty("images", out var albImages) && albImages.ValueKind == JsonValueKind.Array)
             {
-                this.PopulateImages(conn, baseUrl, albImages, meta);
+                PopulateImages(conn, baseUrl, albImages, meta);
             }
 
             if (string.IsNullOrEmpty(artistName) && album.TryGetProperty("artist", out var albArtist) && albArtist.ValueKind == JsonValueKind.Object)
@@ -710,10 +710,10 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
             if (artist.ValueKind == JsonValueKind.Object || album.ValueKind == JsonValueKind.Object)
             {
-                return this.ParseLidarrMetadata(conn, artist, album);
+                return ParseLidarrMetadata(conn, artist, album);
             }
 
-            var lidarrMeta = this.ParseLidarrMetadata(conn, chosen, default);
+            var lidarrMeta = ParseLidarrMetadata(conn, chosen, default);
             if (string.IsNullOrWhiteSpace(lidarrMeta.Title))
             {
                 lidarrMeta.Title = title;
@@ -766,7 +766,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
         if (chosen.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
         {
-            this.PopulateImages(conn, baseUrl, images, meta);
+            PopulateImages(conn, baseUrl, images, meta);
         }
 
         meta.Cast = ExtractCast(chosen);
@@ -830,7 +830,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         return cast;
     }
 
-    private void PopulateImages(ArrConnectionDefinition conn, string baseUrl, JsonElement images, MediaMetadata meta)
+    private static void PopulateImages(ArrConnectionDefinition conn, string baseUrl, JsonElement images, MediaMetadata meta)
     {
         foreach (var img in images.EnumerateArray())
         {
