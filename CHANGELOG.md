@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.0](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.0) - 2026-10-01
+
+### 🐛 Bug Fixes
+- fix(api): resolve ASP0026 conflict on QBittorrentApiController and filter access control rules in CodeQL
+
+### 🔧 Maintenance & Improvements
+- release: [bump:major] promote Leecharr to version 2.0.0
+- ci(sonar): configure standardized code coverage output directory and reportsPaths
+- security(codeql): resolve actionable security alerts with zero breaking changes
+
 ## [v1.33.16](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.16) - 2026-10-01
 
 ### 🔧 Maintenance & Improvements
