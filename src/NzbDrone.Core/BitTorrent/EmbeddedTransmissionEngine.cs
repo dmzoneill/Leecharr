@@ -142,7 +142,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
     public async Task<EngineHealthCheckResult> ProbeHealthAsync()
     {
         var sw = Stopwatch.StartNew();
-        var rpcUrl = this.GetRpcUrl();
+        var rpcUrl = GetRpcUrl();
         var checks = new List<string>();
         var warnings = new List<string>();
 
@@ -1033,12 +1033,12 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
     private async Task<Dictionary<string, object>> SendRpcRequestAsync(string method, Dictionary<string, object> arguments)
     {
-        var rpcUrl = this.GetRpcUrl();
+        var rpcUrl = GetRpcUrl();
         var payload = new Dictionary<string, object>
         {
             ["method"] = method,
             ["arguments"] = arguments,
-            ["tag"] = Random.Shared.Next(1, 1000000),
+            ["tag"] = System.Security.Cryptography.RandomNumberGenerator.GetInt32(1, 1000000),
         };
 
         var json = payload.ToJson();
@@ -1094,7 +1094,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         return list;
     }
 
-    private string GetRpcUrl()
+    private static string GetRpcUrl()
     {
         var envUrl = Environment.GetEnvironmentVariable("TRANSMISSION_RPC_URL");
         if (!string.IsNullOrWhiteSpace(envUrl))

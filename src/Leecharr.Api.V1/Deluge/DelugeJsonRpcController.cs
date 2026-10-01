@@ -109,14 +109,14 @@ public class DelugeJsonRpcController : ControllerBase
         return false;
     }
 
-    private IActionResult DelugeResult(object value)
+    private static IActionResult DelugeResult(object value)
     {
         return new JsonResult(value, DelugeJsonOptions);
     }
 
-    private IActionResult DelugeError(string message, int code = 1, object id = null)
+    private static IActionResult DelugeError(string message, int code = 1, object id = null)
     {
-        return this.DelugeResult(new
+        return DelugeResult(new
         {
             result = (object)null,
             error = new { message, code },
@@ -147,7 +147,7 @@ public class DelugeJsonRpcController : ControllerBase
                 }
             }
 
-            return this.DelugeResult(responses);
+            return DelugeResult(responses);
         }
 
         return await this.ProcessSingleRpcAsync(root);
@@ -157,7 +157,7 @@ public class DelugeJsonRpcController : ControllerBase
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
-            return this.DelugeError("Invalid JSON-RPC format", 1, null);
+            return DelugeError("Invalid JSON-RPC format", 1, null);
         }
 
         var methodElem = root.TryGetProperty("method", out var m) ? m : default;
@@ -199,7 +199,7 @@ public class DelugeJsonRpcController : ControllerBase
 
             if (!this.IsDelugeAuthenticated())
             {
-                return this.DelugeError("Not authenticated", 1, id);
+                return DelugeError("Not authenticated", 1, id);
             }
 
             if (lowerMethod.StartsWith("core."))
@@ -237,7 +237,7 @@ public class DelugeJsonRpcController : ControllerBase
         catch (Exception ex)
         {
             this.logger.Error(ex, "Error handling Deluge RPC method: {0}", method);
-            return this.DelugeError(ex.Message, 1, id);
+            return DelugeError(ex.Message, 1, id);
         }
     }
 
@@ -245,15 +245,15 @@ public class DelugeJsonRpcController : ControllerBase
     {
         return method switch
         {
-            "core.get_version" => this.HandleGetVersion(id),
-            "core.get_enabled_plugins" or "core.get_available_plugins" => this.HandleGetPlugins(id),
-            "core.enable_plugin" or "core.disable_plugin" or "core.rescan_plugins" => this.HandleTogglePlugin(id),
+            "core.get_version" => HandleGetVersion(id),
+            "core.get_enabled_plugins" or "core.get_available_plugins" => HandleGetPlugins(id),
+            "core.enable_plugin" or "core.disable_plugin" or "core.rescan_plugins" => HandleTogglePlugin(id),
             "core.get_config" => this.HandleCoreGetConfig(id),
             "core.get_config_values" => this.HandleCoreGetConfigValues(args, id),
             "core.get_config_value" => this.HandleCoreGetConfigValue(args, id),
             "core.set_config" or "core.set_config_values" => await this.HandleCoreSetConfigAsync(args, id),
             "core.get_session_status" => this.HandleCoreGetSessionStatus(id),
-            "core.get_path_size" => this.HandleCoreGetPathSize(args, id),
+            "core.get_path_size" => HandleCoreGetPathSize(args, id),
             "core.get_free_space" or "core.get_path_free_space" or "core.get_free_space_bytes" => this.HandleCoreGetFreeSpace(args, id),
             "core.get_torrents_status" => this.HandleGetTorrentsStatus(args, id, isWeb: false),
             "core.get_torrent_status" => this.HandleGetTorrentStatus(args, id),
@@ -291,22 +291,22 @@ public class DelugeJsonRpcController : ControllerBase
     {
         return method switch
         {
-            "web.connected" or "web.connect" => this.HandleWebConnected(id),
-            "web.get_version" => this.HandleGetVersion(id),
-            "web.get_plugins" or "web.get_installed_plugins" => this.HandleGetPlugins(id),
-            "web.get_hosts" => this.HandleWebGetHosts(id),
-            "web.get_host_status" => this.HandleWebGetHostStatus(id),
+            "web.connected" or "web.connect" => HandleWebConnected(id),
+            "web.get_version" => HandleGetVersion(id),
+            "web.get_plugins" or "web.get_installed_plugins" => HandleGetPlugins(id),
+            "web.get_hosts" => HandleWebGetHosts(id),
+            "web.get_host_status" => HandleWebGetHostStatus(id),
             "web.update_ui" => this.HandleWebUpdateUi(args, id),
             "web.get_config" => this.HandleCoreGetConfig(id),
             "web.set_config" => await this.HandleCoreSetConfigAsync(args, id),
             "web.get_torrents_status" => this.HandleGetTorrentsStatus(args, id, isWeb: true),
             "web.get_torrent_status" => this.HandleGetTorrentStatus(args, id),
-            "web.upload_torrent" => await this.HandleWebUploadTorrentAsync(args, id),
+            "web.upload_torrent" => await HandleWebUploadTorrentAsync(args, id),
             "web.get_torrent_info" => await this.HandleWebGetTorrentInfoAsync(args, id),
             "web.add_torrents" => await this.HandleWebAddTorrentsAsync(args, id),
-            "web.disconnect" => this.HandleWebDisconnect(id),
+            "web.disconnect" => HandleWebDisconnect(id),
             "web.get_filter_tree" => this.HandleGetFilterTree(id),
-            "web.get_events" => this.HandleWebGetEvents(id),
+            "web.get_events" => HandleWebGetEvents(id),
             _ => this.HandleUnknownMethod(method, id),
         };
     }
@@ -315,8 +315,8 @@ public class DelugeJsonRpcController : ControllerBase
     {
         var result = method switch
         {
-            "system.listmethods" or "system.list_methods" or "daemon.get_method_list" or "system.get_methods" => this.HandleSystemListMethods(id),
-            "daemon.get_version" or "daemon.info" => this.HandleGetVersion(id),
+            "system.listmethods" or "system.list_methods" or "daemon.get_method_list" or "system.get_methods" => HandleSystemListMethods(id),
+            "daemon.get_version" or "daemon.info" => HandleGetVersion(id),
             _ => this.HandleUnknownMethod(method, id),
         };
 
@@ -345,17 +345,17 @@ public class DelugeJsonRpcController : ControllerBase
 
         if (lowerMethod.StartsWith("scheduler."))
         {
-            return this.HandleSchedulerRpc(lowerMethod, args, id);
+            return HandleSchedulerRpc(lowerMethod, args, id);
         }
 
         if (lowerMethod.StartsWith("autoadd."))
         {
-            return this.HandleAutoAddRpc(lowerMethod, args, id);
+            return HandleAutoAddRpc(lowerMethod, args, id);
         }
 
         if (lowerMethod.StartsWith("blocklist."))
         {
-            return this.HandleBlocklistRpc(lowerMethod, args, id);
+            return HandleBlocklistRpc(lowerMethod, args, id);
         }
 
         if (lowerMethod.StartsWith("extractor."))
@@ -365,7 +365,7 @@ public class DelugeJsonRpcController : ControllerBase
 
         if (lowerMethod.StartsWith("execute."))
         {
-            return this.HandleExecuteRpc(lowerMethod, args, id);
+            return HandleExecuteRpc(lowerMethod, args, id);
         }
 
         if (lowerMethod.StartsWith("stats."))
@@ -373,10 +373,10 @@ public class DelugeJsonRpcController : ControllerBase
             return this.HandleStatsRpc(lowerMethod, args, id);
         }
 
-        return this.DelugeResult(new { result = new Dictionary<string, object>(), error = (object)null, id });
+        return DelugeResult(new { result = new Dictionary<string, object>(), error = (object)null, id });
     }
 
-    private IActionResult HandleSchedulerRpc(string method, JsonElement args, object id)
+    private static IActionResult HandleSchedulerRpc(string method, JsonElement args, object id)
     {
         switch (method)
         {
@@ -402,37 +402,37 @@ public class DelugeJsonRpcController : ControllerBase
                     ["button_state"] = 0,
                     ["schedule"] = scheduleMatrix,
                 };
-                return this.DelugeResult(new { result = config, error = (object)null, id });
+                return DelugeResult(new { result = config, error = (object)null, id });
 
             case "scheduler.set_config":
             case "scheduler.enable":
             case "scheduler.disable":
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
 
             default:
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
         }
     }
 
-    private IActionResult HandleAutoAddRpc(string method, JsonElement args, object id)
+    private static IActionResult HandleAutoAddRpc(string method, JsonElement args, object id)
     {
         switch (method)
         {
             case "autoadd.get_watchdirs":
-                return this.DelugeResult(new { result = new List<object>(), error = (object)null, id });
+                return DelugeResult(new { result = new List<object>(), error = (object)null, id });
 
             case "autoadd.set_options":
             case "autoadd.set_config":
             case "autoadd.enable":
             case "autoadd.disable":
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
 
             default:
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
         }
     }
 
-    private IActionResult HandleBlocklistRpc(string method, JsonElement args, object id)
+    private static IActionResult HandleBlocklistRpc(string method, JsonElement args, object id)
     {
         switch (method)
         {
@@ -451,11 +451,11 @@ public class DelugeJsonRpcController : ControllerBase
                     ["file_size"] = 0,
                     ["file_url"] = string.Empty,
                 };
-                return this.DelugeResult(new { result = blocklistConfig, error = (object)null, id });
+                return DelugeResult(new { result = blocklistConfig, error = (object)null, id });
 
             case "blocklist.set_config":
             case "blocklist.import":
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
 
             case "blocklist.check":
             case "blocklist.get_status":
@@ -467,10 +467,10 @@ public class DelugeJsonRpcController : ControllerBase
                     ["file_size"] = 0,
                     ["file_date"] = 0,
                 };
-                return this.DelugeResult(new { result = status, error = (object)null, id });
+                return DelugeResult(new { result = status, error = (object)null, id });
 
             default:
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
         }
     }
 
@@ -485,31 +485,31 @@ public class DelugeJsonRpcController : ControllerBase
                     ["use_dest"] = false,
                     ["extract_in_place"] = true,
                 };
-                return this.DelugeResult(new { result = extractorConfig, error = (object)null, id });
+                return DelugeResult(new { result = extractorConfig, error = (object)null, id });
 
             case "extractor.set_config":
             case "extractor.extract":
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
 
             default:
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
         }
     }
 
-    private IActionResult HandleExecuteRpc(string method, JsonElement args, object id)
+    private static IActionResult HandleExecuteRpc(string method, JsonElement args, object id)
     {
         switch (method)
         {
             case "execute.get_commands":
-                return this.DelugeResult(new { result = new List<object>(), error = (object)null, id });
+                return DelugeResult(new { result = new List<object>(), error = (object)null, id });
 
             case "execute.add_command":
             case "execute.remove_command":
             case "execute.set_config":
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
 
             default:
-                return this.DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = true, error = (object)null, id });
         }
     }
 
@@ -581,11 +581,11 @@ public class DelugeJsonRpcController : ControllerBase
                     filteredStats[key] = stats.TryGetValue(key, out var val) ? val : 0;
                 }
 
-                return this.DelugeResult(new { result = filteredStats, error = (object)null, id });
+                return DelugeResult(new { result = filteredStats, error = (object)null, id });
             }
         }
 
-        return this.DelugeResult(new { result = stats, error = (object)null, id });
+        return DelugeResult(new { result = stats, error = (object)null, id });
     }
 
     private IActionResult HandleAuthLogin(JsonElement paramsElem, object id)
@@ -627,16 +627,16 @@ public class DelugeJsonRpcController : ControllerBase
             this.Response?.Cookies.Append("_session_id", sid, cookieOptions);
             this.Response?.Cookies.Append("deluge-session", sid, cookieOptions);
 
-            return this.DelugeResult(new { result = true, error = (object)null, id });
+            return DelugeResult(new { result = true, error = (object)null, id });
         }
 
-        return this.DelugeResult(new { result = false, error = (object)null, id });
+        return DelugeResult(new { result = false, error = (object)null, id });
     }
 
     private IActionResult HandleAuthCheckSession(object id)
     {
         var isAuth = this.IsDelugeAuthenticated();
-        return this.DelugeResult(new { result = isAuth, error = (object)null, id });
+        return DelugeResult(new { result = isAuth, error = (object)null, id });
     }
 
     private IActionResult HandleAuthDeleteSession(object id)
@@ -660,17 +660,17 @@ public class DelugeJsonRpcController : ControllerBase
         this.Response?.Cookies.Delete("_session_id");
         this.Response?.Cookies.Delete("deluge-session");
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
-    private IActionResult HandleWebConnected(object id)
+    private static IActionResult HandleWebConnected(object id)
     {
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
-    private IActionResult HandleSystemListMethods(object id)
+    private static IActionResult HandleSystemListMethods(object id)
     {
-        return this.DelugeResult(new
+        return DelugeResult(new
         {
             result = new[]
                         {
@@ -764,15 +764,15 @@ public class DelugeJsonRpcController : ControllerBase
         });
     }
 
-    private IActionResult HandleGetVersion(object id)
+    private static IActionResult HandleGetVersion(object id)
     {
-        return this.DelugeResult(new { result = "2.1.1", error = (object)null, id });
+        return DelugeResult(new { result = "2.1.1", error = (object)null, id });
     }
 
     private IActionResult HandleLabelGetLabels(object id)
     {
         var labels = this.categoryService.GetAll().Select(c => c.Name).ToArray();
-        return this.DelugeResult(new { result = labels, error = (object)null, id });
+        return DelugeResult(new { result = labels, error = (object)null, id });
     }
 
     private IActionResult HandleLabelGetTorrents(JsonElement paramsElem, object id)
@@ -782,7 +782,7 @@ public class DelugeJsonRpcController : ControllerBase
         var matching = allLabelTorrents.Where(t => MatchesLabel(t, targetLabel));
 
         var torrentHashes = matching.Select(t => t.InfoHash.ToLowerInvariant()).ToArray();
-        return this.DelugeResult(new { result = torrentHashes, error = (object)null, id });
+        return DelugeResult(new { result = torrentHashes, error = (object)null, id });
     }
 
     private IActionResult HandleLabelAdd(JsonElement paramsElem, object id)
@@ -801,7 +801,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private IActionResult HandleLabelRemove(JsonElement paramsElem, object id)
@@ -816,7 +816,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private IActionResult HandleLabelClean(object id)
@@ -835,7 +835,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private IActionResult HandleLabelGetOptions(JsonElement paramsElem, object id)
@@ -855,7 +855,7 @@ public class DelugeJsonRpcController : ControllerBase
                 ["apply_move_completed"] = !string.IsNullOrWhiteSpace(targetCat?.SavePath),
                 ["move_completed_path"] = targetCat?.SavePath ?? string.Empty,
             };
-            return this.DelugeResult(new { result = labelOpts, error = (object)null, id });
+            return DelugeResult(new { result = labelOpts, error = (object)null, id });
         }
     }
 
@@ -914,7 +914,7 @@ public class DelugeJsonRpcController : ControllerBase
                 }
             }
 
-            return this.DelugeResult(new { result = true, error = (object)null, id });
+            return DelugeResult(new { result = true, error = (object)null, id });
         }
     }
 
@@ -935,32 +935,32 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
-    private IActionResult HandleGetPlugins(object id)
+    private static IActionResult HandleGetPlugins(object id)
     {
-        return this.DelugeResult(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
+        return DelugeResult(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
     }
 
-    private IActionResult HandleWebGetEvents(object id)
+    private static IActionResult HandleWebGetEvents(object id)
     {
-        return this.DelugeResult(new { result = Array.Empty<object>(), error = (object)null, id });
+        return DelugeResult(new { result = Array.Empty<object>(), error = (object)null, id });
     }
 
-    private IActionResult HandleTogglePlugin(object id)
+    private static IActionResult HandleTogglePlugin(object id)
     {
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
-    private IActionResult HandleWebGetHosts(object id)
+    private static IActionResult HandleWebGetHosts(object id)
     {
-        return this.DelugeResult(new { result = new object[] { new object[] { "1", "127.0.0.1", 58846, "Connected" } }, error = (object)null, id });
+        return DelugeResult(new { result = new object[] { new object[] { "1", "127.0.0.1", 58846, "Connected" } }, error = (object)null, id });
     }
 
-    private IActionResult HandleWebGetHostStatus(object id)
+    private static IActionResult HandleWebGetHostStatus(object id)
     {
-        return this.DelugeResult(new { result = new object[] { "1", "Connected", "2.1.1" }, error = (object)null, id });
+        return DelugeResult(new { result = new object[] { "1", "Connected", "2.1.1" }, error = (object)null, id });
     }
 
     private IActionResult HandleWebUpdateUi(JsonElement paramsElem, object id)
@@ -975,7 +975,7 @@ public class DelugeJsonRpcController : ControllerBase
             torrentDict[t.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(t, uiKeys);
         }
 
-        return this.DelugeResult(new
+        return DelugeResult(new
         {
             result = new
             {
@@ -1000,7 +1000,7 @@ public class DelugeJsonRpcController : ControllerBase
 
     private IActionResult HandleCoreGetConfig(object id)
     {
-        return this.DelugeResult(new
+        return DelugeResult(new
         {
             result = this.GetDelugeConfigDictionary(),
             error = (object)null,
@@ -1031,7 +1031,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = requestedConfig, error = (object)null, id });
+        return DelugeResult(new { result = requestedConfig, error = (object)null, id });
     }
 
     private IActionResult HandleCoreGetConfigValue(JsonElement paramsElem, object id)
@@ -1039,7 +1039,7 @@ public class DelugeJsonRpcController : ControllerBase
         var singleCfgKey = GetFirstStringParam(paramsElem);
         var singleFullConfig = this.GetDelugeConfigDictionary();
         singleFullConfig.TryGetValue(singleCfgKey ?? string.Empty, out var foundVal);
-        return this.DelugeResult(new { result = foundVal, error = (object)null, id });
+        return DelugeResult(new { result = foundVal, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreSetConfigAsync(JsonElement paramsElem, object id)
@@ -1210,13 +1210,13 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private IActionResult HandleCoreGetSessionStatus(object id)
     {
         var allT = this.torrentService.GetAll().ToList();
-        return this.DelugeResult(new
+        return DelugeResult(new
         {
             result = new Dictionary<string, object>
                         {
@@ -1238,15 +1238,15 @@ public class DelugeJsonRpcController : ControllerBase
     {
         var rawPath = GetFirstStringParam(paramsElem);
         var targetPath = !string.IsNullOrWhiteSpace(rawPath) ? rawPath : (this.configService.DownloadDir ?? "/downloads");
-        return this.DelugeResult(new { result = this.GetDriveFreeSpace(targetPath), error = (object)null, id });
+        return DelugeResult(new { result = this.GetDriveFreeSpace(targetPath), error = (object)null, id });
     }
 
-    private IActionResult HandleCoreGetPathSize(JsonElement paramsElem, object id)
+    private static IActionResult HandleCoreGetPathSize(JsonElement paramsElem, object id)
     {
         var rawPath = GetFirstStringParam(paramsElem);
         if (string.IsNullOrWhiteSpace(rawPath))
         {
-            return this.DelugeResult(new { result = -1L, error = (object)null, id });
+            return DelugeResult(new { result = -1L, error = (object)null, id });
         }
 
         try
@@ -1254,21 +1254,21 @@ public class DelugeJsonRpcController : ControllerBase
             if (global::System.IO.File.Exists(rawPath))
             {
                 var fileInfo = new global::System.IO.FileInfo(rawPath);
-                return this.DelugeResult(new { result = fileInfo.Length, error = (object)null, id });
+                return DelugeResult(new { result = fileInfo.Length, error = (object)null, id });
             }
 
             if (global::System.IO.Directory.Exists(rawPath))
             {
                 var dirInfo = new global::System.IO.DirectoryInfo(rawPath);
                 var totalSize = dirInfo.EnumerateFiles("*", global::System.IO.SearchOption.AllDirectories).Sum(f => f.Length);
-                return this.DelugeResult(new { result = totalSize, error = (object)null, id });
+                return DelugeResult(new { result = totalSize, error = (object)null, id });
             }
 
-            return this.DelugeResult(new { result = -1L, error = (object)null, id });
+            return DelugeResult(new { result = -1L, error = (object)null, id });
         }
         catch
         {
-            return this.DelugeResult(new { result = -1L, error = (object)null, id });
+            return DelugeResult(new { result = -1L, error = (object)null, id });
         }
     }
 
@@ -1285,10 +1285,10 @@ public class DelugeJsonRpcController : ControllerBase
 
         if (isWeb)
         {
-            return this.DelugeResult(new { result = new { torrents = resultDict }, error = (object)null, id });
+            return DelugeResult(new { result = new { torrents = resultDict }, error = (object)null, id });
         }
 
-        return this.DelugeResult(new { result = resultDict, error = (object)null, id });
+        return DelugeResult(new { result = resultDict, error = (object)null, id });
     }
 
     private IActionResult HandleGetTorrentStatus(JsonElement paramsElem, object id)
@@ -1297,7 +1297,7 @@ public class DelugeJsonRpcController : ControllerBase
         var found = this.torrentService.GetByInfoHash(targetHash);
         if (found == null)
         {
-            return this.DelugeError("Torrent not found", 1, id);
+            return DelugeError("Torrent not found", 1, id);
         }
 
         HashSet<string> singleTorrentKeys = null;
@@ -1313,7 +1313,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = this.MapTorrentToDelugeStatus(found, singleTorrentKeys), error = (object)null, id });
+        return DelugeResult(new { result = this.MapTorrentToDelugeStatus(found, singleTorrentKeys), error = (object)null, id });
     }
 
     private async Task ApplyTorrentAddOptionsAsync(Torrent added, JsonElement opts)
@@ -1423,13 +1423,13 @@ public class DelugeJsonRpcController : ControllerBase
     {
         if (paramsElem.ValueKind != JsonValueKind.Array || paramsElem.GetArrayLength() < 2)
         {
-            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+            return DelugeError("Failed to decode or parse torrent file", 1, id);
         }
 
         var b64 = paramsElem[1].ValueKind == JsonValueKind.String ? paramsElem[1].GetString() : null;
         if (string.IsNullOrWhiteSpace(b64))
         {
-            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+            return DelugeError("Failed to decode or parse torrent file", 1, id);
         }
 
         byte[] bytes;
@@ -1440,13 +1440,13 @@ public class DelugeJsonRpcController : ControllerBase
             parsed = this.torrentFileParser.Parse(bytes);
             if (parsed == null)
             {
-                return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+                return DelugeError("Failed to decode or parse torrent file", 1, id);
             }
         }
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Deluge core.add_torrent_file failed to decode or parse torrent file");
-            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+            return DelugeError("Failed to decode or parse torrent file", 1, id);
         }
 
         var isPaused = false;
@@ -1486,12 +1486,12 @@ public class DelugeJsonRpcController : ControllerBase
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Deluge core.add_torrent_file failed to add torrent to service");
-            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+            return DelugeError("Failed to decode or parse torrent file", 1, id);
         }
 
         if (added == null)
         {
-            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+            return DelugeError("Failed to decode or parse torrent file", 1, id);
         }
 
         if (optsElem.HasValue)
@@ -1499,20 +1499,20 @@ public class DelugeJsonRpcController : ControllerBase
             await this.ApplyTorrentAddOptionsAsync(added, optsElem.Value);
         }
 
-        return this.DelugeResult(new { result = added.InfoHash, error = (object)null, id });
+        return DelugeResult(new { result = added.InfoHash, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreAddTorrentMagnetAsync(JsonElement paramsElem, object id)
     {
         if (paramsElem.ValueKind != JsonValueKind.Array || paramsElem.GetArrayLength() < 1)
         {
-            return this.DelugeError("Failed to add magnet torrent", 1, id);
+            return DelugeError("Failed to add magnet torrent", 1, id);
         }
 
         var magnetUri = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
         if (string.IsNullOrWhiteSpace(magnetUri))
         {
-            return this.DelugeError("Failed to add magnet torrent", 1, id);
+            return DelugeError("Failed to add magnet torrent", 1, id);
         }
 
         var isPaused = false;
@@ -1552,12 +1552,12 @@ public class DelugeJsonRpcController : ControllerBase
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Deluge core.add_torrent_magnet failed to add magnet torrent");
-            return this.DelugeError("Failed to add magnet torrent", 1, id);
+            return DelugeError("Failed to add magnet torrent", 1, id);
         }
 
         if (added == null)
         {
-            return this.DelugeError("Failed to add magnet torrent", 1, id);
+            return DelugeError("Failed to add magnet torrent", 1, id);
         }
 
         if (optsElem.HasValue)
@@ -1565,20 +1565,20 @@ public class DelugeJsonRpcController : ControllerBase
             await this.ApplyTorrentAddOptionsAsync(added, optsElem.Value);
         }
 
-        return this.DelugeResult(new { result = added.InfoHash, error = (object)null, id });
+        return DelugeResult(new { result = added.InfoHash, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreAddTorrentUrlAsync(JsonElement paramsElem, object id)
     {
         if (paramsElem.ValueKind != JsonValueKind.Array || paramsElem.GetArrayLength() < 1)
         {
-            return this.DelugeError("Failed to add torrent from URL", 1, id);
+            return DelugeError("Failed to add torrent from URL", 1, id);
         }
 
         var url = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
         if (string.IsNullOrWhiteSpace(url))
         {
-            return this.DelugeError("Failed to add torrent from URL", 1, id);
+            return DelugeError("Failed to add torrent from URL", 1, id);
         }
 
         var isPaused = false;
@@ -1622,7 +1622,7 @@ public class DelugeJsonRpcController : ControllerBase
             var parsed = this.torrentFileParser.Parse(bytes);
             if (parsed == null)
             {
-                return this.DelugeError("Failed to add torrent from URL", 1, id);
+                return DelugeError("Failed to add torrent from URL", 1, id);
             }
 
             added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
@@ -1630,7 +1630,7 @@ public class DelugeJsonRpcController : ControllerBase
 
         if (added == null)
         {
-            return this.DelugeError("Failed to add torrent from URL", 1, id);
+            return DelugeError("Failed to add torrent from URL", 1, id);
         }
 
         if (optsElem.HasValue)
@@ -1638,10 +1638,10 @@ public class DelugeJsonRpcController : ControllerBase
             await this.ApplyTorrentAddOptionsAsync(added, optsElem.Value);
         }
 
-        return this.DelugeResult(new { result = added.InfoHash, error = (object)null, id });
+        return DelugeResult(new { result = added.InfoHash, error = (object)null, id });
     }
 
-    private async Task<IActionResult> HandleWebUploadTorrentAsync(JsonElement paramsElem, object id)
+    private static async Task<IActionResult> HandleWebUploadTorrentAsync(JsonElement paramsElem, object id)
     {
         string tempTorrentPath = null;
         if (paramsElem.ValueKind == JsonValueKind.Array)
@@ -1664,7 +1664,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = tempTorrentPath, error = (object)null, id });
+        return DelugeResult(new { result = tempTorrentPath, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleWebGetTorrentInfoAsync(JsonElement paramsElem, object id)
@@ -1700,7 +1700,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = torrentInfoResult, error = (object)null, id });
+        return DelugeResult(new { result = torrentInfoResult, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleWebAddTorrentsAsync(JsonElement paramsElem, object id)
@@ -1842,7 +1842,7 @@ public class DelugeJsonRpcController : ControllerBase
             addTorrentsSuccess = false;
         }
 
-        return this.DelugeResult(new { result = addTorrentsSuccess, error = (object)null, id });
+        return DelugeResult(new { result = addTorrentsSuccess, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCorePauseTorrentsAsync(string lowerMethod, JsonElement paramsElem, object id)
@@ -1868,7 +1868,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreResumeTorrentsAsync(string lowerMethod, JsonElement paramsElem, object id)
@@ -1894,7 +1894,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreRemoveTorrentsAsync(string lowerMethod, JsonElement paramsElem, object id)
@@ -1910,7 +1910,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreForceRecheckAsync(JsonElement paramsElem, object id)
@@ -1925,7 +1925,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreForceReannounceAsync(JsonElement paramsElem, object id)
@@ -1940,7 +1940,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreMoveStorageAsync(JsonElement paramsElem, object id)
@@ -1987,7 +1987,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreSetTorrentOptionsAsync(JsonElement paramsElem, object id)
@@ -2168,7 +2168,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreSetTorrentPropertyAsync(string method, JsonElement paramsElem, object id)
@@ -2334,7 +2334,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreSetTorrentFilePrioritiesAsync(JsonElement paramsElem, object id)
@@ -2363,7 +2363,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreRenameFilesAsync(JsonElement paramsElem, object id)
@@ -2419,12 +2419,12 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
-    private IActionResult HandleWebDisconnect(object id)
+    private static IActionResult HandleWebDisconnect(object id)
     {
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreQueueAsync(string lowerMethod, JsonElement paramsElem, object id)
@@ -2462,20 +2462,20 @@ public class DelugeJsonRpcController : ControllerBase
             await this.torrentService.MoveQueueAsync(t.Id, dir);
         }
 
-        return this.DelugeResult(new { result = true, error = (object)null, id });
+        return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private IActionResult HandleGetFilterTree(object id)
     {
         var allTorrents = this.torrentService.GetAll().ToList();
         var filterTree = this.BuildFilterTree(allTorrents);
-        return this.DelugeResult(new { result = filterTree, error = (object)null, id });
+        return DelugeResult(new { result = filterTree, error = (object)null, id });
     }
 
     private IActionResult HandleUnknownMethod(string method, object id)
     {
         this.logger.Debug("Unhandled Deluge RPC method: {0}", method);
-        return this.DelugeError($"Unknown method: {method}", 1, id);
+        return DelugeError($"Unknown method: {method}", 1, id);
     }
 
     private static string GetFirstStringParam(JsonElement parameters)

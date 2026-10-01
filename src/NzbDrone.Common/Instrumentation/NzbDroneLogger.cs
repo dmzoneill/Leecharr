@@ -12,6 +12,7 @@ namespace NzbDrone.Common.Instrumentation;
 
 public static class NzbDroneLogger
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "NLog LoggingConfiguration takes ownership of targets and disposes them on shutdown")]
     public static void Register(StartupContext startupContext = null, IAppFolderInfo appFolderInfo = null)
     {
         appFolderInfo ??= new AppFolderInfo(startupContext);

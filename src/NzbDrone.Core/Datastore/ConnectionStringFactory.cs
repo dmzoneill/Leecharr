@@ -35,7 +35,7 @@ public class ConnectionStringFactory : IConnectionStringFactory
         else
         {
             this.DatabaseType = DatabaseType.SQLite;
-            this.MainDbConnectionString = this.BuildSqliteConnectionString(appFolderInfo.AppDataFolder);
+            this.MainDbConnectionString = BuildSqliteConnectionString(appFolderInfo.AppDataFolder);
         }
     }
 
@@ -43,7 +43,7 @@ public class ConnectionStringFactory : IConnectionStringFactory
 
     public DatabaseType DatabaseType { get; }
 
-    private string BuildSqliteConnectionString(string dataFolder)
+    private static string BuildSqliteConnectionString(string dataFolder)
     {
         var dbPath = Path.Combine(dataFolder, "leecharr.db");
         return $"Data Source={dbPath};Foreign Keys=True;Default Timeout=30;";

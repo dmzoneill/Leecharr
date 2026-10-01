@@ -55,7 +55,7 @@ public class PackageController : Controller
         [FromQuery] bool includePayload = false,
         CancellationToken cancellationToken = default)
     {
-        var idList = this.ParseTorrentIds(torrentIds, this.Request?.Query?["torrentIds"] ?? StringValues.Empty);
+        var idList = ParseTorrentIds(torrentIds, this.Request?.Query?["torrentIds"] ?? StringValues.Empty);
         return await this.ExecuteExportAsync(idList, includePayload, cancellationToken);
     }
 
@@ -75,7 +75,7 @@ public class PackageController : Controller
 
         if (idList.Count == 0)
         {
-            idList = this.ParseTorrentIds(torrentIds, this.Request?.Query?["torrentIds"] ?? StringValues.Empty);
+            idList = ParseTorrentIds(torrentIds, this.Request?.Query?["torrentIds"] ?? StringValues.Empty);
         }
 
         var payload = request?.IncludePayload ?? includePayload ?? false;
@@ -230,7 +230,7 @@ public class PackageController : Controller
         return sb.ToString().Trim();
     }
 
-    private List<int> ParseTorrentIds(string queryString, StringValues queryValues)
+    private static List<int> ParseTorrentIds(string queryString, StringValues queryValues)
     {
         var idList = new List<int>();
 

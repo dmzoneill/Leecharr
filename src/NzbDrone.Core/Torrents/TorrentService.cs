@@ -2310,7 +2310,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
         if (isRooted)
         {
-            if (this.IsPathAllowed(normalizedPath, allowedRoots))
+            if (IsPathAllowed(normalizedPath, allowedRoots))
             {
                 return normalizedPath;
             }
@@ -2337,7 +2337,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
 
         var combined = Path.Combine(defaultDownloadDir, cleanRel);
-        if (this.IsPathAllowed(combined, allowedRoots))
+        if (IsPathAllowed(combined, allowedRoots))
         {
             return combined;
         }
@@ -2453,7 +2453,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         return roots;
     }
 
-    private bool IsPathAllowed(string candidatePath, IEnumerable<string> allowedRoots)
+    private static bool IsPathAllowed(string candidatePath, IEnumerable<string> allowedRoots)
     {
         if (string.IsNullOrWhiteSpace(candidatePath))
         {
