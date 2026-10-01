@@ -242,6 +242,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
     }
 
     [DllImport("powrprof.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetSuspendState(
         [MarshalAs(UnmanagedType.Bool)] bool hibernate,
@@ -249,9 +250,11 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         [MarshalAs(UnmanagedType.Bool)] bool disableWakeEvent);
 
     [DllImport("kernel32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static extern uint SetThreadExecutionState(uint esFlags);
 
     [DllImport("/System/Library/Frameworks/IOKit.framework/IOKit", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern int IOPMAssertionCreateWithName(
         IntPtr assertionType,
         uint assertionLevel,
@@ -259,15 +262,18 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         out uint assertionId);
 
     [DllImport("/System/Library/Frameworks/IOKit.framework/IOKit", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern int IOPMAssertionRelease(uint assertionId);
 
     [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern IntPtr CFStringCreateWithCharacters(
         IntPtr alloc,
         [MarshalAs(UnmanagedType.LPWStr)] string str,
         IntPtr length);
 
     [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern void CFRelease(IntPtr cf);
 
     private bool IsPlatform(OSPlatform platform)

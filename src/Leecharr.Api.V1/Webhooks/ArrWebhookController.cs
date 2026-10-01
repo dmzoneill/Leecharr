@@ -196,12 +196,12 @@ public class ArrWebhookController : Controller
                     }
                 }
 
-                if (this.IsImportEvent(eventType))
+                if (IsImportEvent(eventType))
                 {
                     torrent.IsImported = true;
                     torrent.ImportedAt = DateTime.UtcNow;
 
-                    var importPath = this.ExtractImportPath(payload);
+                    var importPath = ExtractImportPath(payload);
                     if (!string.IsNullOrWhiteSpace(importPath))
                     {
                         torrent.ImportPath = importPath;
@@ -231,7 +231,7 @@ public class ArrWebhookController : Controller
                 {
                     this.logger.Info("Grabbed event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
                 }
-                else if (this.IsDeleteEvent(eventType))
+                else if (IsDeleteEvent(eventType))
                 {
                     torrent.IsImported = false;
                     torrent.ImportPath = null;
@@ -250,7 +250,7 @@ public class ArrWebhookController : Controller
                     this.torrentRepository.Update(torrent);
                 }
 
-                if (!this.IsDeleteEvent(eventType))
+                if (!IsDeleteEvent(eventType))
                 {
                     this.TryEnrichMetadata(torrent, arrType, payload);
                 }
@@ -317,7 +317,7 @@ public class ArrWebhookController : Controller
 
             var resolvedEvent = payload?.EventType ?? "Unknown";
             var (ip, ua) = this.ResolveClientInfo(clientIp, userAgent);
-            var body = rawPayload ?? this.SerializePayload(payload);
+            var body = rawPayload ?? SerializePayload(payload);
             var message = result?.Message ?? string.Empty;
             var success = result?.Success ?? (statusCode >= 200 && statusCode < 300);
 
@@ -374,7 +374,7 @@ public class ArrWebhookController : Controller
         return (ip ?? "127.0.0.1", ua ?? "Arr");
     }
 
-    private string SerializePayload(ArrWebhookPayload payload)
+    private static string SerializePayload(ArrWebhookPayload payload)
     {
         if (payload == null)
         {
@@ -864,7 +864,7 @@ public class ArrWebhookController : Controller
         return Regex.IsMatch(fullText, pattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
     }
 
-    private bool IsDeleteEvent(string eventType)
+    private static bool IsDeleteEvent(string eventType)
     {
         if (string.IsNullOrWhiteSpace(eventType))
         {
@@ -883,7 +883,7 @@ public class ArrWebhookController : Controller
                 string.Equals(eventType, "Delete", StringComparison.OrdinalIgnoreCase);
     }
 
-    private bool IsImportEvent(string eventType)
+    private static bool IsImportEvent(string eventType)
     {
         if (string.IsNullOrWhiteSpace(eventType))
         {
@@ -904,7 +904,7 @@ public class ArrWebhookController : Controller
                 string.Equals(eventType, "BookImport", StringComparison.OrdinalIgnoreCase);
     }
 
-    private string ExtractImportPath(ArrWebhookPayload payload)
+    private static string ExtractImportPath(ArrWebhookPayload payload)
     {
         if (payload == null)
         {

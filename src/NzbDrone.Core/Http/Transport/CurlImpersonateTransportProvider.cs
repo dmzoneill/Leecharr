@@ -151,6 +151,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
         {
             this.disposed = true;
             this.fallbackClient.Dispose();
+            this.handler.Dispose();
         }
     }
 }

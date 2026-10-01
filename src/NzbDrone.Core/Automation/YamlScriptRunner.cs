@@ -908,10 +908,12 @@ public class YamlScriptRunner : IScriptRunner
     }
 
     [DllImport("Kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CreateHardLinkWindows(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
 
     [DllImport("libc", EntryPoint = "link", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern int LinkUnix(string oldpath, string newpath);
 
     private static void CreateHardLink(string dest, string src)

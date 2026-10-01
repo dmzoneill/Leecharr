@@ -92,11 +92,11 @@ public class PackageExportService : IPackageExportService
                     cancellationToken.ThrowIfCancellationRequested();
 
                     await this.WriteMetainfoEntryAsync(tarWriter, torrent, cancellationToken);
-                    await this.WriteFastResumeEntryAsync(tarWriter, torrent, cancellationToken);
+                    await WriteFastResumeEntryAsync(tarWriter, torrent, cancellationToken);
 
                     if (includePayload)
                     {
-                        await this.WritePayloadEntriesAsync(tarWriter, torrent, cancellationToken);
+                        await WritePayloadEntriesAsync(tarWriter, torrent, cancellationToken);
                     }
                 }
             }
@@ -117,7 +117,7 @@ public class PackageExportService : IPackageExportService
                 InfoHash = t.InfoHash,
                 Category = t.Category,
                 Tags = this.ResolveTags(t),
-                Trackers = this.ResolveTrackers(t),
+                Trackers = ResolveTrackers(t),
                 TotalSize = t.TotalSize,
                 PieceCount = t.PieceCount,
                 PieceLength = t.PieceLength,
@@ -163,7 +163,7 @@ public class PackageExportService : IPackageExportService
         return torrent.TagIds.Select(t => t.ToString()).ToList();
     }
 
-    private List<PackageTrackerItem> ResolveTrackers(Torrent torrent)
+    private static List<PackageTrackerItem> ResolveTrackers(Torrent torrent)
     {
         var list = new List<PackageTrackerItem>();
         if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
@@ -219,7 +219,7 @@ public class PackageExportService : IPackageExportService
         return null;
     }
 
-    private async Task WriteFastResumeEntryAsync(TarWriter tarWriter, Torrent torrent, CancellationToken cancellationToken)
+    private static async Task WriteFastResumeEntryAsync(TarWriter tarWriter, Torrent torrent, CancellationToken cancellationToken)
     {
         var infoHash = !string.IsNullOrWhiteSpace(torrent.InfoHash) ? torrent.InfoHash.ToLowerInvariant() : "unknown";
         var entryName = $"fastresume/{infoHash}.json";
@@ -249,7 +249,7 @@ public class PackageExportService : IPackageExportService
         await tarWriter.WriteEntryAsync(entry, cancellationToken);
     }
 
-    private async Task WritePayloadEntriesAsync(TarWriter tarWriter, Torrent torrent, CancellationToken cancellationToken)
+    private static async Task WritePayloadEntriesAsync(TarWriter tarWriter, Torrent torrent, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(torrent.SavePath))
         {
