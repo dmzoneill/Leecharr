@@ -129,6 +129,7 @@ public class TransmissionRemoteCliAndWireIntegrationTests : IntegrationTestBase
     }
 
     [Test]
+    [Explicit("Requires local transmission-remote CLI binary and external port binding")]
     public async Task TransmissionRemote_CliBinary_ExecutesAgainstLiveEndpointIfAvailable()
     {
         var cliPath = FindTransmissionRemoteCli();
