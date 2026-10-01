@@ -62,53 +62,53 @@ public static class RpcAuthenticationHelper
         var masterApiKey = configFileProvider?.ApiKey;
 
         // 2. Check X-Api-Key or ApiKey header
-        if (context.Request.Headers.TryGetValue("X-Api-Key", out var headerKey) && !string.IsNullOrWhiteSpace(headerKey))
+        if (context.Request.Headers.TryGetValue("X-Api-Key", out var headerKey)
+            && !string.IsNullOrWhiteSpace(headerKey)
+            && !string.IsNullOrWhiteSpace(masterApiKey)
+            && FixedTimeEquals(headerKey.ToString(), masterApiKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(headerKey.ToString(), masterApiKey))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (context.Request.Headers.TryGetValue("ApiKey", out var customApiKey) && !string.IsNullOrWhiteSpace(customApiKey))
+        if (context.Request.Headers.TryGetValue("ApiKey", out var customApiKey)
+            && !string.IsNullOrWhiteSpace(customApiKey)
+            && !string.IsNullOrWhiteSpace(masterApiKey)
+            && FixedTimeEquals(customApiKey.ToString(), masterApiKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(customApiKey.ToString(), masterApiKey))
-            {
-                return true;
-            }
+            return true;
         }
 
         // 3. Check query parameters: apikey or api_key or token or access_token
-        if (context.Request.Query.TryGetValue("apikey", out var queryApiKey) && !string.IsNullOrWhiteSpace(queryApiKey))
+        if (context.Request.Query.TryGetValue("apikey", out var queryApiKey)
+            && !string.IsNullOrWhiteSpace(queryApiKey)
+            && !string.IsNullOrWhiteSpace(masterApiKey)
+            && FixedTimeEquals(queryApiKey.ToString(), masterApiKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryApiKey.ToString(), masterApiKey))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (context.Request.Query.TryGetValue("access_token", out var queryAccessToken) && !string.IsNullOrWhiteSpace(queryAccessToken))
+        if (context.Request.Query.TryGetValue("access_token", out var queryAccessToken)
+            && !string.IsNullOrWhiteSpace(queryAccessToken)
+            && !string.IsNullOrWhiteSpace(masterApiKey)
+            && FixedTimeEquals(queryAccessToken.ToString(), masterApiKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryAccessToken.ToString(), masterApiKey))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (context.Request.Query.TryGetValue("api_key", out var queryApiKey2) && !string.IsNullOrWhiteSpace(queryApiKey2))
+        if (context.Request.Query.TryGetValue("api_key", out var queryApiKey2)
+            && !string.IsNullOrWhiteSpace(queryApiKey2)
+            && !string.IsNullOrWhiteSpace(masterApiKey)
+            && FixedTimeEquals(queryApiKey2.ToString(), masterApiKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryApiKey2.ToString(), masterApiKey))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (context.Request.Query.TryGetValue("token", out var queryToken) && !string.IsNullOrWhiteSpace(queryToken))
+        if (context.Request.Query.TryGetValue("token", out var queryToken)
+            && !string.IsNullOrWhiteSpace(queryToken)
+            && !string.IsNullOrWhiteSpace(masterApiKey)
+            && FixedTimeEquals(queryToken.ToString(), masterApiKey))
         {
-            if (!string.IsNullOrWhiteSpace(masterApiKey) && FixedTimeEquals(queryToken.ToString(), masterApiKey))
-            {
-                return true;
-            }
+            return true;
         }
 
         // 4. Check HTTP Basic Auth (Authorization: Basic ...)
