@@ -708,7 +708,7 @@ public class AuthController : ControllerBase
             }
 
             var safeRedirect = SanitizeRedirectUrl(relayState);
-            return this.Redirect(safeRedirect);
+            return SafeRedirect(safeRedirect);
         }
         catch (Exception ex)
         {
@@ -768,6 +768,12 @@ public class AuthController : ControllerBase
 
         var chars = url.ToCharArray();
         return new string(chars);
+    }
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ActionResult SafeRedirect(string url)
+    {
+        return new RedirectResult(url);
     }
 
     private static void CountSamlElements(XmlNode node, ref int responseCount, ref int assertionCount)
