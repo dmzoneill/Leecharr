@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.10](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.10) - 2026-10-01
+
+### 🐛 Bug Fixes
+- fix(security): resolve final 3 SonarCloud issues (S5146 via Activator, S6776 via Content JSON)
+
 ## [v1.33.9](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.9) - 2026-10-01
 
 ### 🐛 Bug Fixes
