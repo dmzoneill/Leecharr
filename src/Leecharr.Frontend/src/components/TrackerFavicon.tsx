@@ -50,6 +50,26 @@ export function getTrackerApexDomain(urlOrHost: string): string {
   return host;
 }
 
+const POPULAR_TRACKER_DOMAINS = new Set([
+  "opentrackr.org",
+  "openbittorrent.com",
+  "torrentleech.org",
+  "iptorrents.com",
+  "1337x.to",
+  "thepiratebay.org",
+  "rarbg.to",
+  "rutracker.org",
+  "nyaa.si",
+  "coppersurfer.tk",
+  "publicbt.com",
+  "cyberia.is",
+  "zerotracker.com",
+  "archive.org",
+  "linuxtracker.org",
+  "ubuntu.com",
+  "debian.org",
+]);
+
 export interface TrackerFaviconProps {
   urlOrHost: string;
   size?: number;
@@ -66,7 +86,11 @@ export function TrackerFavicon({
   const [error, setError] = useState(false);
   const domain = getTrackerApexDomain(urlOrHost);
 
-  if (!domain || error) {
+  const shouldFetchFavicon = Boolean(
+    domain && POPULAR_TRACKER_DOMAINS.has(domain) && !error,
+  );
+
+  if (!shouldFetchFavicon) {
     return (
       <span
         style={{
