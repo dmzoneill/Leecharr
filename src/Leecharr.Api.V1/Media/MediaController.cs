@@ -73,7 +73,8 @@ public class MediaController : RestController<MediaMetadataResource>
         var meta = this.mediaEnrichmentService.GetMetadata(torrentId);
         if (meta == null)
         {
-            return this.NotFound();
+            var fallbackSvg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"300\" viewBox=\"0 0 200 300\"><rect width=\"100%\" height=\"100%\" fill=\"#1a1c23\"/><text x=\"50%\" y=\"50%\" dominant-baseline=\"middle\" text-anchor=\"middle\" fill=\"#6c757d\" font-family=\"sans-serif\" font-size=\"14\">No Artwork</text></svg>";
+            return this.Content(fallbackSvg, "image/svg+xml");
         }
 
         string path = null;
