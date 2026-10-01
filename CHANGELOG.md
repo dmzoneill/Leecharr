@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.5](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.5) - 2026-10-01
+
+### 🐛 Bug Fixes
+- fix(media): return NotFound on missing artwork to satisfy unit test expectations
+- fix(media): return fallback SVG on missing artwork to eliminate console 404s
+- fix(frontend): eliminate console 404s for missing media artwork and raw tracker favicons
+
+### 🔧 Maintenance & Improvements
+- docs(dockerhub): format badges with inline markdown and remove base64 data URI
+
 ## [v2.0.4](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.4) - 2026-10-01
 
 ### 🐛 Bug Fixes
