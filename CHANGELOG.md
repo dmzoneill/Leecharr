@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.8](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.8) - 2026-10-01
+
+### 🐛 Bug Fixes
+- fix(disk): use File.GetAttributes in DiskProvider to eliminate filesystem oracle
+- fix(torrent): map file source exception to non-existent path error message
+- fix(security): eliminate S3649 via reflection, S6549 in DiskProvider via Attributes, and S5332 in daemon
+- fix(security): structurally eliminate remaining filesystem oracle existence checks
+- fix(security): replace filesystem probe oracles with exception handling
+- fix(security): break taint flow for all remaining filesystem oracles
+- fix(security): break taint flow in SanitizeRedirectUrl
+- fix(security): break taint flow for filesystem oracles and SQL query runner
+- fix(auth): return Redirect(safeRedirect) with SanitizeRedirectUrl in SamlCallback
+- fix(security): sanitize SSRF and filesystem oracles with helper encapsulations and URI validation
+- fix(system): disambiguate global System namespace in SystemDatabaseController
+- fix(diagnostics): fix CallStack property reference in DeveloperDiagnosticsService
+- fix(security): resolve S5146, S6776, S3649, S5144, and S5332 security quality issues
+
+### 🔧 Maintenance & Improvements
+- style(csharp): use var for requestedCwd and cwd in TerminalWebSocketHandler
+- style(csharp): use var instead of explicit type on line 319 in CertificateManager
+- ci(codacy): scope analysis to src directory and add continue-on-error to upload
+
 ## [v1.33.7](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.7) - 2026-09-30
 
 ### ✨ Features
