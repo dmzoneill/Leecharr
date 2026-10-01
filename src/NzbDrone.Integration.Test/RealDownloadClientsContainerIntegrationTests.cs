@@ -15,6 +15,7 @@ namespace NzbDrone.Integration.Test;
 
 [TestFixture]
 [Category("LiveClientIntegration")]
+[Explicit("Requires Docker daemon and pulls multi-hundred megabyte daemon images")]
 public class RealDownloadClientsContainerIntegrationTests
 {
     private static bool IsDockerDaemonRunning()

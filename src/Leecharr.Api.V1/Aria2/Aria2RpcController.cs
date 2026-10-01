@@ -1673,9 +1673,9 @@ public class Aria2RpcController : ControllerBase
                 if (!string.IsNullOrWhiteSpace(name))
                 {
                     var val = member.Element("value")?.Element("string")?.Value
-                              ?? member.Element("value")?.Element("int")?.Value
-                              ?? member.Element("value")?.Element("i4")?.Value
-                              ?? member.Element("value")?.Value;
+                        ?? member.Element("value")?.Element("int")?.Value
+                        ?? member.Element("value")?.Element("i4")?.Value
+                        ?? member.Element("value")?.Value;
                     if (val != null)
                     {
                         dict[name] = val;
