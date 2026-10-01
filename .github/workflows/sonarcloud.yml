@@ -75,6 +75,7 @@ jobs:
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml,**/coverage.opencover.xml,src/**/coverage.opencover.xml" \
+            /d:sonar.javascript.lcov.reportPaths="src/Leecharr.Frontend/coverage/lcov.info" \
             /d:sonar.projectBaseDir="${{ github.workspace }}" \
             /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**,**/locales/**,**/i18n/locales/**,src/Leecharr.Frontend/src/i18n/locales/**" \
             /d:sonar.cpd.exclusions="**/locales/**,**/locales/*,**/i18n/**,**/i18n/*,**/Migration/**,**/*Test*/**,**/Migrations/**"
@@ -90,6 +91,12 @@ jobs:
             --settings .runsettings \
             --results-directory "${{ github.workspace }}/TestResults" \
             --collect:"XPlat Code Coverage;Format=opencover" || true
+
+          # Run frontend unit tests and generate LCOV code coverage
+          cd src/Leecharr.Frontend
+          mkdir -p coverage
+          npm run test:coverage || true
+          cd ../..
 
       - name: End SonarCloud Scanner
         if: always() && steps.check_token.outputs.has_token == 'true'
