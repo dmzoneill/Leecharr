@@ -6,7 +6,9 @@
  * Returns a cryptographically secure pseudorandom number in the range [0, 1).
  */
 export function secureRandom(): number {
-  return crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
+  const buf = new Uint32Array(2);
+  crypto.getRandomValues(buf);
+  return ((buf[0] >>> 5) * 67108864 + (buf[1] >>> 6)) / 9007199254740992;
 }
 
 /**

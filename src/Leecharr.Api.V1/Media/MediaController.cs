@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.MediaEnrichment;
 
@@ -29,6 +30,7 @@ public class MediaController : RestController<MediaMetadataResource>
     }
 
     [HttpDelete("{torrentId:int}")]
+    [Authorize(Policy = "RequireOperator")]
     public IActionResult Delete(int torrentId)
     {
         this.mediaEnrichmentService.DeleteMetadata(torrentId);
