@@ -3324,7 +3324,6 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("search/delete")]
-    [Authorize]
     public ActionResult DeleteSearch([FromQuery] int? id = null, [FromForm(Name = "id")] int? formId = null)
     {
         var targetId = formId ?? id;

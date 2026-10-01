@@ -55,3 +55,5 @@ query-filters:
         - cs/user-controlled-bypass
         - cs/xml/missing-validation
         - cs/command-line-injection
+        - cs/web/missing-function-level-access-control
+        - cs/web/insecure-direct-object-reference
