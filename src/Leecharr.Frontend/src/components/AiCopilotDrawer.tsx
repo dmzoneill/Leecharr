@@ -140,10 +140,16 @@ function renderInlineMarkdown(text: string, isUser = false): React.ReactNode[] {
       /^\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)$/,
     );
     if (linkMatch) {
+      const rawUrl = linkMatch[2];
+      const isSafeUrl =
+        rawUrl.startsWith("/") ||
+        rawUrl.startsWith("http://") ||
+        rawUrl.startsWith("https://");
+      const safeHref = isSafeUrl ? encodeURI(rawUrl) : "#";
       return (
         <a
           key={idx}
-          href={linkMatch[2]}
+          href={safeHref}
           target="_blank"
           rel="noopener noreferrer"
           style={{
