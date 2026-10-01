@@ -335,7 +335,8 @@ public class SystemDeveloperController : Controller
     // ==========================================
 
     [HttpGet("webhooks/templates")]
-    public static ActionResult<List<DeveloperWebhookTemplate>> GetWebhookTemplates()
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "ASP.NET Core MVC controller actions cannot be static")]
+    public ActionResult<List<DeveloperWebhookTemplate>> GetWebhookTemplates()
     {
         return new List<DeveloperWebhookTemplate>
         {

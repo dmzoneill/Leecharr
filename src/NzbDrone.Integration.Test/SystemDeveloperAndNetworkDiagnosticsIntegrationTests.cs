@@ -15,6 +15,9 @@ public class SystemDeveloperAndNetworkDiagnosticsIntegrationTests : IntegrationT
     [Test]
     public async Task SystemDeveloper_EventsPublishQueryAndClear_Succeeds()
     {
+        // 0. Ensure event buffer is cleared before testing isolation
+        await this.Client.DeleteAsync("/api/v1/system/developer/events");
+
         // 1. Publish synthetic developer event
         var pubResp = await this.PostJsonAsync("/api/v1/system/developer/events/publish", new
         {
