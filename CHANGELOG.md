@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.16](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.16) - 2026-10-01
+
+### 🔧 Maintenance & Improvements
+- refactor(torrent): extract BaseDaemonDownloadTask to unify download tasks and configure .sonarcloud.properties
+
 ## [v1.33.15](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.15) - 2026-10-01
 
 ### 🔧 Maintenance & Improvements
