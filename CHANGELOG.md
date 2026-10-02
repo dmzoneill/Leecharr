@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.15](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.15) - 2026-10-02
+
+### 🐛 Bug Fixes
+- fix(frontend): resolve exhaustive-deps and unused-expression lint errors
+
+### 🔧 Maintenance & Improvements
+- ci(lint): keep Gitleaks, Bash, and shfmt active while disabling Zizmor
+- ci(security): pin all GitHub Actions to full commit SHAs for Zizmor compliance
+- ci(security): add zizmor configuration and fix sonar template injection
+- ci(quality): re-enable Gitleaks, Zizmor, Bash, Roslyn diagnostics, and strict ESLint hooks
+
 ## [v2.0.14](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.14) - 2026-10-02
 
 ### 🔧 Maintenance & Improvements
