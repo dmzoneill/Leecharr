@@ -264,7 +264,7 @@ public class SystemResourceService : ISystemResourceService
         try
         {
             return this.torrentEngineManager.ActiveEngine?.GetAllTorrentResourceMetrics()
-                   ?? Array.Empty<TorrentResourceMetrics>();
+                ?? Array.Empty<TorrentResourceMetrics>();
         }
         catch (Exception ex)
         {
