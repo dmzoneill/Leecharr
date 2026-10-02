@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.22](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.22) - 2026-10-02
+
+### 🔧 Maintenance & Improvements
+- test(frontend): remove premature assertion in TorrentCreationTab.test.ts
+- style(telemetry): fix editorconfig 4-space indentation on line 267 in SystemResourceService
+- ci: enforce unused-vars error, CA2016 token propagation, hadolint, and prune cpd exclusions
+
 ## [v2.0.21](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.21) - 2026-10-02
 
 ### 🔧 Maintenance & Improvements
