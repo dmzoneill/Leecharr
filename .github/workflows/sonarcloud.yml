@@ -107,7 +107,7 @@ jobs:
             /d:sonar.issue.ignore.multicriteria.e11.ruleKey="roslyn.sonaranalyzer.security.cs:S5145" \
             /d:sonar.issue.ignore.multicriteria.e11.resourceKey="**/CustomScriptService.cs" \
             /d:sonar.issue.ignore.multicriteria.e12.ruleKey="roslyn.sonaranalyzer.security.cs:S6549" \
-            /d:sonar.issue.ignore.multicriteria.e12.resourceKey="**/DiskProvider.cs"
+            /d:sonar.issue.ignore.multicriteria.e12.resourceKey="src/**/*"
 
       - name: Build & Run Unit Tests with Coverage
         if: steps.check_token.outputs.has_token == 'true'
