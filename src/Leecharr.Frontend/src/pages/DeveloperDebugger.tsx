@@ -43,8 +43,8 @@ const TRACEPOINT_PRESETS = [
 ];
 
 export default function DeveloperDebugger() {
-  const { t } = useTranslation();
-  const [status, setStatus] = useState<DebuggerStatusReport | null>(null);
+  const { t: _t } = useTranslation();
+  const [_status, setStatus] = useState<DebuggerStatusReport | null>(null);
   const [tracepoints, setTracepoints] = useState<TracepointDefinition[]>([]);
   const [snapshots, setSnapshots] = useState<TracepointSnapshot[]>([]);
   const [selectedSnapshot, setSelectedSnapshot] = useState<TracepointSnapshot | null>(null);
@@ -57,7 +57,7 @@ export default function DeveloperDebugger() {
   const [newFilePath, setNewFilePath] = useState("src/NzbDrone.Core/Torrents/TorrentService.cs");
   const [newLineNumber, setNewLineNumber] = useState(100);
   const [newCondition, setNewCondition] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const fetchSource = useCallback(async (path: string) => {

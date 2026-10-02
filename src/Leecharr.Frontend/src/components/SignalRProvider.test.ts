@@ -128,9 +128,9 @@ describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
 
 describe("SignalRProvider and signalRManager Reconnection Cache Synchronization (#1023)", () => {
   it("registers onReconnected handler with signalRManager and unsubscribes properly", () => {
-    let callCount = 0;
+    let _callCount = 0;
     const unsub = signalRManager.onReconnected(() => {
-      callCount++;
+      _callCount++;
     });
 
     assert.equal(typeof unsub, "function");

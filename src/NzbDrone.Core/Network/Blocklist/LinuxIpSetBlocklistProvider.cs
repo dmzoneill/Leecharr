@@ -200,7 +200,7 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
                     await using (var writer = process.StandardInput)
                     {
                         await writer.WriteAsync(stdIn.AsMemory(), cancellationToken).ConfigureAwait(false);
-                        await writer.FlushAsync().ConfigureAwait(false);
+                        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)

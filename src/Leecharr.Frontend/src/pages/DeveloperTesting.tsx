@@ -9,7 +9,7 @@ import type {
 } from "../api/types";
 
 export default function DeveloperTesting() {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const [tests, setTests] = useState<DeveloperTestItem[]>([]);
   const [results, setResults] = useState<Record<string, DeveloperTestResult>>({});
   const [history, setHistory] = useState<DeveloperTestResult[]>([]);
