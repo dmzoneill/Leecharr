@@ -43,7 +43,7 @@ const PRESET_SCRIPTS = [
 ];
 
 export default function DeveloperRepl() {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const [code, setCode] = useState(PRESET_SCRIPTS[0].code);
   const [response, setResponse] = useState<ReplExecutionResponse | null>(null);
   const [history, setHistory] = useState<ReplHistoryEntry[]>([]);

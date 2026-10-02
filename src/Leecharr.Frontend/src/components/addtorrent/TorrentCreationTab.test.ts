@@ -207,6 +207,7 @@ describe("TorrentCreationTab: torrent download functionality (#1012)", () => {
         assert.strictEqual(clicked, true);
         assert.strictEqual(appendedChild, mockAnchor);
         assert.strictEqual(removedChild, mockAnchor);
+        assert.strictEqual(revokedUrl, createdUrl);
       } finally {
         delete (globalThis as unknown as { window?: unknown }).window;
         delete (globalThis as unknown as { document?: unknown }).document;

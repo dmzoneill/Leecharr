@@ -298,7 +298,7 @@ describe("AnnouncementQueue concurrent handling", () => {
     const assertiveDispatched: string[] = [];
 
     // Simulate listener like AriaLiveAnnouncer registers
-    const listener = (announcement: { message: string; priority: string }) => {
+    const _listener = (announcement: { message: string; priority: string }) => {
       if (announcement.priority === "assertive") {
         assertiveDispatched.push(announcement.message);
       } else {
