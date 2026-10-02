@@ -131,7 +131,7 @@ export class AnnouncementQueue {
     }
 
     this.isProcessing = true;
-    const nextMessage = this.queue.shift()!;
+    const nextMessage = this.queue.shift() ?? "";
     this.currentMessage = nextMessage;
     this.onMessageChange(nextMessage);
 
@@ -233,8 +233,9 @@ export default function AriaLiveAnnouncer({
   }, [displayDuration, queuedDuration, transitionGap]);
 
   useEffect(() => {
-    const politeQueue = politeQueueRef.current!;
-    const assertiveQueue = assertiveQueueRef.current!;
+    const politeQueue = politeQueueRef.current;
+    const assertiveQueue = assertiveQueueRef.current;
+    if (!politeQueue || !assertiveQueue) return;
 
     const handleAnnounce: AnnounceListener = (item) => {
       if (item.priority === "assertive") {

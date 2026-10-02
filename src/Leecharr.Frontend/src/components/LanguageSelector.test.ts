@@ -69,7 +69,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
 
   it("correctly interpolates active language name and nativeName in English", () => {
     useI18nStore.setState({ language: "en", translations: en });
-    const active = languages.find((l) => l.code === "en")!;
+    const active = languages.find((l) => l.code === "en") ?? languages[0];
     const interpolated = translate(
       "common.languageTitle",
       "Language: {name} ({nativeName})",
@@ -83,7 +83,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
 
   it("correctly interpolates active language in German and French", () => {
     useI18nStore.setState({ language: "de", translations: de });
-    const activeDe = languages.find((l) => l.code === "de")!;
+    const activeDe = languages.find((l) => l.code === "de") ?? languages[0];
     const deTitle = translate(
       "common.languageTitle",
       "Language: {name} ({nativeName})",
@@ -95,7 +95,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
     assert.strictEqual(deTitle, "Sprache: German (Deutsch)");
 
     useI18nStore.setState({ language: "fr", translations: fr });
-    const activeFr = languages.find((l) => l.code === "fr")!;
+    const activeFr = languages.find((l) => l.code === "fr") ?? languages[0];
     const frTitle = translate(
       "common.languageTitle",
       "Language: {name} ({nativeName})",
@@ -108,7 +108,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
   });
 
   it("falls back gracefully if translation string lacks placeholder", () => {
-    const active = languages.find((l) => l.code === "en")!;
+    const active = languages.find((l) => l.code === "en") ?? languages[0];
     const defaultTitle = `Language: ${active.name} (${active.nativeName})`;
     const brokenTitle = "Language Title"; // simulates broken un-interpolated value
     const titleTooltip =
