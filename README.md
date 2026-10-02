@@ -1,24 +1,24 @@
-<p align="center">
-  <img src="logo/leecharr-skull.svg" alt="Leecharr" width="200"/>
-  <br/>
-  <img src="logo/leecharr-text.svg" alt="Leecharr" width="200"/>
-</p>
-
-<p align="center">
-  <strong>High-Performance BitTorrent & Media Downloader</strong> &mdash; purpose-built for the Servarr (*arr) ecosystem
-</p>
-
-<p align="center">
-  <a href="https://www.leecharr.net"><img src="https://img.shields.io/badge/website-leecharr.net-ffd166" alt="Website"></a>
-  <a href="https://github.com/dmzoneill/Leecharr/actions/workflows/main.yml"><img src="https://github.com/dmzoneill/Leecharr/workflows/CICD/badge.svg" alt="CI/CD"></a>
-  <a href="https://github.com/dmzoneill/Leecharr/releases/latest"><img src="https://img.shields.io/github/v/release/dmzoneill/Leecharr?color=brightgreen&label=release" alt="Latest Release"></a>
-  <a href="https://github.com/dmzoneill/Leecharr/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dmzoneill/Leecharr?color=blue" alt="License"></a>
-  <a href="https://hub.docker.com/r/feeditout/leecharr"><img src="https://img.shields.io/docker/pulls/feeditout/leecharr?color=blue&logo=docker" alt="Docker Pulls"></a>
-  <a href="https://ghcr.io/dmzoneill/leecharr"><img src="https://img.shields.io/badge/ghcr.io-leecharr-blue?logo=github" alt="GHCR"></a>
-  <img src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet" alt=".NET 10">
-  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React 19">
-  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript" alt="TypeScript">
-</p>
+<div align="center">
+  <center>
+    <img src="logo/leecharr-skull.svg" alt="Leecharr" width="200"/>
+    <br/>
+    <img src="logo/leecharr-text.svg" alt="Leecharr" width="200"/>
+    <p>
+      <strong>High-Performance BitTorrent & Media Downloader</strong> &mdash; purpose-built for the Servarr (*arr) ecosystem
+    </p>
+    <p>
+      <a href="https://www.leecharr.net"><img src="https://img.shields.io/badge/website-leecharr.net-ffd166" alt="Website"></a>
+      <a href="https://github.com/dmzoneill/Leecharr/actions/workflows/main.yml"><img src="https://github.com/dmzoneill/Leecharr/workflows/CICD/badge.svg" alt="CI/CD"></a>
+      <a href="https://github.com/dmzoneill/Leecharr/releases/latest"><img src="https://img.shields.io/github/v/release/dmzoneill/Leecharr?color=brightgreen&label=release" alt="Latest Release"></a>
+      <a href="https://github.com/dmzoneill/Leecharr/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dmzoneill/Leecharr?color=blue" alt="License"></a>
+      <a href="https://hub.docker.com/r/feeditout/leecharr"><img src="https://img.shields.io/docker/pulls/feeditout/leecharr?color=blue&logo=docker" alt="Docker Pulls"></a>
+      <a href="https://ghcr.io/dmzoneill/leecharr"><img src="https://img.shields.io/badge/ghcr.io-leecharr-blue?logo=github" alt="GHCR"></a>
+      <img src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet" alt=".NET 10">
+      <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React 19">
+      <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript" alt="TypeScript">
+    </p>
+  </center>
+</div>
 
 ---
 
