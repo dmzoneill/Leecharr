@@ -246,16 +246,19 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
       setIsStarting(true);
       try {
         await Promise.resolve(onResume(currentTorrent.id));
-      } catch (err: any) {
-        showToast(err?.message || "Failed to start torrent", "error");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to start torrent";
+        showToast(msg, "error");
       } finally {
         setIsStarting(false);
       }
     } else {
       startSeeding.mutate(currentTorrent.id, {
         onSuccess: () => showToast("Torrent resumed", "success"),
-        onError: (err: any) =>
-          showToast(err?.message || "Failed to start torrent", "error"),
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Failed to start torrent";
+          showToast(msg, "error");
+        },
       });
     }
   };
@@ -265,16 +268,19 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
       setIsStopping(true);
       try {
         await Promise.resolve(onPause(currentTorrent.id));
-      } catch (err: any) {
-        showToast(err?.message || "Failed to pause torrent", "error");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to pause torrent";
+        showToast(msg, "error");
       } finally {
         setIsStopping(false);
       }
     } else {
       stopSeeding.mutate(currentTorrent.id, {
         onSuccess: () => showToast("Torrent paused", "info"),
-        onError: (err: any) =>
-          showToast(err?.message || "Failed to pause torrent", "error"),
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Failed to pause torrent";
+          showToast(msg, "error");
+        },
       });
     }
   };
@@ -282,16 +288,20 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   const handleRecheck = () => {
     recheckTorrent.mutate(currentTorrent.id, {
       onSuccess: () => showToast("Piece recheck initiated", "success"),
-      onError: (err: any) =>
-        showToast(err?.message || "Failed to initiate recheck", "error"),
+      onError: (err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to initiate recheck";
+        showToast(msg, "error");
+      },
     });
   };
 
   const handleAnnounce = () => {
     announceTorrent.mutate(currentTorrent.id, {
       onSuccess: () => showToast("Tracker announce sent", "success"),
-      onError: (err: any) =>
-        showToast(err?.message || "Failed to announce to trackers", "error"),
+      onError: (err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to announce to trackers";
+        showToast(msg, "error");
+      },
     });
   };
 
