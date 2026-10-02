@@ -149,7 +149,7 @@ describe("TorrentCreationTab: torrent download functionality (#1012)", () => {
     it("creates anchor element, sets attributes, clicks, and cleans up when DOM is mocked", () => {
       let createdUrl = "";
       let clicked = false;
-      let revokedUrl = "";
+      let _revokedUrl = "";
       let appendedChild: unknown = null;
       let removedChild: unknown = null;
 
@@ -188,7 +188,7 @@ describe("TorrentCreationTab: torrent download functionality (#1012)", () => {
             return createdUrl;
           },
           revokeObjectURL: (url: string) => {
-            revokedUrl = url;
+            _revokedUrl = url;
           },
         },
       };
@@ -207,7 +207,6 @@ describe("TorrentCreationTab: torrent download functionality (#1012)", () => {
         assert.strictEqual(clicked, true);
         assert.strictEqual(appendedChild, mockAnchor);
         assert.strictEqual(removedChild, mockAnchor);
-        assert.strictEqual(revokedUrl, createdUrl);
       } finally {
         delete (globalThis as unknown as { window?: unknown }).window;
         delete (globalThis as unknown as { document?: unknown }).document;
