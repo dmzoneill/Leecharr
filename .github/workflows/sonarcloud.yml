@@ -67,11 +67,13 @@ jobs:
         if: steps.check_token.outputs.has_token == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY || vars.SONAR_PROJECT_KEY || format('{0}_{1}', github.repository_owner, github.event.repository.name) }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION || vars.SONAR_ORGANIZATION || github.repository_owner }}
         run: |
           dotnet-sonarscanner begin \
-            /k:"${{ secrets.SONAR_PROJECT_KEY || vars.SONAR_PROJECT_KEY || format('{0}_{1}', github.repository_owner, github.event.repository.name) }}" \
-            /o:"${{ secrets.SONAR_ORGANIZATION || vars.SONAR_ORGANIZATION || github.repository_owner }}" \
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+            /k:"$SONAR_PROJECT_KEY" \
+            /o:"$SONAR_ORGANIZATION" \
+            /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.cs.roslyn.ignoreIssues=false \
