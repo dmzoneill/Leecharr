@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.25](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.25) - 2026-10-02
+
+### 🔧 Maintenance & Improvements
+- style(frontend): eliminate all non-null assertions and elevate no-non-null-assertion to error
+
 ## [v2.0.24](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.24) - 2026-10-02
 
 ### 🔧 Maintenance & Improvements
