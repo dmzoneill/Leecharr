@@ -298,6 +298,7 @@ dotnet_diagnostic.CA1834.severity = none
 dotnet_diagnostic.CA1850.severity = none
 dotnet_diagnostic.CA1862.severity = none
 dotnet_diagnostic.CA1868.severity = none
+dotnet_diagnostic.CA1512.severity = none
 dotnet_diagnostic.CA2100.severity = none
 
 # Sonar Analyzer Configuration
