@@ -38,8 +38,10 @@ public class TerminalControlMessageTest
 
         this.session = Substitute.For<ITerminalSession>();
         this.session.IsActive.Returns(true);
+#pragma warning disable CA2012 // NSubstitute Returns extension called on ValueTask mock configuration
         this.session.ReadAsync(Arg.Any<Memory<byte>>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => new ValueTask<int>(Task.Delay(Timeout.Infinite, callInfo.Arg<CancellationToken>()).ContinueWith(_ => 0, TaskScheduler.Default)));
+#pragma warning restore CA2012
 
         this.ptyService = Substitute.For<IPtyTerminalService>();
         this.ptyService.CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>())

@@ -208,7 +208,7 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         try
         {
             this.app.StopAsync().GetAwaiter().GetResult();
-            this.app.DisposeAsync().GetAwaiter().GetResult();
+            this.app.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
         catch
         {
