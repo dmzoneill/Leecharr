@@ -1899,9 +1899,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     }
                     else
                     {
-                        if (!existingUrls.Contains(trimmed))
+                        if (existingUrls.Add(trimmed))
                         {
-                            existingUrls.Add(trimmed);
                             validUrls.Add(trimmed);
 
                             this.trackerEntryRepository.Insert(new TrackerEntry
