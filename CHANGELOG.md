@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.24](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.24) - 2026-10-02
+
+### 🔧 Maintenance & Improvements
+- style: configure CA1512 in .editorconfig
+
 ## [v2.0.23](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.23) - 2026-10-02
 
 ### 🔧 Maintenance & Improvements
