@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.10](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.10) - 2026-10-02
+
+### 🐛 Bug Fixes
+- fix(ci): harden ai-responder dependencies, exclude adapters from CPD, and align coverage
+
 ## [v2.0.9](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.9) - 2026-10-02
 
 ### ✨ Features
