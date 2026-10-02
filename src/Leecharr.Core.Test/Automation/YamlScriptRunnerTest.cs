@@ -448,12 +448,8 @@ public class YamlScriptRunnerTest
             var content = "checksum content to hash";
             File.WriteAllText(filePath, content);
 
-            string expectedHash;
-            using (var sha = SHA256.Create())
-            {
-                var hashBytes = sha.ComputeHash(Encoding.UTF8.GetBytes(content));
-                expectedHash = BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
-            }
+            var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+            var expectedHash = Convert.ToHexStringLower(hashBytes);
 
             var yaml = "name: 'Calculate Checksum'\n" +
                         "steps:\n" +

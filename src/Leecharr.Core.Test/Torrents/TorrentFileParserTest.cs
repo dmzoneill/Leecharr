@@ -626,7 +626,7 @@ public class TorrentFileParserTest
         sb.Append("1:v");
         for (var i = 0; i < 70; i++)
         {
-            sb.Append("e");
+            sb.Append('e');
         }
 
         var deeplyNestedBytes = Encoding.UTF8.GetBytes(sb.ToString());

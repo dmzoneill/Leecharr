@@ -651,10 +651,9 @@ public class YamlScriptRunner : IScriptRunner
                             {
                                 if (File.Exists(path))
                                 {
-                                    using var sha = System.Security.Cryptography.SHA256.Create();
                                     using var fs = File.OpenRead(path);
-                                    var hash = sha.ComputeHash(fs);
-                                    var hashStr = BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+                                    var hash = System.Security.Cryptography.SHA256.HashData(fs);
+                                    var hashStr = Convert.ToHexStringLower(hash);
                                     if (!string.IsNullOrWhiteSpace(target))
                                     {
                                         variableContext[target] = hashStr;
