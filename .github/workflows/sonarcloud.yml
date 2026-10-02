@@ -82,7 +82,7 @@ jobs:
             /d:sonar.projectBaseDir="${{ github.workspace }}" \
             /d:sonar.coverage.exclusions="**/libtorrent_daemon.py,src/NzbDrone.Core/BitTorrent/libtorrent_daemon.py,**/AiCopilotDrawer.tsx,**/SpeedSchedule.tsx,**/ThemeContext.tsx,**/TorrentDetailPanel.tsx,**/*Test*/**,src/Leecharr.Frontend/src/pages/**,src/Leecharr.Frontend/src/components/**,src/Leecharr.Frontend/src/App.tsx,src/Leecharr.Frontend/src/api/**,src/Leecharr.Frontend/src/store/**,src/Leecharr.Frontend/src/hooks/**,src/Leecharr.Http/Terminal/**,src/Leecharr.Api.V1/Transmission/**,src/NzbDrone.Host/**,src/Leecharr.Api.V1/System/**,src/NzbDrone.Core/Plugins/**" \
             /d:sonar.exclusions="docs/**,**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**,**/locales/**,**/i18n/locales/**,src/Leecharr.Frontend/src/i18n/locales/**,src/Leecharr.Frontend/scripts/**,*.sh,Containerfile,Dockerfile" \
-            /d:sonar.cpd.exclusions="**/locales/**,**/locales/*,**/i18n/**,**/i18n/*,**/Migration/**,**/*Test*/**,**/Migrations/**,**/Indexers/Torznab/**,**/Indexers/Newznab/**,**/ArrIntegration/*Connection.cs,**/SubsystemsController.cs,**/QBittorrentApiController.cs,**/TmdbMetadataProvider.cs,**/SwarmPieceHistogram.cs,**/DelugeClient.cs,**/pages/settings/**,**/pages/DownloadHistory.tsx,**/src/App.tsx" \
+            /d:sonar.cpd.exclusions="**/locales/**,**/locales/*,**/i18n/**,**/i18n/*,**/Migration/**,**/*Test*/**,**/Migrations/**" \
             /d:sonar.issue.ignore.multicriteria="e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11,e12" \
             /d:sonar.issue.ignore.multicriteria.e1.ruleKey="typescript:S9383" \
             /d:sonar.issue.ignore.multicriteria.e1.resourceKey="src/Leecharr.Frontend/**/*" \

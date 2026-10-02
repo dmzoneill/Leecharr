@@ -57,7 +57,7 @@ public class AiAssistantAndPromptServiceTest
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
             capturedRequest = req;
-            capturedBody = await req.Content!.ReadAsStringAsync();
+            capturedBody = await req.Content!.ReadAsStringAsync(ct);
 
             var fakeResponse = new
             {
@@ -102,7 +102,7 @@ public class AiAssistantAndPromptServiceTest
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
-            capturedBody = await req.Content!.ReadAsStringAsync();
+            capturedBody = await req.Content!.ReadAsStringAsync(ct);
 
             var fakeResponse = new
             {
@@ -148,7 +148,7 @@ public class AiAssistantAndPromptServiceTest
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
-            capturedBody = await req.Content!.ReadAsStringAsync();
+            capturedBody = await req.Content!.ReadAsStringAsync(ct);
 
             var fakeResponse = new
             {
@@ -202,7 +202,7 @@ public class AiAssistantAndPromptServiceTest
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
-            capturedBody = await req.Content!.ReadAsStringAsync();
+            capturedBody = await req.Content!.ReadAsStringAsync(ct);
 
             var fakeResponse = new
             {
@@ -259,7 +259,7 @@ public class AiAssistantAndPromptServiceTest
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
-            capturedBody = await req.Content!.ReadAsStringAsync();
+            capturedBody = await req.Content!.ReadAsStringAsync(ct);
 
             var fakeResponse = new
             {
@@ -609,7 +609,7 @@ public class AiAssistantAndPromptServiceTest
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
             capturedRequest = req;
-            var body = await req.Content!.ReadAsStringAsync();
+            var body = await req.Content!.ReadAsStringAsync(ct);
 
             var fakeResponse = new
             {
@@ -697,7 +697,7 @@ public class AiAssistantAndPromptServiceTest
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
-            capturedBody = await req.Content!.ReadAsStringAsync();
+            capturedBody = await req.Content!.ReadAsStringAsync(ct);
 
             var fakeResponse = new
             {
@@ -960,7 +960,7 @@ public class AiAssistantAndPromptServiceTest
         var capturedBody = string.Empty;
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
-            capturedBody = await req.Content!.ReadAsStringAsync();
+            capturedBody = await req.Content!.ReadAsStringAsync(ct);
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{\"response\": \"pong\"}"),
