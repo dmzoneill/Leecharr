@@ -339,10 +339,11 @@ export default function DownloadClientTorrents() {
       if (failedItems.length > 0) {
         setFailedImportItems(failedItems);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setImportingSelected(false);
+      const msg = err instanceof Error ? err.message : "Import operation failed";
       showToast(
-        `Bulk import failed: ${err.message || "Import operation failed"}`,
+        `Bulk import failed: ${msg}`,
         "error",
       );
     }
@@ -397,9 +398,10 @@ export default function DownloadClientTorrents() {
       if (failedItems.length > 0) {
         setFailedImportItems(failedItems);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Import operation failed";
       showToast(
-        `Bulk import failed: ${err.message || "Import operation failed"}`,
+        `Bulk import failed: ${msg}`,
         "error",
       );
     }
