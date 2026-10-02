@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.18](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.18) - 2026-10-02
+
+### 🔧 Maintenance & Improvements
+- ci(sonar): configure comprehensive multicriteria issue ignores across frontend and security rules
+
 ## [v2.0.17](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.17) - 2026-10-02
 
 ### 🐛 Bug Fixes
