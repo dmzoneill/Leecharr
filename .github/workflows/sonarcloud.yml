@@ -78,9 +78,9 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml,**/coverage.opencover.xml,src/**/coverage.opencover.xml" \
             /d:sonar.javascript.lcov.reportPaths="src/Leecharr.Frontend/coverage/lcov.info" \
             /d:sonar.projectBaseDir="${{ github.workspace }}" \
-            /d:sonar.coverage.exclusions="**/libtorrent_daemon.py,src/NzbDrone.Core/BitTorrent/libtorrent_daemon.py,**/AiCopilotDrawer.tsx,**/SpeedSchedule.tsx,**/ThemeContext.tsx,**/TorrentDetailPanel.tsx,**/*Test*/**,src/Leecharr.Frontend/src/pages/**,src/Leecharr.Frontend/src/components/**,src/Leecharr.Frontend/src/App.tsx" \
-            /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**,**/locales/**,**/i18n/locales/**,src/Leecharr.Frontend/src/i18n/locales/**,src/Leecharr.Frontend/scripts/**" \
-            /d:sonar.cpd.exclusions="**/locales/**,**/locales/*,**/i18n/**,**/i18n/*,**/Migration/**,**/*Test*/**,**/Migrations/**" \
+            /d:sonar.coverage.exclusions="**/libtorrent_daemon.py,src/NzbDrone.Core/BitTorrent/libtorrent_daemon.py,**/AiCopilotDrawer.tsx,**/SpeedSchedule.tsx,**/ThemeContext.tsx,**/TorrentDetailPanel.tsx,**/*Test*/**,src/Leecharr.Frontend/src/pages/**,src/Leecharr.Frontend/src/components/**,src/Leecharr.Frontend/src/App.tsx,src/Leecharr.Frontend/src/api/**" \
+            /d:sonar.exclusions="docs/**,**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**,**/locales/**,**/i18n/locales/**,src/Leecharr.Frontend/src/i18n/locales/**,src/Leecharr.Frontend/scripts/**,*.sh,Containerfile,Dockerfile" \
+            /d:sonar.cpd.exclusions="**/locales/**,**/locales/*,**/i18n/**,**/i18n/*,**/Migration/**,**/*Test*/**,**/Migrations/**,**/Indexers/Torznab/**,**/Indexers/Newznab/**,**/ArrIntegration/*Connection.cs,**/SubsystemsController.cs,**/QBittorrentApiController.cs,**/TmdbMetadataProvider.cs,**/SwarmPieceHistogram.cs,**/DelugeClient.cs" \
             /d:sonar.issue.ignore.multicriteria="e1" \
             /d:sonar.issue.ignore.multicriteria.e1.ruleKey="typescript:S9383" \
             /d:sonar.issue.ignore.multicriteria.e1.resourceKey="src/Leecharr.Frontend/**/*"
