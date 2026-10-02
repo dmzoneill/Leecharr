@@ -18,7 +18,6 @@
 
     <TestProject>false</TestProject>
     <TestProject Condition="$(MSBuildProjectName.EndsWith('.Test'))">true</TestProject>
-    <TreatWarningsAsErrors Condition="'$(TestProject)'=='true'">false</TreatWarningsAsErrors>
 
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <ServerGarbageCollection>false</ServerGarbageCollection>
