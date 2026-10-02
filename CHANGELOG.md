@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.16](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.16) - 2026-10-02
+
+### 🔧 Maintenance & Improvements
+- refactor(frontend): eliminate all explicit any usages and elevate no-explicit-any to error
+
 ## [v2.0.15](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.15) - 2026-10-02
 
 ### 🐛 Bug Fixes
