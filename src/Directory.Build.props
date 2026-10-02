@@ -8,7 +8,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <NuGetAuditLevel>critical</NuGetAuditLevel>
+    <NuGetAuditLevel>high</NuGetAuditLevel>
 
     <LeecharrRootDir>$(MSBuildThisFileDirectory)..\</LeecharrRootDir>
 
@@ -23,7 +23,7 @@
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
-    <NoWarn>$(NoWarn);CS1591;SA1200;SA1124;SA1515;SA1600;SA1602;SA1633;SA1649;SA1402;SA1118;SA1201;SA1202;SA1204;SA1101;SA1413;SA1401;SA1311;SA1137;SA1309;SX1309;SX1309S</NoWarn>
+    <NoWarn>$(NoWarn);NU1510;CS1591;SA1200;SA1124;SA1515;SA1600;SA1602;SA1633;SA1649;SA1402;SA1118;SA1201;SA1202;SA1204;SA1101;SA1413;SA1401;SA1311;SA1137;SA1309;SX1309;SX1309S</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -79,5 +79,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageReference Include="NUnit" Version="4.6.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
   </ItemGroup>
 </Project>
