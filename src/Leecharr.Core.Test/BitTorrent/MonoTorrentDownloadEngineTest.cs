@@ -5198,7 +5198,9 @@ public class MonoTorrentDownloadEngineTest
         var success = await this.engine.CalculatePieceHashDirectAsync(task.Manager, 0, pieceHash);
 
         success.Should().BeTrue();
+#pragma warning disable CA5350 // BitTorrent v1 specification explicitly mandates SHA1 piece hashing
         v1Hash.Should().Equal(SHA1.HashData(testData));
+#pragma warning restore CA5350
     }
 
     [Test]
@@ -5232,7 +5234,9 @@ public class MonoTorrentDownloadEngineTest
         var success = await this.engine.CalculatePieceHashDirectAsync(task.Manager, 0, pieceHash);
 
         success.Should().BeTrue();
+#pragma warning disable CA5350 // BitTorrent v1 specification explicitly mandates SHA1 piece hashing
         v1Hash.Should().Equal(SHA1.HashData(testData));
+#pragma warning restore CA5350
         v2Hash.Should().Equal(SHA256.HashData(testData));
     }
 

@@ -73,6 +73,7 @@ public class BackupServiceTest
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Test helper")]
     private void CreateRealSqliteDatabase(string dbPath)
     {
         using var conn = new SqliteConnection($"Data Source={dbPath}");
