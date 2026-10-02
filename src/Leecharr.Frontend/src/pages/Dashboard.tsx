@@ -572,13 +572,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               color: "var(--accent, #ffd166)",
               cursor: "pointer",
             }}
-            onClick={() =>
-              onNavigateSettings && onNavigateSettings("connections")
-            }
+            onClick={() => {
+              onNavigateSettings?.("connections");
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onNavigateSettings && onNavigateSettings("connections");
+                onNavigateSettings?.("connections");
               }
             }}
           >
@@ -858,13 +858,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
-                onClick={() =>
-                  onNavigateSettings && onNavigateSettings("indexers")
-                }
+                onClick={() => {
+                  onNavigateSettings?.("indexers");
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    onNavigateSettings && onNavigateSettings("indexers");
+                    onNavigateSettings?.("indexers");
                   }
                 }}
               >

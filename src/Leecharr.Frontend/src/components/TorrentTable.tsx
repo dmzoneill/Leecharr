@@ -1996,6 +1996,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     window.addEventListener("keydown", handleTableKeyDown);
     return () => window.removeEventListener("keydown", handleTableKeyDown);
   }, [
+    propTorrents,
     filteredTorrents,
     sortedTorrents,
     selectedId,
