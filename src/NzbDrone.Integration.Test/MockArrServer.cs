@@ -235,6 +235,7 @@ public sealed class MockArrServer : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Test helper")]
     private void WriteJson(HttpListenerResponse res, HttpStatusCode status, object data)
     {
         var json = JsonSerializer.Serialize(data);

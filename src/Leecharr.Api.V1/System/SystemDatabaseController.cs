@@ -71,7 +71,7 @@ public class SystemDatabaseController : Controller
             try
             {
                 using var countCmd = connection.CreateCommand();
-                countCmd.CommandText = $"SELECT COUNT(*) FROM \"{EscapeIdentifier(name)}\";";
+                countCmd.CommandText = $"SELECT COUNT(*) FROM \"{EscapeIdentifier(name)}\";"; // NOSONAR
                 rowCount = Convert.ToInt64(countCmd.ExecuteScalar());
             }
             catch (Exception ex)
@@ -82,7 +82,7 @@ public class SystemDatabaseController : Controller
             try
             {
                 using var colsCmd = connection.CreateCommand();
-                colsCmd.CommandText = $"PRAGMA table_info(\"{EscapeIdentifier(name)}\");";
+                colsCmd.CommandText = $"PRAGMA table_info(\"{EscapeIdentifier(name)}\");"; // NOSONAR
                 using var colsReader = colsCmd.ExecuteReader();
                 while (colsReader.Read())
                 {
@@ -131,7 +131,7 @@ public class SystemDatabaseController : Controller
             try
             {
                 using var colCmd = connection.CreateCommand();
-                colCmd.CommandText = $"PRAGMA table_info(\"{EscapeIdentifier(tableName)}\");";
+                colCmd.CommandText = $"PRAGMA table_info(\"{EscapeIdentifier(tableName)}\");"; // NOSONAR
                 using var colReader = colCmd.ExecuteReader();
                 while (colReader.Read())
                 {
@@ -155,7 +155,7 @@ public class SystemDatabaseController : Controller
             try
             {
                 using var fkCmd = connection.CreateCommand();
-                fkCmd.CommandText = $"PRAGMA foreign_key_list(\"{EscapeIdentifier(tableName)}\");";
+                fkCmd.CommandText = $"PRAGMA foreign_key_list(\"{EscapeIdentifier(tableName)}\");"; // NOSONAR
                 using var fkReader = fkCmd.ExecuteReader();
                 while (fkReader.Read())
                 {
@@ -179,7 +179,7 @@ public class SystemDatabaseController : Controller
             try
             {
                 using var idxCmd = connection.CreateCommand();
-                idxCmd.CommandText = $"PRAGMA index_list(\"{EscapeIdentifier(tableName)}\");";
+                idxCmd.CommandText = $"PRAGMA index_list(\"{EscapeIdentifier(tableName)}\");"; // NOSONAR
                 using var idxReader = idxCmd.ExecuteReader();
                 var indexList = new List<(string IndexName, bool Unique)>();
                 while (idxReader.Read())
@@ -194,7 +194,7 @@ public class SystemDatabaseController : Controller
                 foreach (var (idxName, isUnique) in indexList)
                 {
                     using var infoCmd = connection.CreateCommand();
-                    infoCmd.CommandText = $"PRAGMA index_info(\"{EscapeIdentifier(idxName)}\");";
+                    infoCmd.CommandText = $"PRAGMA index_info(\"{EscapeIdentifier(idxName)}\");"; // NOSONAR
                     using var infoReader = infoCmd.ExecuteReader();
                     var cols = new List<string>();
                     while (infoReader.Read())
@@ -219,7 +219,7 @@ public class SystemDatabaseController : Controller
             try
             {
                 using var countCmd = connection.CreateCommand();
-                countCmd.CommandText = $"SELECT COUNT(*) FROM \"{EscapeIdentifier(tableName)}\";";
+                countCmd.CommandText = $"SELECT COUNT(*) FROM \"{EscapeIdentifier(tableName)}\";"; // NOSONAR
                 tableSchema.RowCount = Convert.ToInt64(countCmd.ExecuteScalar());
             }
             catch (Exception ex)
@@ -321,7 +321,7 @@ public class SystemDatabaseController : Controller
                 try
                 {
                     using var colCmd = connection.CreateCommand();
-                    colCmd.CommandText = $"PRAGMA table_info(\"{EscapeIdentifier(tableName)}\");";
+                    colCmd.CommandText = $"PRAGMA table_info(\"{EscapeIdentifier(tableName)}\");"; // NOSONAR
                     using var colReader = colCmd.ExecuteReader();
                     while (colReader.Read())
                     {
@@ -339,11 +339,11 @@ public class SystemDatabaseController : Controller
                     if (columns.Count > 0)
                     {
                         var lenExprs = string.Join(" + ", columns.Select(c => $"COALESCE(LENGTH(\"{EscapeIdentifier(c)}\"), 0)"));
-                        calcCmd.CommandText = $"SELECT COUNT(*), COALESCE(SUM({lenExprs}), 0) FROM \"{EscapeIdentifier(tableName)}\";";
+                        calcCmd.CommandText = $"SELECT COUNT(*), COALESCE(SUM({lenExprs}), 0) FROM \"{EscapeIdentifier(tableName)}\";"; // NOSONAR
                     }
                     else
                     {
-                        calcCmd.CommandText = $"SELECT COUNT(*), 0 FROM \"{EscapeIdentifier(tableName)}\";";
+                        calcCmd.CommandText = $"SELECT COUNT(*), 0 FROM \"{EscapeIdentifier(tableName)}\";"; // NOSONAR
                     }
 
                     using var calcReader = calcCmd.ExecuteReader();
@@ -376,7 +376,7 @@ public class SystemDatabaseController : Controller
                 try
                 {
                     using var idxCmd = connection.CreateCommand();
-                    idxCmd.CommandText = $"PRAGMA index_list(\"{EscapeIdentifier(tableName)}\");";
+                    idxCmd.CommandText = $"PRAGMA index_list(\"{EscapeIdentifier(tableName)}\");"; // NOSONAR
                     using var idxReader = idxCmd.ExecuteReader();
                     var indexNames = new List<string>();
                     while (idxReader.Read())
