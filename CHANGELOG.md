@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.20](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.20) - 2026-10-02
+
+### 🔧 Maintenance & Improvements
+- ci: remove unsupported VALIDATE_PYTHON_RUFF input from dispatch call
+- ci: enforce warnings as errors across tests, narrow sonar multicriteria, and enable linters
+
 ## [v2.0.19](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.19) - 2026-10-02
 
 ### 🐛 Bug Fixes
