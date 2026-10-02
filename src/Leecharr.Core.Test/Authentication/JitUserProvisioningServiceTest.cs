@@ -445,6 +445,10 @@ public class JitUserProvisioningServiceTest
 
         public void UpdateMany(IList<IdentityProviderDefinition> models)
         {
+            foreach (var model in models)
+            {
+                this.Update(model);
+            }
         }
 
         public void Purge()

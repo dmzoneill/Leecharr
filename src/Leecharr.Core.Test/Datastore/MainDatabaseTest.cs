@@ -47,7 +47,9 @@ public class MainDatabaseTest
         {
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"CREATE TABLE {markerTableName} (Id INTEGER PRIMARY KEY, Val TEXT); INSERT INTO {markerTableName} VALUES (1, 'val1');";
+#pragma warning disable CA2100 // Synthetic test table fixture creation
+            cmd.CommandText = $"CREATE TABLE \"{markerTableName.Replace("\"", "\"\"")}\" (Id INTEGER PRIMARY KEY, Val TEXT); INSERT INTO \"{markerTableName.Replace("\"", "\"\"")}\" VALUES (1, 'val1');";
+#pragma warning restore CA2100
             cmd.ExecuteNonQuery();
         }
 

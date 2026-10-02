@@ -648,6 +648,7 @@ public class CommonAndHttpDeepCoverageIntegrationTests : IntegrationTestBase
     // Part 2: Leecharr.Http - ApiKeyAuthenticationHandler
     // ------------------------------------------------------------------------
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Test harness helper")]
     private ApiKeyAuthenticationHandler CreateApiKeyHandler(
         HttpContext context,
         IConfigFileProvider configProvider,
