@@ -100,6 +100,7 @@ export function AiTab() {
       setProbeResult(null);
     }
   }, [
+    probeResult,
     formData.ollamaHost,
     formData.ollamaModel,
     formData.geminiApiKey,
