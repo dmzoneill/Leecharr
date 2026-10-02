@@ -459,7 +459,7 @@ public class SystemResourceService : ISystemResourceService
             {
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(TimeSpan.FromSeconds(5));
-                var probe = await extractor.ProbeHealthAsync().WaitAsync(cts.Token);
+                var probe = await extractor.ProbeHealthAsync(cts.Token);
                 extractorHealthy = probe?.IsHealthy ?? extractor.IsAvailable;
             }
         }
@@ -499,7 +499,7 @@ public class SystemResourceService : ISystemResourceService
             {
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(TimeSpan.FromSeconds(5));
-                var probe = await inspector.ProbeHealthAsync().WaitAsync(cts.Token);
+                var probe = await inspector.ProbeHealthAsync(cts.Token);
                 inspectorHealthy = probe?.IsHealthy ?? inspector.IsAvailable;
             }
         }

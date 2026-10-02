@@ -162,7 +162,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
             {
                 try
                 {
-                    var releases = await this.torznabClient.FetchRssAsync(indexer);
+                    var releases = await this.torznabClient.FetchRssAsync(indexer, cancellationToken: cancellationToken);
                     this.indexerStatusService?.RecordSuccess(indexer.Id);
                     foreach (var release in releases)
                     {
@@ -287,7 +287,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                             byte[] torrentBytes = null;
                                             try
                                             {
-                                                torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
+                                                torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024, cancellationToken: cancellationToken);
                                             }
                                             catch (Exception dlEx)
                                             {
