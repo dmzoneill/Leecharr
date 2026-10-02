@@ -83,7 +83,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       setSearch("");
       setHighlightedIndex(-1);
     }
-  }, [isOpen]);
+  }, [isOpen, filteredLanguages, language]);
 
   useEffect(() => {
     if (highlightedIndex >= 0 && listRef.current) {
