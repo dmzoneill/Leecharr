@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.17](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.17) - 2026-10-02
+
+### 🐛 Bug Fixes
+- fix(quality): burn down SonarCloud S2077, Roslyn test warnings, and editorconfig severities
+
 ## [v2.0.16](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.16) - 2026-10-02
 
 ### 🔧 Maintenance & Improvements
