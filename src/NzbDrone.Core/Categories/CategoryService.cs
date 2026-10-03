@@ -385,7 +385,7 @@ public class CategoryService : ICategoryService
             var winPath = Environment.GetFolderPath(Environment.SpecialFolder.Windows)?.Replace('\\', '/').TrimEnd('/');
             if (!string.IsNullOrEmpty(winPath) &&
                 (string.Equals(normalized, winPath, StringComparison.OrdinalIgnoreCase) ||
-                 normalized.StartsWith(winPath + "/", StringComparison.OrdinalIgnoreCase)))
+                    normalized.StartsWith(winPath + "/", StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
@@ -393,7 +393,7 @@ public class CategoryService : ICategoryService
             var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)?.Replace('\\', '/').TrimEnd('/');
             if (!string.IsNullOrEmpty(progFiles) &&
                 (string.Equals(normalized, progFiles, StringComparison.OrdinalIgnoreCase) ||
-                 normalized.StartsWith(progFiles + "/", StringComparison.OrdinalIgnoreCase)))
+                    normalized.StartsWith(progFiles + "/", StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }

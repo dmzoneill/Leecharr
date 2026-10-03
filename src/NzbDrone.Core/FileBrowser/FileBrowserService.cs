@@ -272,8 +272,8 @@ public class FileBrowserService : IFileBrowserService
 
         if (this.diskProvider.FolderExists(source) &&
             (target.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
-             destDir.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(destDir, source, StringComparison.OrdinalIgnoreCase)))
+                destDir.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(destDir, source, StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException("Cannot copy a directory into one of its subdirectories.");
         }
@@ -330,8 +330,8 @@ public class FileBrowserService : IFileBrowserService
 
         if (this.diskProvider.FolderExists(source) &&
             (target.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
-             destDir.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(destDir, source, StringComparison.OrdinalIgnoreCase)))
+                destDir.StartsWith(sourceWithSep, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(destDir, source, StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException("Cannot move a directory into one of its subdirectories.");
         }
@@ -535,7 +535,7 @@ public class FileBrowserService : IFileBrowserService
             }
 
             return testPath.StartsWith(clean + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                   testPath.StartsWith(clean + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                testPath.StartsWith(clean + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
         }
 
         // Protect AppDataFolder and its contents
@@ -607,7 +607,7 @@ public class FileBrowserService : IFileBrowserService
         {
             var isInsideDownloadDir = downloadDir != null &&
                 (normalized.StartsWith(downloadDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                 normalized.StartsWith(downloadDir + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+                    normalized.StartsWith(downloadDir + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
             if (!isInsideDownloadDir)
             {
@@ -651,7 +651,7 @@ public class FileBrowserService : IFileBrowserService
 
                 var isInsideDownloadDir = downloadDir != null &&
                     (normalized.StartsWith(downloadDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                     normalized.StartsWith(downloadDir + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+                        normalized.StartsWith(downloadDir + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
                 if (!isInsideDownloadDir && MatchesOrIsDescendant(normalized, userProfile))
                 {
@@ -683,6 +683,6 @@ public class FileBrowserService : IFileBrowserService
         }
 
         return trimmed.Equals(root, StringComparison.OrdinalIgnoreCase) ||
-               trimmed.Equals(Path.TrimEndingDirectorySeparator(root), StringComparison.OrdinalIgnoreCase);
+            trimmed.Equals(Path.TrimEndingDirectorySeparator(root), StringComparison.OrdinalIgnoreCase);
     }
 }
