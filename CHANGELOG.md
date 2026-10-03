@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.29](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.29) - 2026-10-03
+
+### ✨ Features
+- Add or update GitHub Actions workflows
+
+### 🐛 Bug Fixes
+- fix(ci): quote :all: in pip install in ai-responder workflow
+- fix(quality): un-suppress CA1510, CA1513, CA1865, CA1866, CA1872, CA1835 and fix CommandExecutor mock
+- fix(quality): un-suppress CA1846, CA1834, CA1868, CA1512, CA2100 and resolve span diagnostics
+- fix(quality): un-suppress CA1826, CA1847, CA2263, CA1825, CA2249 and resolve diagnostics
+
+### 🔧 Maintenance & Improvements
+- ci(security): lock pip dependencies with only-binary and enforce secure HTTPS in curl
+- style: fix indentation for editorconfig-checker
+
 ## [v2.0.28](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.28) - 2026-10-03
 
 ### 🔧 Maintenance & Improvements
