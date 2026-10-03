@@ -20,7 +20,7 @@ namespace Leecharr.Api.V1.NzbVortex;
 [ApiController]
 public class NzbVortexApiController : ControllerBase, IActionFilter
 {
-    private static readonly RpcSessionStore authenticatedSessions = new();
+    private static readonly RpcSessionStore AuthenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -82,7 +82,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         }
 
         var session = this.Request.Query["session"].ToString();
-        if (!string.IsNullOrEmpty(session) && authenticatedSessions.IsValid(session))
+        if (!string.IsNullOrEmpty(session) && AuthenticatedSessions.IsValid(session))
         {
             return true;
         }
@@ -129,7 +129,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         }
 
         var sessionToken = Guid.NewGuid().ToString("N");
-        authenticatedSessions.SetSession(sessionToken, DateTime.UtcNow.AddHours(24));
+        AuthenticatedSessions.SetSession(sessionToken, DateTime.UtcNow.AddHours(24));
 
         return this.Ok(new
         {

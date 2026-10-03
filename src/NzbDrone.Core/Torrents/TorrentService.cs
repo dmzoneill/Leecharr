@@ -1569,6 +1569,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
 
             var dateCompletedSet = false;
+
             // Record completion timestamp when torrent reaches Seeding
             if (torrent.Status == TorrentStatus.Seeding && !torrent.DateCompleted.HasValue)
             {

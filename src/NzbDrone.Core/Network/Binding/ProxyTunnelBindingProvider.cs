@@ -572,6 +572,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             if (ip.AddressFamily == AddressFamily.InterNetwork)
             {
                 var bytes = ip.GetAddressBytes();
+
                 // 127.0.0.0/8
                 if (bytes[0] == 127)
                 {
@@ -610,6 +611,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
                 }
 
                 var bytes = ip.GetAddressBytes();
+
                 // RFC 4193 Unique Local fc00::/7
                 if ((bytes[0] & 0xFE) == 0xFC)
                 {

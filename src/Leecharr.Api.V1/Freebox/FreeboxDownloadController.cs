@@ -32,7 +32,7 @@ public class FreeboxUpdateRequest
 [ApiController]
 public class FreeboxDownloadController : ControllerBase
 {
-    private static readonly RpcSessionStore authenticatedSessions = new();
+    private static readonly RpcSessionStore AuthenticatedSessions = new();
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -90,7 +90,7 @@ public class FreeboxDownloadController : ControllerBase
 
         if (!string.IsNullOrEmpty(token))
         {
-            if (authenticatedSessions.IsValid(token))
+            if (AuthenticatedSessions.IsValid(token))
             {
                 return true;
             }
@@ -159,7 +159,7 @@ public class FreeboxDownloadController : ControllerBase
             {
                 var masterKey = this.configFileProvider.ApiKey;
                 var token = this.Request.Headers["X-Fbx-App-Auth"].ToString();
-                if (!string.IsNullOrEmpty(token) && (authenticatedSessions.IsValid(token) || RpcAuthenticationHelper.FixedTimeEquals(token, masterKey)))
+                if (!string.IsNullOrEmpty(token) && (AuthenticatedSessions.IsValid(token) || RpcAuthenticationHelper.FixedTimeEquals(token, masterKey)))
                 {
                     isAuth = true;
                 }
@@ -205,7 +205,7 @@ public class FreeboxDownloadController : ControllerBase
         }
 
         var sessionToken = Guid.NewGuid().ToString("N");
-        authenticatedSessions.SetSession(sessionToken, DateTime.UtcNow.AddDays(7));
+        AuthenticatedSessions.SetSession(sessionToken, DateTime.UtcNow.AddDays(7));
 
         return this.Ok(new
         {

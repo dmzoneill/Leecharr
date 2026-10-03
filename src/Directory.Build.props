@@ -23,7 +23,7 @@
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
-    <NoWarn>$(NoWarn);NU1510;CS1591;SA1200;SA1515;SA1311;SX1309</NoWarn>
+    <NoWarn>$(NoWarn);NU1510;CS1591;SA1200;SX1309</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -71,7 +71,7 @@
   </ItemGroup>
 
   <PropertyGroup Condition="'$(TestProject)'=='true'">
-    <NoWarn>$(NoWarn);CA1861;CA1806;CA1869</NoWarn>
+    <NoWarn>$(NoWarn);CA1861;CA1806;CA1869;SA1515;SA1311</NoWarn>
     <RunSettingsFilePath Condition="Exists('$(LeecharrRootDir).runsettings')">$(LeecharrRootDir).runsettings</RunSettingsFilePath>
   </PropertyGroup>
 

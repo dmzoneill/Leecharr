@@ -39,7 +39,7 @@ namespace Leecharr.Api.V1.QBittorrent;
 [Route("api/v2")]
 public class QBittorrentApiController : ControllerBase, IActionFilter
 {
-    private static readonly RpcSessionStore authenticatedSessions = new();
+    private static readonly RpcSessionStore AuthenticatedSessions = new();
     private static readonly char[] NewlineSeparators = ['\r', '\n'];
     private static readonly char[] TrackerCreationSeparators = ['\r', '\n', ';'];
     private static readonly char[] CategoryRemovalSeparators = ['\r', '\n', '|'];
@@ -150,7 +150,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         if (this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
         {
-            if (authenticatedSessions.IsValid(sid))
+            if (AuthenticatedSessions.IsValid(sid))
             {
                 return true;
             }
@@ -203,7 +203,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         var sid = Guid.NewGuid().ToString("N");
-        authenticatedSessions.SetSession(sid, DateTime.UtcNow.AddDays(7));
+        AuthenticatedSessions.SetSession(sid, DateTime.UtcNow.AddDays(7));
 
         this.Response.Cookies.Append("SID", sid, new CookieOptions // NOSONAR
         {
@@ -221,8 +221,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
         {
-            authenticatedSessions.RemoveSession(sid);
-            sessionSyncStates.TryRemove($"sid:{sid}", out _);
+            AuthenticatedSessions.RemoveSession(sid);
+            SessionSyncStates.TryRemove($"sid:{sid}", out _);
         }
 
         this.Response.Cookies.Delete("SID");
@@ -2279,12 +2279,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Content("Ok.", "text/plain");
     }
 
-    private static readonly ConcurrentDictionary<string, QBitSessionSyncState> sessionSyncStates = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, QBitSessionSyncState> SessionSyncStates = new(StringComparer.OrdinalIgnoreCase);
     private static DateTime lastSyncCleanupTime = DateTime.UtcNow;
 
     public static void ResetSyncState()
     {
-        sessionSyncStates.Clear();
+        SessionSyncStates.Clear();
     }
 
     private static void CleanupExpiredSessionSyncStates()
@@ -2298,11 +2298,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         lastSyncCleanupTime = now;
         var expirationThreshold = now.AddHours(-1);
 
-        foreach (var kvp in sessionSyncStates)
+        foreach (var kvp in SessionSyncStates)
         {
             if (kvp.Value.LastAccessed < expirationThreshold)
             {
-                sessionSyncStates.TryRemove(kvp.Key, out _);
+                SessionSyncStates.TryRemove(kvp.Key, out _);
             }
         }
     }
@@ -2397,7 +2397,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         CleanupExpiredSessionSyncStates();
 
         var sessionKey = this.GetClientSessionKey();
-        var sessionState = sessionSyncStates.GetOrAdd(sessionKey, _ => new QBitSessionSyncState());
+        var sessionState = SessionSyncStates.GetOrAdd(sessionKey, _ => new QBitSessionSyncState());
 
         lock (sessionState.Lock)
         {
@@ -2705,7 +2705,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         CleanupExpiredSessionSyncStates();
 
         var sessionKey = this.GetClientSessionKey();
-        var sessionState = sessionSyncStates.GetOrAdd(sessionKey, _ => new QBitSessionSyncState());
+        var sessionState = SessionSyncStates.GetOrAdd(sessionKey, _ => new QBitSessionSyncState());
 
         lock (sessionState.Lock)
         {

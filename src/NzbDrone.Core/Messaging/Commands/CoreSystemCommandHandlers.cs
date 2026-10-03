@@ -1,5 +1,5 @@
-#nullable enable
 // Copyright (c) FeedItOut. All rights reserved.
+#nullable enable
 
 using System;
 using System.IO;

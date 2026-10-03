@@ -9,7 +9,7 @@ namespace NzbDrone.Core.Datastore.Migration;
 
 public abstract class NzbDroneMigrationBase : FluentMigrator.Migration
 {
-    private static readonly Lazy<int> latestMigration = new(() =>
+    private static readonly Lazy<int> LazyLatestMigration = new(() =>
         typeof(NzbDroneMigrationBase).Assembly
             .GetTypes()
             .Select(t => t.GetCustomAttribute<MigrationAttribute>(false))
@@ -18,5 +18,5 @@ public abstract class NzbDroneMigrationBase : FluentMigrator.Migration
             .DefaultIfEmpty(0)
             .Max());
 
-    public static int LatestMigration => latestMigration.Value;
+    public static int LatestMigration => LazyLatestMigration.Value;
 }
