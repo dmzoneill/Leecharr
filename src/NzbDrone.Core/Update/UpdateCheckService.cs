@@ -18,6 +18,7 @@ public class UpdateCheckService : IUpdateCheckService
     private const string GitHubReleasesUrl = "https://api.github.com/repos/dmzoneill/Leecharr/releases?per_page=100";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+    private static readonly char[] NewlineSeparators = ['\r', '\n'];
 
     private readonly HttpClient httpClient;
     private readonly Logger logger;
@@ -248,7 +249,7 @@ public class UpdateCheckService : IUpdateCheckService
             return changes;
         }
 
-        var lines = body.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = body.Split(NewlineSeparators, StringSplitOptions.RemoveEmptyEntries);
         var currentSection = "new";
 
         foreach (var rawLine in lines)
