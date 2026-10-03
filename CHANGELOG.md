@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.26](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.26) - 2026-10-03
+
+### 🐛 Bug Fixes
+- fix(frontend): resolve all typescript compiler errors across components and pages
+
 ## [v2.0.25](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.25) - 2026-10-02
 
 ### 🔧 Maintenance & Improvements
