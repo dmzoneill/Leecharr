@@ -18,6 +18,7 @@ namespace Leecharr.Api.V1.DownloadClients;
 public static class DownloadClientRemoteQuery
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private static readonly char[] CategoryDelimiters = [',', ';', '|'];
 
     public static async Task<List<DownloadClientRemoteItem>> QueryRemoteClientItemsAsync(
         DownloadClientDefinition client,
@@ -338,7 +339,7 @@ public static class DownloadClientRemoteQuery
             return false;
         }
 
-        var targets = targetCategory.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
+        var targets = targetCategory.Split(CategoryDelimiters, StringSplitOptions.RemoveEmptyEntries)
                                     .Select(t => t.Trim())
                                     .Where(t => !string.IsNullOrEmpty(t))
                                     .ToList();
@@ -352,7 +353,7 @@ public static class DownloadClientRemoteQuery
         if (!string.IsNullOrWhiteSpace(item.Category))
         {
             candidateTokens.Add(item.Category.Trim());
-            foreach (var token in item.Category.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (var token in item.Category.Split(CategoryDelimiters, StringSplitOptions.RemoveEmptyEntries))
             {
                 candidateTokens.Add(token.Trim());
             }
@@ -361,7 +362,7 @@ public static class DownloadClientRemoteQuery
         if (!string.IsNullOrWhiteSpace(item.Tags))
         {
             candidateTokens.Add(item.Tags.Trim());
-            foreach (var token in item.Tags.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (var token in item.Tags.Split(CategoryDelimiters, StringSplitOptions.RemoveEmptyEntries))
             {
                 candidateTokens.Add(token.Trim());
             }
