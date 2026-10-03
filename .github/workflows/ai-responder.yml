@@ -36,7 +36,7 @@ jobs:
         run: echo "$GOOGLE_CREDS" > /tmp/gcloud-credentials.json
 
       - name: Install Python dependencies
-        run: pip install --only-binary :all: requests==2.32.3
+        run: pip install --only-binary ":all:" requests==2.32.3
 
       - name: Download AI responder script
         run: |
