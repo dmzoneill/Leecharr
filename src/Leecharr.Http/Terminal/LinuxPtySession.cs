@@ -99,13 +99,13 @@ public sealed class LinuxPtySession : ITerminalSession
                 // Zero managed memory allocations, zero runtime locks, zero setenv/malloc calls.
                 if (cwdPtr != IntPtr.Zero)
                 {
-                    NativePty.Chdir(cwdPtr);
+                    _ = NativePty.Chdir(cwdPtr);
                 }
 
-                NativePty.ExecveRaw(shellPtr, argvArrayPtr, envArrayPtr);
+                _ = NativePty.ExecveRaw(shellPtr, argvArrayPtr, envArrayPtr);
 
                 // Fallback if execve fails
-                NativePty.ExecvpRaw(shellPtr, argvArrayPtr);
+                _ = NativePty.ExecvpRaw(shellPtr, argvArrayPtr);
 
                 NativePty.Exit(1);
             }
@@ -181,7 +181,7 @@ public sealed class LinuxPtySession : ITerminalSession
             WsRow = (ushort)Math.Max(5, Math.Min(rows, 200)),
         };
 
-        NativePty.Ioctl(this.masterFd, NativePty.TIOCSWINSZ, ref ws);
+        _ = NativePty.Ioctl(this.masterFd, NativePty.TIOCSWINSZ, ref ws);
     }
 
     public void Kill()
@@ -193,7 +193,7 @@ public sealed class LinuxPtySession : ITerminalSession
 
         try
         {
-            NativePty.Close(this.masterFd);
+            _ = NativePty.Close(this.masterFd);
         }
         catch (Exception ex)
         {
@@ -209,7 +209,7 @@ public sealed class LinuxPtySession : ITerminalSession
         {
             try
             {
-                NativePty.Kill(this.pid, 15); // SIGTERM
+                _ = NativePty.Kill(this.pid, 15); // SIGTERM
             }
             catch (Exception ex)
             {
@@ -235,7 +235,7 @@ public sealed class LinuxPtySession : ITerminalSession
             {
                 try
                 {
-                    NativePty.Kill(this.pid, 9); // SIGKILL
+                    _ = NativePty.Kill(this.pid, 9); // SIGKILL
                 }
                 catch (Exception ex)
                 {
