@@ -21,7 +21,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
   });
 
   it("parses CustomScript notification resource into form state with path and arguments", () => {
-    const notif: NotificationResource = {
+    const notif: Partial<NotificationResource> = {
       id: 42,
       name: "My Notification Script",
       implementation: "CustomScript",
@@ -44,7 +44,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
   });
 
   it("parses alternative property names for CustomScript settings", () => {
-    const notif: NotificationResource = {
+    const notif: Partial<NotificationResource> = {
       id: 43,
       name: "Alias Script",
       implementation: "CustomScript",
@@ -62,7 +62,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
   });
 
   it("parses raw string settings for CustomScript if not formatted as JSON", () => {
-    const notif: NotificationResource = {
+    const notif: Partial<NotificationResource> = {
       id: 44,
       name: "Raw Script Path",
       implementation: "CustomScript",
@@ -115,7 +115,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
   });
 
   it("returns script path in getNotificationSummary for CustomScript", () => {
-    const notif: NotificationResource = {
+    const notif: Partial<NotificationResource> = {
       name: "Custom Script",
       implementation: "CustomScript",
       settings: JSON.stringify({
