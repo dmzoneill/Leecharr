@@ -20,6 +20,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
     private readonly TagLibInspectorProvider fallbackProvider = new();
     private readonly string customBinaryPath;
     private readonly TimeSpan executionTimeout;
+    private static readonly string[] DefaultSearchPaths = ["/usr/bin/ffprobe", "/usr/local/bin/ffprobe"];
 
     public FFprobeInspectorProvider()
         : this(null, TimeSpan.FromSeconds(60))
@@ -576,6 +577,6 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             return this.customBinaryPath;
         }
 
-        return CliProcessDiscovery.FindExecutable("ffprobe", "FFPROBE_PATH", new[] { "/usr/bin/ffprobe", "/usr/local/bin/ffprobe" });
+        return CliProcessDiscovery.FindExecutable("ffprobe", "FFPROBE_PATH", DefaultSearchPaths);
     }
 }
