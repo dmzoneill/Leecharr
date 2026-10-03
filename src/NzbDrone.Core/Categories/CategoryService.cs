@@ -278,7 +278,7 @@ public class CategoryService : ICategoryService
             return savePath?.Trim();
         }
 
-        if (savePath.IndexOf('\0') >= 0)
+        if (savePath.Contains('\0'))
         {
             throw new ArgumentException("Save path contains invalid characters.", nameof(savePath));
         }

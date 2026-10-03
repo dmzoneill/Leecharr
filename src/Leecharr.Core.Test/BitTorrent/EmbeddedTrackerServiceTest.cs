@@ -1167,8 +1167,8 @@ public class EmbeddedTrackerServiceTest
 
         // Peer 2 receives Peer 1
         res2.Peers.Should().HaveCount(1);
-        res2.Peers.First().Ip.ToString().Should().Be("192.168.1.100");
-        res2.Peers.First().Port.Should().Be(6881);
+        res2.Peers[0].Ip.ToString().Should().Be("192.168.1.100");
+        res2.Peers[0].Port.Should().Be(6881);
 
         // Peer 1 sends stopped event using IPv4-mapped IPv6 address
         var req1Stop = new TrackerAnnounceRequest

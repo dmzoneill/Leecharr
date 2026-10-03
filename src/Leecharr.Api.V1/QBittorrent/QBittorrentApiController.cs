@@ -3888,7 +3888,7 @@ public record QBitPeerSnapshot
             Client = p.Client ?? string.Empty,
             Ip = p.Ip ?? string.Empty,
             Port = p.Port,
-            Connection = (p.IsUtp || p.Flags?.Contains("P", StringComparison.OrdinalIgnoreCase) == true) ? "uTP" : "TCP",
+            Connection = (p.IsUtp || p.Flags?.Contains('P', StringComparison.OrdinalIgnoreCase) == true) ? "uTP" : "TCP",
             Flags = p.Flags ?? string.Empty,
             FlagsDesc = string.Empty,
             Progress = p.Progress,
