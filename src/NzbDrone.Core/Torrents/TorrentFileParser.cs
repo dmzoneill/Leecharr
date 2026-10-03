@@ -68,6 +68,7 @@ public class TorrentFileParser : ITorrentFileParser
 {
     public const int MaxBencodeDepth = 64;
     public const int MaxPieceLength = 256 * 1024 * 1024; // 256 MiB
+    private static readonly char[] PathSeparators = ['/', '\\'];
 
     private readonly Logger logger;
 
@@ -722,8 +723,8 @@ public class TorrentFileParser : ITorrentFileParser
             throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains invalid path characters: '{part}'.");
         }
 
-        var segments = part.Split(new[] { '/', '\\' }, StringSplitOptions.None);
-        var decodedSegments = decoded.Split(new[] { '/', '\\' }, StringSplitOptions.None);
+        var segments = part.Split(PathSeparators, StringSplitOptions.None);
+        var decodedSegments = decoded.Split(PathSeparators, StringSplitOptions.None);
 
         foreach (var segment in segments.Concat(decodedSegments))
         {

@@ -67,6 +67,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly IPeerConnectionHistoryService peerConnectionHistoryService;
     private readonly Logger logger;
     internal static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
+    private static readonly char[] BootstrapNodeSeparators = [',', ';'];
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
@@ -4895,7 +4896,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return result;
         }
 
-        var entries = bootstrapNodes.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        var entries = bootstrapNodes.Split(BootstrapNodeSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var rawEntry in entries)
         {
             var entry = rawEntry.Trim();
