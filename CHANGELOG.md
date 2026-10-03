@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.31](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.31) - 2026-10-03
+
+### 🐛 Bug Fixes
+- fix(quality): enable CA1869, CA1850, and CA1862 and prune StyleCop NoWarn in Leecharr
+
 ## [v2.0.30](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.30) - 2026-10-03
 
 ### 🐛 Bug Fixes
