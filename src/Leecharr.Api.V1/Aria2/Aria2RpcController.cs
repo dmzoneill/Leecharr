@@ -89,6 +89,12 @@ public class Aria2RpcController : ControllerBase
         "Async DNS",
     ];
 
+    private static readonly JsonSerializerOptions CamelCaseJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+    };
+
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -378,11 +384,7 @@ public class Aria2RpcController : ControllerBase
     {
         if (this.Request?.Query != null && this.Request.Query.TryGetValue("callback", out var callback) && !string.IsNullOrWhiteSpace(callback))
         {
-            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-            });
+            var json = JsonSerializer.Serialize(payload, CamelCaseJsonOptions);
             return this.Content($"{callback}({json});", "application/javascript", Encoding.UTF8);
         }
 

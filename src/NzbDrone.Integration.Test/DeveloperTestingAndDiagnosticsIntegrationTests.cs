@@ -28,7 +28,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var tests = JsonSerializer.Deserialize<List<DeveloperTestItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var tests = JsonSerializer.Deserialize<List<DeveloperTestItem>>(json, CaseInsensitiveJsonOptions);
 
         tests.Should().NotBeNull();
         tests.Should().NotBeEmpty();
@@ -44,7 +44,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<DeveloperTestResult>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var result = JsonSerializer.Deserialize<DeveloperTestResult>(json, CaseInsensitiveJsonOptions);
 
         result.Should().NotBeNull();
         result!.TestId.Should().Be("disk-io");
@@ -65,7 +65,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var execResponse = JsonSerializer.Deserialize<TestExecutionResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var execResponse = JsonSerializer.Deserialize<TestExecutionResponse>(json, CaseInsensitiveJsonOptions);
 
         execResponse.Should().NotBeNull();
         execResponse!.TotalTests.Should().BeGreaterThanOrEqualTo(1);
@@ -85,7 +85,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         historyResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var historyJson = await historyResp.Content.ReadAsStringAsync();
-        var history = JsonSerializer.Deserialize<List<DeveloperTestResult>>(historyJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var history = JsonSerializer.Deserialize<List<DeveloperTestResult>>(historyJson, CaseInsensitiveJsonOptions);
         history.Should().NotBeNull();
         history.Should().NotBeEmpty();
 
@@ -96,7 +96,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         // 4. Verify cleared
         var checkResp = await this.Client.GetAsync("/api/v1/system/developer/testing/history");
         var checkJson = await checkResp.Content.ReadAsStringAsync();
-        var cleared = JsonSerializer.Deserialize<List<DeveloperTestResult>>(checkJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var cleared = JsonSerializer.Deserialize<List<DeveloperTestResult>>(checkJson, CaseInsensitiveJsonOptions);
         cleared.Should().BeEmpty();
     }
 
@@ -111,7 +111,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var threads = JsonSerializer.Deserialize<List<ThreadDiagnosticItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var threads = JsonSerializer.Deserialize<List<ThreadDiagnosticItem>>(json, CaseInsensitiveJsonOptions);
 
         threads.Should().NotBeNull();
         threads.Should().NotBeEmpty();
@@ -125,7 +125,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var report = JsonSerializer.Deserialize<MemoryDiagnosticReport>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var report = JsonSerializer.Deserialize<MemoryDiagnosticReport>(json, CaseInsensitiveJsonOptions);
 
         report.Should().NotBeNull();
         report!.TotalAllocatedBytes.Should().BeGreaterThan(0);
@@ -139,7 +139,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var env = JsonSerializer.Deserialize<EnvironmentDiagnosticReport>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var env = JsonSerializer.Deserialize<EnvironmentDiagnosticReport>(json, CaseInsensitiveJsonOptions);
 
         env.Should().NotBeNull();
         env!.ProcessId.Should().BeGreaterThan(0);
@@ -163,7 +163,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var gcResp = JsonSerializer.Deserialize<GcCollectionResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var gcResp = JsonSerializer.Deserialize<GcCollectionResponse>(json, CaseInsensitiveJsonOptions);
 
         gcResp.Should().NotBeNull();
         gcResp!.Success.Should().BeTrue();
@@ -188,7 +188,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var replResp = JsonSerializer.Deserialize<ReplExecutionResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var replResp = JsonSerializer.Deserialize<ReplExecutionResponse>(json, CaseInsensitiveJsonOptions);
 
         replResp.Should().NotBeNull();
         replResp!.Success.Should().BeTrue();
@@ -209,7 +209,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var replResp = JsonSerializer.Deserialize<ReplExecutionResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var replResp = JsonSerializer.Deserialize<ReplExecutionResponse>(json, CaseInsensitiveJsonOptions);
 
         replResp.Should().NotBeNull();
         replResp!.Success.Should().BeTrue();
@@ -221,7 +221,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         historyResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var histJson = await historyResp.Content.ReadAsStringAsync();
-        var history = JsonSerializer.Deserialize<List<ReplHistoryEntry>>(histJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var history = JsonSerializer.Deserialize<List<ReplHistoryEntry>>(histJson, CaseInsensitiveJsonOptions);
         history.Should().NotBeNull();
         history.Should().Contain(h => h.Code.Contains("Testing REPL output line"));
 
@@ -246,7 +246,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         statusResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var statusJson = await statusResp.Content.ReadAsStringAsync();
-        var status = JsonSerializer.Deserialize<DebuggerStatusReport>(statusJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var status = JsonSerializer.Deserialize<DebuggerStatusReport>(statusJson, CaseInsensitiveJsonOptions);
         status.Should().NotBeNull();
 
         // 2. Add tracepoint
@@ -308,7 +308,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var files = JsonSerializer.Deserialize<List<DebuggerSourceFileItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var files = JsonSerializer.Deserialize<List<DebuggerSourceFileItem>>(json, CaseInsensitiveJsonOptions);
 
         files.Should().NotBeNull();
         files!.Count.Should().BeGreaterThanOrEqualTo(10);
@@ -323,7 +323,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var sourceResp = JsonSerializer.Deserialize<DebuggerSourceCodeResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var sourceResp = JsonSerializer.Deserialize<DebuggerSourceCodeResponse>(json, CaseInsensitiveJsonOptions);
 
         sourceResp.Should().NotBeNull();
         sourceResp!.Exists.Should().BeTrue();
@@ -342,7 +342,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
-        var tests = JsonSerializer.Deserialize<List<DeveloperTestItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var tests = JsonSerializer.Deserialize<List<DeveloperTestItem>>(json, CaseInsensitiveJsonOptions);
 
         tests.Should().NotBeNull();
         tests!.Count.Should().BeGreaterThanOrEqualTo(56);
@@ -363,7 +363,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
             var json = await response.Content.ReadAsStringAsync();
-            var execResponse = JsonSerializer.Deserialize<TestExecutionResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var execResponse = JsonSerializer.Deserialize<TestExecutionResponse>(json, CaseInsensitiveJsonOptions);
 
             execResponse.Should().NotBeNull();
             execResponse!.Passed.Should().BeGreaterThanOrEqualTo(1);

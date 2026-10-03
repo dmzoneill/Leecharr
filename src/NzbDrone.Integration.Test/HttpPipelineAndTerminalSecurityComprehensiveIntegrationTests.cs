@@ -290,8 +290,7 @@ public class HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests : Inte
         proof.Length.Should().Be(64); // 32 bytes hex encoded = 64 characters
 
         // Verify independent computation matches
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(appSecret));
-        var expectedHash = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(accessToken))).ToLowerInvariant();
+        var expectedHash = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(appSecret), Encoding.UTF8.GetBytes(accessToken))).ToLowerInvariant();
         proof.Should().Be(expectedHash);
     }
 

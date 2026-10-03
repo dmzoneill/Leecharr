@@ -133,7 +133,7 @@ public class ConfigurationAndCategoryIntegrationTests : IntegrationTestBase
         var networkResp = await this.GetAsync("/api/v1/config/network");
         networkResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var netJson = await networkResp.Content.ReadAsStringAsync();
-        var netResource = JsonSerializer.Deserialize<Leecharr.Api.V1.Config.NetworkConfigResource>(netJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var netResource = JsonSerializer.Deserialize<Leecharr.Api.V1.Config.NetworkConfigResource>(netJson, CaseInsensitiveJsonOptions)!;
         var updateNetResp = await this.PutJsonAsync("/api/v1/config/network", netResource);
         updateNetResp.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.Accepted);
 

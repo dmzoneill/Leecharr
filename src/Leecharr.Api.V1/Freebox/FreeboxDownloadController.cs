@@ -33,6 +33,7 @@ public class FreeboxUpdateRequest
 public class FreeboxDownloadController : ControllerBase
 {
     private static readonly RpcSessionStore authenticatedSessions = new();
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly IConfigService configService;
@@ -394,7 +395,7 @@ public class FreeboxDownloadController : ControllerBase
                 var bodyStr = await reader.ReadToEndAsync();
                 if (!string.IsNullOrWhiteSpace(bodyStr))
                 {
-                    var jsonRequest = JsonSerializer.Deserialize<FreeboxUpdateRequest>(bodyStr, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    var jsonRequest = JsonSerializer.Deserialize<FreeboxUpdateRequest>(bodyStr, CaseInsensitiveJsonOptions);
                     if (jsonRequest != null)
                     {
                         status = jsonRequest.Status?.ToLowerInvariant();

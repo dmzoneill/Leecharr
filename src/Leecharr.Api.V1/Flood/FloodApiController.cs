@@ -67,6 +67,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 {
     private static readonly RpcSessionStore authenticatedSessions = new();
     private static readonly char[] LabelSeparators = [',', ';'];
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -551,8 +552,7 @@ public class FloodApiController : ControllerBase, IActionFilter
                 var body = await reader.ReadToEndAsync();
                 if (!string.IsNullOrWhiteSpace(body))
                 {
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    jsonRequest = JsonSerializer.Deserialize<FloodAddFilesRequest>(body, options);
+                    jsonRequest = JsonSerializer.Deserialize<FloodAddFilesRequest>(body, CaseInsensitiveJsonOptions);
                 }
             }
             catch (Exception ex)

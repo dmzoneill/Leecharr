@@ -17,6 +17,8 @@ namespace Leecharr.Api.V1.Torrents;
 [V1ApiController("downloadhistory")]
 public class DownloadHistoryController : Controller
 {
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly IDownloadHistoryService historyService;
     private readonly ITorrentMediaMetadataRepository mediaMetadataRepository;
     private readonly IMediaEnrichmentService mediaEnrichmentService;
@@ -248,7 +250,7 @@ public class DownloadHistoryController : Controller
             {
                 metadata = JsonSerializer.Deserialize<TorrentMediaMetadata>(
                     model.DataJson,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    CaseInsensitiveJsonOptions);
             }
             catch
             {

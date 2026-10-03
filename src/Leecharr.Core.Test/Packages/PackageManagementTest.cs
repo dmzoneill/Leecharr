@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Security;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -27,6 +28,8 @@ namespace Leecharr.Core.Test.Packages;
 [TestFixture]
 public class PackageManagementTest
 {
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private ITorrentService torrentService = null!;
     private ITagRepository tagRepository = null!;
     private IAppFolderInfo appFolderInfo = null!;
@@ -142,7 +145,7 @@ public class PackageManagementTest
                 using var ms = new MemoryStream();
                 await entry.DataStream.CopyToAsync(ms);
                 var json = Encoding.UTF8.GetString(ms.ToArray());
-                manifest = System.Text.Json.JsonSerializer.Deserialize<PackageManifest>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                manifest = JsonSerializer.Deserialize<PackageManifest>(json, CaseInsensitiveJsonOptions);
             }
         }
 
