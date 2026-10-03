@@ -487,7 +487,7 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
 
                     if (!string.IsNullOrWhiteSpace(url))
                     {
-                        if (url.StartsWith("/"))
+                        if (url.StartsWith('/'))
                         {
                             url = $"{baseUrl}{url}";
                             if (!string.IsNullOrWhiteSpace(conn.ApiKey) && !url.Contains("apikey=", StringComparison.OrdinalIgnoreCase))
@@ -531,7 +531,7 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
             return url;
         }
 
-        return url.StartsWith("/") ? $"https://artworks.thetvdb.com{url}" : $"https://artworks.thetvdb.com/{url}";
+        return url.StartsWith('/') ? $"https://artworks.thetvdb.com{url}" : $"https://artworks.thetvdb.com/{url}";
     }
 
     private static string ExtractNumericId(string rawId)

@@ -22,10 +22,7 @@ public class ConfigFileProvider : IConfigFileProvider
 
     public ConfigFileProvider(IAppFolderInfo appFolderInfo, IEventAggregator eventAggregator = null)
     {
-        if (appFolderInfo == null)
-        {
-            throw new ArgumentNullException(nameof(appFolderInfo));
-        }
+        ArgumentNullException.ThrowIfNull(appFolderInfo);
 
         this.eventAggregator = eventAggregator;
         this.configFile = Path.Combine(appFolderInfo.AppDataFolder, ConfigFileName);

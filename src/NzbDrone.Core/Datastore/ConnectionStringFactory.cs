@@ -20,10 +20,7 @@ public class ConnectionStringFactory : IConnectionStringFactory
 
     public ConnectionStringFactory(IAppFolderInfo appFolderInfo, IConfigFileProvider configFileProvider)
     {
-        if (appFolderInfo == null)
-        {
-            throw new ArgumentNullException(nameof(appFolderInfo));
-        }
+        ArgumentNullException.ThrowIfNull(appFolderInfo);
 
         this.configFileProvider = configFileProvider ?? throw new ArgumentNullException(nameof(configFileProvider));
 

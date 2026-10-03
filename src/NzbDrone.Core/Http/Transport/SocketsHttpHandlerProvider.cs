@@ -183,10 +183,7 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
     {
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
+        ArgumentNullException.ThrowIfNull(request);
 
         return await this.httpClient.SendAsync(request, cancellationToken);
     }

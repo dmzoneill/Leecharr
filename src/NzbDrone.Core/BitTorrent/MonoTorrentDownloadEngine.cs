@@ -713,7 +713,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 var proxyHost = this.configService.ProxyHost;
                 var proxyPort = this.configService.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType == "socks5" ? 1080 : 8080);
-                var formattedHost = proxyHost.Contains(':') && !proxyHost.StartsWith("[")
+                var formattedHost = proxyHost.Contains(':') && !proxyHost.StartsWith('[')
                     ? $"[{proxyHost}]"
                     : proxyHost;
                 var proxyUri = new Uri($"{proxyType}://{formattedHost}:{proxyPort}");
@@ -4907,7 +4907,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             string host;
             var port = 6881;
 
-            if (entry.StartsWith("[", StringComparison.Ordinal))
+            if (entry.StartsWith('['))
             {
                 var closingBracket = entry.IndexOf(']');
                 if (closingBracket > 0)
@@ -6017,7 +6017,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 var encodedBytes = fastResume.Encode();
                 using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
                 {
-                    await fs.WriteAsync(encodedBytes, 0, encodedBytes.Length).ConfigureAwait(false);
+                    await fs.WriteAsync(encodedBytes).ConfigureAwait(false);
                     await fs.FlushAsync().ConfigureAwait(false);
                     fs.Flush(flushToDisk: true);
                 }

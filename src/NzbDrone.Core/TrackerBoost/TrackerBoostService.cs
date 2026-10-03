@@ -817,7 +817,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 while ((line = await reader.ReadLineAsync()) != null)
                 {
                     var clean = line.Trim();
-                    if (string.IsNullOrWhiteSpace(clean) || clean.StartsWith("#"))
+                    if (string.IsNullOrWhiteSpace(clean) || clean.StartsWith('#'))
                     {
                         continue;
                     }

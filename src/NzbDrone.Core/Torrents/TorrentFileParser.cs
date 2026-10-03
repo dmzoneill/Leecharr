@@ -85,10 +85,7 @@ public class TorrentFileParser : ITorrentFileParser
 
     public ParsedTorrent Parse(Stream stream)
     {
-        if (stream == null)
-        {
-            throw new ArgumentNullException(nameof(stream));
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         using var memoryStream = new MemoryStream();
         stream.CopyTo(memoryStream);
@@ -97,10 +94,7 @@ public class TorrentFileParser : ITorrentFileParser
 
     public ParsedTorrent Parse(byte[] bytes)
     {
-        if (bytes == null)
-        {
-            throw new ArgumentNullException(nameof(bytes));
-        }
+        ArgumentNullException.ThrowIfNull(bytes);
 
         try
         {
@@ -131,8 +125,8 @@ public class TorrentFileParser : ITorrentFileParser
             }
 
             var isV2 = (info.ContainsKey("meta version") && (info["meta version"] as BNumber)?.Value == 2) ||
-                       info.ContainsKey("file tree") ||
-                       torrent.ContainsKey("piece layers");
+                info.ContainsKey("file tree") ||
+                torrent.ContainsKey("piece layers");
 
             var hasV1Pieces = false;
 
@@ -195,7 +189,7 @@ public class TorrentFileParser : ITorrentFileParser
                 CreatedBy = GetUtf8String(torrent, "created by")?.ToString(),
                 IsPrivate = info.ContainsKey("private") &&
                     (((info["private"] as BNumber)?.Value == 1) ||
-                     ((info["private"] as BString)?.ToString() == "1")),
+                        ((info["private"] as BString)?.ToString() == "1")),
                 AnnounceUrl = announceUrl,
                 AnnounceList = announceListParsed,
                 Files = new List<ParsedTorrentFile>(),
