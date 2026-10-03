@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.27](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.27) - 2026-10-03
+
+### 🔧 Maintenance & Improvements
+- ci: prune backend coverage exclusions and enforce typecheck in npm run lint
+
 ## [v2.0.26](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.26) - 2026-10-03
 
 ### 🐛 Bug Fixes
