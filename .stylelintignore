@@ -2,9 +2,7 @@ _output/
 _temp/
 _tests/
 node_modules/
-wwwroot/
-dist/
-build/
+**/wwwroot/**
+**/dist/**
+**/build/**
 *.min.css
-src/Leecharr.Frontend/
-src/Leecharr.Frontend/**
