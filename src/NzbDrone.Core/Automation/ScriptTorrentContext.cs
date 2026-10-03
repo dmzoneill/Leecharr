@@ -8,6 +8,8 @@ namespace NzbDrone.Core.Automation;
 
 public class ScriptTorrentContext
 {
+    private static readonly char[] PatternSeparators = [',', ';', ' '];
+
     private readonly Torrent _torrent;
     private readonly AutomationExecutionResult _result;
     private readonly List<string> _tagNames;
@@ -253,7 +255,7 @@ public class ScriptTorrentContext
     {
         if (!string.IsNullOrWhiteSpace(patterns))
         {
-            var parts = patterns.Split(new[] { ',', ';', ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            var parts = patterns.Split(PatternSeparators, System.StringSplitOptions.RemoveEmptyEntries);
             cleanUnwantedFiles(parts);
         }
     }

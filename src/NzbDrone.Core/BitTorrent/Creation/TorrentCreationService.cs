@@ -19,6 +19,7 @@ namespace NzbDrone.Core.BitTorrent.Creation;
 
 public class TorrentCreationService : ITorrentCreationService
 {
+    private static readonly char[] PathSeparators = ['/', '\\'];
     private static readonly string[] SensitiveDirectoriesUnix = new[]
     {
         "/etc",
@@ -339,7 +340,7 @@ public class TorrentCreationService : ITorrentCreationService
             return false;
         }
 
-        var segments = path.Split(new[] { '/', '\\' }, StringSplitOptions.None);
+        var segments = path.Split(PathSeparators, StringSplitOptions.None);
         foreach (var segment in segments)
         {
             var trimmed = segment.Trim();

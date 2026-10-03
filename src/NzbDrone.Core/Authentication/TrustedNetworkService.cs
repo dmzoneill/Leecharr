@@ -8,6 +8,8 @@ namespace NzbDrone.Core.Authentication;
 
 public class TrustedNetworkService : ITrustedNetworkService
 {
+    private static readonly char[] CidrSeparators = [',', ';', ' '];
+
     public bool IsAuthenticationBypassed(AuthenticationRequiredType requiredType, IPAddress remoteIp)
     {
         if (remoteIp == null)
@@ -109,7 +111,7 @@ public class TrustedNetworkService : ITrustedNetworkService
             remoteIp = remoteIp.MapToIPv4();
         }
 
-        var cidrList = configuredCidrs.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var cidrList = configuredCidrs.Split(CidrSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var cidr in cidrList)
         {
             var trimmed = cidr.Trim();

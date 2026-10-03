@@ -30,6 +30,9 @@ namespace NzbDrone.Core.BitTorrent;
 
 public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>, IHandle<NetworkBindingProviderSwitchedEvent>, IHandle<ConfigSavedEvent>
 {
+    private static readonly string[] TrackerFields = ["trackers"];
+    private static readonly string[] FileFields = ["files"];
+
     private readonly IConfigService configService;
     private readonly IStoragePathService storagePathService;
     private readonly ICategoryService categoryService;
@@ -625,7 +628,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                         var getResp = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
                         {
                             ["ids"] = rpcIds,
-                            ["fields"] = new[] { "trackers" },
+                            ["fields"] = TrackerFields,
                         });
 
                         if (getResp.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args && args.TryGetProperty("torrents", out var torrentsArray))
@@ -688,7 +691,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                         var getResp = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
                         {
                             ["ids"] = rpcIds,
-                            ["fields"] = new[] { "files" },
+                            ["fields"] = FileFields,
                         });
 
                         if (getResp.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args && args.TryGetProperty("torrents", out var torrentsArray))
