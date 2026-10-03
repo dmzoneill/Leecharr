@@ -11,6 +11,8 @@ namespace NzbDrone.Integration.Test;
 [TestFixture]
 public abstract class IntegrationTestBase
 {
+    protected static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     protected HttpClient Client => GlobalSetup.Factory.Client;
 
     protected string ApiKey => GlobalSetup.Factory.ApiKey;
@@ -26,7 +28,7 @@ public abstract class IntegrationTestBase
         var response = await this.Client.GetAsync(path);
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        return JsonSerializer.Deserialize<T>(json, CaseInsensitiveJsonOptions)!;
     }
 
     protected async Task<HttpResponseMessage> GetAsync(string path)
@@ -55,6 +57,6 @@ public abstract class IntegrationTestBase
 
     protected static T Deserialize<T>(string json)
     {
-        return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        return JsonSerializer.Deserialize<T>(json, CaseInsensitiveJsonOptions)!;
     }
 }

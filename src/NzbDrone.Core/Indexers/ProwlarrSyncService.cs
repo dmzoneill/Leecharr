@@ -74,6 +74,8 @@ public interface IProwlarrSyncService
 
 public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCommand>, IExecuteAsync<ProwlarrSyncCommand>
 {
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly IIndexerRepository repository;
     private readonly IArrConnectionRepository arrRepository;
     private readonly HttpClient httpClient;
@@ -298,7 +300,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 json = await response.Content.ReadAsStringAsync();
             }
 
-            var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexerDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexerDto>>(json, CaseInsensitiveJsonOptions);
 
             if (indexers == null || indexers.Count == 0)
             {

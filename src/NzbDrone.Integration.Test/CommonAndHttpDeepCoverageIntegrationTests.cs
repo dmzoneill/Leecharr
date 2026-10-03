@@ -1040,7 +1040,7 @@ public class CommonAndHttpDeepCoverageIntegrationTests : IntegrationTestBase
         // Deserialization round-trip
         var deserialized = JsonSerializer.Deserialize<DeepRestItemResource>(
             "{\"id\":999,\"title\":\"Roundtrip\"}",
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            CaseInsensitiveJsonOptions);
         deserialized.Should().NotBeNull();
         deserialized!.Id.Should().Be(999);
         deserialized.Title.Should().Be("Roundtrip");

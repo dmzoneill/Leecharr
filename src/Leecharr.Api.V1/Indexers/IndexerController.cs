@@ -26,6 +26,7 @@ namespace Leecharr.Api.V1.Indexers;
 public class IndexerController : Controller
 {
     private static readonly Regex MagnetBtihRegex = new(@"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly IIndexerRepository indexerRepository;
     private readonly ITorznabClient torznabClient;
@@ -660,7 +661,7 @@ public class IndexerController : Controller
                             {
                                 try
                                 {
-                                    var settings = JsonSerializer.Deserialize<IndexerSettings>(indexerDef.Settings, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                    var settings = JsonSerializer.Deserialize<IndexerSettings>(indexerDef.Settings, CaseInsensitiveJsonOptions);
                                     if (settings != null)
                                     {
                                         if (string.IsNullOrWhiteSpace(cookies) && !string.IsNullOrWhiteSpace(settings.Cookie))
@@ -967,7 +968,7 @@ public class IndexerController : Controller
                     {
                         try
                         {
-                            existingSettings = JsonSerializer.Deserialize<IndexerSettings>(indexer.Settings, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new IndexerSettings();
+                            existingSettings = JsonSerializer.Deserialize<IndexerSettings>(indexer.Settings, CaseInsensitiveJsonOptions) ?? new IndexerSettings();
                         }
                         catch (Exception ex)
                         {
@@ -1067,7 +1068,7 @@ public class IndexerController : Controller
         {
             try
             {
-                var settings = JsonSerializer.Deserialize<IndexerSettings>(model.Settings, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var settings = JsonSerializer.Deserialize<IndexerSettings>(model.Settings, CaseInsensitiveJsonOptions);
                 if (settings != null)
                 {
                     res.SupportsSearch = settings.SupportsSearch;

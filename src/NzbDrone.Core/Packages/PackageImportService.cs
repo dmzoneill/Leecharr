@@ -6,6 +6,7 @@ using System.Formats.Tar;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -19,6 +20,8 @@ public class PackageImportService : IPackageImportService
 {
     private const int BufferSize = 65536; // 64 KiB
     private const long DefaultMaxUncompressedBytes = 50L * 1024 * 1024 * 1024; // 50 GB
+
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -134,7 +137,7 @@ public class PackageImportService : IPackageImportService
                         using var ms = new MemoryStream();
                         await entry.DataStream.CopyToAsync(ms, cancellationToken);
                         var json = Encoding.UTF8.GetString(ms.ToArray());
-                        manifest = System.Text.Json.JsonSerializer.Deserialize<PackageManifest>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        manifest = JsonSerializer.Deserialize<PackageManifest>(json, CaseInsensitiveJsonOptions);
                         continue;
                     }
 
