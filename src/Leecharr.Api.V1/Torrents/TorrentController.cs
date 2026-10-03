@@ -216,6 +216,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly ISubtitleConversionService subtitleConversionService;
     private readonly ITorrentRepository torrentRepository;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly string[] TagFormKeys = ["tags", "tags[]", "tagIds", "tagIds[]"];
+    private static readonly char[] TagSeparators = [',', ';'];
 
     public TorrentController(
         ITorrentService torrentService,
@@ -1564,7 +1566,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (this.Request?.HasFormContentType == true)
         {
-            foreach (var key in new[] { "tags", "tags[]", "tagIds", "tagIds[]" })
+            foreach (var key in TagFormKeys)
             {
                 if (this.Request.Form.ContainsKey(key))
                 {
@@ -1575,7 +1577,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                             continue;
                         }
 
-                        foreach (var part in val.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var part in val.Split(TagSeparators, StringSplitOptions.RemoveEmptyEntries))
                         {
                             if (int.TryParse(part.Trim(), out var parsedId))
                             {

@@ -35,6 +35,9 @@ public class SystemDeveloperController : Controller
         "RequiresDiskAccess", "IsLongRunning", "LastExecutionTime",
     };
 
+    private static readonly string[] SampleSyncedIndexers = ["1337x", "EZTV", "Nyaa", "TorrentGalaxy"];
+    private static readonly string[] SampleNtfyTags = ["arrow_down", "package"];
+
     private static readonly HashSet<string> SensitiveKeySubstrings = new(StringComparer.OrdinalIgnoreCase)
     {
         "key", "password", "secret", "token", "credential", "auth", "hash",
@@ -687,7 +690,7 @@ public class SystemDeveloperController : Controller
                     eventType = "AppSync",
                     client = "Leecharr",
                     syncAction = "UpdateTrackers",
-                    syncedIndexers = new[] { "1337x", "EZTV", "Nyaa", "TorrentGalaxy" },
+                    syncedIndexers = SampleSyncedIndexers,
                     totalIndexers = 4,
                 }, new JsonSerializerOptions { WriteIndented = true }),
             },
@@ -859,7 +862,7 @@ public class SystemDeveloperController : Controller
                     title = "Download Complete: Arch Linux ISO",
                     message = "Torrent archlinux-2026.09.01-x86_64.iso finished downloading.",
                     priority = 3,
-                    tags = new[] { "arrow_down", "package" },
+                    tags = SampleNtfyTags,
                 }, new JsonSerializerOptions { WriteIndented = true }),
             },
             new()
