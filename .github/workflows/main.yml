@@ -37,7 +37,7 @@ jobs:
       VALIDATE_JSCPD: "false"
       VALIDATE_BIOME_FORMAT: "false"
       VALIDATE_BIOME_LINT: "false"
-      VALIDATE_GITHUB_ACTIONS_ZIZMOR: "false"
+      VALIDATE_GITHUB_ACTIONS_ZIZMOR: "true"
       VALIDATE_TSX: "false"
       VALIDATE_TYPESCRIPT_ES: "false"
       VALIDATE_MARKDOWN: "true"
