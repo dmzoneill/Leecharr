@@ -46,6 +46,7 @@ public class UTorrentWebUiController : ControllerBase
         "queuebottom",
         "setsetting",
     };
+    private static readonly char[] HashSeparators = [',', '|'];
 
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
@@ -186,7 +187,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "forcestart":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -202,7 +203,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "pause":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -217,7 +218,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "remove":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -233,7 +234,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "removedatatorrent":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -248,7 +249,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "recheck":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        foreach (var h in effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (var h in effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries))
                         {
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
@@ -465,7 +466,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "queueup":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var hashes = effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        var hashes = effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries);
                         var torrents = hashes
                             .Select(h => this.torrentService.GetByInfoHash(h.Trim()))
                             .Where(t => t != null)
@@ -482,7 +483,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "queuedown":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var hashes = effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        var hashes = effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries);
                         var torrents = hashes
                             .Select(h => this.torrentService.GetByInfoHash(h.Trim()))
                             .Where(t => t != null)
@@ -499,7 +500,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "queuetop":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var hashes = effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        var hashes = effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries);
                         var torrents = hashes
                             .Select(h => this.torrentService.GetByInfoHash(h.Trim()))
                             .Where(t => t != null)
@@ -515,7 +516,7 @@ public class UTorrentWebUiController : ControllerBase
                 case "queuebottom":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
-                        var hashes = effHash.Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        var hashes = effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries);
                         var torrents = hashes
                             .Select(h => this.torrentService.GetByInfoHash(h.Trim()))
                             .Where(t => t != null)
