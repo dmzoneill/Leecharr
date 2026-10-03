@@ -71,7 +71,7 @@ public class IdentityProviderService : IIdentityProviderService
             var targetUrl = provider.ProviderType switch
             {
                 IdentityProviderType.Oidc => !string.IsNullOrEmpty(provider.IssuerUrl)
-                    ? (provider.IssuerUrl.EndsWith("/") ? provider.IssuerUrl + ".well-known/openid-configuration" : provider.IssuerUrl + "/.well-known/openid-configuration")
+                    ? (provider.IssuerUrl.EndsWith('/') ? provider.IssuerUrl + ".well-known/openid-configuration" : provider.IssuerUrl + "/.well-known/openid-configuration")
                     : null,
                 IdentityProviderType.Saml => provider.MetadataUrl,
                 _ => provider.IssuerUrl,

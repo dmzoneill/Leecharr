@@ -89,10 +89,7 @@ public class TorrentOrganizerService
             throw new ArgumentException("Destination root cannot be empty.", nameof(destinationRoot));
         }
 
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        ArgumentNullException.ThrowIfNull(context);
 
         var seriesFolder = this.fileNameBuilder.BuildSeriesDirectory(context, namingConfig: this.namingConfig);
         var seasonFolder = this.fileNameBuilder.BuildSeasonDirectory(context, namingConfig: this.namingConfig);
@@ -122,10 +119,7 @@ public class TorrentOrganizerService
             throw new ArgumentException("Destination root cannot be empty.", nameof(destinationRoot));
         }
 
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        ArgumentNullException.ThrowIfNull(context);
 
         var movieFolder = this.fileNameBuilder.BuildMovieDirectory(context, namingConfig: this.namingConfig);
         var fileName = this.fileNameBuilder.BuildFileName(context, namingConfig: this.namingConfig);

@@ -741,14 +741,14 @@ public class WebhookDispatcher : IWebhookDispatcher
             content = new FormUrlEncodedContent(formPairs);
         }
         else if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
-                 payload is IDictionary<string, string> stringDict)
+            payload is IDictionary<string, string> stringDict)
         {
             content = new FormUrlEncodedContent(stringDict);
         }
         else if (payload is string strPayload)
         {
             var trimmed = strPayload.TrimStart();
-            var mediaType = (trimmed.StartsWith("{") || trimmed.StartsWith("["))
+            var mediaType = (trimmed.StartsWith('{') || trimmed.StartsWith('['))
                 ? "application/json"
                 : "text/plain";
             content = new StringContent(strPayload, Encoding.UTF8, mediaType);
@@ -779,7 +779,7 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         var trimmed = customHeadersJson.Trim();
 
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -818,7 +818,7 @@ public class WebhookDispatcher : IWebhookDispatcher
             foreach (var line in lines)
             {
                 var cleanLine = line.Trim();
-                if (string.IsNullOrWhiteSpace(cleanLine) || cleanLine.StartsWith("#") || cleanLine.StartsWith("//"))
+                if (string.IsNullOrWhiteSpace(cleanLine) || cleanLine.StartsWith('#') || cleanLine.StartsWith("//"))
                 {
                     continue;
                 }
@@ -836,7 +836,7 @@ public class WebhookDispatcher : IWebhookDispatcher
                 }
             }
 
-            if (!addedAny && !trimmed.StartsWith("{"))
+            if (!addedAny && !trimmed.StartsWith('{'))
             {
                 this.logger.Warn("Could not parse custom headers from input (header keys: {0})", RedactHeadersForLogging(customHeadersJson));
             }

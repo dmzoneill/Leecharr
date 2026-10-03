@@ -75,10 +75,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
     public void BindSocket(Socket socket, string interfaceName, int localPort = 0)
     {
-        if (socket == null)
-        {
-            throw new ArgumentNullException(nameof(socket));
-        }
+        ArgumentNullException.ThrowIfNull(socket);
 
         this.logger.Debug("Proxy tunnel provider active: socket outbound traffic will be proxied via {0}:{1}", this.configService?.ProxyHost, this.configService?.ProxyPort);
     }
@@ -265,7 +262,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             ? new byte[] { 0x05, 0x02, 0x00, 0x02 }
             : new byte[] { 0x05, 0x01, 0x00 };
 
-        await stream.WriteAsync(greeting, 0, greeting.Length, cancellationToken);
+        await stream.WriteAsync(greeting, cancellationToken);
         await stream.FlushAsync(cancellationToken);
 
         // Read 2 bytes response: [0x05, selected_method]
@@ -304,7 +301,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             authPayload[2 + userLen] = (byte)passLen;
             Buffer.BlockCopy(passBytes, 0, authPayload, 3 + userLen, passLen);
 
-            await stream.WriteAsync(authPayload, 0, authPayload.Length, cancellationToken);
+            await stream.WriteAsync(authPayload, cancellationToken);
             await stream.FlushAsync(cancellationToken);
 
             var authResponse = new byte[2];
@@ -356,7 +353,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         ms.WriteByte((byte)(targetPort & 0xFF));
 
         var connectPayload = ms.ToArray();
-        await stream.WriteAsync(connectPayload, 0, connectPayload.Length, cancellationToken);
+        await stream.WriteAsync(connectPayload, cancellationToken);
         await stream.FlushAsync(cancellationToken);
 
         // Read response: [0x05, REP, RSV, ATYP, BND.ADDR, BND.PORT]
@@ -421,7 +418,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         sb.Append("\r\n");
 
         var requestBytes = Encoding.ASCII.GetBytes(sb.ToString());
-        await stream.WriteAsync(requestBytes, 0, requestBytes.Length, cancellationToken);
+        await stream.WriteAsync(requestBytes, cancellationToken);
         await stream.FlushAsync(cancellationToken);
 
         // Read response headers up to \r\n\r\n
@@ -431,7 +428,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
         while (headerBytes.Count < 8192)
         {
-            var read = await stream.ReadAsync(buffer, 0, 1, cancellationToken);
+            var read = await stream.ReadAsync(buffer, cancellationToken);
             if (read == 0)
             {
                 throw new IOException("HTTP CONNECT proxy closed connection during handshake");
@@ -471,7 +468,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         var totalRead = 0;
         while (totalRead < count)
         {
-            var read = await stream.ReadAsync(buffer, offset + totalRead, count - totalRead, cancellationToken);
+            var read = await stream.ReadAsync(buffer.AsMemory(offset + totalRead, count - totalRead), cancellationToken);
             if (read == 0)
             {
                 throw new EndOfStreamException("Proxy closed the connection unexpectedly.");
@@ -488,13 +485,13 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             return string.Empty;
         }
 
-        if (targetHost.StartsWith("[", StringComparison.Ordinal) && targetHost.EndsWith("]", StringComparison.Ordinal))
+        if (targetHost.StartsWith('[') && targetHost.EndsWith(']'))
         {
             return targetHost;
         }
 
         if ((IPAddress.TryParse(targetHost, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6) ||
-            (targetHost.Contains(':') && !targetHost.StartsWith("[", StringComparison.Ordinal)))
+            (targetHost.Contains(':') && !targetHost.StartsWith('[')))
         {
             return $"[{targetHost}]";
         }
@@ -656,7 +653,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         }
 
         var connectPayload = ms.ToArray();
-        await stream.WriteAsync(connectPayload, 0, connectPayload.Length, cancellationToken);
+        await stream.WriteAsync(connectPayload, cancellationToken);
         await stream.FlushAsync(cancellationToken);
 
         // Read SOCKS4 reply: 8 bytes

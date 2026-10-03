@@ -214,10 +214,7 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
 
     private async Task<HttpResponseMessage> SendInternalAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
+        ArgumentNullException.ThrowIfNull(request);
 
         if (this.vpnKillSwitchService?.IsFailClosedActive == true)
         {

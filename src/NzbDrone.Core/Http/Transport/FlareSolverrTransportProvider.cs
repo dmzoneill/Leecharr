@@ -234,10 +234,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
     {
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
+        ArgumentNullException.ThrowIfNull(request);
 
         var endpoint = !string.IsNullOrWhiteSpace(this.configService?.GetValue("FlareSolverrUrl", string.Empty))
             ? this.configService.GetValue("FlareSolverrUrl", this.FlareSolverrUrl)

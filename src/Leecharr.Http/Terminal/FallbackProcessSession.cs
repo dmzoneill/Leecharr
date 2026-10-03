@@ -174,7 +174,7 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
                 if (bytesRead <= 0)
                 {
                     break;
