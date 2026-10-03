@@ -123,13 +123,13 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         }
 
         group.SendAsync("receiveMessage", message, this.cancellationTokenSource?.Token ?? CancellationToken.None)
-            ?.ContinueWith(t => this.logger.Warn(t.Exception, "SignalR group broadcast failed"), TaskContinuationOptions.OnlyOnFaulted);
+            ?.ContinueWith(t => this.logger.Warn(t.Exception, "SignalR group broadcast failed"), CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
 
         var events = GetNamedEvents(message);
         foreach (var ev in events)
         {
             group.SendAsync(ev, message.Body, this.cancellationTokenSource?.Token ?? CancellationToken.None)
-                ?.ContinueWith(t => this.logger.Warn(t.Exception, "SignalR group named event broadcast failed"), TaskContinuationOptions.OnlyOnFaulted);
+                ?.ContinueWith(t => this.logger.Warn(t.Exception, "SignalR group named event broadcast failed"), CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
         }
     }
 
