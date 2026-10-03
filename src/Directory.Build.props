@@ -71,6 +71,7 @@
   </ItemGroup>
 
   <PropertyGroup Condition="'$(TestProject)'=='true'">
+    <NoWarn>$(NoWarn);CA1861;CA1806</NoWarn>
     <RunSettingsFilePath Condition="Exists('$(LeecharrRootDir).runsettings')">$(LeecharrRootDir).runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
