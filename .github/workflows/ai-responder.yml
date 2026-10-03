@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Setup Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -36,11 +36,11 @@ jobs:
         run: echo "$GOOGLE_CREDS" > /tmp/gcloud-credentials.json
 
       - name: Install Python dependencies
-        run: "pip install --only-binary :all: requests==2.32.3"
+        run: pip install requests
 
       - name: Download AI responder script
         run: |
-          curl --proto '=https' --tlsv1.2 -sSL "https://raw.githubusercontent.com/dmzoneill/dmzoneill/main/ai-responder.py" -o ai-responder.py
+          curl -sSL "https://raw.githubusercontent.com/dmzoneill/dmzoneill/main/ai-responder.py" -o ai-responder.py
           chmod +x ai-responder.py
 
       - name: Run AI responder
