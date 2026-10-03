@@ -48,6 +48,7 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
         @"(?i)\b(forced|forc[eé]e?)\b",
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
+    private static readonly char[] TokenSeparators = ['.', '_', '-', ' '];
 
     private static readonly Regex SdhRegex = new(
         @"(?i)\b(sdh|cc|hearing[\s._-]*impaired)\b",
@@ -255,7 +256,7 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
         // Strip leading track numbers like "2_" or "01 - "
         rawTokens = TrackIndexPrefixRegex.Replace(rawTokens, string.Empty).Trim();
 
-        var tokens = rawTokens.Split(new[] { '.', '_', '-', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var tokens = rawTokens.Split(TokenSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         string languageCode = null;
         string twoLetter = null;
