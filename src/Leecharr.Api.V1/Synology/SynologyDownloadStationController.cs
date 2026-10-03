@@ -19,7 +19,7 @@ namespace Leecharr.Api.V1.Synology;
 [ApiController]
 public class SynologyDownloadStationController : ControllerBase
 {
-    private static readonly RpcSessionStore authenticatedSessions = new();
+    private static readonly RpcSessionStore AuthenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ICategoryService categoryService;
@@ -62,7 +62,7 @@ public class SynologyDownloadStationController : ControllerBase
             sid = this.Request.Cookies["id"];
         }
 
-        if (!string.IsNullOrEmpty(sid) && authenticatedSessions.IsValid(sid))
+        if (!string.IsNullOrEmpty(sid) && AuthenticatedSessions.IsValid(sid))
         {
             return true;
         }
@@ -116,7 +116,7 @@ public class SynologyDownloadStationController : ControllerBase
         }
 
         var sessionToken = Guid.NewGuid().ToString("N");
-        authenticatedSessions.SetSession(sessionToken, DateTime.UtcNow.AddDays(7));
+        AuthenticatedSessions.SetSession(sessionToken, DateTime.UtcNow.AddDays(7));
 
         return this.Ok(new
         {
