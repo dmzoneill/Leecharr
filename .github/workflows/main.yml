@@ -46,7 +46,7 @@ jobs:
       VALIDATE_EDITORCONFIG: "true"
       VALIDATE_BASH: "true"
       VALIDATE_SHELL_SHFMT: "true"
-      VALIDATE_CSS: "false"
+      VALIDATE_CSS: "true"
       VALIDATE_GITLEAKS: "true"
       VALIDATE_JAVASCRIPT_ES: "false"
       VALIDATE_JSON: "true"

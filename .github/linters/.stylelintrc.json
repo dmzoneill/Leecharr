@@ -5,7 +5,14 @@
     "alpha-value-notation": null,
     "no-duplicate-selectors": true,
     "no-descending-specificity": null,
-    "declaration-block-no-duplicate-properties": true,
+    "declaration-block-no-duplicate-properties": [
+      true,
+      {
+        "ignore": [
+          "consecutive-duplicates-with-different-values"
+        ]
+      }
+    ],
     "declaration-block-no-redundant-longhand-properties": null
   }
 }
