@@ -45,6 +45,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
     private readonly SemaphoreSlim extractionSemaphore;
     private readonly CancellationTokenSource shutdownCts = new();
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly char[] PasswordSeparators = [',', ';', '\n', '\r'];
 
     public SemaphoreSlim ConcurrencySemaphore => this.extractionSemaphore;
 
@@ -107,7 +108,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             IReadOnlyList<string> candidatePasswords = null;
             if (!string.IsNullOrWhiteSpace(passwordsStr))
             {
-                candidatePasswords = passwordsStr.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                candidatePasswords = passwordsStr.Split(PasswordSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             }
 
             foreach (var file in files)

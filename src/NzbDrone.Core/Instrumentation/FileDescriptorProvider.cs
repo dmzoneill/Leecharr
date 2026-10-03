@@ -14,6 +14,7 @@ namespace NzbDrone.Core.Instrumentation;
 /// </summary>
 public class FileDescriptorProvider : IFileDescriptorProvider
 {
+    private static readonly char[] WhitespaceSeparators = [' ', '\t'];
     private readonly Logger logger;
     private readonly string procFdPath;
     private readonly string procLimitsPath;
@@ -75,7 +76,7 @@ public class FileDescriptorProvider : IFileDescriptorProvider
                     if (line.StartsWith("Max open files", StringComparison.OrdinalIgnoreCase))
                     {
                         var remainder = line.Substring("Max open files".Length).Trim();
-                        var parts = remainder.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        var parts = remainder.Split(WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries);
 
                         if (parts.Length > 0)
                         {

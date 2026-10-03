@@ -38,6 +38,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     private readonly IVpnKillSwitchService vpnKillSwitchService;
     private readonly Logger logger;
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
+    private static readonly string[] FallbackPythonCandidates = ["python3", "python", "/usr/bin/python3", "/usr/local/bin/python3"];
 
     private readonly ConcurrentDictionary<int, LibTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
@@ -1216,7 +1217,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             }
         }
 
-        var candidates = venvCandidates.Concat(new[] { "python3", "python", "/usr/bin/python3", "/usr/local/bin/python3" });
+        var candidates = venvCandidates.Concat(FallbackPythonCandidates);
         foreach (var c in candidates)
         {
             try
