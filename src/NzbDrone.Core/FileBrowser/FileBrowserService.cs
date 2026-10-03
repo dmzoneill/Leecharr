@@ -447,7 +447,7 @@ public class FileBrowserService : IFileBrowserService
             return this.GetDefaultPath();
         }
 
-        if (path.IndexOf('\0') >= 0)
+        if (path.Contains('\0'))
         {
             throw new ArgumentException("Path contains invalid characters.", nameof(path));
         }

@@ -136,7 +136,7 @@ public class TorrentFileParserComprehensiveIntegrationTests : IntegrationTestBas
     public void TorrentFileParser_CorruptedAndInvalidBytes_ThrowsValidationException()
     {
         // 1. Empty bytes
-        Action actEmpty = () => this.parser.Parse(Array.Empty<byte>());
+        Action actEmpty = () => this.parser.Parse(System.Array.Empty<byte>());
         actEmpty.Should().Throw<InvalidTorrentFileException>();
 
         // 2. Corrupted / incomplete bencode

@@ -491,7 +491,7 @@ public class TransmissionRpcTests : IntegrationTestBase
                 arguments = new Dictionary<string, object>
                 {
                     ["ids"] = new[] { torrentId },
-                    ["labels"] = new string[0],
+                    ["labels"] = System.Array.Empty<string>(),
                 },
                 tag = 105,
             });

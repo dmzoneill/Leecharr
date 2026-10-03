@@ -76,7 +76,7 @@ public class QBittorrentComprehensiveIntegrationTests : IntegrationTestBase
         var speedModeResp = await this.GetAsync("/api/v2/transfer/speedLimitsMode");
         speedModeResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var toggleModeResp = await this.Client.PostAsync("/api/v2/transfer/toggleSpeedLimitsMode", new FormUrlEncodedContent(new KeyValuePair<string, string>[0]));
+        var toggleModeResp = await this.Client.PostAsync("/api/v2/transfer/toggleSpeedLimitsMode", new FormUrlEncodedContent(System.Array.Empty<KeyValuePair<string, string>>()));
         toggleModeResp.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 

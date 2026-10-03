@@ -191,7 +191,7 @@ public class TorrentControllerNegativeBranchIntegrationTests : IntegrationTestBa
     {
         var response = await this.PutJsonAsync(
             $"/api/v1/torrents/{this.existingTorrentId}/files/priorities",
-            new { files = Array.Empty<object>() });
+            new { files = System.Array.Empty<object>() });
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
@@ -211,7 +211,7 @@ public class TorrentControllerNegativeBranchIntegrationTests : IntegrationTestBa
     {
         var response = await this.PostJsonAsync("/api/v1/torrents/bulk", new
         {
-            torrentIds = Array.Empty<int>(),
+            torrentIds = System.Array.Empty<int>(),
             action = "pause",
         });
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -370,7 +370,7 @@ public class TorrentControllerNegativeBranchIntegrationTests : IntegrationTestBa
         var rpcBody = new
         {
             method = "daemon.non_existent_method_xyz",
-            @params = Array.Empty<object>(),
+            @params = System.Array.Empty<object>(),
             id = 1234,
         };
 

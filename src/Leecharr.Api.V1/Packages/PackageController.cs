@@ -155,7 +155,11 @@ public class PackageController : Controller
             return this.StatusCode(StatusCodes.Status501NotImplemented, new { message = "Package import service is not available." });
         }
 
-        var archiveFile = file ?? this.Request?.Form?.Files?.FirstOrDefault();
+        var archiveFile = file;
+        if (archiveFile == null && this.Request?.HasFormContentType == true && this.Request.Form.Files.Count > 0)
+        {
+            archiveFile = this.Request.Form.Files[0];
+        }
         if (archiveFile == null || archiveFile.Length == 0)
         {
             return this.BadRequest(new { message = "No package archive file provided." });

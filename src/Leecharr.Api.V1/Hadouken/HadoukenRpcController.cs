@@ -411,7 +411,7 @@ public class HadoukenRpcController : ControllerBase
                         }
                     }
 
-                    return this.Ok(new { result = new object[] { }, error = (object)null, id });
+                    return this.Ok(new { result = Array.Empty<object>(), error = (object)null, id });
 
                 case "core.getversion":
                 case "hadouken.getversion":
