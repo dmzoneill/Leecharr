@@ -348,7 +348,7 @@ public class EmbeddedTrackerController : ControllerBase
                     var closeBracket = ipStr.IndexOf(']');
                     if (closeBracket > 0)
                     {
-                        if (closeBracket + 2 < ipStr.Length && ipStr[closeBracket + 1] == ':' && int.TryParse(ipStr.Substring(closeBracket + 2), out var p))
+                        if (closeBracket + 2 < ipStr.Length && ipStr[closeBracket + 1] == ':' && int.TryParse(ipStr.AsSpan(closeBracket + 2), out var p))
                         {
                             explicitPort = p;
                         }
