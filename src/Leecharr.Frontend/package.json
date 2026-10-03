@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node scripts/file-manager-icons.js && webpack serve --mode development",
     "build": "node scripts/file-manager-icons.js && webpack --mode production",
-    "lint": "eslint src/ && npm run lint:i18n",
+    "lint": "eslint src/ && npm run lint:i18n && npm run typecheck",
     "lint:i18n": "node scripts/lint-i18n.js",
     "sync:i18n": "node scripts/sync-i18n.js",
     "typecheck": "tsc --noEmit",
