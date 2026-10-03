@@ -78,7 +78,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
     public TorrentEngineCapabilities GetCapabilitiesForVersion(string version)
     {
-        var isV2 = !string.IsNullOrWhiteSpace(version) && (version.StartsWith("2.") || version.StartsWith("2"));
+        var isV2 = !string.IsNullOrWhiteSpace(version) && (version.StartsWith("2.") || version.StartsWith('2'));
         return new TorrentEngineCapabilities
         {
             SupportsUtp = true,

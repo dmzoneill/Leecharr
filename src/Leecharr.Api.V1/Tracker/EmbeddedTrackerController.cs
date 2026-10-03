@@ -343,7 +343,7 @@ public class EmbeddedTrackerController : ControllerBase
                 var unescapedVal = Uri.UnescapeDataString(val);
                 var ipStr = unescapedVal;
                 int? explicitPort = null;
-                if (ipStr.StartsWith("[", StringComparison.Ordinal))
+                if (ipStr.StartsWith('['))
                 {
                     var closeBracket = ipStr.IndexOf(']');
                     if (closeBracket > 0)

@@ -153,7 +153,7 @@ public class ProxyTunnelBindingProviderTest
 
             // Send 200 Connection established
             var response = Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
-            await stream.WriteAsync(response, 0, response.Length);
+            await stream.WriteAsync(response);
 
             // Now proxy payload data
             var dataBuf = new byte[4];
@@ -208,7 +208,7 @@ public class ProxyTunnelBindingProviderTest
 
             // Send 200 with multi-line headers followed immediately by backend stream data
             var response = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nProxy-Agent: TinyProxy/1.11.0\r\nConnection: keep-alive\r\n\r\nHELO");
-            await stream.WriteAsync(response, 0, response.Length);
+            await stream.WriteAsync(response);
         });
 
         try
@@ -270,7 +270,7 @@ public class ProxyTunnelBindingProviderTest
             resp[5 + bndDomain.Length] = 0x04;
             resp[6 + bndDomain.Length] = 0xD2;
 
-            await stream.WriteAsync(resp, 0, resp.Length);
+            await stream.WriteAsync(resp);
 
             var dataBuf = new byte[4];
             await stream.ReadExactlyAsync(dataBuf, 0, 4);
@@ -322,7 +322,7 @@ public class ProxyTunnelBindingProviderTest
             // Send > 8192 bytes of headers without terminating \r\n\r\n delimiter
             var giantHeader = "HTTP/1.1 200 OK\r\nX-Debug-Data: " + new string('A', 8500);
             var response = Encoding.ASCII.GetBytes(giantHeader);
-            await stream.WriteAsync(response, 0, response.Length);
+            await stream.WriteAsync(response);
         });
 
         try
@@ -407,7 +407,7 @@ public class ProxyTunnelBindingProviderTest
 
             // Send 403 Forbidden
             var response = Encoding.ASCII.GetBytes("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
-            await stream.WriteAsync(response, 0, response.Length);
+            await stream.WriteAsync(response);
         });
 
         try
@@ -456,7 +456,7 @@ public class ProxyTunnelBindingProviderTest
 
             // Send 200 Connection established
             var response = Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
-            await stream.WriteAsync(response, 0, response.Length);
+            await stream.WriteAsync(response);
 
             // Send payload data
             await stream.WriteAsync(Encoding.ASCII.GetBytes("PONG"));

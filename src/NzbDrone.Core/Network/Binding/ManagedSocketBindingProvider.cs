@@ -61,10 +61,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
 
     public void BindSocket(Socket socket, string interfaceName, int localPort = 0)
     {
-        if (socket == null)
-        {
-            throw new ArgumentNullException(nameof(socket));
-        }
+        ArgumentNullException.ThrowIfNull(socket);
 
         if (string.IsNullOrWhiteSpace(interfaceName) ||
             string.Equals(interfaceName, "Any", StringComparison.OrdinalIgnoreCase) ||
@@ -99,7 +96,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
             return nic != null && nic.OperationalStatus == OperationalStatus.Up;
         }
@@ -116,8 +113,8 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n => (string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                                      string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase)) &&
-                                     n.OperationalStatus == OperationalStatus.Up);
+                    string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase)) &&
+                    n.OperationalStatus == OperationalStatus.Up);
 
             if (nic == null)
             {

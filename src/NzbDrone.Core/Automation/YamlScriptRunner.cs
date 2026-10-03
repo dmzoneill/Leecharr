@@ -820,7 +820,7 @@ public class YamlScriptRunner : IScriptRunner
                             var tags = SubstituteVariables(ntfyDict.TryGetValue("tags", out var tgValNtfy) ? tgValNtfy?.ToString() ?? string.Empty : string.Empty, variableContext);
                             if (!string.IsNullOrEmpty(topic) && !string.IsNullOrEmpty(msg))
                             {
-                                var reqUrl = url.EndsWith("/") ? $"{url}{topic}" : $"{url}/{topic}";
+                                var reqUrl = url.EndsWith('/') ? $"{url}{topic}" : $"{url}/{topic}";
                                 var headers = new Dictionary<string, object>();
                                 if (!string.IsNullOrEmpty(title))
                                 {
