@@ -19,6 +19,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
     private readonly IConfigService configService;
     private readonly IBlocklistService blocklistService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly string[] CrlfSeparators = ["\r\n"];
 
     public INetworkBindingService NetworkBindingService { get; set; }
 
@@ -457,7 +458,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         if (!responseText.StartsWith("HTTP/1.1 200", StringComparison.OrdinalIgnoreCase) &&
             !responseText.StartsWith("HTTP/1.0 200", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException($"HTTP CONNECT proxy returned non-200 status: {responseText.Split(new[] { "\r\n" }, StringSplitOptions.None)[0]}");
+            throw new InvalidOperationException($"HTTP CONNECT proxy returned non-200 status: {responseText.Split(CrlfSeparators, StringSplitOptions.None)[0]}");
         }
 
         this.logger.Debug("HTTP CONNECT tunnel established successfully to {0}:{1}", targetHost, targetPort);
