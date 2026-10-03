@@ -11,6 +11,7 @@ namespace Leecharr.Http.Security;
 
 public class HostHeaderValidationMiddleware
 {
+    private static readonly char[] HostSeparators = [',', ';', ' '];
     private readonly RequestDelegate next;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -62,7 +63,7 @@ public class HostHeaderValidationMiddleware
         // Check configured allowed hosts
         if (!string.IsNullOrWhiteSpace(allowedHostsConfig))
         {
-            var allowed = allowedHostsConfig.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var allowed = allowedHostsConfig.Split(HostSeparators, StringSplitOptions.RemoveEmptyEntries);
             foreach (var pattern in allowed)
             {
                 var trimmedPattern = pattern.Trim();
