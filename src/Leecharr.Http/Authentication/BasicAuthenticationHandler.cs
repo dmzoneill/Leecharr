@@ -56,7 +56,7 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!this.Request.Headers.ContainsKey("Authorization"))
+        if (!this.Request.Headers.TryGetValue("Authorization", out var authHeaderValues))
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
@@ -65,7 +65,7 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
 
         try
         {
-            var authHeader = AuthenticationHeaderValue.Parse(this.Request.Headers["Authorization"]);
+            var authHeader = AuthenticationHeaderValue.Parse(authHeaderValues);
             if (!string.Equals(authHeader.Scheme, "Basic", StringComparison.OrdinalIgnoreCase))
             {
                 return Task.FromResult(AuthenticateResult.NoResult());
