@@ -335,7 +335,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             {
                 if (SafeGetBoolean(dlLimitEnabled))
                 {
-                    if (!updates.ContainsKey("MaxDownloadSpeedKbps") || (int)updates["MaxDownloadSpeedKbps"] <= 0)
+                    if (!updates.TryGetValue("MaxDownloadSpeedKbps", out var maxDlObj) || (int)maxDlObj <= 0)
                     {
                         var restored = this.configService.GetValueInt("SavedMaxDownloadSpeedKbps", 0);
                         if (restored <= 0)
@@ -353,8 +353,8 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 }
                 else
                 {
-                    var current = updates.ContainsKey("MaxDownloadSpeedKbps")
-                        ? (int)updates["MaxDownloadSpeedKbps"]
+                    var current = updates.TryGetValue("MaxDownloadSpeedKbps", out var maxDlVal)
+                        ? (int)maxDlVal
                         : this.configService.MaxDownloadSpeedKbps;
                     if (current > 0)
                     {
@@ -379,7 +379,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             {
                 if (SafeGetBoolean(upLimitEnabled))
                 {
-                    if (!updates.ContainsKey("MaxUploadSpeedKbps") || (int)updates["MaxUploadSpeedKbps"] <= 0)
+                    if (!updates.TryGetValue("MaxUploadSpeedKbps", out var maxUlObj) || (int)maxUlObj <= 0)
                     {
                         var restored = this.configService.GetValueInt("SavedMaxUploadSpeedKbps", 0);
                         if (restored <= 0)
@@ -397,8 +397,8 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 }
                 else
                 {
-                    var current = updates.ContainsKey("MaxUploadSpeedKbps")
-                        ? (int)updates["MaxUploadSpeedKbps"]
+                    var current = updates.TryGetValue("MaxUploadSpeedKbps", out var maxUlVal)
+                        ? (int)maxUlVal
                         : this.configService.MaxUploadSpeedKbps;
                     if (current > 0)
                     {
@@ -423,7 +423,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             {
                 if (SafeGetBoolean(seedRatioLimited))
                 {
-                    if (!updates.ContainsKey("GlobalSeedRatioLimit") || (double)updates["GlobalSeedRatioLimit"] <= 0.0)
+                    if (!updates.TryGetValue("GlobalSeedRatioLimit", out var seedRatioObj) || (double)seedRatioObj <= 0.0)
                     {
                         var restored = this.configService.GetValueDouble("SavedGlobalSeedRatioLimit", 0.0);
                         if (restored <= 0.0)
@@ -441,8 +441,8 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 }
                 else
                 {
-                    var current = updates.ContainsKey("GlobalSeedRatioLimit")
-                        ? (double)updates["GlobalSeedRatioLimit"]
+                    var current = updates.TryGetValue("GlobalSeedRatioLimit", out var seedRatioVal)
+                        ? (double)seedRatioVal
                         : this.configService.GlobalSeedRatioLimit;
                     if (current > 0.0)
                     {
@@ -515,17 +515,17 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 }
                 else if (this.downloadEngine != null)
                 {
-                    var isAlt = updates.ContainsKey("AlternativeSpeedEnabled")
-                        ? (bool)updates["AlternativeSpeedEnabled"]
+                    var isAlt = updates.TryGetValue("AlternativeSpeedEnabled", out var altSpeedObj)
+                        ? (bool)altSpeedObj
                         : this.configService.AlternativeSpeedEnabled;
 
                     var dl = isAlt
-                        ? (updates.ContainsKey("AltDownloadSpeedKbps") ? (int)updates["AltDownloadSpeedKbps"] : this.configService.AltDownloadSpeedKbps)
-                        : (updates.ContainsKey("MaxDownloadSpeedKbps") ? (int)updates["MaxDownloadSpeedKbps"] : this.configService.MaxDownloadSpeedKbps);
+                        ? (updates.TryGetValue("AltDownloadSpeedKbps", out var altDlObj) ? (int)altDlObj : this.configService.AltDownloadSpeedKbps)
+                        : (updates.TryGetValue("MaxDownloadSpeedKbps", out var maxDlObj2) ? (int)maxDlObj2 : this.configService.MaxDownloadSpeedKbps);
 
                     var ul = isAlt
-                        ? (updates.ContainsKey("AltUploadSpeedKbps") ? (int)updates["AltUploadSpeedKbps"] : this.configService.AltUploadSpeedKbps)
-                        : (updates.ContainsKey("MaxUploadSpeedKbps") ? (int)updates["MaxUploadSpeedKbps"] : this.configService.MaxUploadSpeedKbps);
+                        ? (updates.TryGetValue("AltUploadSpeedKbps", out var altUlObj) ? (int)altUlObj : this.configService.AltUploadSpeedKbps)
+                        : (updates.TryGetValue("MaxUploadSpeedKbps", out var maxUlObj2) ? (int)maxUlObj2 : this.configService.MaxUploadSpeedKbps);
 
                     await this.downloadEngine.SetRateLimitsAsync(dl, ul).ConfigureAwait(false);
                 }
@@ -2170,7 +2170,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
 
         if (path.StartsWith("/config/downloads/", StringComparison.OrdinalIgnoreCase))
         {
-            return "/downloads/" + path.Substring("/config/downloads/".Length);
+            return string.Concat("/downloads/", path.AsSpan("/config/downloads/".Length));
         }
 
         return path;
