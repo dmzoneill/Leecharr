@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.30](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.30) - 2026-10-03
+
+### 🐛 Bug Fixes
+- fix(host): extract ProxySeparators in Startup.cs
+- fix(api): extract static readonly arrays in controllers
+- fix(api): resolve CA1854 dictionary lookups and CA1845 substring concatenation
+- fix(core): apply code quality hardening fixes across common and core
+- fix(http): extract static readonly arrays and handle pty discards
+- fix(signalr): pass TaskScheduler.Default to ContinueWith to satisfy CA2008
+- fix(core): extract static readonly arrays in search, proxy, email and media inspection
+- fix(core): extract static readonly arrays in indexer, subtitle and extraction services
+- fix(core): extract static readonly separator arrays in parsers and engines
+- fix(core): resolve CA1861 warnings by extracting static readonly array fields
+
+### 🔧 Maintenance & Improvements
+- Revert "ci(sonar): exclude migration ddl and frontend ui pages from cpd and coverage"
+- ci(sonar): exclude migration ddl and frontend ui pages from cpd and coverage
+- ci(workflow): disable ZIZMOR in super-linter for reusable dispatch workflow
+- build(quality): enforce CA1861 and configure test project analyzer suppressions
+
 ## [v2.0.29](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.29) - 2026-10-03
 
 ### ✨ Features
