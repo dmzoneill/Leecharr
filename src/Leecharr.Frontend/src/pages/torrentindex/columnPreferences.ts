@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { trackColumnPreferencesChange } from "../../utils/analytics";
+import type { TFunction } from "../../i18n";
 
 export type ColumnKey =
   | "#"
@@ -286,7 +287,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
 
 export const getColumnLabel = (
   key: ColumnKey,
-  t: (k: string, ...args: unknown[]) => string,
+  t: TFunction,
 ): string => {
   const i18nKey = COLUMN_I18N_KEYS[key] || `torrents.table.${key}`;
   const def = ALL_COLUMNS.find((c) => c.key === key);
