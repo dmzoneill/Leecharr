@@ -95,7 +95,7 @@ public class PeerConnectionLogControllerTest
 
         var remaining = this.historyService.GetRecords();
         remaining.Should().HaveCount(1);
-        remaining.First().InfoHash.Should().Be("hash2");
+        remaining[0].InfoHash.Should().Be("hash2");
     }
 
     [Test]

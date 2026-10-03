@@ -102,7 +102,7 @@ public class CoreSystemAndMediaServicesComprehensiveIntegrationTests : Integrati
             DownloadSpeed = 10_000,
         };
 
-        var diag = await provider.DiagnoseTorrentHealthAsync(activeTorrent, Array.Empty<PeerInfo>(), Array.Empty<TrackerEntry>());
+        var diag = await provider.DiagnoseTorrentHealthAsync(activeTorrent, System.Array.Empty<PeerInfo>(), System.Array.Empty<TrackerEntry>());
         diag.Should().NotBeNull();
 
         // 3. Malware anomaly detection

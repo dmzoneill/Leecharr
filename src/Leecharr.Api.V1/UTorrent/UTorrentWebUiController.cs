@@ -659,8 +659,8 @@ public class UTorrentWebUiController : ControllerBase
             torrents = rows,
             label = labels,
             torrentc = "1",
-            rssfeeds = new object[] { },
-            rssfilters = new object[] { },
+            rssfeeds = Array.Empty<object>(),
+            rssfilters = Array.Empty<object>(),
         });
     }
 

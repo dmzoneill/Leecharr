@@ -99,7 +99,7 @@ public class ExternalClientsAndProtocolEmulationIntegrationTests : IntegrationTe
             var payload = new
             {
                 method = method,
-                @params = Array.Empty<object>(),
+                @params = System.Array.Empty<object>(),
                 id = 1,
             };
 
@@ -129,7 +129,7 @@ public class ExternalClientsAndProtocolEmulationIntegrationTests : IntegrationTe
         var checkPayload = new
         {
             method = "auth.check_session",
-            @params = Array.Empty<object>(),
+            @params = System.Array.Empty<object>(),
             id = 2,
         };
         var checkResp = await this.Client.PostAsJsonAsync("/json", checkPayload);
@@ -139,7 +139,7 @@ public class ExternalClientsAndProtocolEmulationIntegrationTests : IntegrationTe
         var configPayload = new
         {
             method = "core.get_config",
-            @params = Array.Empty<object>(),
+            @params = System.Array.Empty<object>(),
             id = 3,
         };
         var configResp = await this.Client.PostAsJsonAsync("/json", configPayload);
@@ -149,7 +149,7 @@ public class ExternalClientsAndProtocolEmulationIntegrationTests : IntegrationTe
         var statusPayload = new
         {
             method = "web.get_torrents_status",
-            @params = new object[] { new { }, Array.Empty<string>() },
+            @params = new object[] { new { }, System.Array.Empty<string>() },
             id = 4,
         };
         var statusResp = await this.Client.PostAsJsonAsync("/json", statusPayload);

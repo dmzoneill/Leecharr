@@ -218,7 +218,7 @@ public class AllRestApiEndpointsIntegrationTest : IntegrationTestBase
         {
             id = 1,
             method = "core.get_config",
-            @params = Array.Empty<object>(),
+            @params = System.Array.Empty<object>(),
         });
         delugeRpc.IsSuccessStatusCode.Should().BeTrue();
     }

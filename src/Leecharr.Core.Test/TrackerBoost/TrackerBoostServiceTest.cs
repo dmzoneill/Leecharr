@@ -608,7 +608,7 @@ public class TrackerBoostServiceTest
     public void CalculateDynamicTier_NeverReturnsTierZero()
     {
         // BEP 12 reserves Tier 0 for canonical torrent trackers; injected trackers must never be assigned Tier 0
-        foreach (TrackerHealthStatus status in Enum.GetValues(typeof(TrackerHealthStatus)))
+        foreach (var status in Enum.GetValues<TrackerHealthStatus>())
         {
             for (var latency = 0; latency <= 2000; latency += 50)
             {

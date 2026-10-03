@@ -322,7 +322,7 @@ public class HadoukenRpcComprehensiveIntegrationTests : IntegrationTestBase
             var req = new
             {
                 method = "core.getversion",
-                @params = new object[0],
+                @params = System.Array.Empty<object>(),
                 id = 999,
             };
             var resp = await this.PostJsonAsync(route, req);
@@ -381,7 +381,7 @@ public class HadoukenRpcComprehensiveIntegrationTests : IntegrationTestBase
         var payload = new
         {
             method = method,
-            @params = parameters ?? new object[0],
+            @params = parameters ?? System.Array.Empty<object>(),
             id = id ?? 1,
         };
 

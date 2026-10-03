@@ -482,7 +482,7 @@ public class ControllerQueryAndActionMatrixIntegrationTests : IntegrationTestBas
         var body = new
         {
             method,
-            @params = parameters ?? Array.Empty<object>(),
+            @params = parameters ?? System.Array.Empty<object>(),
             id,
         };
 

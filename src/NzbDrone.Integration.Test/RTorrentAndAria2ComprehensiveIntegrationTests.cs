@@ -143,7 +143,7 @@ public class RTorrentAndAria2ComprehensiveIntegrationTests : IntegrationTestBase
                 jsonrpc = "2.0",
                 id = 6,
                 method = "aria2.getGlobalOption",
-                @params = new object[0],
+                @params = System.Array.Empty<object>(),
             };
             var getGlobalOptResp = await this.PostJsonAsync("/jsonrpc", getGlobalOptReq);
             getGlobalOptResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -164,7 +164,7 @@ public class RTorrentAndAria2ComprehensiveIntegrationTests : IntegrationTestBase
                 jsonrpc = "2.0",
                 id = 8,
                 method = "aria2.getGlobalStat",
-                @params = new object[0],
+                @params = System.Array.Empty<object>(),
             };
             var globalStatResp = await this.PostJsonAsync("/jsonrpc", globalStatReq);
             globalStatResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -179,8 +179,8 @@ public class RTorrentAndAria2ComprehensiveIntegrationTests : IntegrationTestBase
                 {
                     new object[]
                     {
-                        new { methodName = "aria2.getVersion", @params = new object[0] },
-                        new { methodName = "aria2.getGlobalStat", @params = new object[0] },
+                        new { methodName = "aria2.getVersion", @params = System.Array.Empty<object>() },
+                        new { methodName = "aria2.getGlobalStat", @params = System.Array.Empty<object>() },
                     },
                 },
             };

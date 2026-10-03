@@ -137,8 +137,8 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
             if (IsInsideSubsFolder(subPath, videoDir))
             {
                 // Subtitle inside Subs/ or Subtitles/
-                if (subPath.IndexOf("/" + videoEp + "/", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    subPath.IndexOf("/" + videoStem + "/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                if (subPath.Contains("/" + videoEp + "/", StringComparison.OrdinalIgnoreCase) ||
+                    subPath.Contains("/" + videoStem + "/", StringComparison.OrdinalIgnoreCase) ||
                     subStem.StartsWith(videoStem, StringComparison.OrdinalIgnoreCase) ||
                     (isSingleVideo && string.IsNullOrEmpty(subEp)))
                 {

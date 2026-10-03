@@ -21,19 +21,19 @@ public class NzbgetRpcComprehensiveIntegrationTests : IntegrationTestBase
     public async Task Nzbget_JsonRpc_SystemAndStatusMethods_ReturnValidData()
     {
         // 1. version
-        var verReq = new { method = "version", @params = new object[0], id = 1 };
+        var verReq = new { method = "version", @params = System.Array.Empty<object>(), id = 1 };
         var verResp = await this.PostJsonAsync("/nzbget/jsonrpc", verReq);
         verResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var verDoc = JsonDocument.Parse(await verResp.Content.ReadAsStringAsync());
         verDoc.RootElement.GetProperty("result").GetString().Should().Be("24.0");
 
         // 2. config & loadconfig
-        var cfgReq = new { method = "config", @params = new object[0], id = 2 };
+        var cfgReq = new { method = "config", @params = System.Array.Empty<object>(), id = 2 };
         var cfgResp = await this.PostJsonAsync("/nzbget/jsonrpc", cfgReq);
         cfgResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 3. status
-        var statusReq = new { method = "status", @params = new object[0], id = 3 };
+        var statusReq = new { method = "status", @params = System.Array.Empty<object>(), id = 3 };
         var statusResp = await this.PostJsonAsync("/nzbget/jsonrpc", statusReq);
         statusResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var statusDoc = JsonDocument.Parse(await statusResp.Content.ReadAsStringAsync());
@@ -41,12 +41,12 @@ public class NzbgetRpcComprehensiveIntegrationTests : IntegrationTestBase
         (res.TryGetProperty("downloadRate", out _) || res.TryGetProperty("DownloadRate", out _)).Should().BeTrue();
 
         // 4. listgroups
-        var groupsReq = new { method = "listgroups", @params = new object[0], id = 4 };
+        var groupsReq = new { method = "listgroups", @params = System.Array.Empty<object>(), id = 4 };
         var groupsResp = await this.PostJsonAsync("/nzbget/jsonrpc", groupsReq);
         groupsResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 5. history
-        var histReq = new { method = "history", @params = new object[0], id = 5 };
+        var histReq = new { method = "history", @params = System.Array.Empty<object>(), id = 5 };
         var histResp = await this.PostJsonAsync("/nzbget/jsonrpc", histReq);
         histResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -56,16 +56,16 @@ public class NzbgetRpcComprehensiveIntegrationTests : IntegrationTestBase
         rateResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 7. pause & resume post
-        var pausePostReq = new { method = "pausepost", @params = new object[0], id = 7 };
+        var pausePostReq = new { method = "pausepost", @params = System.Array.Empty<object>(), id = 7 };
         var pausePostResp = await this.PostJsonAsync("/nzbget/jsonrpc", pausePostReq);
         pausePostResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var resumePostReq = new { method = "resumepost", @params = new object[0], id = 8 };
+        var resumePostReq = new { method = "resumepost", @params = System.Array.Empty<object>(), id = 8 };
         var resumePostResp = await this.PostJsonAsync("/nzbget/jsonrpc", resumePostReq);
         resumePostResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 8. log
-        var logReq = new { method = "log", @params = new object[0], id = 9 };
+        var logReq = new { method = "log", @params = System.Array.Empty<object>(), id = 9 };
         var logResp = await this.PostJsonAsync("/nzbget/jsonrpc", logReq);
         logResp.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -103,11 +103,11 @@ public class NzbgetRpcComprehensiveIntegrationTests : IntegrationTestBase
             listFilesResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
             // 3. pause and resume global
-            var pauseReq = new { method = "pause", @params = new object[0], id = 22 };
+            var pauseReq = new { method = "pause", @params = System.Array.Empty<object>(), id = 22 };
             var pauseResp = await this.PostJsonAsync("/nzbget/jsonrpc", pauseReq);
             pauseResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            var resumeReq = new { method = "resume", @params = new object[0], id = 23 };
+            var resumeReq = new { method = "resume", @params = System.Array.Empty<object>(), id = 23 };
             var resumeResp = await this.PostJsonAsync("/nzbget/jsonrpc", resumeReq);
             resumeResp.StatusCode.Should().Be(HttpStatusCode.OK);
         }

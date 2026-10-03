@@ -53,8 +53,8 @@ public class TorrentLogServiceTest
 
         var logs = this.service.GetLogs(1, limit: 5);
         logs.Should().HaveCount(5);
-        logs.First().Message.Should().Be("Message 20");
-        logs.Last().Message.Should().Be("Message 16");
+        logs[0].Message.Should().Be("Message 20");
+        logs[^1].Message.Should().Be("Message 16");
     }
 
     [Test]
@@ -67,8 +67,8 @@ public class TorrentLogServiceTest
 
         var logs = this.service.GetLogs(1, limit: 1000);
         logs.Should().HaveCount(250);
-        logs.First().Message.Should().Be("Event 300");
-        logs.Last().Message.Should().Be("Event 51");
+        logs[0].Message.Should().Be("Event 300");
+        logs[^1].Message.Should().Be("Event 51");
     }
 
     [Test]

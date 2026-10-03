@@ -389,7 +389,7 @@ public class FloodApiController : ControllerBase, IActionFilter
             var hash = t.InfoHash.ToLowerInvariant();
             var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
             var peers = downloadTask?.GetPeers() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
-            var seedsConnected = peers.Count(p => p.Progress >= 1.0 || (p.Flags != null && p.Flags.Contains("S", StringComparison.OrdinalIgnoreCase)));
+            var seedsConnected = peers.Count(p => p.Progress >= 1.0 || (p.Flags != null && p.Flags.Contains('S', StringComparison.OrdinalIgnoreCase)));
             var leechersConnected = peers.Count - seedsConnected;
 
             var tagsList = new List<string>();

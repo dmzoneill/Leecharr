@@ -301,13 +301,12 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         }
 
         // Handle P2P header prefixes (e.g. "Spamhaus:1.2.3.4/32" or "ISP:1.2.3.4:0")
-        var lastColon = text.LastIndexOf(':');
-        var firstColon = text.IndexOf(':');
-        if (firstColon >= 0 && !text.Contains("::") && IPAddress.TryParse(text, out _))
+        var hasColon = text.Contains(':');
+        if (hasColon && !text.Contains("::") && IPAddress.TryParse(text, out _))
         {
             // It's a standard IPv6 address
         }
-        else if (firstColon >= 0 && !text.Contains("::"))
+        else if (hasColon && !text.Contains("::"))
         {
             // Colon header or level suffix
             var parts = text.Split(':');

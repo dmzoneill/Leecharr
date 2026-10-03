@@ -113,7 +113,7 @@ public class ArrWebhookAndThirdPartyClientsIntegrationTests : IntegrationTestBas
             jsonrpc = "2.0",
             id = 1,
             method = "core.getsysteminfo",
-            @params = new object[0],
+            @params = System.Array.Empty<object>(),
         };
         var sysInfoResp = await this.PostJsonAsync("/hadouken/api", sysInfoReq);
         sysInfoResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -124,7 +124,7 @@ public class ArrWebhookAndThirdPartyClientsIntegrationTests : IntegrationTestBas
             jsonrpc = "2.0",
             id = 2,
             method = "webui.getsettings",
-            @params = new object[0],
+            @params = System.Array.Empty<object>(),
         };
         var getSettingsResp = await this.PostJsonAsync("/hadouken/api", getSettingsReq);
         getSettingsResp.StatusCode.Should().Be(HttpStatusCode.OK);

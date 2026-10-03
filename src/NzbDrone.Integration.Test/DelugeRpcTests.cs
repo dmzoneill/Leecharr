@@ -65,7 +65,7 @@ public class DelugeRpcTests : IntegrationTestBase
         var rpcBody = new
         {
             method = "core.get_filter_tree",
-            @params = new object[] { },
+            @params = System.Array.Empty<object>(),
             id = 3,
         };
 

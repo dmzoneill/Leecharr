@@ -1247,7 +1247,7 @@ public class PiecePickerTest
 
         // PickBlocks with edge cases
         picker.PickBlocks(null!, 5).Should().BeEmpty();
-        picker.PickBlocks(new bool[0], 5).Should().BeEmpty();
+        picker.PickBlocks(Array.Empty<bool>(), 5).Should().BeEmpty();
         picker.PickBlocks(new bool[2], 5).Should().BeEmpty(); // Shorter than piece count
         picker.PickBlocks(new bool[16], 5).Should().BeEmpty(); // Spare bits set to false, but length > pieceCount
         picker.PickBlocks(new[] { true, true, true }, 0).Should().BeEmpty();

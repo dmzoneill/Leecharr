@@ -2358,7 +2358,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 isEncrypted = p.IsEncrypted,
                 isIncoming = p.IsIncoming,
                 isUploadingTo = p.UploadSpeed > 0,
-                isUTP = p.IsUtp || p.Flags?.Contains("P", StringComparison.OrdinalIgnoreCase) == true,
+                isUTP = p.IsUtp || p.Flags?.Contains('P', StringComparison.OrdinalIgnoreCase) == true,
                 peerIsChoked = p.IsChoked,
                 peerIsInterested = p.IsInterested,
                 port = p.Port,

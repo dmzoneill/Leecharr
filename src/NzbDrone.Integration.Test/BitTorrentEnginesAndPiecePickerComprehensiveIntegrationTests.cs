@@ -58,7 +58,7 @@ public class BitTorrentEnginesAndPiecePickerComprehensiveIntegrationTests : Inte
 
         // Null or invalid bitfields safely ignored
         picker.UpdatePeerAvailability(null, isAdd: true);
-        picker.UpdatePeerAvailability(Array.Empty<bool>(), isAdd: true);
+        picker.UpdatePeerAvailability(System.Array.Empty<bool>(), isAdd: true);
     }
 
     [Test]

@@ -28,7 +28,7 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             jsonrpc = "2.0",
             id = "test-ver-1",
             method = "aria2.getVersion",
-            @params = new object[] { },
+            @params = System.Array.Empty<object>(),
         };
         var verResp = await this.PostJsonAsync("/jsonrpc", getVersionPayload);
         verResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -42,7 +42,7 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             jsonrpc = "2.0",
             id = 2,
             method = "aria2.getSessionInfo",
-            @params = new object[] { },
+            @params = System.Array.Empty<object>(),
         };
         var sessionResp = await this.PostJsonAsync("/rpc", getSessionPayload);
         sessionResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -55,7 +55,7 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             jsonrpc = "2.0",
             id = 3,
             method = "aria2.getGlobalStat",
-            @params = new object[] { },
+            @params = System.Array.Empty<object>(),
         };
         var statResp = await this.PostJsonAsync("/aria2/jsonrpc", getStatPayload);
         statResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -69,7 +69,7 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             jsonrpc = "2.0",
             id = 4,
             method = "aria2.getGlobalOption",
-            @params = new object[] { },
+            @params = System.Array.Empty<object>(),
         };
         var getOptResp = await this.PostJsonAsync("/jsonrpc", getGlobalOptPayload);
         getOptResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -97,7 +97,7 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             jsonrpc = "2.0",
             id = 6,
             method = "system.listMethods",
-            @params = new object[] { },
+            @params = System.Array.Empty<object>(),
         };
         var listResp = await this.PostJsonAsync("/jsonrpc", listMethodsPayload);
         listResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -112,9 +112,9 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
         // 1. JSON-RPC Batch request (JSON array of multiple calls)
         var batchPayload = new object[]
         {
-            new { jsonrpc = "2.0", id = "batch-1", method = "aria2.getVersion", @params = new object[] { } },
-            new { jsonrpc = "2.0", id = "batch-2", method = "aria2.getSessionInfo", @params = new object[] { } },
-            new { jsonrpc = "2.0", id = "batch-3", method = "aria2.getGlobalStat", @params = new object[] { } },
+            new { jsonrpc = "2.0", id = "batch-1", method = "aria2.getVersion", @params = System.Array.Empty<object>() },
+            new { jsonrpc = "2.0", id = "batch-2", method = "aria2.getSessionInfo", @params = System.Array.Empty<object>() },
+            new { jsonrpc = "2.0", id = "batch-3", method = "aria2.getGlobalStat", @params = System.Array.Empty<object>() },
         };
         var batchResp = await this.PostJsonAsync("/jsonrpc", batchPayload);
         batchResp.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -132,8 +132,8 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             {
                 new object[]
                 {
-                    new { methodName = "aria2.getVersion", @params = new object[] { } },
-                    new { methodName = "aria2.getGlobalStat", @params = new object[] { } },
+                    new { methodName = "aria2.getVersion", @params = System.Array.Empty<object>() },
+                    new { methodName = "aria2.getGlobalStat", @params = System.Array.Empty<object>() },
                 },
             },
         };
@@ -161,7 +161,7 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
         try
         {
             // 1. aria2.tellActive, aria2.tellWaiting, aria2.tellStopped
-            var tellActivePayload = new { jsonrpc = "2.0", id = 10, method = "aria2.tellActive", @params = new object[] { } };
+            var tellActivePayload = new { jsonrpc = "2.0", id = 10, method = "aria2.tellActive", @params = System.Array.Empty<object>() };
             var actResp = await this.PostJsonAsync("/jsonrpc", tellActivePayload);
             actResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -234,12 +234,12 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             var changePosResp = await this.PostJsonAsync("/jsonrpc", changePosPayload);
             changePosResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            var changeUriPayload = new { jsonrpc = "2.0", id = 24, method = "aria2.changeUri", @params = new object[] { gid, 1, new string[] { }, new string[] { } } };
+            var changeUriPayload = new { jsonrpc = "2.0", id = 24, method = "aria2.changeUri", @params = new object[] { gid, 1, System.Array.Empty<string>(), System.Array.Empty<string>() } };
             var changeUriResp = await this.PostJsonAsync("/jsonrpc", changeUriPayload);
             changeUriResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
             // 7. aria2.purgeDownloadResult and aria2.removeDownloadResult
-            var purgePayload = new { jsonrpc = "2.0", id = 25, method = "aria2.purgeDownloadResult", @params = new object[] { } };
+            var purgePayload = new { jsonrpc = "2.0", id = 25, method = "aria2.purgeDownloadResult", @params = System.Array.Empty<object>() };
             var purgeResp = await this.PostJsonAsync("/jsonrpc", purgePayload);
             purgeResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -424,7 +424,7 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             {
                 "token:" + this.ApiKey,
                 torrentB64,
-                new string[] { },
+                System.Array.Empty<string>(),
                 new Dictionary<string, string> { { "dir", "/downloads/aria2-torrent" } },
             },
         };

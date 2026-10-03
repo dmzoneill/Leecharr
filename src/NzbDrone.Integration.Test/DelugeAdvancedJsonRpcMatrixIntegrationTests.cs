@@ -43,7 +43,7 @@ public class DelugeAdvancedJsonRpcMatrixIntegrationTests : IntegrationTestBase
             var req = new
             {
                 method = m,
-                @params = new object[0],
+                @params = System.Array.Empty<object>(),
                 id = id++,
             };
 
@@ -57,7 +57,7 @@ public class DelugeAdvancedJsonRpcMatrixIntegrationTests : IntegrationTestBase
         var disconnReq = new
         {
             method = "web.disconnect",
-            @params = new object[0],
+            @params = System.Array.Empty<object>(),
             id = id++,
         };
         var disconnResp = await this.PostJsonAsync("/json", disconnReq);
@@ -70,34 +70,34 @@ public class DelugeAdvancedJsonRpcMatrixIntegrationTests : IntegrationTestBase
         var id = 100;
 
         // 1. Scheduler plugin
-        var schedGetReq = new { method = "scheduler.get_config", @params = new object[0], id = id++ };
+        var schedGetReq = new { method = "scheduler.get_config", @params = System.Array.Empty<object>(), id = id++ };
         var schedGetResp = await this.PostJsonAsync("/json", schedGetReq);
         schedGetResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var schedEnableReq = new { method = "scheduler.enable", @params = new object[0], id = id++ };
+        var schedEnableReq = new { method = "scheduler.enable", @params = System.Array.Empty<object>(), id = id++ };
         var schedEnableResp = await this.PostJsonAsync("/json", schedEnableReq);
         schedEnableResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 2. AutoAdd plugin
-        var autoAddGetReq = new { method = "autoadd.get_watchdirs", @params = new object[0], id = id++ };
+        var autoAddGetReq = new { method = "autoadd.get_watchdirs", @params = System.Array.Empty<object>(), id = id++ };
         var autoAddGetResp = await this.PostJsonAsync("/json", autoAddGetReq);
         autoAddGetResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 3. Blocklist plugin
-        var blkGetReq = new { method = "blocklist.get_config", @params = new object[0], id = id++ };
+        var blkGetReq = new { method = "blocklist.get_config", @params = System.Array.Empty<object>(), id = id++ };
         var blkGetResp = await this.PostJsonAsync("/json", blkGetReq);
         blkGetResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var blkStatusReq = new { method = "blocklist.get_status", @params = new object[0], id = id++ };
+        var blkStatusReq = new { method = "blocklist.get_status", @params = System.Array.Empty<object>(), id = id++ };
         var blkStatusResp = await this.PostJsonAsync("/json", blkStatusReq);
         blkStatusResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 4. Extractor & Execute plugins
-        var extGetReq = new { method = "extractor.get_config", @params = new object[0], id = id++ };
+        var extGetReq = new { method = "extractor.get_config", @params = System.Array.Empty<object>(), id = id++ };
         var extGetResp = await this.PostJsonAsync("/json", extGetReq);
         extGetResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var execGetReq = new { method = "execute.get_commands", @params = new object[0], id = id++ };
+        var execGetReq = new { method = "execute.get_commands", @params = System.Array.Empty<object>(), id = id++ };
         var execGetResp = await this.PostJsonAsync("/json", execGetReq);
         execGetResp.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -121,7 +121,7 @@ public class DelugeAdvancedJsonRpcMatrixIntegrationTests : IntegrationTestBase
             var id = 200;
 
             // 1. label.get_labels
-            var getLabelsReq = new { method = "label.get_labels", @params = new object[0], id = id++ };
+            var getLabelsReq = new { method = "label.get_labels", @params = System.Array.Empty<object>(), id = id++ };
             var getLabelsResp = await this.PostJsonAsync("/json", getLabelsReq);
             getLabelsResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -173,7 +173,7 @@ public class DelugeAdvancedJsonRpcMatrixIntegrationTests : IntegrationTestBase
         var id = 300;
 
         // 1. stats.get_stats unfiltered
-        var statsReq = new { method = "stats.get_stats", @params = new object[0], id = id++ };
+        var statsReq = new { method = "stats.get_stats", @params = System.Array.Empty<object>(), id = id++ };
         var statsResp = await this.PostJsonAsync("/json", statsReq);
         statsResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var statsDoc = JsonDocument.Parse(await statsResp.Content.ReadAsStringAsync());
@@ -192,7 +192,7 @@ public class DelugeAdvancedJsonRpcMatrixIntegrationTests : IntegrationTestBase
         filteredDoc.RootElement.GetProperty("result").TryGetProperty("free_space", out _).Should().BeTrue();
 
         // 3. core.get_config
-        var getCfgReq = new { method = "core.get_config", @params = new object[0], id = id++ };
+        var getCfgReq = new { method = "core.get_config", @params = System.Array.Empty<object>(), id = id++ };
         var getCfgResp = await this.PostJsonAsync("/json", getCfgReq);
         getCfgResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -218,7 +218,7 @@ public class DelugeAdvancedJsonRpcMatrixIntegrationTests : IntegrationTestBase
         var freeSpaceResp = await this.PostJsonAsync("/json", freeSpaceReq);
         freeSpaceResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var listenPortReq = new { method = "core.get_listen_port", @params = new object[0], id = id++ };
+        var listenPortReq = new { method = "core.get_listen_port", @params = System.Array.Empty<object>(), id = id++ };
         var listenPortResp = await this.PostJsonAsync("/json", listenPortReq);
         listenPortResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
