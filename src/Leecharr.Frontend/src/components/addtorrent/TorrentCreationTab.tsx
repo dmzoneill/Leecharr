@@ -29,7 +29,9 @@ export function createTorrentBlob(
   }
 
   if (torrentFileBytes instanceof Uint8Array) {
-    return new Blob([torrentFileBytes], { type: "application/x-bittorrent" });
+    return new Blob([torrentFileBytes as unknown as BlobPart], {
+      type: "application/x-bittorrent",
+    });
   }
 
   if (Array.isArray(torrentFileBytes)) {

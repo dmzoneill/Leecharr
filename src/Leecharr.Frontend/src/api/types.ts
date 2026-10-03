@@ -1054,7 +1054,7 @@ export interface DownloadHistoryEntry {
   removalReason: string | null;
   isPrivate?: boolean;
   trackers?: string[];
-  dataJson: string | null;
+  dataJson?: string | null;
   metadata?: MediaMetadata | null;
 }
 
@@ -1091,6 +1091,10 @@ export interface DownloadReleaseRequest {
   indexerId?: number;
   indexerName?: string;
   category?: string;
+  savePath?: string;
+  startPaused?: boolean;
+  cookie?: string;
+  userAgent?: string;
   minimumRatio?: number;
   minimumSeedTime?: number;
 }

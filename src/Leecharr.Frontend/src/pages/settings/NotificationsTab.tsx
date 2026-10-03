@@ -1,4 +1,4 @@
-import { useTranslation, translate } from "../../i18n";
+import { useTranslation, translate, type TFunction } from "../../i18n";
 import { useState } from "react";
 import type {
   NotificationSettings,
@@ -150,10 +150,54 @@ export function getDefaultFormForImplementation(
   };
 }
 
+interface ParsedNotificationSettings {
+  serverUrl?: string;
+  url?: string;
+  targetUrl?: string;
+  webhookUrl?: string;
+  token?: string;
+  botToken?: string;
+  apiKey?: string;
+  chat_id?: string | number;
+  chatId?: string | number;
+  user?: string;
+  userKey?: string;
+  username?: string;
+  avatarUrl?: string;
+  avatar_url?: string;
+  method?: string;
+  headers?: unknown;
+  server?: string;
+  host?: string;
+  port?: string | number;
+  useSsl?: boolean;
+  ssl?: boolean;
+  password?: string;
+  pass?: string;
+  from?: string;
+  recipient?: string;
+  to?: string;
+  priority?: string | number;
+  path?: string;
+  Path?: string;
+  scriptPath?: string;
+  ScriptPath?: string;
+  script?: string;
+  Script?: string;
+  filename?: string;
+  Filename?: string;
+  arguments?: string;
+  Arguments?: string;
+  args?: string;
+  Args?: string;
+  extraArguments?: string;
+  ExtraArguments?: string;
+}
+
 export function parseNotificationToForm(
-  notif: NotificationResource,
+  notif: Partial<NotificationResource>,
 ): NotificationFormState {
-  let parsed: Record<string, unknown> = {};
+  let parsed: ParsedNotificationSettings = {};
   if (notif.settings) {
     try {
       parsed = JSON.parse(notif.settings);
@@ -215,15 +259,17 @@ export function parseNotificationToForm(
       parsed.webhookUrl ||
       "",
     token: parsed.token || parsed.botToken || parsed.apiKey || "",
-    chatId: parsed.chat_id || parsed.chatId || "",
+    chatId: String(parsed.chat_id || parsed.chatId || ""),
     userKey: parsed.user || parsed.userKey || "",
     username: parsed.username || parsed.user || "",
     avatarUrl: parsed.avatarUrl || parsed.avatar_url || "",
     method: parsed.method || "POST",
     customHeaders:
-      typeof parsed.headers === "object"
+      typeof parsed.headers === "object" && parsed.headers !== null
         ? JSON.stringify(parsed.headers, null, 2)
-        : parsed.headers || "",
+        : typeof parsed.headers === "string"
+          ? parsed.headers
+          : "",
     server: parsed.server || parsed.host || "",
     port: parsed.port ? Number(parsed.port) : 587,
     useSsl: parsed.useSsl ?? parsed.ssl ?? true,
@@ -410,8 +456,8 @@ export function validateNotificationForm(
 }
 
 export function getNotificationSummary(
-  notif: NotificationResource,
-  tParam?: (key: string, ...args: unknown[]) => string,
+  notif: Partial<NotificationResource>,
+  tParam?: TFunction,
 ): string {
   const t = tParam || translate;
   try {
@@ -451,9 +497,9 @@ export function getNotificationSummary(
           ? `${s.server}:${s.port || 587}`
           : t("settingsTabs.notifications.smtpEmail");
     }
-    return s.serverUrl || s.url || notif.settings || notif.implementation;
+    return s.serverUrl || s.url || notif.settings || notif.implementation || "";
   } catch {
-    return notif.settings || notif.implementation;
+    return notif.settings || notif.implementation || "";
   }
 }
 

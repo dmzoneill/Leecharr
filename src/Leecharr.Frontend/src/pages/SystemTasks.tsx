@@ -1,4 +1,4 @@
-import { useTranslation } from "../i18n";
+import { useTranslation, type TFunction } from "../i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 import { useToast } from "../context/ToastContext";
@@ -32,7 +32,7 @@ interface CommandItem {
 
 function formatTaskName(
   typeName: string,
-  t?: (k: string, p?: Record<string, unknown>) => string,
+  t?: TFunction,
 ): string {
   if (!typeName) return "";
   const shortName = typeName.includes(".")
@@ -54,7 +54,7 @@ function formatTaskName(
 
 function formatInterval(
   minutes: number,
-  t?: (k: string, p?: Record<string, unknown>) => string,
+  t?: TFunction,
 ): string {
   if (minutes < 1) {
     const secs = Math.round(minutes * 60);
@@ -90,7 +90,7 @@ function formatInterval(
 
 function formatRelativeTime(
   dateStr?: string | null,
-  t?: (k: string, p?: Record<string, unknown>) => string,
+  t?: TFunction,
 ): string {
   if (!dateStr) return "-";
   const date = new Date(dateStr);

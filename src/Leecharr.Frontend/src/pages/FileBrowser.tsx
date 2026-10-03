@@ -825,7 +825,7 @@ export function FileBrowser() {
           "filebrowser.folderDownloadNotSupported",
           "Folder downloading is not supported. Please select individual files to download.",
         ),
-        "warning",
+        "info",
       );
       return;
     }
@@ -836,7 +836,7 @@ export function FileBrowser() {
           "filebrowser.foldersSkippedWarning",
           "Folders cannot be downloaded directly and were skipped.",
         ),
-        "warning",
+        "info",
       );
     }
 

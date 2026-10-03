@@ -21,7 +21,7 @@ import {
   type ConnectionStatus,
 } from "../api/signalr";
 import { useToast } from "../context/ToastContext";
-import { useTorrentStore } from "../stores/useTorrentStore";
+import { useTorrentStore, type PieceMapUpdatePayload } from "../stores/useTorrentStore";
 
 export {
   subscribeToTorrent,
@@ -198,7 +198,7 @@ export default function SignalRProvider({
 
     const handlePieceMapPayload = (body: unknown) => {
       if (!body || typeof body !== "object") return;
-      const b = body as { torrentId?: number; id?: number };
+      const b = body as { torrentId?: number; id?: number } & PieceMapUpdatePayload;
       const tid = Number(b.torrentId || b.id);
       if (tid) {
         useTorrentStore.getState().updatePieceMap(tid, b);
