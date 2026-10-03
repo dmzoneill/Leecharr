@@ -20,6 +20,13 @@ namespace NzbDrone.Core.Automation;
 public class YamlScriptRunner : IScriptRunner
 {
     private static readonly Regex VariableRegex = new(@"\$\{([^}]+)\}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly char[] ExtensionDelimiters = [',', ';', ' '];
+    private static readonly string[] EqualsOperator = ["=="];
+    private static readonly string[] NotEqualsOperator = ["!="];
+    private static readonly string[] GreaterThanOrEqualOperator = [">="];
+    private static readonly string[] LessThanOrEqualOperator = ["<="];
+    private static readonly char[] GreaterThanOperator = ['>'];
+    private static readonly char[] LessThanOperator = ['<'];
     private readonly IManageCommandQueue? _commandQueue;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
@@ -716,8 +723,11 @@ public class YamlScriptRunner : IScriptRunner
                             var extStr = SubstituteVariables(ceDict.TryGetValue("extensions", out var eVal) ? eVal?.ToString() ?? string.Empty : string.Empty, variableContext);
                             var dirStr = SubstituteVariables(ceDict.TryGetValue("directory", out var dVal) ? dVal?.ToString() ?? string.Empty : string.Empty, variableContext);
                             var maxSizeStr = SubstituteVariables(ceDict.TryGetValue("maxSizeLimit", out var mVal) ? mVal?.ToString() ?? string.Empty : string.Empty, variableContext);
-                            long.TryParse(maxSizeStr, out var maxSize);
-                            var exts = extStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            if (!long.TryParse(maxSizeStr, out var maxSize))
+                            {
+                                maxSize = 0;
+                            }
+                            var exts = extStr.Split(ExtensionDelimiters, StringSplitOptions.RemoveEmptyEntries);
                             try
                             {
                                 if (Directory.Exists(dirStr))
@@ -1105,7 +1115,7 @@ public class YamlScriptRunner : IScriptRunner
 
         if (substituted.Contains("=="))
         {
-            var parts = substituted.Split(new[] { "==" }, StringSplitOptions.TrimEntries);
+            var parts = substituted.Split(EqualsOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2)
             {
                 return AreEqual(parts[0], parts[1]);
@@ -1113,7 +1123,7 @@ public class YamlScriptRunner : IScriptRunner
         }
         else if (substituted.Contains("!="))
         {
-            var parts = substituted.Split(new[] { "!=" }, StringSplitOptions.TrimEntries);
+            var parts = substituted.Split(NotEqualsOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2)
             {
                 return !AreEqual(parts[0], parts[1]);
@@ -1121,7 +1131,7 @@ public class YamlScriptRunner : IScriptRunner
         }
         else if (substituted.Contains(">="))
         {
-            var parts = substituted.Split(new[] { ">=" }, StringSplitOptions.TrimEntries);
+            var parts = substituted.Split(GreaterThanOrEqualOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l >= r;
@@ -1129,7 +1139,7 @@ public class YamlScriptRunner : IScriptRunner
         }
         else if (substituted.Contains("<="))
         {
-            var parts = substituted.Split(new[] { "<=" }, StringSplitOptions.TrimEntries);
+            var parts = substituted.Split(LessThanOrEqualOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l <= r;
@@ -1137,7 +1147,7 @@ public class YamlScriptRunner : IScriptRunner
         }
         else if (substituted.Contains('>'))
         {
-            var parts = substituted.Split(new[] { '>' }, StringSplitOptions.TrimEntries);
+            var parts = substituted.Split(GreaterThanOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l > r;
@@ -1145,7 +1155,7 @@ public class YamlScriptRunner : IScriptRunner
         }
         else if (substituted.Contains('<'))
         {
-            var parts = substituted.Split(new[] { '<' }, StringSplitOptions.TrimEntries);
+            var parts = substituted.Split(LessThanOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l < r;
