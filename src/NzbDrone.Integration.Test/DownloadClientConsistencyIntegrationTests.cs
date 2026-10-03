@@ -256,7 +256,7 @@ public class DownloadClientConsistencyIntegrationTests : IntegrationTestBase
             {
                 id = 5,
                 method = "listgroups",
-                @params = Array.Empty<object>(),
+                @params = System.Array.Empty<object>(),
             };
             var nzbgetResp = await this.PostJsonAsync("/nzbget/jsonrpc", nzbgetReq);
             nzbgetResp.StatusCode.Should().Be(HttpStatusCode.OK);

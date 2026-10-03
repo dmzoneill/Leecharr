@@ -107,7 +107,7 @@ public class ContainerLifecycleTest
     public void ResolvingConcreteClassWithoutInterface_YieldsIdenticalSingletonReference()
     {
         var container = new Container(rules => rules.WithNzbDroneRules());
-        container.Register(typeof(StandaloneService), Reuse.Singleton);
+        container.Register<StandaloneService>(Reuse.Singleton);
 
         var first = container.Resolve<StandaloneService>();
         var second = container.Resolve<StandaloneService>();

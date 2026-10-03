@@ -568,7 +568,7 @@ public class TrackerMetricsAndOptimizationTest
         TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Untested, 0).Should().Be(3);
 
         // Tier 0 is never returned (BEP 12 canonical tracker reservation)
-        foreach (TrackerHealthStatus status in Enum.GetValues(typeof(TrackerHealthStatus)))
+        foreach (var status in Enum.GetValues<TrackerHealthStatus>())
         {
             for (var latency = 0; latency <= 1000; latency += 100)
             {
