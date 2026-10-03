@@ -64,7 +64,7 @@ public class DiskProvider : IDiskProvider
         var rawPath = path;
         if (rawPath.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
         {
-            rawPath = @"\\" + rawPath.Substring(8);
+            rawPath = string.Concat(@"\\", rawPath.AsSpan(8));
         }
         else if (rawPath.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase))
         {
@@ -399,7 +399,7 @@ public class DiskProvider : IDiskProvider
 
             if (remaining.Length >= 2 && char.IsLetter(remaining[0]) && remaining[1] == ':')
             {
-                prefix += remaining.Substring(0, 2) + @"\";
+                prefix = string.Concat(prefix, remaining.AsSpan(0, 2), @"\");
                 remaining = remaining.Length > 3 ? remaining.Substring(3) : (remaining.Length > 2 ? remaining.Substring(2) : string.Empty);
             }
         }
@@ -410,7 +410,7 @@ public class DiskProvider : IDiskProvider
         }
         else if (remaining.Length >= 2 && char.IsLetter(remaining[0]) && remaining[1] == ':')
         {
-            prefix = remaining.Substring(0, 2) + @"\";
+            prefix = string.Concat(remaining.AsSpan(0, 2), @"\");
             remaining = remaining.Length > 3 ? remaining.Substring(3) : (remaining.Length > 2 ? remaining.Substring(2) : string.Empty);
         }
         else if (remaining.StartsWith('\\'))
@@ -444,7 +444,7 @@ public class DiskProvider : IDiskProvider
 
         if (path.StartsWith(@"\\", StringComparison.Ordinal))
         {
-            return @"\\?\UNC\" + path.Substring(2);
+            return string.Concat(@"\\?\UNC\", path.AsSpan(2));
         }
 
         if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':')

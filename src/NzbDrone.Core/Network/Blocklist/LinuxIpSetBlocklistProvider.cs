@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -16,6 +17,7 @@ namespace NzbDrone.Core.Network.Blocklist;
 
 public class LinuxIpSetBlocklistProvider : IBlocklistProvider
 {
+    private static readonly SearchValues<char> CommentSeparators = SearchValues.Create(['#', ';']);
     private readonly IDiskProvider diskProvider;
     private readonly Logger logger;
     private readonly RadixTreeBlocklistProvider inMemoryTrie = new();
@@ -283,7 +285,7 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         var text = rule.Trim();
 
         // Strip inline comments
-        var commentIdx = text.IndexOfAny(new[] { '#', ';' });
+        var commentIdx = text.AsSpan().IndexOfAny(CommentSeparators);
         if (commentIdx >= 0)
         {
             text = text.Substring(0, commentIdx).Trim();

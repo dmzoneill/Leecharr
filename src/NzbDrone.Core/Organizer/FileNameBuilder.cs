@@ -55,9 +55,9 @@ public class FileNameBuilder : IFileNameBuilder
         var config = namingConfig ?? new NamingConfig();
         var template = !string.IsNullOrWhiteSpace(pattern)
             ? pattern
-            : (context.AirDate.HasValue && !context.EpisodeNumbers.Any()
+            : (context.AirDate.HasValue && context.EpisodeNumbers.Count == 0
                 ? config.DailyEpisodeFormat
-                : (context.AbsoluteEpisodeNumbers.Any() && !context.EpisodeNumbers.Any()
+                : (context.AbsoluteEpisodeNumbers.Count > 0 && context.EpisodeNumbers.Count == 0
                     ? config.AnimeEpisodeFormat
                     : config.StandardEpisodeFormat));
 

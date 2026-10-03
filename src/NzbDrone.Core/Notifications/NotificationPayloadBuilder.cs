@@ -1115,7 +1115,7 @@ public static class NotificationPayloadBuilder
             return value ?? string.Empty;
         }
 
-        return value.Length > maxLength ? value.Substring(0, maxLength - 3) + "..." : value;
+        return value.Length > maxLength ? string.Concat(value.AsSpan(0, maxLength - 3), "...") : value;
     }
 
     internal static string ExtractOverview(dynamic meta)
@@ -1298,7 +1298,7 @@ public static class NotificationPayloadBuilder
             var closing = GetClosingTags(text, targetLen);
             if (targetLen + 3 + closing.Length <= maxLength)
             {
-                return text.Substring(0, targetLen) + "..." + closing;
+                return string.Concat(text.AsSpan(0, targetLen), "...", closing);
             }
 
             targetLen--;

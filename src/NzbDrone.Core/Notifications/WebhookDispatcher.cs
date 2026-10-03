@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -47,6 +48,9 @@ public class WebhookDispatcher : IWebhookDispatcher
     private readonly AsyncRetryPolicy<HttpResponseMessage> retryPolicy;
     private readonly Logger logger;
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
+    private static readonly char[] LineSeparators = ['\r', '\n'];
+    private static readonly char[] HeaderLineSeparators = ['\r', '\n', ','];
+    private static readonly SearchValues<char> KeyValueSeparators = SearchValues.Create([':', '=']);
     private readonly TimeSpan timeout;
     private readonly bool allowLoopback;
 
@@ -813,7 +817,7 @@ public class WebhookDispatcher : IWebhookDispatcher
         // Fallback or line-based key-value parsing (e.g. "Header: Value" or "Header=Value")
         try
         {
-            var lines = trimmed.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var lines = trimmed.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
             var addedAny = false;
             foreach (var line in lines)
             {
@@ -823,7 +827,7 @@ public class WebhookDispatcher : IWebhookDispatcher
                     continue;
                 }
 
-                var separatorIndex = cleanLine.IndexOfAny(new[] { ':', '=' });
+                var separatorIndex = cleanLine.AsSpan().IndexOfAny(KeyValueSeparators);
                 if (separatorIndex > 0)
                 {
                     var key = cleanLine.Substring(0, separatorIndex).Trim();
@@ -856,12 +860,12 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         try
         {
-            var lines = input.Split(new[] { '\r', '\n', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var lines = input.Split(HeaderLineSeparators, StringSplitOptions.RemoveEmptyEntries);
             var keys = new List<string>();
             foreach (var line in lines)
             {
                 var clean = line.Trim().Trim('{', '}', '"');
-                var sep = clean.IndexOfAny(new[] { ':', '=' });
+                var sep = clean.AsSpan().IndexOfAny(KeyValueSeparators);
                 if (sep > 0)
                 {
                     keys.Add(clean.Substring(0, sep).Trim().Trim('"'));

@@ -603,31 +603,31 @@ public class ConfigService : IConfigService
 
         var allConfig = this.repository.All().ToDictionary(c => c.Key, c => c, StringComparer.OrdinalIgnoreCase);
 
-        if (configValues.ContainsKey("DownloadQueueSize") && !configValues.ContainsKey("MaxActiveDownloads"))
+        if (configValues.TryGetValue("DownloadQueueSize", out var downloadQueueSize) && !configValues.ContainsKey("MaxActiveDownloads"))
         {
-            configValues["MaxActiveDownloads"] = configValues["DownloadQueueSize"];
+            configValues["MaxActiveDownloads"] = downloadQueueSize;
         }
-        else if (configValues.ContainsKey("MaxActiveDownloads") && !configValues.ContainsKey("DownloadQueueSize"))
+        else if (configValues.TryGetValue("MaxActiveDownloads", out var maxActiveDownloads) && !configValues.ContainsKey("DownloadQueueSize"))
         {
-            configValues["DownloadQueueSize"] = configValues["MaxActiveDownloads"];
-        }
-
-        if (configValues.ContainsKey("SeedQueueSize") && !configValues.ContainsKey("MaxActiveUploads"))
-        {
-            configValues["MaxActiveUploads"] = configValues["SeedQueueSize"];
-        }
-        else if (configValues.ContainsKey("MaxActiveUploads") && !configValues.ContainsKey("SeedQueueSize"))
-        {
-            configValues["SeedQueueSize"] = configValues["MaxActiveUploads"];
+            configValues["DownloadQueueSize"] = maxActiveDownloads;
         }
 
-        if (configValues.ContainsKey("BindInterface") && !configValues.ContainsKey("NetworkInterfaceBinding"))
+        if (configValues.TryGetValue("SeedQueueSize", out var seedQueueSize) && !configValues.ContainsKey("MaxActiveUploads"))
         {
-            configValues["NetworkInterfaceBinding"] = configValues["BindInterface"];
+            configValues["MaxActiveUploads"] = seedQueueSize;
         }
-        else if (configValues.ContainsKey("NetworkInterfaceBinding") && !configValues.ContainsKey("BindInterface"))
+        else if (configValues.TryGetValue("MaxActiveUploads", out var maxActiveUploads) && !configValues.ContainsKey("SeedQueueSize"))
         {
-            configValues["BindInterface"] = configValues["NetworkInterfaceBinding"];
+            configValues["SeedQueueSize"] = maxActiveUploads;
+        }
+
+        if (configValues.TryGetValue("BindInterface", out var bindInterface) && !configValues.ContainsKey("NetworkInterfaceBinding"))
+        {
+            configValues["NetworkInterfaceBinding"] = bindInterface;
+        }
+        else if (configValues.TryGetValue("NetworkInterfaceBinding", out var networkInterfaceBinding) && !configValues.ContainsKey("BindInterface"))
+        {
+            configValues["BindInterface"] = networkInterfaceBinding;
         }
 
         var urlBaseKey = configValues.Keys.FirstOrDefault(k => string.Equals(k, "UrlBase", StringComparison.OrdinalIgnoreCase));

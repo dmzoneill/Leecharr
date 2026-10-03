@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
@@ -654,7 +655,9 @@ public class AutomationService : IAutomationService
                                             _logger.Error(t.Exception.GetBaseException(), "Failed to add peer {0} to blocklist", ip);
                                         }
                                     },
-                                    TaskContinuationOptions.OnlyOnFaulted);
+                                    CancellationToken.None,
+                                    TaskContinuationOptions.OnlyOnFaulted,
+                                    TaskScheduler.Default);
                             }
                         }
                         else
@@ -670,7 +673,9 @@ public class AutomationService : IAutomationService
                                             _logger.Error(t.Exception.GetBaseException(), "Failed to load peer rule {0} into blocklist", ip);
                                         }
                                     },
-                                    TaskContinuationOptions.OnlyOnFaulted);
+                                    CancellationToken.None,
+                                    TaskContinuationOptions.OnlyOnFaulted,
+                                    TaskScheduler.Default);
                             }
                         }
                     }
@@ -700,7 +705,9 @@ public class AutomationService : IAutomationService
                                             _logger.Error(t.Exception.GetBaseException(), "Failed to disconnect peer {0} on torrent {1}", ip, torrent.Id);
                                         }
                                     },
-                                    TaskContinuationOptions.OnlyOnFaulted);
+                                    CancellationToken.None,
+                                    TaskContinuationOptions.OnlyOnFaulted,
+                                    TaskScheduler.Default);
                             }
                         }
                     }
@@ -733,7 +740,9 @@ public class AutomationService : IAutomationService
                                         _logger.Error(t.Exception.GetBaseException(), "Failed to boost tracker for torrent {0}", torrent.Name);
                                     }
                                 },
-                                TaskContinuationOptions.OnlyOnFaulted);
+                                CancellationToken.None,
+                                TaskContinuationOptions.OnlyOnFaulted,
+                                TaskScheduler.Default);
                         }
                     }
                     else
@@ -749,7 +758,9 @@ public class AutomationService : IAutomationService
                                         _logger.Error(t.Exception.GetBaseException(), "Failed to boost tracker for torrent {0}", torrent.Name);
                                     }
                                 },
-                                TaskContinuationOptions.OnlyOnFaulted);
+                                CancellationToken.None,
+                                TaskContinuationOptions.OnlyOnFaulted,
+                                TaskScheduler.Default);
                         }
                     }
                 }
@@ -766,7 +777,9 @@ public class AutomationService : IAutomationService
                                     _logger.Error(t.Exception.GetBaseException(), "Failed to force announce for torrent {0}", torrent.Name);
                                 }
                             },
-                            TaskContinuationOptions.OnlyOnFaulted);
+                            CancellationToken.None,
+                            TaskContinuationOptions.OnlyOnFaulted,
+                            TaskScheduler.Default);
                     }
                 }
             }
@@ -808,7 +821,9 @@ public class AutomationService : IAutomationService
                                     _logger.Error(t.Exception.GetBaseException(), "Failed to extract archive for torrent {0}", torrent.Name);
                                 }
                             },
-                            TaskContinuationOptions.OnlyOnFaulted);
+                            CancellationToken.None,
+                            TaskContinuationOptions.OnlyOnFaulted,
+                            TaskScheduler.Default);
                     }
                 }
                 catch (Exception ex)

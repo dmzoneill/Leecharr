@@ -20,6 +20,7 @@ public record NatPmpNetworkInterfaceCandidate(
 
 public enum NatPmpProtocol
 {
+    None = 0,
     Udp = 1,
     Tcp = 2,
 }
