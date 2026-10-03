@@ -196,10 +196,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         int? downloadLimit = null,
         int? uploadLimit = null)
     {
-        if (parsed == null)
-        {
-            throw new ArgumentNullException(nameof(parsed));
-        }
+        ArgumentNullException.ThrowIfNull(parsed);
 
         var existing = this.GetByInfoHash(parsed.InfoHash) ?? (!string.IsNullOrWhiteSpace(parsed.V2InfoHash) ? this.GetByInfoHash(parsed.V2InfoHash) : null);
         if (existing != null)
@@ -595,10 +592,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
     public async Task<Torrent> UpdateAsync(Torrent torrent)
     {
-        if (torrent == null)
-        {
-            throw new ArgumentNullException(nameof(torrent));
-        }
+        ArgumentNullException.ThrowIfNull(torrent);
 
         var existing = this.torrentRepository.Get(torrent.Id);
         var effectiveDl = this.GetEffectiveDownloadLimit(torrent);

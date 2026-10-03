@@ -13,6 +13,8 @@ using NzbDrone.Core.Messaging.Commands;
 
 namespace Leecharr.Core.Test.Messaging;
 
+#pragma warning disable CA2263 // Mocking non-generic IServiceFactory.Build(Type) invoked by CommandExecutor reflection
+
 public class SampleTestCommand : Command
 {
     public string Payload { get; set; } = string.Empty;
@@ -99,7 +101,7 @@ public class CommandExecutorTest
         };
 
         var handler = new SampleTestCommandHandler();
-        this.serviceFactory.Build<IExecute<SampleTestCommand>>().Returns(handler);
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
 
         var statusHistory = new System.Collections.Generic.List<CommandStatus>();
         this.repository.When(r => r.Update(Arg.Any<CommandModel>()))
@@ -127,7 +129,7 @@ public class CommandExecutorTest
         };
 
         var handler = new SampleTestCommandHandler();
-        this.serviceFactory.Build<IExecute<SampleTestCommand>>().Returns(handler);
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
 
         this.executor.Execute(commandModel);
 
@@ -147,7 +149,7 @@ public class CommandExecutorTest
         };
 
         var handler = new SampleDisposableCommandHandler();
-        this.serviceFactory.Build<IExecute<SampleTestCommand>>().Returns(handler);
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
 
         this.executor.Execute(commandModel);
 
@@ -168,7 +170,7 @@ public class CommandExecutorTest
         };
 
         var handler = new SampleAsyncTestCommandHandler();
-        this.serviceFactory.Build<IExecuteAsync<SampleAsyncTestCommand>>().Returns(handler);
+        this.serviceFactory.Build(typeof(IExecuteAsync<SampleAsyncTestCommand>)).Returns(handler);
 
         using var cts = new System.Threading.CancellationTokenSource();
         await this.executor.ExecuteAsync(commandModel, cts.Token);
@@ -190,7 +192,7 @@ public class CommandExecutorTest
         };
 
         var handler = new SampleCancellingAsyncCommandHandler();
-        this.serviceFactory.Build<IExecuteAsync<SampleAsyncTestCommand>>().Returns(handler);
+        this.serviceFactory.Build(typeof(IExecuteAsync<SampleAsyncTestCommand>)).Returns(handler);
 
         using var cts = new System.Threading.CancellationTokenSource();
         cts.Cancel();
@@ -213,7 +215,7 @@ public class CommandExecutorTest
         };
 
         var handler = new SampleTestCommandHandler();
-        this.serviceFactory.Build<IExecute<SampleTestCommand>>().Returns(handler);
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
 
         var calls = 0;
         this.repository.When(r => r.Update(Arg.Any<CommandModel>()))

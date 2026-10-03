@@ -28,7 +28,7 @@ public static class NotificationPayloadBuilder
             return (chatId, token, user, sound);
         }
 
-        if (settings.TrimStart().StartsWith("{"))
+        if (settings.TrimStart().StartsWith('{'))
         {
             try
             {
@@ -110,7 +110,7 @@ public static class NotificationPayloadBuilder
         }
 
         var trimmed = settings.Trim();
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -182,7 +182,7 @@ public static class NotificationPayloadBuilder
         }
 
         var trimmed = settings.Trim();
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -260,7 +260,7 @@ public static class NotificationPayloadBuilder
         }
 
         var trimmed = settings.Trim();
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -343,7 +343,7 @@ public static class NotificationPayloadBuilder
         }
 
         var trimmed = settings.Trim();
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -471,7 +471,7 @@ public static class NotificationPayloadBuilder
         }
 
         var trimmed = settings.Trim();
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -521,7 +521,7 @@ public static class NotificationPayloadBuilder
         }
 
         var trimmed = settings.Trim();
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -651,7 +651,7 @@ public static class NotificationPayloadBuilder
 
         var candidateUrl = trimmed;
 
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -699,7 +699,7 @@ public static class NotificationPayloadBuilder
         var trimmed = settings.Trim();
         string explicitHeaders = null;
 
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -768,7 +768,7 @@ public static class NotificationPayloadBuilder
                     return $"{{\"X-Gotify-Key\":\"{token}\"}}";
                 }
 
-                if (explicitHeaders.StartsWith("{"))
+                if (explicitHeaders.StartsWith('{'))
                 {
                     try
                     {
@@ -821,7 +821,7 @@ public static class NotificationPayloadBuilder
                     return $"{{\"Authorization\":\"{basicAuthHeaderValue}\"}}";
                 }
 
-                if (explicitHeaders.StartsWith("{"))
+                if (explicitHeaders.StartsWith('{'))
                 {
                     try
                     {
@@ -1442,10 +1442,10 @@ public static class NotificationPayloadBuilder
         }
 
         var trimmed = template.Trim();
-        if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) ||
-            (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
+        if ((trimmed.StartsWith('{') && trimmed.EndsWith('}')) ||
+            (trimmed.StartsWith('[') && trimmed.EndsWith(']')))
         {
-            if (trimmed.StartsWith("{") && trimmed.EndsWith("}") && !trimmed.Contains(':') && !trimmed.Contains(','))
+            if (trimmed.StartsWith('{') && trimmed.EndsWith('}') && !trimmed.Contains(':') && !trimmed.Contains(','))
             {
                 return false;
             }

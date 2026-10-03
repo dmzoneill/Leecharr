@@ -29,7 +29,7 @@ public class StartupContext
             {
                 cleanArg = cleanArg.Substring(2);
             }
-            else if (cleanArg.StartsWith("-"))
+            else if (cleanArg.StartsWith('-'))
             {
                 cleanArg = cleanArg.Substring(1);
             }

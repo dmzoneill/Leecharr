@@ -56,10 +56,7 @@ public class DeveloperDebuggerService : IDeveloperDebuggerService
 
     public TracepointDefinition AddTracepoint(TracepointDefinition tracepoint)
     {
-        if (tracepoint == null)
-        {
-            throw new ArgumentNullException(nameof(tracepoint));
-        }
+        ArgumentNullException.ThrowIfNull(tracepoint);
 
         if (string.IsNullOrWhiteSpace(tracepoint.Id))
         {
@@ -418,7 +415,7 @@ public class DeveloperDebuggerService : IDeveloperDebuggerService
 
                 foreach (var type in types)
                 {
-                    if (type.IsNested || string.IsNullOrEmpty(type.Namespace) || type.Name.StartsWith("<"))
+                    if (type.IsNested || string.IsNullOrEmpty(type.Namespace) || type.Name.StartsWith('<'))
                     {
                         continue;
                     }

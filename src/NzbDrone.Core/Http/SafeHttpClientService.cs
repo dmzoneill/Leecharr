@@ -183,7 +183,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         long totalBytesRead = 0;
 
         int bytesRead;
-        while ((bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+        while ((bytesRead = await responseStream.ReadAsync(buffer, token)) > 0)
         {
             totalBytesRead += bytesRead;
             if (totalBytesRead > maxSizeBytes)
@@ -235,10 +235,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
     public void ValidateUri(Uri uri)
     {
-        if (uri == null)
-        {
-            throw new ArgumentNullException(nameof(uri));
-        }
+        ArgumentNullException.ThrowIfNull(uri);
 
         if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))

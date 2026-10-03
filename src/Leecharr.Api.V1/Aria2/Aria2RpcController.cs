@@ -176,7 +176,7 @@ public class Aria2RpcController : ControllerBase
                 if (!string.IsNullOrWhiteSpace(rawBody))
                 {
                     var trimmed = rawBody.TrimStart();
-                    if (trimmed.StartsWith("<", StringComparison.Ordinal))
+                    if (trimmed.StartsWith('<'))
                     {
                         XDocument xmlDoc;
                         try

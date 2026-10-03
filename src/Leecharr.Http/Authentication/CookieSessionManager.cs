@@ -61,10 +61,7 @@ public class CookieSessionManager : ICookieSessionManager
 
     public async Task ValidatePrincipal(CookieValidatePrincipalContext context)
     {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        ArgumentNullException.ThrowIfNull(context);
 
         var userPrincipal = context.Principal;
         if (userPrincipal == null)
@@ -75,8 +72,8 @@ public class CookieSessionManager : ICookieSessionManager
         }
 
         var sessionClaim = userPrincipal.FindFirst("SessionId") ??
-                           userPrincipal.FindFirst("TicketId") ??
-                           userPrincipal.FindFirst("SessionToken");
+            userPrincipal.FindFirst("TicketId") ??
+            userPrincipal.FindFirst("SessionToken");
 
         if (sessionClaim == null || string.IsNullOrWhiteSpace(sessionClaim.Value))
         {
@@ -87,9 +84,9 @@ public class CookieSessionManager : ICookieSessionManager
         }
 
         var repository = this.userSessionRepository ??
-                         context.HttpContext?.RequestServices?.GetService<IUserSessionRepository>();
+            context.HttpContext?.RequestServices?.GetService<IUserSessionRepository>();
         var userRepo = this.userRepository ??
-                       context.HttpContext?.RequestServices?.GetService<IUserRepository>();
+            context.HttpContext?.RequestServices?.GetService<IUserRepository>();
 
         if (repository == null)
         {
@@ -158,8 +155,8 @@ public class CookieSessionManager : ICookieSessionManager
         }
 
         var isPersistent = context.Properties?.IsPersistent == true ||
-                           (session.Expiry - session.CreatedAt > TimeSpan.FromDays(1)) ||
-                           (session.Expiry - now > TimeSpan.FromHours(12));
+            (session.Expiry - session.CreatedAt > TimeSpan.FromDays(1)) ||
+            (session.Expiry - now > TimeSpan.FromHours(12));
 
         var renewalThreshold = isPersistent ? TimeSpan.FromDays(15) : TimeSpan.FromHours(4);
 
@@ -210,8 +207,8 @@ public class CookieSessionManager : ICookieSessionManager
         }
 
         var sessionClaim = principal.FindFirst("SessionId") ??
-                           principal.FindFirst("TicketId") ??
-                           principal.FindFirst("SessionToken");
+            principal.FindFirst("TicketId") ??
+            principal.FindFirst("SessionToken");
 
         if (sessionClaim == null || string.IsNullOrWhiteSpace(sessionClaim.Value))
         {
@@ -328,9 +325,9 @@ public class CookieSessionManager : ICookieSessionManager
         {
             var isTtlExpired = now - kvp.Value.CachedAt >= this.cacheTtl;
             var isSessionExpired = kvp.Value.Session != null &&
-                                   (kvp.Value.Session.IsRevoked ||
-                                    kvp.Value.Session.Expiry < now ||
-                                    kvp.Value.Session.AbsoluteExpiry < now);
+                (kvp.Value.Session.IsRevoked ||
+                    kvp.Value.Session.Expiry < now ||
+                    kvp.Value.Session.AbsoluteExpiry < now);
 
             if (isTtlExpired || isSessionExpired)
             {

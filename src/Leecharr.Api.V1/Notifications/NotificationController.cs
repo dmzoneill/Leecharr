@@ -364,9 +364,9 @@ public class NotificationController : Controller
     private static bool IsSensitiveKey(string key)
     {
         return SensitiveSettingKeys.Contains(key) ||
-               key.EndsWith("password", StringComparison.OrdinalIgnoreCase) ||
-               key.EndsWith("secret", StringComparison.OrdinalIgnoreCase) ||
-               key.EndsWith("token", StringComparison.OrdinalIgnoreCase);
+            key.EndsWith("password", StringComparison.OrdinalIgnoreCase) ||
+            key.EndsWith("secret", StringComparison.OrdinalIgnoreCase) ||
+            key.EndsWith("token", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string MaskSettings(string settings)
@@ -377,7 +377,7 @@ public class NotificationController : Controller
         }
 
         var trimmed = settings.TrimStart();
-        if (trimmed.StartsWith("{"))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -430,7 +430,7 @@ public class NotificationController : Controller
         var newTrimmed = newSettings.TrimStart();
         var existingTrimmed = existingSettings.TrimStart();
 
-        if (newTrimmed.StartsWith("{") && existingTrimmed.StartsWith("{"))
+        if (newTrimmed.StartsWith('{') && existingTrimmed.StartsWith('{'))
         {
             try
             {
@@ -477,7 +477,7 @@ public class NotificationController : Controller
             return string.Empty;
         }
 
-        if (settings.TrimStart().StartsWith("{"))
+        if (settings.TrimStart().StartsWith('{'))
         {
             try
             {

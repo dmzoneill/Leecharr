@@ -78,7 +78,7 @@ public static class EmailNotificationSender
         var from = "leecharr@localhost";
         string to = null;
 
-        if (settings.TrimStart().StartsWith("{"))
+        if (settings.TrimStart().StartsWith('{'))
         {
             using var doc = JsonDocument.Parse(settings);
             var root = doc.RootElement;
@@ -111,7 +111,7 @@ public static class EmailNotificationSender
                 ignoreSslErrors = ignoreSslProp.GetBoolean();
             }
             else if (root.TryGetProperty("validateCertificate", out var validateCertProp) ||
-                     root.TryGetProperty("validateCertificates", out validateCertProp))
+                root.TryGetProperty("validateCertificates", out validateCertProp))
             {
                 ignoreSslErrors = !validateCertProp.GetBoolean();
             }

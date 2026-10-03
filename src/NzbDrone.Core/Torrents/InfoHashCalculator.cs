@@ -12,10 +12,7 @@ public static class InfoHashCalculator
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "SHA1 is mandated by the BitTorrent BEP 3 protocol specification for info-hashes")]
     public static string Calculate(BDictionary infoDictionary)
     {
-        if (infoDictionary == null)
-        {
-            throw new ArgumentNullException(nameof(infoDictionary));
-        }
+        ArgumentNullException.ThrowIfNull(infoDictionary);
 
         var encoded = infoDictionary.EncodeAsBytes();
         var hash = SHA1.HashData(encoded);
@@ -26,10 +23,7 @@ public static class InfoHashCalculator
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "SHA1 is mandated by the BitTorrent BEP 3 protocol specification for info-hashes")]
     public static byte[] CalculateBytes(BDictionary infoDictionary)
     {
-        if (infoDictionary == null)
-        {
-            throw new ArgumentNullException(nameof(infoDictionary));
-        }
+        ArgumentNullException.ThrowIfNull(infoDictionary);
 
         var encoded = infoDictionary.EncodeAsBytes();
         return SHA1.HashData(encoded);
@@ -37,10 +31,7 @@ public static class InfoHashCalculator
 
     public static string CalculateV2(BDictionary infoDictionary)
     {
-        if (infoDictionary == null)
-        {
-            throw new ArgumentNullException(nameof(infoDictionary));
-        }
+        ArgumentNullException.ThrowIfNull(infoDictionary);
 
         var encoded = infoDictionary.EncodeAsBytes();
         var hash = SHA256.HashData(encoded);
@@ -49,10 +40,7 @@ public static class InfoHashCalculator
 
     public static byte[] CalculateV2Bytes(BDictionary infoDictionary)
     {
-        if (infoDictionary == null)
-        {
-            throw new ArgumentNullException(nameof(infoDictionary));
-        }
+        ArgumentNullException.ThrowIfNull(infoDictionary);
 
         var encoded = infoDictionary.EncodeAsBytes();
         return SHA256.HashData(encoded);

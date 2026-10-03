@@ -95,10 +95,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
 
     public void BindSocket(Socket socket, string interfaceName, int localPort = 0)
     {
-        if (socket == null)
-        {
-            throw new ArgumentNullException(nameof(socket));
-        }
+        ArgumentNullException.ThrowIfNull(socket);
 
         if (string.IsNullOrWhiteSpace(interfaceName) ||
             string.Equals(interfaceName, "Any", StringComparison.OrdinalIgnoreCase) ||
@@ -148,7 +145,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
             if (nic == null || nic.OperationalStatus != OperationalStatus.Up)
             {

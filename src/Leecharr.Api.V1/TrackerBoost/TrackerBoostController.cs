@@ -107,7 +107,7 @@ public class TrackerBoostController : Controller
         while ((line = reader.ReadLine()) != null)
         {
             var clean = line.Trim();
-            if (string.IsNullOrWhiteSpace(clean) || clean.StartsWith("#"))
+            if (string.IsNullOrWhiteSpace(clean) || clean.StartsWith('#'))
             {
                 continue;
             }

@@ -39,10 +39,7 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
     public CommandModel Push<TCommand>(TCommand command, CommandTrigger trigger = CommandTrigger.Unspecified)
         where TCommand : Command
     {
-        if (command == null)
-        {
-            throw new ArgumentNullException(nameof(command));
-        }
+        ArgumentNullException.ThrowIfNull(command);
 
         var body = command.ToJson();
         var existing = this.repository.FindExisting(command.Name, body);

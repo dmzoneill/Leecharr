@@ -366,10 +366,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
     public async Task StartAsync()
     {
-        if (this.disposed)
-        {
-            throw new ObjectDisposedException(nameof(DynamicDownloadEngineProxy));
-        }
+        ObjectDisposedException.ThrowIf(this.disposed, this);
 
         await this.switchLock.WaitAsync();
         try

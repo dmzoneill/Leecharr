@@ -389,7 +389,7 @@ public class CustomScriptService : ICustomScriptService
         }
 
         var trimmed = settings.Trim();
-        if (trimmed.StartsWith("{", StringComparison.Ordinal))
+        if (trimmed.StartsWith('{'))
         {
             try
             {
@@ -489,7 +489,7 @@ public class CustomScriptService : ICustomScriptService
         var resolvedScriptPath = scriptPath?.Trim()?.Trim('"', '\'');
         var resolvedArguments = arguments;
 
-        if (!string.IsNullOrWhiteSpace(scriptPath) && scriptPath.TrimStart().StartsWith("{", StringComparison.Ordinal))
+        if (!string.IsNullOrWhiteSpace(scriptPath) && scriptPath.TrimStart().StartsWith('{'))
         {
             var (parsedPath, parsedArgs) = ParseSettings(scriptPath);
             if (!string.IsNullOrWhiteSpace(parsedPath))

@@ -75,7 +75,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var cleanTitle = CleanTitle(title);
         var cat = (category ?? string.Empty).ToLowerInvariant();
         var isTv = cat.Contains("tv") || cat.Contains("sonarr") || cat.Contains("show") || cat.Contains("series") ||
-                   (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2)));
+            (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2)));
         var isMusic = cat.Contains("music") || cat.Contains("lidarr") || cat.Contains("album") || cat.Contains("audio") || cat.Contains("flac");
         var preferredType = isMusic ? "Lidarr" : isTv ? "Sonarr" : "Radarr";
 
@@ -188,8 +188,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                 records = doc.RootElement.EnumerateArray();
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object &&
-                     doc.RootElement.TryGetProperty("records", out var recProp) &&
-                     recProp.ValueKind == JsonValueKind.Array)
+                doc.RootElement.TryGetProperty("records", out var recProp) &&
+                recProp.ValueKind == JsonValueKind.Array)
             {
                 records = recProp.EnumerateArray();
             }
@@ -622,8 +622,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var isMusic = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase);
 
         var endpoint = isMovie ? $"{baseUrl}/api/v3/movie/lookup?term={Uri.EscapeDataString(title)}" :
-                       isMusic ? $"{baseUrl}/api/v1/search?term={Uri.EscapeDataString(title)}" :
-                                 $"{baseUrl}/api/v3/series/lookup?term={Uri.EscapeDataString(title)}";
+            isMusic ? $"{baseUrl}/api/v1/search?term={Uri.EscapeDataString(title)}" :
+            $"{baseUrl}/api/v3/series/lookup?term={Uri.EscapeDataString(title)}";
 
         using var req = new HttpRequestMessage(HttpMethod.Get, endpoint);
         if (!string.IsNullOrWhiteSpace(conn.ApiKey))
@@ -847,7 +847,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
             if (!string.IsNullOrWhiteSpace(url))
             {
-                if (url.StartsWith("/"))
+                if (url.StartsWith('/'))
                 {
                     url = $"{baseUrl}{url}";
                     if (!string.IsNullOrWhiteSpace(conn.ApiKey) && !url.Contains("apikey=", StringComparison.OrdinalIgnoreCase))
@@ -858,19 +858,19 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                 }
 
                 if ((string.Equals(coverType, "poster", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(coverType, "cover", StringComparison.OrdinalIgnoreCase)) &&
+                    string.Equals(coverType, "cover", StringComparison.OrdinalIgnoreCase)) &&
                     string.IsNullOrEmpty(meta.PosterUrl))
                 {
                     meta.PosterUrl = url;
                 }
                 else if ((string.Equals(coverType, "fanart", StringComparison.OrdinalIgnoreCase) ||
-                          string.Equals(coverType, "backdrop", StringComparison.OrdinalIgnoreCase)) &&
-                         string.IsNullOrEmpty(meta.BackdropUrl))
+                    string.Equals(coverType, "backdrop", StringComparison.OrdinalIgnoreCase)) &&
+                    string.IsNullOrEmpty(meta.BackdropUrl))
                 {
                     meta.BackdropUrl = url;
                 }
                 else if (string.Equals(coverType, "banner", StringComparison.OrdinalIgnoreCase) &&
-                         string.IsNullOrEmpty(meta.BannerUrl))
+                    string.IsNullOrEmpty(meta.BannerUrl))
                 {
                     meta.BannerUrl = url;
                 }

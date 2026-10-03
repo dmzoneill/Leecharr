@@ -76,7 +76,7 @@ public class ArrSyncService : IArrSyncService, IExecute<SyncArrCommand>, IExecut
 
                     foreach (var endpoint in endpoints)
                     {
-                        var uri = new Uri(new Uri(baseUrl.EndsWith("/") ? baseUrl : baseUrl + "/"), endpoint);
+                        var uri = new Uri(new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/"), endpoint);
                         using var req = new HttpRequestMessage(HttpMethod.Get, uri);
                         if (!string.IsNullOrWhiteSpace(conn.ApiKey))
                         {

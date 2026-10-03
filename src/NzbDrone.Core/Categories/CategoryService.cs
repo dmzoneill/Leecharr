@@ -122,10 +122,7 @@ public class CategoryService : ICategoryService
 
     public Category Add(Category category)
     {
-        if (category == null)
-        {
-            throw new ArgumentNullException(nameof(category));
-        }
+        ArgumentNullException.ThrowIfNull(category);
 
         if (string.IsNullOrWhiteSpace(category.Name))
         {
@@ -178,10 +175,7 @@ public class CategoryService : ICategoryService
 
     public Category Update(Category category)
     {
-        if (category == null)
-        {
-            throw new ArgumentNullException(nameof(category));
-        }
+        ArgumentNullException.ThrowIfNull(category);
 
         if (string.IsNullOrWhiteSpace(category.Name))
         {

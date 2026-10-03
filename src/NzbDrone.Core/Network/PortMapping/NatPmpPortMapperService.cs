@@ -623,10 +623,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             targetGateway,
             cancellationToken).ConfigureAwait(false);
 
-        if (this.isDisposed != 0)
-        {
-            throw new ObjectDisposedException(nameof(NatPmpPortMapperService));
-        }
+        ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
 
         if (result.Success)
         {
@@ -705,10 +702,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         catch (ObjectDisposedException)
         {
-            if (this.isDisposed != 0)
-            {
-                throw new ObjectDisposedException(nameof(NatPmpPortMapperService));
-            }
+            ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
 
             throw;
         }

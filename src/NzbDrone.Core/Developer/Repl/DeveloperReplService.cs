@@ -69,10 +69,7 @@ public class DeveloperReplService : IDeveloperReplService
 
     public ReplExecutionResponse Execute(ReplExecutionRequest request)
     {
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
+        ArgumentNullException.ThrowIfNull(request);
 
         var sw = Stopwatch.StartNew();
         var response = new ReplExecutionResponse();
