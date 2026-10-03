@@ -4914,7 +4914,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     host = entry.Substring(1, closingBracket - 1);
                     var colonIndex = entry.IndexOf(':', closingBracket);
-                    if (colonIndex >= 0 && int.TryParse(entry.Substring(colonIndex + 1), out var parsedPort) && parsedPort > 0 && parsedPort <= 65535)
+                    if (colonIndex >= 0 && int.TryParse(entry.AsSpan(colonIndex + 1), out var parsedPort) && parsedPort > 0 && parsedPort <= 65535)
                     {
                         port = parsedPort;
                     }
@@ -4927,7 +4927,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             else
             {
                 var lastColon = entry.LastIndexOf(':');
-                if (lastColon > 0 && int.TryParse(entry.Substring(lastColon + 1), out var parsedPort) && parsedPort > 0 && parsedPort <= 65535)
+                if (lastColon > 0 && int.TryParse(entry.AsSpan(lastColon + 1), out var parsedPort) && parsedPort > 0 && parsedPort <= 65535)
                 {
                     host = entry.Substring(0, lastColon);
                     port = parsedPort;

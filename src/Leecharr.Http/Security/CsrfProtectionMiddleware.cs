@@ -133,8 +133,8 @@ public class CsrfProtectionMiddleware
                     context.Request.Headers.ContainsKey("X-Api-Key") ||
                     context.Request.Headers.ContainsKey("ApiKey") ||
                     (context.Request.Headers.TryGetValue("Authorization", out var authHeader) &&
-                     (authHeader.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ||
-                      authHeader.ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))) ||
+                        (authHeader.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ||
+                            authHeader.ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))) ||
                     context.Request.Headers.ContainsKey("X-Transmission-Session-Id");
 
                 if (!hasExplicitAuthHeader && !IsAuthPath(path, context.Request.PathBase.Value) && !IsRpcPath(path, context.Request.PathBase.Value))
@@ -144,7 +144,7 @@ public class CsrfProtectionMiddleware
                     var hasOrigin = context.Request.Headers.TryGetValue("Origin", out var originHeader) &&
                                     !string.IsNullOrWhiteSpace(originHeader);
                     var hasReferer = context.Request.Headers.TryGetValue("Referer", out var refererHeader) &&
-                                     !string.IsNullOrWhiteSpace(refererHeader);
+                        !string.IsNullOrWhiteSpace(refererHeader);
 
                     // 1. Check Sec-Fetch-Site (Modern browser defense)
                     if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&
@@ -254,7 +254,7 @@ public class CsrfProtectionMiddleware
                 {
                     if (closingBracket < patternHost.Length - 1 && patternHost[closingBracket + 1] == ':')
                     {
-                        if (int.TryParse(patternHost.Substring(closingBracket + 2), out var parsedPort))
+                        if (int.TryParse(patternHost.AsSpan(closingBracket + 2), out var parsedPort))
                         {
                             patternPort = parsedPort;
                         }
@@ -266,7 +266,7 @@ public class CsrfProtectionMiddleware
             else
             {
                 var colonIndex = patternHost.LastIndexOf(':');
-                if (colonIndex > 0 && int.TryParse(patternHost.Substring(colonIndex + 1), out var parsedPort))
+                if (colonIndex > 0 && int.TryParse(patternHost.AsSpan(colonIndex + 1), out var parsedPort))
                 {
                     patternPort = parsedPort;
                     patternHost = patternHost.Substring(0, colonIndex);
@@ -276,8 +276,8 @@ public class CsrfProtectionMiddleware
             if (!string.IsNullOrEmpty(patternScheme) && !patternPort.HasValue)
             {
                 patternPort = string.Equals(patternScheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 :
-                              string.Equals(patternScheme, "http", StringComparison.OrdinalIgnoreCase) ? 80 :
-                              (int?)null;
+                    string.Equals(patternScheme, "http", StringComparison.OrdinalIgnoreCase) ? 80 :
+                    (int?)null;
             }
 
             if (patternPort.HasValue && originPort != patternPort.Value)
@@ -372,8 +372,8 @@ public class CsrfProtectionMiddleware
     private static bool IsLoopbackHost(string host)
     {
         return host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-               host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-               host.Equals("::1", StringComparison.OrdinalIgnoreCase) ||
-               host.Equals("[::1]", StringComparison.OrdinalIgnoreCase);
+            host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("::1", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("[::1]", StringComparison.OrdinalIgnoreCase);
     }
 }
