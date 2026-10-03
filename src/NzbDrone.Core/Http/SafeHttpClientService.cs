@@ -22,6 +22,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 {
     public const long DefaultMaxSizeBytes = 10 * 1024 * 1024; // 10 MB
 
+    private static readonly char[] HostnameAndSubnetSeparators = [',', ';', ' ', '\t', '\r', '\n'];
     private readonly HttpClient httpClient;
     private readonly bool ownsClient;
     private readonly Logger logger;
@@ -316,7 +317,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             return false;
         }
 
-        var entries = allowedHostnames.Split(new[] { ',', ';', ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var entries = allowedHostnames.Split(HostnameAndSubnetSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var entry in entries)
         {
             var pattern = entry.Trim();
@@ -364,7 +365,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         var allowedSubnets = this.AllowedSsrfSubnets;
         if (!string.IsNullOrWhiteSpace(allowedSubnets))
         {
-            var entries = allowedSubnets.Split(new[] { ',', ';', ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var entries = allowedSubnets.Split(HostnameAndSubnetSeparators, StringSplitOptions.RemoveEmptyEntries);
             foreach (var entry in entries)
             {
                 var trimmed = entry.Trim();

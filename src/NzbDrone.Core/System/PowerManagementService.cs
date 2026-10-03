@@ -23,6 +23,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         EsContinuous = 0x80000000,
     }
 
+    private static readonly string[] WindowsShutdownArgs = ["/s", "/t", "60", "/c", "Leecharr completed queue"];
     private readonly IHostApplicationLifetime hostLifetime;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly object lockObj = new();
@@ -390,7 +391,11 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             }
             else
             {
-                SetThreadExecutionState(flags);
+                var resetResult = SetThreadExecutionState(flags);
+                if (resetResult == 0)
+                {
+                    this.logger.Trace("Failed to clear execution state flags.");
+                }
             }
 
             this.isSleepInhibited = false;
@@ -597,7 +602,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         switch (action)
         {
             case PowerAction.Shutdown:
-                return await this.RunProcessAsync("shutdown", new[] { "/s", "/t", "60", "/c", "Leecharr completed queue" });
+                return await this.RunProcessAsync("shutdown", WindowsShutdownArgs);
             case PowerAction.Suspend:
                 return this.InvokeWindowsSetSuspendState(hibernate: false, forceCritical: false, disableWakeEvent: false);
             case PowerAction.Hibernate:
