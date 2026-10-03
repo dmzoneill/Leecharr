@@ -40,6 +40,10 @@ namespace Leecharr.Api.V1.QBittorrent;
 public class QBittorrentApiController : ControllerBase, IActionFilter
 {
     private static readonly RpcSessionStore authenticatedSessions = new();
+    private static readonly char[] NewlineSeparators = ['\r', '\n'];
+    private static readonly char[] TrackerCreationSeparators = ['\r', '\n', ';'];
+    private static readonly char[] CategoryRemovalSeparators = ['\r', '\n', '|'];
+    private static readonly char[] TrackerRemovalSeparators = ['|', '\n'];
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -756,7 +760,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         var addedCount = 0;
-        var lines = request.Urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = request.Urls.Split(NewlineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var url in lines)
         {
             var trimmed = url.Trim();
@@ -1187,11 +1191,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         var trackerList = !string.IsNullOrWhiteSpace(trackers)
-            ? trackers.Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries).ToList()
+            ? trackers.Split(TrackerCreationSeparators, StringSplitOptions.RemoveEmptyEntries).ToList()
             : new List<string>();
 
         var webSeedList = !string.IsNullOrWhiteSpace(webseeds)
-            ? webseeds.Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries).ToList()
+            ? webseeds.Split(TrackerCreationSeparators, StringSplitOptions.RemoveEmptyEntries).ToList()
             : new List<string>();
 
         var request = new TorrentCreationRequest
@@ -1691,7 +1695,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (!string.IsNullOrEmpty(categories))
         {
-            var cats = categories.Split(new[] { '\r', '\n', '|' }, StringSplitOptions.RemoveEmptyEntries);
+            var cats = categories.Split(CategoryRemovalSeparators, StringSplitOptions.RemoveEmptyEntries);
             foreach (var c in cats)
             {
                 var normalized = CategoryService.NormalizeCategoryName(c);
@@ -1942,7 +1946,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         if (!string.IsNullOrWhiteSpace(targetHashes) && !string.IsNullOrWhiteSpace(urls))
         {
             var torrents = this.ResolveTorrents(targetHashes);
-            var rawUrls = urls.Replace("\r\n", "\n").Replace('\r', '\n').Split(new[] { '|', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var rawUrls = urls.Replace("\r\n", "\n").Replace('\r', '\n').Split(TrackerRemovalSeparators, StringSplitOptions.RemoveEmptyEntries);
             var urlSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var u in rawUrls)

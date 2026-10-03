@@ -66,6 +66,7 @@ public class FloodActionRequest
 public class FloodApiController : ControllerBase, IActionFilter
 {
     private static readonly RpcSessionStore authenticatedSessions = new();
+    private static readonly char[] LabelSeparators = [',', ';'];
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -400,7 +401,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
             if (!string.IsNullOrWhiteSpace(t.Label))
             {
-                var labelParts = t.Label.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var labelParts = t.Label.Split(LabelSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 foreach (var part in labelParts)
                 {
                     if (!string.IsNullOrWhiteSpace(part))
@@ -674,7 +675,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
                 if (!string.IsNullOrWhiteSpace(t.Label))
                 {
-                    var parts = t.Label.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    var parts = t.Label.Split(LabelSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                     foreach (var part in parts)
                     {
                         if (!string.IsNullOrWhiteSpace(part))

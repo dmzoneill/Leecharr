@@ -15,6 +15,13 @@ namespace Leecharr.Api.V1.Media;
 [V1ApiController("media")]
 public class MediaController : RestController<MediaMetadataResource>
 {
+    private static readonly string[] ImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"];
+    private static readonly string[] FanartFallbacks = ["backdrop", "background"];
+    private static readonly string[] BackdropFallbacks = ["fanart", "background"];
+    private static readonly string[] PosterFallbacks = ["cover", "folder", "thumb"];
+    private static readonly string[] ThumbFallbacks = ["poster", "cover", "folder"];
+    private static readonly string[] BannerFallbacks = ["season-banner", "fanart", "backdrop"];
+
     private readonly IMediaEnrichmentService mediaEnrichmentService;
 
     public MediaController(IMediaEnrichmentService mediaEnrichmentService)
@@ -136,35 +143,34 @@ public class MediaController : RestController<MediaMetadataResource>
             }
         }
 
-        var extensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg" };
         var candidateNames = new List<string> { type };
 
         if (string.Equals(type, "fanart", StringComparison.OrdinalIgnoreCase))
         {
-            candidateNames.AddRange(new[] { "backdrop", "background" });
+            candidateNames.AddRange(FanartFallbacks);
         }
         else if (string.Equals(type, "backdrop", StringComparison.OrdinalIgnoreCase))
         {
-            candidateNames.AddRange(new[] { "fanart", "background" });
+            candidateNames.AddRange(BackdropFallbacks);
         }
         else if (string.Equals(type, "poster", StringComparison.OrdinalIgnoreCase))
         {
-            candidateNames.AddRange(new[] { "cover", "folder", "thumb" });
+            candidateNames.AddRange(PosterFallbacks);
         }
         else if (string.Equals(type, "thumb", StringComparison.OrdinalIgnoreCase))
         {
-            candidateNames.AddRange(new[] { "poster", "cover", "folder" });
+            candidateNames.AddRange(ThumbFallbacks);
         }
         else if (string.Equals(type, "banner", StringComparison.OrdinalIgnoreCase))
         {
-            candidateNames.AddRange(new[] { "season-banner", "fanart", "backdrop" });
+            candidateNames.AddRange(BannerFallbacks);
         }
 
         foreach (var dir in candidateDirs)
         {
             foreach (var name in candidateNames)
             {
-                foreach (var ext in extensions)
+                foreach (var ext in ImageExtensions)
                 {
                     var file = global::System.IO.Path.Combine(dir, $"{name}{ext}");
                     if (global::System.IO.File.Exists(file))

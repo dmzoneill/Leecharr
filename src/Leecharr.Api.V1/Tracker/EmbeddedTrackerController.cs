@@ -27,6 +27,7 @@ public class EmbeddedTrackerController : ControllerBase
     private readonly ITrustedNetworkService trustedNetworkService;
     private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly char[] GenreSeparators = [',', ';'];
 
     public EmbeddedTrackerController(
         IEmbeddedTrackerService trackerService,
@@ -199,7 +200,7 @@ public class EmbeddedTrackerController : ControllerBase
             int? year = meta?.Year > 0 ? meta.Year : null;
             double? rating = meta?.Rating > 0 ? meta.Rating : null;
             var genres = !string.IsNullOrWhiteSpace(meta?.Genres)
-                ? meta.Genres.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(g => g.Trim()).ToList()
+                ? meta.Genres.Split(GenreSeparators, StringSplitOptions.RemoveEmptyEntries).Select(g => g.Trim()).ToList()
                 : new List<string>();
 
             var source = torrent != null ? (torrent.IsPrivate ? "Private Tracker" : "Public Tracker") : (hist?.Source ?? "External");

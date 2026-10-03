@@ -37,6 +37,7 @@ public class PackageController : Controller
     private readonly ITorrentService torrentService;
     private readonly IPackageImportService packageImportService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly char[] IdSeparators = [',', ';'];
 
     public PackageController(
         IPackageExportService packageExportService,
@@ -240,7 +241,7 @@ public class PackageController : Controller
 
         if (!string.IsNullOrWhiteSpace(queryString))
         {
-            var tokens = queryString.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var tokens = queryString.Split(IdSeparators, StringSplitOptions.RemoveEmptyEntries);
             foreach (var token in tokens)
             {
                 if (int.TryParse(token.Trim(), out var id) && id > 0)
@@ -257,7 +258,7 @@ public class PackageController : Controller
                 continue;
             }
 
-            var parts = val.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var parts = val.Split(IdSeparators, StringSplitOptions.RemoveEmptyEntries);
             foreach (var part in parts)
             {
                 if (int.TryParse(part.Trim(), out var parsedId) && parsedId > 0 && !idList.Contains(parsedId))

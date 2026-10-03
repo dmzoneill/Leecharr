@@ -31,6 +31,7 @@ public class ArrWebhookController : Controller
     private readonly IEventAggregator eventAggregator;
     private readonly IDeveloperWebhookStore webhookStore;
     private readonly Logger logger;
+    private static readonly char[] TitleDelimiters = ['.', '_', '-', ' '];
 
     public ArrWebhookController(
         ITorrentRepository torrentRepository,
@@ -855,7 +856,7 @@ public class ArrWebhookController : Controller
 
     private static string NormalizeTitleDelimiters(string title)
     {
-        return string.Join(" ", title.Split(new[] { '.', '_', '-', ' ' }, StringSplitOptions.RemoveEmptyEntries));
+        return string.Join(" ", title.Split(TitleDelimiters, StringSplitOptions.RemoveEmptyEntries));
     }
 
     private static bool IsWordBoundaryMatch(string fullText, string phrase)
