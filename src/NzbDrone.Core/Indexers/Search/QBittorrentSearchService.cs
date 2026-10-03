@@ -41,6 +41,8 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
     private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
+    private static readonly string[] DefaultPluginSupportedCategories = ["all", "movies", "tv", "music", "anime", "software"];
+    private static readonly char[] PluginListSeparators = ['|', ','];
     private readonly ConcurrentDictionary<int, QBittorrentSearchJob> activeJobs = new();
     private readonly ConcurrentDictionary<string, (string FullName, string Url, bool Enabled)> installedPlugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, bool> pluginEnabledOverrides = new(StringComparer.OrdinalIgnoreCase);
@@ -463,7 +465,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                     version = "1.0",
                     url = idx.Url,
                     enabled = isEnabled,
-                    supportedCategories = new[] { "all", "movies", "tv", "music", "anime", "software" },
+                    supportedCategories = DefaultPluginSupportedCategories,
                 });
             }
         }
@@ -478,7 +480,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                 version = "1.0",
                 url = "https://github.com/Leecharr/Leecharr",
                 enabled = isDefaultEnabled,
-                supportedCategories = new[] { "all", "movies", "tv", "music", "anime", "software" },
+                supportedCategories = DefaultPluginSupportedCategories,
             });
         }
 
@@ -497,7 +499,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                 version = "1.0",
                 url = kvp.Value.Url,
                 enabled = isEnabled,
-                supportedCategories = new[] { "all", "movies", "tv", "music", "anime", "software" },
+                supportedCategories = DefaultPluginSupportedCategories,
             });
         }
 
@@ -511,7 +513,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             return false;
         }
 
-        var sourceList = sources.Split(new[] { '|', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        var sourceList = sources.Split(PluginListSeparators, StringSplitOptions.RemoveEmptyEntries);
         var installed = false;
         foreach (var src in sourceList)
         {
@@ -542,7 +544,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             return false;
         }
 
-        var nameList = names.Split(new[] { '|', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        var nameList = names.Split(PluginListSeparators, StringSplitOptions.RemoveEmptyEntries);
         var anyRemoved = false;
         foreach (var name in nameList)
         {
@@ -565,7 +567,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             return false;
         }
 
-        var nameList = names.Split(new[] { '|', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        var nameList = names.Split(PluginListSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var name in nameList)
         {
             var trimmed = name.Trim();

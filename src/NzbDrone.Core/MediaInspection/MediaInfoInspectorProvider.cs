@@ -20,6 +20,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
     private readonly TagLibInspectorProvider fallbackProvider = new();
     private readonly string customBinaryPath;
     private readonly TimeSpan executionTimeout;
+    private static readonly string[] DefaultSearchPaths = ["/usr/bin/mediainfo", "/usr/local/bin/mediainfo"];
 
     public MediaInfoInspectorProvider()
         : this(null, TimeSpan.FromSeconds(60))
@@ -506,6 +507,6 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             return this.customBinaryPath;
         }
 
-        return CliProcessDiscovery.FindExecutable("mediainfo", "MEDIAINFO_PATH", new[] { "/usr/bin/mediainfo", "/usr/local/bin/mediainfo" });
+        return CliProcessDiscovery.FindExecutable("mediainfo", "MEDIAINFO_PATH", DefaultSearchPaths);
     }
 }

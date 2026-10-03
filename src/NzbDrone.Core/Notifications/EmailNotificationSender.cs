@@ -13,6 +13,8 @@ namespace NzbDrone.Core.Notifications;
 
 public static class EmailNotificationSender
 {
+    private static readonly char[] RecipientSeparators = [',', ';'];
+
     public static void SendEmailNotification(
         string settings,
         string eventType,
@@ -229,7 +231,7 @@ public static class EmailNotificationSender
         mail.Subject = subject;
         mail.Body = body;
 
-        var recipients = to.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        var recipients = to.Split(RecipientSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var recipient in recipients)
         {
             var trimmedRecipient = recipient.Trim();
