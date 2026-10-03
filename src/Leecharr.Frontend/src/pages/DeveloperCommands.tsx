@@ -397,7 +397,7 @@ export default function DeveloperCommands() {
                         <input
                           type={p.type === "Int32" || p.type === "Int64" ? "number" : "text"}
                           placeholder={p.isNullable ? "Optional (null)" : ""}
-                          value={formParams[p.name] ?? ""}
+                          value={String(formParams[p.name] ?? "")}
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val === "") {

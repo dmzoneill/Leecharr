@@ -879,12 +879,13 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
 
       case "nextUpdate": {
         const legacyNextAnnounce = (t as unknown as { nextAnnounce?: string | number }).nextAnnounce;
+        const val = legacyNextAnnounce ?? t.nextUpdate;
         return (
           <span>
-            {legacyNextAnnounce
-              ? formatDate(legacyNextAnnounce)
-              : t.nextUpdate
-                ? formatDate(t.nextUpdate)
+            {typeof val === "number"
+              ? formatSeconds(val)
+              : typeof val === "string"
+                ? formatDate(val)
                 : "-"}
           </span>
         );

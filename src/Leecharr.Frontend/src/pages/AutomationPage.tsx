@@ -1,4 +1,4 @@
-import { useTranslation } from "../i18n";
+import { useTranslation, type TFunction } from "../i18n";
 import { useState, useMemo, useEffect } from "react";
 import {
   useAutomationScripts,
@@ -338,7 +338,7 @@ export interface PropertyDef {
   presets?: { label: string; value: string }[];
 }
 
-export const getConditionProperties = (t: (key: string) => string): PropertyDef[] => [
+export const getConditionProperties = (t: TFunction): PropertyDef[] => [
   // Booleans & Flags
   {
     value: "${torrent.isPrivate}",
@@ -817,17 +817,23 @@ function visualStepsToYaml(
             yaml += `      - http: '${act.value.replace(/'/g, "''")}'\n`;
           } else {
             yaml += `      - http:\n`;
-            if (act.extra.method)
-              yaml += `          method: '${act.extra.method}'\n`;
-            if (act.extra.url || act.value)
-              yaml += `          url: '${(act.extra.url || act.value).replace(/'/g, "''")}'\n`;
+            const extra = act.extra || {};
+            if (extra.method)
+              yaml += `          method: '${String(extra.method)}'\n`;
+            const extraUrl = typeof extra.url === "string" ? extra.url : "";
+            const extraBody = typeof extra.body === "string" ? extra.body : "";
+            const urlVal = extraUrl || act.value;
+            if (urlVal)
+              yaml += `          url: '${urlVal.replace(/'/g, "''")}'\n`;
 
-            let headers = act.extra.headers || {};
-            if (act.extra.auth === "Bearer Token")
+            const headers = (typeof extra.headers === "object" && extra.headers !== null
+              ? { ...(extra.headers as Record<string, unknown>) }
+              : {}) as Record<string, string>;
+            if (extra.auth === "Bearer Token")
               headers["Authorization"] = "Bearer ${inputs.apiToken}";
-            else if (act.extra.auth === "API Key (X-Api-Key)")
+            else if (extra.auth === "API Key (X-Api-Key)")
               headers["X-Api-Key"] = "${inputs.apiKey}";
-            else if (act.extra.auth === "Basic Auth")
+            else if (extra.auth === "Basic Auth")
               headers["Authorization"] = "Basic ${inputs.basicAuth}";
 
             if (Object.keys(headers).length > 0) {
@@ -836,17 +842,17 @@ function visualStepsToYaml(
                 yaml += `            ${k}: '${String(v).replace(/'/g, "''")}'\n`;
               }
             }
-            if (act.extra.json) yaml += `          json: true\n`;
-            if (act.extra.body)
-              yaml += `          body: '${act.extra.body.replace(/'/g, "''")}'\n`;
-            if (act.extra.timeoutSeconds)
-              yaml += `          timeoutSeconds: ${act.extra.timeoutSeconds}\n`;
-            if (act.extra.allowInsecure)
+            if (extra.json) yaml += `          json: true\n`;
+            if (extraBody)
+              yaml += `          body: '${extraBody.replace(/'/g, "''")}'\n`;
+            if (extra.timeoutSeconds)
+              yaml += `          timeoutSeconds: ${extra.timeoutSeconds}\n`;
+            if (extra.allowInsecure)
               yaml += `          allowInsecure: true\n`;
-            if (act.extra.continueOnError)
+            if (extra.continueOnError)
               yaml += `          continueOnError: true\n`;
-            if (act.extra.register)
-              yaml += `          register: '${act.extra.register}'\n`;
+            if (extra.register)
+              yaml += `          register: '${String(extra.register)}'\n`;
           }
         } else if (act.type === "pause") {
           yaml += `      - pause: true\n`;
@@ -3852,7 +3858,7 @@ if (torrent) {
                                   >
                                     <input
                                       type="checkbox"
-                                      checked={act.extra?.deleteData || false}
+                                      checked={Boolean(act.extra?.deleteData)}
                                       onChange={(e) => {
                                         updateActionExtra(
                                           stepIdx,
@@ -3913,7 +3919,7 @@ if (torrent) {
                                                     : "#8b5cf6",
                                           fontWeight: "bold",
                                         }}
-                                        value={act.extra?.method || "POST"}
+                                        value={(act.extra?.method as string) || "POST"}
                                         onChange={(e) => {
                                           updateActionExtra(
                                             stepIdx,
@@ -3960,7 +3966,7 @@ if (torrent) {
                                         className="form-control"
                                         style={{ flex: 1 }}
                                         value={
-                                          act.extra?.url || act.value || ""
+                                          (act.extra?.url as string) || act.value || ""
                                         }
                                         placeholder={t(
                                           "automation.ui.httpsexternalservicecomapiv1we",
@@ -3988,7 +3994,7 @@ if (torrent) {
                                         fontSize: "0.85rem",
                                       }}
                                       placeholder={`{"event": "complete", "torrent": "\${torrent.name}", "size": \${torrent.size}}`}
-                                      value={act.extra?.body || ""}
+                                      value={(act.extra?.body as string) || ""}
                                       onChange={(e) => {
                                         updateActionExtra(
                                           stepIdx,
@@ -4043,16 +4049,17 @@ if (torrent) {
                                             stepIdx,
                                             actIdx,
                                             (extra) => {
-                                              if (!extra.headers)
+                                              if (!extra.headers || typeof extra.headers !== "object")
                                                 extra.headers = {};
+                                              const hdrs = extra.headers as Record<string, string>;
                                               if (v === "bearer")
-                                                extra.headers["Authorization"] =
+                                                hdrs["Authorization"] =
                                                   "Bearer ${inputs.apiToken}";
                                               if (v === "apikey")
-                                                extra.headers["X-Api-Key"] =
+                                                hdrs["X-Api-Key"] =
                                                   "${inputs.apiKey}";
                                               if (v === "basic")
-                                                extra.headers["Authorization"] =
+                                                hdrs["Authorization"] =
                                                   "Basic ${inputs.basicAuth}";
                                             },
                                           );
@@ -4082,7 +4089,7 @@ if (torrent) {
                                         <input
                                           type="checkbox"
                                           checked={
-                                            act.extra?.allowInsecure || false
+                                            Boolean(act.extra?.allowInsecure)
                                           }
                                           onChange={(e) => {
                                             updateActionExtra(
@@ -4108,7 +4115,7 @@ if (torrent) {
                                         <input
                                           type="checkbox"
                                           checked={
-                                            act.extra?.continueOnError || false
+                                            Boolean(act.extra?.continueOnError)
                                           }
                                           onChange={(e) => {
                                             updateActionExtra(
@@ -4134,7 +4141,7 @@ if (torrent) {
                                         placeholder={t(
                                           "automation.ui.registerVariable",
                                         )}
-                                        value={act.extra?.register || ""}
+                                        value={(act.extra?.register as string) || ""}
                                         onChange={(e) => {
                                           updateActionExtra(
                                             stepIdx,
@@ -4156,7 +4163,7 @@ if (torrent) {
                                         placeholder={t(
                                           "automation.ui.timeoutS",
                                         )}
-                                        value={act.extra?.timeoutSeconds || ""}
+                                        value={act.extra?.timeoutSeconds !== undefined ? String(act.extra.timeoutSeconds) : ""}
                                         onChange={(e) => {
                                           updateActionExtra(
                                             stepIdx,
