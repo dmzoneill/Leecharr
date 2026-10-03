@@ -48,6 +48,9 @@ public class SystemDeveloperController : Controller
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
 
+    private static readonly JsonSerializerOptions IndentedJsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly IDeveloperEventStore eventStore;
     private readonly IDeveloperHttpTrafficStore httpTrafficStore;
     private readonly IDeveloperWebhookStore webhookStore;
@@ -358,7 +361,7 @@ public class SystemDeveloperController : Controller
                     release = new { releaseTitle = "Breaking.Bad.S01E01.1080p.BluRay.x264-ROVERS", indexer = "Prowlarr", size = 1532918272 },
                     downloadClient = "Leecharr",
                     downloadId = "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -374,7 +377,7 @@ public class SystemDeveloperController : Controller
                     episodes = new[] { new { id = 101, episodeNumber = 1, seasonNumber = 1, title = "Pilot" } },
                     episodeFile = new { id = 201, relativePath = "Season 01/Breaking.Bad.S01E01.Pilot.mkv", path = "/series/Breaking Bad/Season 01/Breaking.Bad.S01E01.Pilot.mkv", quality = "1080p HDTV", size = 1532918272 },
                     downloadId = "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -390,7 +393,7 @@ public class SystemDeveloperController : Controller
                     release = new { releaseTitle = "Inception.2010.1080p.BluRay.x264.DTS-WiKi", indexer = "Prowlarr", size = 12884901888L },
                     downloadClient = "Leecharr",
                     downloadId = "8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -405,7 +408,7 @@ public class SystemDeveloperController : Controller
                     movie = new { id = 77, title = "Inception", year = 2010, tmdbId = 27205 },
                     movieFile = new { id = 301, relativePath = "Inception.2010.1080p.mkv", path = "/movies/Inception (2010)/Inception.2010.1080p.mkv", size = 12884901888L },
                     downloadId = "8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -419,7 +422,7 @@ public class SystemDeveloperController : Controller
                     eventType = "Test",
                     instanceName = "Prowlarr",
                     message = "Testing connection between Prowlarr and Leecharr",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -436,7 +439,7 @@ public class SystemDeveloperController : Controller
                     {
                         new { id = 201, previousRelativePath = "Season 1/ep1.mkv", relativePath = "Season 01/Breaking.Bad.S01E01.Pilot.mkv" },
                     },
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -450,7 +453,7 @@ public class SystemDeveloperController : Controller
                     eventType = "MovieDelete",
                     movie = new { id = 77, title = "Inception", year = 2010 },
                     deletedFiles = true,
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -467,7 +470,7 @@ public class SystemDeveloperController : Controller
                     release = new { releaseTitle = "Daft Punk - Random Access Memories (2013) [FLAC]", indexer = "Prowlarr", size = 524288000 },
                     downloadClient = "Leecharr",
                     downloadId = "9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -485,7 +488,7 @@ public class SystemDeveloperController : Controller
                     {
                         new { id = 501, path = "/music/Daft Punk/Random Access Memories/01 - Give Life Back to Music.flac", size = 41943040 },
                     },
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -502,7 +505,7 @@ public class SystemDeveloperController : Controller
                     release = new { releaseTitle = "Frank Herbert - Dune [EPUB]", indexer = "Prowlarr", size = 2097152 },
                     downloadClient = "Leecharr",
                     downloadId = "0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -517,7 +520,7 @@ public class SystemDeveloperController : Controller
                     level = "Warning",
                     source = "IndexerCheck",
                     message = "Indexer 'PublicTracker' reported 503 Service Unavailable temporarily.",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -533,7 +536,7 @@ public class SystemDeveloperController : Controller
                     subject = "Inception (2010)",
                     requestedBy_username = "admin",
                     media = new { tmdbId = 27205, media_type = "movie", status = "PENDING" },
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -548,7 +551,7 @@ public class SystemDeveloperController : Controller
                     @event = "Media Request Approved",
                     subject = "Interstellar (2014)",
                     media = new { tmdbId = 157336, media_type = "movie", status = "PROCESSING" },
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -575,7 +578,7 @@ public class SystemDeveloperController : Controller
                             },
                         },
                     },
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -591,7 +594,7 @@ public class SystemDeveloperController : Controller
                     {
                         new { type = "section", text = new { type = "mrkdwn", text = "*Download Finished*: `Debian-12-netinst.iso` (750 MB)" } },
                     },
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -609,7 +612,7 @@ public class SystemDeveloperController : Controller
                     sizeBytes = 2147483648L,
                     savePath = "/downloads/isos",
                     completedAtUtc = "2026-09-28T20:30:00Z",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -626,7 +629,7 @@ public class SystemDeveloperController : Controller
                     release = new { releaseTitle = "Summer.Vacation.1080p.MP4", indexer = "Prowlarr", size = 2147483648L },
                     downloadClient = "Leecharr",
                     downloadId = "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -641,7 +644,7 @@ public class SystemDeveloperController : Controller
                     movie = new { id = 401, title = "Summer Vacation" },
                     movieFile = new { id = 801, path = "/adult/Summer Vacation/Summer Vacation (2024).mp4", size = 2147483648L },
                     downloadId = "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -659,7 +662,7 @@ public class SystemDeveloperController : Controller
                     provider = "OpenSubtitles",
                     score = 98.5,
                     subtitlePath = "/series/Breaking Bad/Season 01/Breaking.Bad.S01E01.Pilot.en.srt",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -676,7 +679,7 @@ public class SystemDeveloperController : Controller
                     language = "en",
                     appliedOffsetMs = 450,
                     syncMethod = "ffsubsync",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -692,7 +695,7 @@ public class SystemDeveloperController : Controller
                     syncAction = "UpdateTrackers",
                     syncedIndexers = SampleSyncedIndexers,
                     totalIndexers = 4,
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -707,7 +710,7 @@ public class SystemDeveloperController : Controller
                     indexer = "PublicFlakyTracker",
                     failureReason = "Consecutive HTTP 504 Gateway Timeout errors (threshold: 5)",
                     disabledUntilUtc = DateTime.UtcNow.AddMinutes(15).ToString("o"),
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -722,7 +725,7 @@ public class SystemDeveloperController : Controller
                     series = new { id = 88, title = "Severance", tvdbId = 371980, year = 2022, path = "/series/Severance" },
                     monitored = true,
                     seasonCount = 1,
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -737,7 +740,7 @@ public class SystemDeveloperController : Controller
                     level = "Error",
                     source = "RootFolderCheck",
                     message = "Root folder '/series' is currently inaccessible or read-only.",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -754,7 +757,7 @@ public class SystemDeveloperController : Controller
                     previousQuality = "720p HDTV",
                     newQuality = "1080p BluRay Remux",
                     sizeDifferenceBytes = 2849182720L,
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -769,7 +772,7 @@ public class SystemDeveloperController : Controller
                     movie = new { id = 105, title = "Dune: Part Two", year = 2024, tmdbId = 693134, path = "/movies/Dune Part Two (2024)" },
                     monitored = true,
                     minimumAvailability = "Released",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -784,7 +787,7 @@ public class SystemDeveloperController : Controller
                     level = "Warning",
                     source = "DiskSpaceCheck",
                     message = "Drive '/movies' has less than 15 GB of free storage remaining.",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -800,7 +803,7 @@ public class SystemDeveloperController : Controller
                     previousQuality = "1080p WebDL",
                     newQuality = "2160p UHD HDR Remux",
                     sizeDifferenceBytes = 41284901888L,
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -814,7 +817,7 @@ public class SystemDeveloperController : Controller
                     eventType = "ArtistAdd",
                     artist = new { id = 44, name = "Pink Floyd", mbId = "83d91898-7763-47d7-b03b-b92132375c47" },
                     monitored = true,
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -829,7 +832,7 @@ public class SystemDeveloperController : Controller
                     author = new { id = 9, name = "Frank Herbert" },
                     book = new { id = 88, title = "Dune" },
                     bookFile = new { id = 402, path = "/books/Frank Herbert/Dune (1965)/Dune.epub", format = "EPUB", size = 2097152 },
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -847,7 +850,7 @@ public class SystemDeveloperController : Controller
                     UserId = "user_42",
                     ClientName = "Jellyfin Web",
                     DeviceName = "Chrome Linux",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -863,7 +866,7 @@ public class SystemDeveloperController : Controller
                     message = "Torrent archlinux-2026.09.01-x86_64.iso finished downloading.",
                     priority = 3,
                     tags = SampleNtfyTags,
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -881,7 +884,7 @@ public class SystemDeveloperController : Controller
                     {
                         client = new { name = "Leecharr", version = "1.32.0" },
                     },
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
             new()
             {
@@ -898,7 +901,7 @@ public class SystemDeveloperController : Controller
                     message = "VPN interface dropped. BitTorrent engine immediately halted to prevent IP leak.",
                     priority = 1,
                     sound = "siren",
-                }, new JsonSerializerOptions { WriteIndented = true }),
+                }, IndentedJsonOptions),
             },
         };
     }
@@ -1034,7 +1037,7 @@ public class SystemDeveloperController : Controller
                 {
                     payload = JsonSerializer.Deserialize<ArrWebhookPayload>(
                         request.PayloadJson,
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        CaseInsensitiveJsonOptions);
                 }
                 catch (Exception pex)
                 {

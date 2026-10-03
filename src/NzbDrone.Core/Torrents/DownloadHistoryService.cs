@@ -21,6 +21,8 @@ namespace NzbDrone.Core.Torrents;
 
 public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAddedEvent>, IHandle<TorrentDeletedEvent>, IHandle<TorrentDownloadCompletedEvent>, IHandle<TorrentStatusChangedEvent>
 {
+    private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly IDownloadHistoryRepository historyRepository;
     private readonly ITorrentRepository torrentRepository;
     private readonly IDownloadEngine downloadEngine;
@@ -665,7 +667,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             {
                 var meta = JsonSerializer.Deserialize<TorrentMediaMetadata>(
                     entry.DataJson,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    CaseInsensitiveJsonOptions);
                 if (meta != null)
                 {
                     meta.Id = 0;
