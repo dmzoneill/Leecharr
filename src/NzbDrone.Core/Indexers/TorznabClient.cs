@@ -65,6 +65,7 @@ public class TorznabClient : ITorznabClient
     private static readonly XNamespace TorznabNs = "http://torznab.com/schemas/2015/feed";
     private static readonly XNamespace NewznabNs = "http://www.newznab.com/DTD/2010/feeds/attributes/";
     private static readonly Regex MagnetRegex = new(@"magnet:\?xt=urn:bt[im]h:[^\s""'<>`\]\[]+", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+    private static readonly char[] CategorySeparators = [',', '|', ';'];
 
     public static readonly Dictionary<int, List<int>> CategoryHierarchy = new()
     {
@@ -708,7 +709,7 @@ public class TorznabClient : ITorznabClient
                             if (!string.IsNullOrWhiteSpace(catAttrVal))
                             {
                                 var decoded = WebUtility.HtmlDecode(catAttrVal);
-                                var splitCategories = decoded.Split(new[] { ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                                var splitCategories = decoded.Split(CategorySeparators, StringSplitOptions.RemoveEmptyEntries);
                                 foreach (var cat in splitCategories)
                                 {
                                     var trimmedCat = cat.Trim();
