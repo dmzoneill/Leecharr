@@ -28,6 +28,8 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
         ".7z", ".rar", ".zip", ".tar", ".gz", ".tgz", ".bz2", ".tbz2", ".xz", ".txz", ".lz", ".z", ".iso", ".cab", ".arj", ".lzh", ".wim", ".001",
     };
 
+    private static readonly string[] DefaultSearchPaths = ["/usr/bin/7z", "/usr/local/bin/7z"];
+
     public string ProviderId => "SevenZip";
 
     public string DisplayName => "7-Zip / p7zip (CLI / Native)";
@@ -442,7 +444,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
 
     private static string FindBinary()
     {
-        return CliProcessDiscovery.FindExecutable("7z", "SEVENZIP_PATH", new[] { "/usr/bin/7z", "/usr/local/bin/7z" })
+        return CliProcessDiscovery.FindExecutable("7z", "SEVENZIP_PATH", DefaultSearchPaths)
             ?? CliProcessDiscovery.FindExecutable("7za", "SEVENZIP_PATH")
             ?? CliProcessDiscovery.FindExecutable("7zr", "SEVENZIP_PATH")
             ?? CliProcessDiscovery.FindExecutable("p7zip", "SEVENZIP_PATH");

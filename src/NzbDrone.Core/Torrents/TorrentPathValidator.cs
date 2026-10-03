@@ -13,6 +13,7 @@ namespace NzbDrone.Core.Torrents;
 public static class TorrentPathValidator
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private static readonly char[] ForwardSlashSeparator = ['/'];
     public static readonly char[] UniversalInvalidPathChars = new[]
     {
         ':', '*', '?', '"', '<', '>', '|',
@@ -284,7 +285,7 @@ public static class TorrentPathValidator
             return string.Empty;
         }
 
-        var segments = normalized.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+        var segments = normalized.Split(ForwardSlashSeparator, StringSplitOptions.RemoveEmptyEntries);
         var sanitizedSegments = new List<string>();
 
         for (var i = 0; i < segments.Length; i++)

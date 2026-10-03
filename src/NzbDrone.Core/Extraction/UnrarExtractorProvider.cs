@@ -28,6 +28,8 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
         ".rar", ".cbr", ".r00", ".part01.rar", ".part1.rar", ".001",
     };
 
+    private static readonly string[] DefaultSearchPaths = ["/usr/bin/unrar", "/usr/local/bin/unrar"];
+
     public string ProviderId => "Unrar";
 
     public string DisplayName => "RARLAB UnRAR (Official Native)";
@@ -450,7 +452,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
     private static string FindBinary()
     {
-        return CliProcessDiscovery.FindExecutable("unrar", "UNRAR_PATH", new[] { "/usr/bin/unrar", "/usr/local/bin/unrar" })
+        return CliProcessDiscovery.FindExecutable("unrar", "UNRAR_PATH", DefaultSearchPaths)
             ?? CliProcessDiscovery.FindExecutable("unrar-nonfree", "UNRAR_PATH");
     }
 }
