@@ -27,6 +27,7 @@ namespace NzbDrone.Host;
 
 public class Startup
 {
+    private static readonly char[] ProxySeparators = [',', ';', ' '];
     private readonly IContainer container;
 
     public Startup(IContainer container)
@@ -304,7 +305,7 @@ public class Startup
 
         if (!string.IsNullOrWhiteSpace(trustedProxies))
         {
-            foreach (var proxy in trustedProxies.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (var proxy in trustedProxies.Split(ProxySeparators, StringSplitOptions.RemoveEmptyEntries))
             {
                 if (System.Net.IPNetwork.TryParse(proxy.Trim(), out var network))
                 {
