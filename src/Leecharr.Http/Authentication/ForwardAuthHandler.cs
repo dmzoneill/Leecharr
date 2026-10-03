@@ -30,6 +30,7 @@ public class ForwardAuthOptions : AuthenticationSchemeOptions
 
 public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
 {
+    private static readonly char[] GroupDelimiters = [',', '|', ';'];
     private readonly ITrustedNetworkService trustedNetworkService;
     private readonly IJitUserProvisioningService jitProvisioningService;
     private readonly IConfigService configService;
@@ -73,7 +74,7 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
         var displayName = this.GetHeaderValue(this.Options.DisplayNameHeaders) ?? username;
         var rawGroupsStr = this.GetHeaderValue(this.Options.GroupsHeaders);
         var groups = !string.IsNullOrWhiteSpace(rawGroupsStr)
-            ? rawGroupsStr.Split(new[] { ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            ? rawGroupsStr.Split(GroupDelimiters, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : Array.Empty<string>();
 
         var profile = new ExternalUserProfile(

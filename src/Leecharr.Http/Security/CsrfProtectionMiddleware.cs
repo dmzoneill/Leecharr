@@ -38,6 +38,7 @@ public class CsrfProtectionMiddleware
         "/aria2",
     };
 
+    private static readonly char[] CorsOriginDelimiters = [',', ';', ' ', '\r', '\n'];
     private readonly RequestDelegate next;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -217,7 +218,7 @@ public class CsrfProtectionMiddleware
         var originHost = originUri.Host;
         var originPort = originUri.Port;
 
-        var patterns = allowedCorsOrigins.Split(new[] { ',', ';', ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var patterns = allowedCorsOrigins.Split(CorsOriginDelimiters, StringSplitOptions.RemoveEmptyEntries);
         foreach (var pattern in patterns)
         {
             var trimmedPattern = pattern.Trim().TrimEnd('/');
