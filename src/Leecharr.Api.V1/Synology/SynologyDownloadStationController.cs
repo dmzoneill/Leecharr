@@ -26,7 +26,6 @@ public class SynologyDownloadStationController : ControllerBase
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SynologyDownloadStationController(
         ITorrentService torrentService,

@@ -28,7 +28,6 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbVortexApiController(
         ITorrentService torrentService,

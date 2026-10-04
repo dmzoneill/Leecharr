@@ -16,7 +16,6 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
     private readonly HttpClient fallbackClient;
     private readonly SocketsHttpHandler handler;
     private readonly IConfigService configService;
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private bool disposed;
 
     internal SocketsHttpHandler Handler => this.handler;
