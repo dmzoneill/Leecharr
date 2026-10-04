@@ -16,6 +16,7 @@ jobs:
   sonar:
     name: SonarCloud Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -126,8 +127,11 @@ jobs:
           cd ../..
 
       - name: End SonarCloud Scanner
-        if: always() && steps.check_token.outputs.has_token == 'true'
+        if: always()
         continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+          fi

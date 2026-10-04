@@ -71,7 +71,7 @@
   </ItemGroup>
 
   <PropertyGroup Condition="'$(TestProject)'=='true'">
-    <NoWarn>$(NoWarn);CA1861;CA1806;CA1869;SA1515;SA1311;CA2201;CA1040</NoWarn>
+    <NoWarn>$(NoWarn);CA1861;CA1806;CA1869;SA1515;SA1311;CA2201;CA1040;SA1124</NoWarn>
     <RunSettingsFilePath Condition="Exists('$(LeecharrRootDir).runsettings')">$(LeecharrRootDir).runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
