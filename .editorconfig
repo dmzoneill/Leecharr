@@ -341,7 +341,7 @@ indent_size = 2
 [src/NzbDrone.Core.Test/ArrIntegration/LidarrConnectionTest.cs]
 dotnet_diagnostic.IDE0005.severity = none
 
-[**/*Test*/**.cs]
+[src/**/*.Test/**/*.cs]
 dotnet_diagnostic.CA1861.severity = none
 dotnet_diagnostic.CA1806.severity = none
 dotnet_diagnostic.CA1869.severity = none
