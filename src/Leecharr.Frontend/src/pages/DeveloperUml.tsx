@@ -51,9 +51,10 @@ export const DeveloperUml: React.FC = () => {
           setLoading(false);
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (isMounted) {
-          setError(err?.message || "Failed to generate UML diagram.");
+          const message = err instanceof Error ? err.message : String(err);
+          setError(message || "Failed to generate UML diagram.");
           setLoading(false);
         }
       });

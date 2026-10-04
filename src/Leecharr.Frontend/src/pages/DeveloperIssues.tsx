@@ -44,9 +44,10 @@ export const DeveloperIssues: React.FC = () => {
           setLoading(false);
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (isMounted) {
-          setError(err?.message || "Failed to load issues.");
+          const message = err instanceof Error ? err.message : String(err);
+          setError(message || "Failed to load issues.");
           setLoading(false);
         }
       });
@@ -116,7 +117,7 @@ export const DeveloperIssues: React.FC = () => {
 
       {!loading && data && data.items.length === 0 && (
         <div className="card" style={{ padding: "40px", textAlign: "center", color: "var(--text-dim, #a8a29e)" }}>
-          No issues found matching state '{stateFilter}'.
+          No issues found matching state &apos;{stateFilter}&apos;.
         </div>
       )}
 
