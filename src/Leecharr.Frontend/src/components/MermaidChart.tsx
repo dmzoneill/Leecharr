@@ -70,6 +70,31 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
     setPan({ x: newPanX, y: newPanY });
   }, []);
 
+  const initialFit = useCallback(() => {
+    if (!viewportRef.current) return;
+    const rect = viewportRef.current.getBoundingClientRect();
+    const w = vbWidthRef.current || 800;
+    const h = vbHeightRef.current || 600;
+    const padding = 32;
+    const availW = Math.max(rect.width - padding, 100);
+    const availH = Math.max(rect.height - padding, 100);
+    const fitScale = Math.min(availW / w, availH / h, 1.25);
+
+    // If fitting would shrink text to unreadable micro-dimensions (< 45%), default to comfortable readable scale
+    if (fitScale < 0.45) {
+      const readableScale = 0.85;
+      const newPanX = 24;
+      const newPanY = Math.max(Math.round((rect.height - h * readableScale) / 2), 24);
+      setZoom(readableScale);
+      setPan({ x: newPanX, y: newPanY });
+    } else {
+      const newPanX = Math.round((rect.width - w * fitScale) / 2);
+      const newPanY = Math.round((rect.height - h * fitScale) / 2);
+      setZoom(fitScale);
+      setPan({ x: newPanX, y: newPanY });
+    }
+  }, []);
+
   const resetActualSize = useCallback(() => {
     if (!viewportRef.current) {
       setZoom(1.0);
@@ -131,10 +156,10 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
         setSvgContent(preparedSvg);
         setError(null);
 
-        // Auto-fit on initial render or chart switch
+        // Auto-fit or readable scale on initial render or chart switch
         setTimeout(() => {
           if (isMounted) {
-            fitToScreen();
+            initialFit();
           }
         }, 50);
       } catch (err: unknown) {
@@ -149,7 +174,7 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
     return () => {
       isMounted = false;
     };
-  }, [chart, fitToScreen]);
+  }, [chart, initialFit]);
 
   // Non-passive wheel listener for smooth cursor-anchored zoom
   useEffect(() => {
