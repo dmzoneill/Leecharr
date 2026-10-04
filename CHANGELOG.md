@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.1.0](https://github.com/dmzoneill/Leecharr/releases/tag/v2.1.0) - 2026-10-04
+
+### ✨ Features
+- feat(developer): implement UML diagrams, GitHub PRs/issues, and Quality metrics in Leecharr backend
+
 ## [v2.0.34](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.34) - 2026-10-04
 
 ### 🐛 Bug Fixes
