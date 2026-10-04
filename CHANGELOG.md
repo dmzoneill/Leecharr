@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.3.0](https://github.com/dmzoneill/Leecharr/releases/tag/v2.3.0) - 2026-10-04
+
+### ✨ Features
+- feat: intelligent initialFit for wide UML diagrams defaulting to readable scale
+- feat: add interactive pan, zoom, fit, and fullscreen controls to Mermaid UML viewer
+
 ## [v2.2.1](https://github.com/dmzoneill/Leecharr/releases/tag/v2.2.1) - 2026-10-04
 
 ### 🔧 Maintenance & Improvements
