@@ -70,6 +70,10 @@ import DeveloperConfig from "./pages/DeveloperConfig";
 import DeveloperTesting from "./pages/DeveloperTesting";
 import DeveloperRepl from "./pages/DeveloperRepl";
 import DeveloperDebugger from "./pages/DeveloperDebugger";
+import DeveloperQuality from "./pages/DeveloperQuality";
+import DeveloperUml from "./pages/DeveloperUml";
+import DeveloperPullRequests from "./pages/DeveloperPullRequests";
+import DeveloperIssues from "./pages/DeveloperIssues";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
 import TrackerServer from "./pages/TrackerServer";
@@ -131,6 +135,10 @@ function getSystemSubItems(t: (key: string, defaultValue?: string) => string) {
 function getDeveloperSubItems(t: (key: string, defaultValue?: string) => string) {
   return [
     { id: "database", label: t("developer.database", "Database Explorer"), icon: "🗄️" },
+    { id: "quality", label: t("developer.quality", "Quality & Security"), icon: "🛡️" },
+    { id: "uml", label: t("developer.uml", "UML Diagrams"), icon: "📐" },
+    { id: "pull-requests", label: t("developer.pullRequests", "Pull Requests"), icon: "🐙" },
+    { id: "issues", label: t("developer.issues", "Issues & Roadmap"), icon: "📋" },
     { id: "testing", label: t("developer.testing", "Test Runner"), icon: "🧪" },
     { id: "repl", label: t("developer.repl", "REPL Sandbox"), icon: "⚡" },
     { id: "debugger", label: t("developer.debugger", "Web Debugger"), icon: "🐞" },
@@ -2034,6 +2042,38 @@ export function App() {
                 element={
                   <ErrorBoundary title={t("errors.databaseExplorer")}>
                     <DatabaseExplorer />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/quality"
+                element={
+                  <ErrorBoundary title={t("errors.qualityDashboard", "Quality Dashboard")}>
+                    <DeveloperQuality />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/uml"
+                element={
+                  <ErrorBoundary title={t("errors.umlDiagrams", "UML Diagrams")}>
+                    <DeveloperUml />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/pull-requests"
+                element={
+                  <ErrorBoundary title={t("errors.pullRequests", "Pull Requests")}>
+                    <DeveloperPullRequests />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/issues"
+                element={
+                  <ErrorBoundary title={t("errors.issues", "Issues & Roadmap")}>
+                    <DeveloperIssues />
                   </ErrorBoundary>
                 }
               />
