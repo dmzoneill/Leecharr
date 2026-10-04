@@ -28,7 +28,6 @@ public class SabnzbdApiController : ControllerBase
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDiskProvider diskProvider;
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SabnzbdApiController(
         ITorrentService torrentService,
