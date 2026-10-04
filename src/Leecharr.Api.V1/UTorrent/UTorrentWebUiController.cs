@@ -57,7 +57,6 @@ public class UTorrentWebUiController : ControllerBase
     private readonly IConfigFileProvider configFileProvider;
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IDownloadEngine downloadEngine;
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public UTorrentWebUiController(
         ITorrentService torrentService,

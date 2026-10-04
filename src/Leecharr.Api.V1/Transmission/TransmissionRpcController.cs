@@ -55,7 +55,6 @@ public class TransmissionRpcResponse
 public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedEvent>
 {
     private const string SessionHeaderName = "X-Transmission-Session-Id";
-    private static readonly ConcurrentDictionary<string, byte> ActiveSessions = new();
     private static readonly List<(int Id, DateTime RemovedAt)> RecentlyRemovedList = new();
     private static readonly object RemovedLock = new();
     private static readonly DateTime ServiceStartTime = DateTime.UtcNow;
