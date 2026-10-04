@@ -39,7 +39,6 @@ public class DeveloperReplService : IDeveloperReplService
     private readonly IConfigService _configService;
     private readonly IConfigFileProvider _configFileProvider;
     private readonly IMainDatabase _mainDatabase;
-    private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     private readonly object _sessionLock = new();
     private readonly object _historyLock = new();

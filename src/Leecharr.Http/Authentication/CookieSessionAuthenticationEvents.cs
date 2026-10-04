@@ -13,7 +13,6 @@ public class CookieSessionAuthenticationEvents : CookieAuthenticationEvents
 {
     private readonly IUserSessionRepository userSessionRepository;
     private readonly ICookieSessionManager cookieSessionManager;
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public CookieSessionAuthenticationEvents(
         IUserSessionRepository userSessionRepository = null,
