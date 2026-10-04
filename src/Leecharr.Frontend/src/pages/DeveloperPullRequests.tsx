@@ -46,9 +46,10 @@ export const DeveloperPullRequests: React.FC = () => {
           setLoading(false);
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (isMounted) {
-          setError(err?.message || "Failed to load pull requests.");
+          const message = err instanceof Error ? err.message : String(err);
+          setError(message || "Failed to load pull requests.");
           setLoading(false);
         }
       });
@@ -118,7 +119,7 @@ export const DeveloperPullRequests: React.FC = () => {
 
       {!loading && data && data.items.length === 0 && (
         <div className="card" style={{ padding: "40px", textAlign: "center", color: "var(--text-dim, #a8a29e)" }}>
-          No pull requests found matching state '{stateFilter}'.
+          No pull requests found matching state &apos;{stateFilter}&apos;.
         </div>
       )}
 

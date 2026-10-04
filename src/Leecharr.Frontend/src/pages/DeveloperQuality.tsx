@@ -65,9 +65,10 @@ export const DeveloperQuality: React.FC = () => {
           setLoading(false);
         }
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (isMounted) {
-          setError(err?.message || "Failed to load quality metrics.");
+          const message = err instanceof Error ? err.message : String(err);
+          setError(message || "Failed to load quality metrics.");
           setLoading(false);
         }
       });
