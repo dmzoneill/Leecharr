@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.33](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.33) - 2026-10-04
+
+### ✨ Features
+- Add or update GitHub Actions workflows
+
 ## [v2.0.32](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.32) - 2026-10-03
 
 ### 🐛 Bug Fixes
