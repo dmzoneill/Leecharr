@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.34](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.34) - 2026-10-04
+
+### 🐛 Bug Fixes
+- fix(quality): align .runsettings, sonarcloud workflow, and analyzer test scoping with Seedarr
+- fix(quality): un-suppress CA2201, CA2211, CA1810, CA1823, CA1052, CA1040, CA2246 and prune dead fields
+
 ## [v2.0.33](https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.33) - 2026-10-04
 
 ### ✨ Features
