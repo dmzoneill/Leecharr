@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.Webhooks;
 using Leecharr.Http;
@@ -20,6 +21,9 @@ using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Developer;
+using NzbDrone.Core.Developer.GitHub;
+using NzbDrone.Core.Developer.Quality;
+using NzbDrone.Core.Developer.Uml;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 
@@ -63,6 +67,9 @@ public class SystemDeveloperController : Controller
     private readonly ArrWebhookController arrWebhookController;
     private readonly IServiceProvider serviceProvider;
     private readonly IAppFolderInfo appFolderInfo;
+    private readonly IDeveloperUmlService umlService;
+    private readonly IDeveloperGitHubService gitHubService;
+    private readonly IDeveloperQualityService qualityService;
     private readonly Logger logger;
 
     public SystemDeveloperController(
@@ -77,7 +84,10 @@ public class SystemDeveloperController : Controller
         IEventAggregator eventAggregator = null,
         ArrWebhookController arrWebhookController = null,
         IServiceProvider serviceProvider = null,
-        IAppFolderInfo appFolderInfo = null)
+        IAppFolderInfo appFolderInfo = null,
+        IDeveloperUmlService umlService = null,
+        IDeveloperGitHubService gitHubService = null,
+        IDeveloperQualityService qualityService = null)
     {
         this.eventStore = eventStore;
         this.httpTrafficStore = httpTrafficStore;
@@ -91,6 +101,9 @@ public class SystemDeveloperController : Controller
         this.arrWebhookController = arrWebhookController;
         this.serviceProvider = serviceProvider;
         this.appFolderInfo = appFolderInfo;
+        this.umlService = umlService;
+        this.gitHubService = gitHubService;
+        this.qualityService = qualityService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -1365,6 +1378,64 @@ public class SystemDeveloperController : Controller
         }
 
         return string.Concat(val.AsSpan(0, 2), "****", val.AsSpan(val.Length - 2));
+    }
+
+    [HttpGet("uml")]
+    public ActionResult<DeveloperUmlDiagramResult> GetUmlDiagram(
+        [FromQuery] string diagramType = "class",
+        [FromQuery] string subsystem = "all",
+        [FromQuery] bool includeInterfaces = true,
+        [FromQuery] bool includeMethods = true)
+    {
+        var options = new DeveloperUmlOptions
+        {
+            DiagramType = diagramType,
+            Subsystem = subsystem,
+            IncludeInterfaces = includeInterfaces,
+            IncludeMethods = includeMethods
+        };
+        var result = (this.umlService ?? new DeveloperUmlService()).GenerateDiagram(options);
+        return this.Ok(result);
+    }
+
+    [HttpGet("uml/subsystems")]
+    public ActionResult<List<string>> GetUmlSubsystems()
+    {
+        return this.Ok((this.umlService ?? new DeveloperUmlService()).GetAvailableSubsystems());
+    }
+
+    [HttpGet("uml/diagram-types")]
+    public ActionResult<List<string>> GetUmlDiagramTypes()
+    {
+        return this.Ok((this.umlService ?? new DeveloperUmlService()).GetAvailableDiagramTypes());
+    }
+
+    [HttpGet("github/pulls")]
+    public async Task<ActionResult<DeveloperGitHubListResult<DeveloperPullRequestItem>>> GetPullRequests(
+        [FromQuery] string state = "all",
+        CancellationToken cancellationToken = default)
+    {
+        var service = this.gitHubService ?? new DeveloperGitHubService();
+        var result = await service.GetPullRequestsAsync(state, cancellationToken);
+        return this.Ok(result);
+    }
+
+    [HttpGet("github/issues")]
+    public async Task<ActionResult<DeveloperGitHubListResult<DeveloperIssueItem>>> GetIssues(
+        [FromQuery] string state = "all",
+        CancellationToken cancellationToken = default)
+    {
+        var service = this.gitHubService ?? new DeveloperGitHubService();
+        var result = await service.GetIssuesAsync(state, cancellationToken);
+        return this.Ok(result);
+    }
+
+    [HttpGet("quality")]
+    public async Task<ActionResult<DeveloperQualityReport>> GetQualityReport(CancellationToken cancellationToken = default)
+    {
+        var service = this.qualityService ?? new DeveloperQualityService();
+        var report = await service.GetQualityReportAsync(cancellationToken);
+        return this.Ok(report);
     }
 }
 
