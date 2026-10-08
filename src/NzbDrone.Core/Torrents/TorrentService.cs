@@ -1505,20 +1505,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 torrent.TotalSize = task.TotalBytes;
             }
 
-            if (torrent.Status != TorrentStatus.Checking)
+            if (torrent.Status != TorrentStatus.Checking && torrent.TotalSize > 0 && torrent.Progress > 0)
             {
-                if (torrent.Progress >= 1.0 && torrent.TotalSize > 0)
-                {
-                    torrent.Downloaded = torrent.TotalSize;
-                }
-                else if (task.DownloadedBytes > 0)
-                {
-                    torrent.Downloaded = task.DownloadedBytes;
-                }
-                else if (torrent.TotalSize > 0)
-                {
-                    torrent.Downloaded = Math.Max(torrent.Downloaded, (long)(torrent.TotalSize * torrent.Progress));
-                }
+                // Progress is the on-disk fraction. Session socket counters reset on restart and must not replace it.
+                torrent.Downloaded = torrent.Progress >= 1.0
+                    ? torrent.TotalSize
+                    : (long)(torrent.TotalSize * torrent.Progress);
             }
 
             var currentSessionUploaded = task.UploadedBytes;
