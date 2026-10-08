@@ -2829,7 +2829,7 @@ public class TorrentServiceTest
     }
 
     [Test]
-    public void SyncWithEngine_PrioritizesTaskDownloadedBytesOverFloatFormula()
+    public void SyncWithEngine_UsesProgressTimesTotalSizeInsteadOfSessionBytes()
     {
         var torrent = new Torrent
         {
@@ -2844,7 +2844,7 @@ public class TorrentServiceTest
         var mockTask = Substitute.For<IDownloadTask>();
         mockTask.Status.Returns(TorrentStatus.Downloading);
         mockTask.Progress.Returns(0.5000001);
-        mockTask.DownloadedBytes.Returns(500000420L); // Exact bytes
+        mockTask.DownloadedBytes.Returns(100L); // Session socket counter after restart
         mockTask.TotalBytes.Returns(1000000000L);
         mockTask.DownloadSpeed.Returns(5000000L);
         mockTask.UploadSpeed.Returns(100000L);
@@ -2857,7 +2857,7 @@ public class TorrentServiceTest
         var result = this.service.Get(88);
 
         result.Should().NotBeNull();
-        result.Downloaded.Should().Be(500000420L);
+        result.Downloaded.Should().Be(500000100L);
         result.DownloadSpeed.Should().Be(5000000L);
         result.UploadSpeed.Should().Be(100000L);
         result.Seeders.Should().Be(15);
