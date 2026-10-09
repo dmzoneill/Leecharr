@@ -45,7 +45,7 @@ public static class ContainerExtensions
 
     public static void RegisterSingletonWithInterfaces<TImplementation>(
         this IContainer container,
-        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.AppendNotKeyed)
         where TImplementation : class
     {
         container.RegisterSingletonWithInterfaces(typeof(TImplementation), ifAlreadyRegistered);
@@ -54,7 +54,7 @@ public static class ContainerExtensions
     public static void RegisterSingletonWithInterfaces(
         this IContainer container,
         Type implementationType,
-        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.AppendNotKeyed)
     {
         container.Register(implementationType, Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
 
