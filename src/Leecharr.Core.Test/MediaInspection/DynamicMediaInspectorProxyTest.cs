@@ -204,6 +204,24 @@ public class DynamicMediaInspectorProxyTest
     }
 
     [Test]
+    public async Task SwitchProviderAsync_WhenConfigSaveFails_KeepsPreviousActiveProvider()
+    {
+        this.configService
+            .When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(_ => throw new InvalidOperationException("database locked"));
+
+        var result = await this.proxy.SwitchProviderAsync("MediaInfo");
+
+        result.Success.Should().BeFalse();
+        result.PreviousProvider.Should().Be("TagLib");
+        result.ActiveProvider.Should().Be("TagLib");
+        result.Error.Should().Contain("database locked");
+        this.proxy.ActiveProviderId.Should().Be("TagLib");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.tagLibProvider);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<MediaInspectorSwitchedEvent>());
+    }
+
+    [Test]
     public void InspectFile_DelegatesToActiveProvider()
     {
         var info = this.proxy.InspectFile("/path/to/movie.mkv");
