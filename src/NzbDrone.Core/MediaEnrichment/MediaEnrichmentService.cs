@@ -122,10 +122,15 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
                 {
                     metadata.MediaInfoJson = JsonSerializer.Serialize(containerInfo);
                 }
+                else
+                {
+                    this.PublishMediaInspectionFailed(torrent, filePath, "Media inspection returned no metadata.");
+                }
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to inspect media file: {0}", filePath);
+                this.PublishMediaInspectionFailed(torrent, filePath, ex.Message);
             }
         }
 
@@ -680,6 +685,17 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
                 this.logger.Warn(ex, "Failed to inspect extracted media for torrent {0}", message.Torrent.Name);
             }
         });
+    }
+
+    private void PublishMediaInspectionFailed(Torrent torrent, string filePath, string reason)
+    {
+        if (torrent == null || torrent.Id <= 0)
+        {
+            return;
+        }
+
+        var failureReason = string.IsNullOrWhiteSpace(reason) ? "Media inspection failed." : reason;
+        this.eventAggregator.PublishEvent(new MediaInspectionFailedEvent(torrent, filePath, failureReason));
     }
 
     private static bool IsMediaFile(string path)

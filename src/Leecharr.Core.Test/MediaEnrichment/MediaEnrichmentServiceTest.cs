@@ -179,6 +179,59 @@ public class MediaEnrichmentServiceTest
         this.inspector.Received(1).InspectFile(mediaFile);
     }
 
+    [Test]
+    public async Task EnrichTorrentAsync_WhenInspectFileThrows_PublishesMediaInspectionFailedEvent()
+    {
+        var mediaFile = Path.Combine(this.tempDirectory, "broken_movie.mkv");
+        await File.WriteAllBytesAsync(mediaFile, new byte[16]);
+
+        this.inspector
+            .InspectFile(mediaFile)
+            .Returns(_ => throw new InvalidOperationException("ffprobe exited with code 1"));
+
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "Broken.Movie.2024.1080p",
+            Category = "movies",
+        };
+
+        this.repository.GetByTorrentId(11).Returns((TorrentMediaMetadata)null!);
+
+        await this.service.EnrichTorrentAsync(torrent, mediaFile);
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<MediaInspectionFailedEvent>(e =>
+            e.Torrent == torrent &&
+            e.FilePath == mediaFile &&
+            e.Reason == "ffprobe exited with code 1"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Any<MediaEnrichedEvent>());
+    }
+
+    [Test]
+    public async Task EnrichTorrentAsync_WhenInspectFileReturnsNull_PublishesMediaInspectionFailedEvent()
+    {
+        var mediaFile = Path.Combine(this.tempDirectory, "unreadable_movie.mkv");
+        await File.WriteAllBytesAsync(mediaFile, new byte[16]);
+
+        this.inspector.InspectFile(mediaFile).Returns((MediaContainerInfo)null!);
+
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "Unreadable.Movie.2024.1080p",
+            Category = "movies",
+        };
+
+        this.repository.GetByTorrentId(12).Returns((TorrentMediaMetadata)null!);
+
+        await this.service.EnrichTorrentAsync(torrent, mediaFile);
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<MediaInspectionFailedEvent>(e =>
+            e.Torrent == torrent &&
+            e.FilePath == mediaFile &&
+            e.Reason == "Media inspection returned no metadata."));
+    }
+
     [TestCase(0)]
     [TestCase(-1)]
     public async Task EnrichTorrentAsync_WhenTorrentIdIsZeroOrNegative_DoesNotPersistToRepositoryOrPublishEvent(int torrentId)
