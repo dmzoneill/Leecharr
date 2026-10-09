@@ -588,6 +588,7 @@ public class ConfigService : IConfigService
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
     private readonly object cacheLock = new();
+    private readonly object instanceUuidLock = new();
     private Dictionary<string, string> cache;
 
     public ConfigService(
@@ -766,14 +767,24 @@ public class ConfigService : IConfigService
         get
         {
             var uuid = this.GetValue("InstanceUuid", string.Empty);
-            if (string.IsNullOrWhiteSpace(uuid))
+            if (!string.IsNullOrWhiteSpace(uuid))
             {
+                return uuid;
+            }
+
+            lock (this.instanceUuidLock)
+            {
+                uuid = this.GetValue("InstanceUuid", string.Empty);
+                if (!string.IsNullOrWhiteSpace(uuid))
+                {
+                    return uuid;
+                }
+
                 uuid = Guid.NewGuid().ToString().ToLowerInvariant();
                 this.SaveConfigDictionary(new Dictionary<string, object> { { "InstanceUuid", uuid } });
                 this.logger.Info("Generated and saved new instance UUID: {0}", uuid);
+                return uuid;
             }
-
-            return uuid;
         }
     }
 
