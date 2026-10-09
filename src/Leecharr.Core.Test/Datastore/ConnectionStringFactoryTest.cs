@@ -34,6 +34,7 @@ public class ConnectionStringFactoryTest
         factory.DatabaseType.Should().Be(DatabaseType.SQLite);
         factory.MainDbConnectionString.Should().Contain("Default Timeout=30");
         factory.MainDbConnectionString.Should().Contain("Foreign Keys=True");
+        factory.MainDbConnectionString.Should().Contain("DateTimeKind=Utc");
         factory.MainDbConnectionString.Should().Contain(Path.Combine("/app/data", "leecharr.db"));
     }
 
