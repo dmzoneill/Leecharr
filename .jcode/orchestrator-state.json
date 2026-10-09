@@ -1,16 +1,23 @@
 {
   "repo": "dmzoneill/Leecharr",
   "base_path": "/home/daoneill/src/usr/leecharr",
-  "status": "halted",
-  "halt_reason": "Workers contested orchestrator-state.json; swarm cleanup; strategy v2 in orchestrator-strategy-v2.md",
-  "halted_at": "2026-10-09T12:20Z",
+  "status": "running",
+  "resumed_v2_at": "2026-10-09T12:28Z",
+  "halt_reason": null,
   "target_agents": 5,
   "poll_interval_sec": 30,
   "model": "composer-2.5-fast",
   "state_writer": "coordinator_only",
-  "active_workers": 0,
-  "swarm_plan": {"version": 36, "mode": "light", "terminal": "all_nodes_completed"},
-  "in_progress": {},
+  "active_workers": 5,
+  "swarm_plan": {"version": 36, "mode": "manual_spawn_v2", "terminal": "all_nodes_completed"},
+  "in_progress": {
+    "124": {"agent": "koala", "session": "penguin", "worktree": "/home/daoneill/src/usr/leecharr-wt-124"},
+    "123": {"agent": "otter", "session": "shark", "worktree": "/home/daoneill/src/usr/leecharr-wt-123"},
+    "179": {"agent": "llama", "session": "sheep", "worktree": "/home/daoneill/src/usr/leecharr-wt-179"},
+    "257": {"agent": "mouse", "session": "sloth", "worktree": "/home/daoneill/src/usr/leecharr-wt-257"},
+    "1818": {"agent": "horse", "session": "snail", "worktree": "/home/daoneill/src/usr/leecharr-wt-1818"}
+  },
+  "push_lock": {"holder_issue": null, "granted_at": null},
   "completed_issues": {
     "1819": {"agent": "horse", "closed_at_github": "2026-10-09T12:09:38Z"},
     "177": {"agent": "horse", "closed_at_github": "2026-10-09T12:14:05Z"},
@@ -20,22 +27,18 @@
     "1826": {"agent": "koala", "closed_at_github": "2026-10-09T12:16:17Z"},
     "125": {"agent": "otter", "closed_at_github": "2026-10-09T12:16:52Z", "merge_commit": "240e6f1"}
   },
-  "queued_issues": [124, 123, 1851, 1849, 257, 1818],
-  "schedule_poll_id": null,
+  "queued_issues": [1851, 1849, 1240, 1239, 1850],
+  "schedule_poll_id": "sched_49b329bc",
   "worktrees_cleaned_at": "2026-10-09T12:24Z",
-  "worktrees_removed": [90, 125, 177, 1818, 1819, 1830, 1841, 1849, 257],
-  "last_poll": "2026-10-09T12:22Z",
+  "last_poll": "2026-10-09T12:28Z",
   "last_validation": {
-    "at": "2026-10-09T12:26Z",
+    "at": "2026-10-09T12:28Z",
     "checks": [
-      "swarm_list: coordinator_only_sauropod",
-      "active_workers: 0",
-      "plan_v36: all_nodes_completed",
-      "in_progress: empty",
-      "completed_issues: 7 match github closed (spot #1826 #125)",
-      "queued_124: open (spot)",
-      "git: ahead 6 unpushed orchestrator commits",
-      "worktrees: leecharr-wt-* removed"
+      "resume_v2: user approved",
+      "spawned: koala#124 otter#123 llama#179 mouse#257 horse#1818",
+      "worktrees: leecharr-wt-124,123,179,257,1818",
+      "no run_plan",
+      "broadcast v2 rules"
     ]
   },
   "rules": {
