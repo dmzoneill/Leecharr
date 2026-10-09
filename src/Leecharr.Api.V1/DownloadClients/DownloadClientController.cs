@@ -648,7 +648,7 @@ public class DownloadClientController : Controller
                         { "password", password ?? string.Empty },
                     });
 
-                    var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent);
+                    using var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent);
                     if (!loginResp.IsSuccessStatusCode)
                     {
                         return this.Ok(new DownloadClientTestResult
@@ -669,7 +669,7 @@ public class DownloadClientController : Controller
                     }
                 }
 
-                var resp = await http.GetAsync($"{baseUrl}/api/v2/app/webapiVersion");
+                using var resp = await http.GetAsync($"{baseUrl}/api/v2/app/webapiVersion");
                 if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden)
                 {
                     return this.Ok(new DownloadClientTestResult
@@ -694,7 +694,7 @@ public class DownloadClientController : Controller
                     req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
                 }
 
-                var resp = await http.SendAsync(req);
+                using var resp = await http.SendAsync(req);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     return this.Ok(new DownloadClientTestResult
@@ -723,7 +723,7 @@ public class DownloadClientController : Controller
                         Encoding.UTF8,
                         "application/json");
 
-                    var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent);
+                    using var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent);
                     if (!loginResp.IsSuccessStatusCode)
                     {
                         return this.Ok(new DownloadClientTestResult
@@ -747,7 +747,7 @@ public class DownloadClientController : Controller
                 }
 
                 var content = new StringContent("{\"method\":\"auth.check_session\",\"params\":[],\"id\":1}", Encoding.UTF8, "application/json");
-                var resp = await http.PostAsync($"{baseUrl}/json", content);
+                using var resp = await http.PostAsync($"{baseUrl}/json", content);
                 if (resp.IsSuccessStatusCode)
                 {
                     var json = await resp.Content.ReadAsStringAsync();
