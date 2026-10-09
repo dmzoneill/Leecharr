@@ -15,6 +15,7 @@
   "queued_issues": [177, 125, 1849, 257, 1818],
   "schedule_poll_id": "sched_3b105963",
   "last_resync": "2026-10-09T12:08Z",
+  "last_poll": "2026-10-09T12:09Z",
   "notes": "run_plan failed on default model not_found; manual spawn on composer-2.5-fast OK. Avoid second run_plan while plan Active.",
   "rules": {
     "no_local_test_build": true,
