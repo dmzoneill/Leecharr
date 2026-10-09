@@ -211,7 +211,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         string tempPath = null;
         try
         {
-            tempPath = await this.MaterializeStreamToTempFileAsync(stream, fileName, cancellationToken);
+            tempPath = await MaterializeStreamToTempFileAsync(stream, fileName, cancellationToken);
             return await this.InspectMediaAsync(tempPath, cancellationToken);
         }
         catch (Exception ex)

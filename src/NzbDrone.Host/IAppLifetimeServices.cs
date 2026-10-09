@@ -2,10 +2,10 @@
 
 using Leecharr.Http.Authentication;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Categories;
-using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.DiskSpace;
