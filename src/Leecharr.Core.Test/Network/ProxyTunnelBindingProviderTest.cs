@@ -760,6 +760,7 @@ public class ProxyTunnelBindingProviderTest
             config.ProxyType.Returns("socks5");
             config.ProxyHost.Returns("127.0.0.1");
             config.ProxyPort.Returns(proxyPort);
+            config.ProxyAuthEnabled.Returns(true);
             config.ProxyUsername.Returns(longUsername);
             config.ProxyPassword.Returns(longPassword);
 
@@ -842,6 +843,7 @@ public class ProxyTunnelBindingProviderTest
             config.ProxyType.Returns("socks5");
             config.ProxyHost.Returns("127.0.0.1");
             config.ProxyPort.Returns(proxyPort);
+            config.ProxyAuthEnabled.Returns(true);
             config.ProxyUsername.Returns(exactUsername);
             config.ProxyPassword.Returns(exactPassword);
 
@@ -854,6 +856,103 @@ public class ProxyTunnelBindingProviderTest
             var reply = new byte[4];
             await stream.ReadExactlyAsync(reply, 0, 4);
             Encoding.ASCII.GetString(reply).Should().Be("OKAY");
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Socks5_WhenProxyAuthDisabled_DoesNotOfferUserPassAuthDespiteStoredCredentials()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var greeting = new byte[3];
+            await stream.ReadExactlyAsync(greeting, 0, 3);
+            greeting.Should().BeEquivalentTo(new byte[] { 0x05, 0x01, 0x00 });
+
+            await stream.WriteAsync(new byte[] { 0x05, 0x00 });
+
+            var reqHeader = new byte[4];
+            await stream.ReadExactlyAsync(reqHeader, 0, 4);
+            var domainLen = stream.ReadByte();
+            var domainBytes = new byte[domainLen];
+            await stream.ReadExactlyAsync(domainBytes, 0, domainLen);
+            var portBytes = new byte[2];
+            await stream.ReadExactlyAsync(portBytes, 0, 2);
+
+            await stream.WriteAsync(new byte[] { 0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x1B, 0x39 });
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("socks5");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+            config.ProxyAuthEnabled.Returns(false);
+            config.ProxyUsername.Returns("stored-user");
+            config.ProxyPassword.Returns("stored-secret");
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            using var socket = await provider.ConnectTunnelAsync("target.tracker.org", 6969);
+            socket.Connected.Should().BeTrue();
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Http_WhenProxyAuthDisabled_OmitsProxyAuthorizationHeader()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var reader = new StreamReader(stream, Encoding.ASCII);
+            var connectLine = await reader.ReadLineAsync();
+            connectLine.Should().Be("CONNECT tracker.domain.com:8080 HTTP/1.1");
+
+            string line;
+            while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
+            {
+                line.Should().NotStartWith("Proxy-Authorization:", "credentials must not be sent when proxy auth is disabled");
+            }
+
+            var response = Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
+            await stream.WriteAsync(response);
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("http");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+            config.ProxyAuthEnabled.Returns(false);
+            config.ProxyUsername.Returns("stored-user");
+            config.ProxyPassword.Returns("stored-secret");
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            using var socket = await provider.ConnectTunnelAsync("tracker.domain.com", 8080);
+            socket.Connected.Should().BeTrue();
         }
         finally
         {
