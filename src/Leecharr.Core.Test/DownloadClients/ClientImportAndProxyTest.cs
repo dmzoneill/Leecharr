@@ -1346,6 +1346,8 @@ public class ClientImportAndProxyTest
 
         items.Should().HaveCount(1);
         items[0].InfoHash.Should().Be("3333333333333333333333333333333333333333");
+        items[0].Category.Should().BeEmpty();
+        items[0].Tags.Should().Be("radarr, 4k");
     }
 
     [Test]
