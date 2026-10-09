@@ -116,6 +116,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         threads.Should().NotBeNull();
         threads.Should().NotBeEmpty();
         threads![0].ThreadId.Should().BeGreaterThan(0);
+        json.Should().Contain("\"threadId\"");
     }
 
     [Test]
