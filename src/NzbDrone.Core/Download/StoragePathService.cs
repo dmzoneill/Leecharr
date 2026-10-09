@@ -495,6 +495,12 @@ public class StoragePathService : IStoragePathService
             {
                 var dirName = Path.GetFileName(dir);
                 var destSubDir = Path.Combine(destination, dirName);
+                if (IsDirectoryReparsePoint(dir))
+                {
+                    this.CopyDirectoryLink(dir, destSubDir);
+                    continue;
+                }
+
                 this.CopyFolderRecursive(dir, destSubDir);
             }
         }
@@ -513,6 +519,53 @@ public class StoragePathService : IStoragePathService
 
                 this.SafeCopyFileWithStaging(file, destFile);
             }
+        }
+    }
+
+    private static bool IsDirectoryReparsePoint(string path)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(path);
+            return attributes.HasFlag(FileAttributes.Directory) && attributes.HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private void CopyDirectoryLink(string sourceLink, string destinationLink)
+    {
+        if (this.diskProvider.FolderExists(destinationLink) || this.diskProvider.FileExists(destinationLink))
+        {
+            destinationLink = this.ResolveNonCollidingFolderPath(destinationLink);
+        }
+
+        string linkTarget;
+        try
+        {
+            linkTarget = new DirectoryInfo(sourceLink).LinkTarget;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Skipping directory symlink '{0}' during cross-volume copy; unable to read link target.", sourceLink);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(linkTarget))
+        {
+            this.logger.Warn("Skipping directory symlink '{0}' during cross-volume copy; link target is empty.", sourceLink);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateSymbolicLink(destinationLink, linkTarget);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to recreate directory symlink '{0}' -> '{1}' at '{2}' during cross-volume copy.", sourceLink, linkTarget, destinationLink);
         }
     }
 
