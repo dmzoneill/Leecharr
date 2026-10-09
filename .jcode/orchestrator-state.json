@@ -3,45 +3,37 @@
   "base_path": "/home/daoneill/src/usr/leecharr",
   "target_agents": 5,
   "poll_interval_sec": 30,
-  "poll_note": "schedule tool min wake_in_minutes=1; use coordinator manual poll at 30s between wakes",
+  "poll_note": "schedule min 1m; coordinator manual poll between wakes",
   "model": "composer-2.5-fast",
+  "state_writer": "coordinator_only",
   "in_progress": {
     "1826": {"agent": "koala", "session": "session_koala_1791547595482_311d8eb2fe3886a7", "area": "Config/Logging", "swarm_status": "running"},
-
-    "125": {"agent": "otter", "session": "session_otter_1791547596855_ae89b442731bbcff", "area": "TorrentEngine", "swarm_status": "running", "note": "pivot from #90 via DM"},
-    "1849": {"agent": "llama", "session": "session_llama_1791547595974_1a453453c29011c2", "area": "ArrIntegration", "swarm_status": "completed", "plan_task_id": "issue-1830", "note": "#1830 done; DM pivot to #1849"}
+    "125": {"agent": "otter", "session": "session_otter_1791547596855_ae89b442731bbcff", "area": "TorrentEngine", "swarm_status": "running"},
+    "1849": {"agent": "llama", "session": "session_llama_1791547595974_1a453453c29011c2", "area": "ArrIntegration", "swarm_status": "running", "note": "DM pivot from #1830"},
+    "257": {"agent": "horse", "session": "session_horse_1791547595123_5a26f5b962b0ba69", "area": "Datastore/PostgreSQL", "swarm_status": "running", "note": "DM pivot from #177"},
+    "1818": {"agent": "mouse", "session": "session_mouse_1791547596480_8cb419c277e4e97b", "area": "Automation", "swarm_status": "running", "note": "DM pivot from #1841"}
   },
   "completed_issues": {
     "1819": {"agent": "horse", "closed_at_github": "2026-10-09T12:09:38Z", "commit": "05125de"},
-    "177": {"agent": "horse", "closed_at_github": "2026-10-09T12:18:00Z", "commit": "d482563", "worktree": "leecharr-wt-177"},
-    "90": {"agent": "otter", "closed_at_github": "2026-10-09T12:10:55Z", "plan_completed": "issue-90"},
+    "177": {"agent": "horse", "closed_at_github": "2026-10-09T12:18:00Z", "commit": "d482563"},
+    "90": {"agent": "otter", "closed_at_github": "2026-10-09T12:10:55Z"},
     "1830": {"agent": "llama", "closed_at_github": "2026-10-09T12:11:32Z", "commit": "8be3ace"},
     "1841": {"agent": "mouse", "closed_at_github": "2026-10-09T12:13:32Z", "commit": "c1d22c4"}
   },
-  "queued_issues": [257, 1818],
-  "extra_agents": {
-    "peacock": {"session": "session_peacock_1791547816085_259efa0cd80f5eab", "status": "ready_idle", "model": "gemini-3.8-flash-tiered", "note": "not in core five; consider stop"}
-  },
+  "queued_issues": [124, 123, 1851],
   "schedule_poll_id": "sched_3b105963",
-  "last_resync": "2026-10-09T12:12Z",
-  "last_poll": "2026-10-09T12:13Z",
+  "last_poll": "2026-10-09T12:20Z",
   "last_validation": {
-    "at": "2026-10-09T12:13Z",
-    "workers_running": 3,
-    "workers_ready": 1,
-    "workers_completed_pivoting": 1,
-    "plan_version": 32,
-    "plan_active": ["issue-1819", "issue-1826", "issue-1830", "issue-1841"],
-    "plan_completed": ["issue-90"],
-    "github_closed_match": {"90": true, "1819": true, "1830": true, "1826": false, "1841": false},
-    "state_matches_swarm": true,
-    "actions": ["dm otter #125", "dm horse #177", "dm llama #1849", "resync_plan v32"]
+    "at": "2026-10-09T12:20Z",
+    "github_verified": [1841, 1826, 125],
+    "state_drift_cause": "workers overwrote orchestrator-state.json; fixed coordinator-only rule",
+    "actions": ["broadcast coordinator-only state", "dm llama #1849 horse #257 mouse #1818", "stop peacock"]
   },
-  "notes": "Plan still Active on closed issues 1819/1830 until salvaged. Pivots via DM outside plan item list. Queue 257, 1818.",
   "rules": {
     "no_local_test_build": true,
     "lint_format_ok": true,
     "push_branch": "main",
-    "worktree_pattern": "leecharr-wt-{issue}"
+    "worktree_pattern": "leecharr-wt-{issue}",
+    "coordinator_only_state_file": true
   }
 }
