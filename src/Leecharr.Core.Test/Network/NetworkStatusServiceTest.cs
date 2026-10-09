@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -31,6 +32,25 @@ public class NetworkStatusServiceTest
         this.configService.ListeningPort.Returns(51413);
         this.configService.BindInterface.Returns("Auto");
         this.externalIpService.CachedIp.Returns("203.0.113.10");
+    }
+
+    [Test]
+    public void GetStatus_UsesGetExternalIpAsyncInsteadOfStaleCachedIp()
+    {
+        this.externalIpService.CachedIp.Returns("203.0.113.10");
+        this.externalIpService.GetExternalIpAsync().Returns(Task.FromResult("203.0.113.55"));
+        this.natPmpPortMapperService.ActiveMappings.Returns(new List<ActivePortMapping>());
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService);
+
+        var status = service.GetStatus();
+
+        status.ExternalIp.Should().Be("203.0.113.55");
+        this.externalIpService.Received(1).GetExternalIpAsync();
     }
 
     [Test]
