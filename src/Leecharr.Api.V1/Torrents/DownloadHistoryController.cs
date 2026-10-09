@@ -17,6 +17,8 @@ namespace Leecharr.Api.V1.Torrents;
 [V1ApiController("downloadhistory")]
 public class DownloadHistoryController : Controller
 {
+    private const int EnrichmentBatchSize = 1000;
+
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly IDownloadHistoryService historyService;
@@ -128,87 +130,16 @@ public class DownloadHistoryController : Controller
     [HttpPost("enrich-all")]
     public async Task<ActionResult> EnrichAll()
     {
-        var records = this.historyService.GetAll(null, null, 1000);
-        if (this.mediaEnrichmentService != null)
-        {
-            foreach (var record in records)
-            {
-                try
-                {
-                    var torrent = new Torrent
-                    {
-                        Id = record.TorrentId ?? 0,
-                        Name = record.Title,
-                        InfoHash = record.InfoHash ?? string.Empty,
-                        Category = record.Source,
-                    };
-                    var metadata = await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
-                    if (metadata != null)
-                    {
-                        record.DataJson = JsonSerializer.Serialize(metadata);
-                        if (this.downloadHistoryRepository != null)
-                        {
-                            this.downloadHistoryRepository.Update(record);
-                        }
-                        else
-                        {
-                            this.historyService.Update(record);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Debug(ex, "Failed to enrich download history record {RecordId}", record.Id);
-                }
-            }
-        }
-
-        return this.Ok(new { message = "Enrichment completed", processedCount = records.Count });
+        var (examined, enriched) = await this.EnrichAllHistoryRecordsAsync();
+        return this.Ok(new { message = "Enrichment completed", processedCount = examined, enrichedCount = enriched });
     }
 
     [HttpPost("reconcile")]
     public async Task<ActionResult> Reconcile()
     {
         var count = this.historyService.ReconcileAllTorrents();
-        if (this.mediaEnrichmentService != null)
-        {
-            var records = this.historyService.GetAll(null, null, 1000);
-            foreach (var record in records)
-            {
-                if (string.IsNullOrEmpty(record.DataJson) || record.DataJson == "{}")
-                {
-                    try
-                    {
-                        var torrent = new Torrent
-                        {
-                            Id = record.TorrentId ?? 0,
-                            Name = record.Title,
-                            InfoHash = record.InfoHash ?? string.Empty,
-                            Category = record.Source,
-                        };
-                        var metadata = await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
-                        if (metadata != null)
-                        {
-                            record.DataJson = JsonSerializer.Serialize(metadata);
-                            if (this.downloadHistoryRepository != null)
-                            {
-                                this.downloadHistoryRepository.Update(record);
-                            }
-                            else
-                            {
-                                this.historyService.Update(record);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Debug(ex, "Failed to enrich reconciled torrent {TorrentId}", record.TorrentId);
-                    }
-                }
-            }
-        }
-
-        return this.Ok(new { success = true, processedCount = count });
+        var enriched = await this.EnrichReconciledRecordsMissingMetadataAsync();
+        return this.Ok(new { success = true, processedCount = count, enrichedCount = enriched });
     }
 
     [HttpDelete("{id:int}")]
@@ -225,6 +156,119 @@ public class DownloadHistoryController : Controller
     {
         this.historyService.ClearAll();
         return this.Ok();
+    }
+
+    private async Task<(int Examined, int Enriched)> EnrichAllHistoryRecordsAsync()
+    {
+        if (this.mediaEnrichmentService == null)
+        {
+            return (0, 0);
+        }
+
+        var examined = 0;
+        var enriched = 0;
+        var offset = 0;
+        while (true)
+        {
+            var batch = this.historyService.GetAll(null, null, EnrichmentBatchSize, offset);
+            if (batch.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var record in batch)
+            {
+                examined++;
+                if (await this.TryEnrichRecordAsync(record))
+                {
+                    enriched++;
+                }
+            }
+
+            if (batch.Count < EnrichmentBatchSize)
+            {
+                break;
+            }
+
+            offset += batch.Count;
+        }
+
+        return (examined, enriched);
+    }
+
+    private async Task<int> EnrichReconciledRecordsMissingMetadataAsync()
+    {
+        if (this.mediaEnrichmentService == null)
+        {
+            return 0;
+        }
+
+        var enriched = 0;
+        var offset = 0;
+        while (true)
+        {
+            var batch = this.historyService.GetAll(null, null, EnrichmentBatchSize, offset);
+            if (batch.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var record in batch)
+            {
+                if (string.IsNullOrEmpty(record.DataJson) || record.DataJson == "{}")
+                {
+                    if (await this.TryEnrichRecordAsync(record))
+                    {
+                        enriched++;
+                    }
+                }
+            }
+
+            if (batch.Count < EnrichmentBatchSize)
+            {
+                break;
+            }
+
+            offset += batch.Count;
+        }
+
+        return enriched;
+    }
+
+    private async Task<bool> TryEnrichRecordAsync(DownloadHistory record)
+    {
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = record.TorrentId ?? 0,
+                Name = record.Title,
+                InfoHash = record.InfoHash ?? string.Empty,
+                Category = record.Source,
+            };
+            var metadata = await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
+            if (metadata == null)
+            {
+                return false;
+            }
+
+            record.DataJson = JsonSerializer.Serialize(metadata);
+            if (this.downloadHistoryRepository != null)
+            {
+                this.downloadHistoryRepository.Update(record);
+            }
+            else
+            {
+                this.historyService.Update(record);
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to enrich download history record {RecordId}", record.Id);
+            return false;
+        }
     }
 
     private DownloadHistoryResource ToResource(DownloadHistory model)
