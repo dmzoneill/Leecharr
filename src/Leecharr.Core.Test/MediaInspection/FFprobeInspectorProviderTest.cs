@@ -275,6 +275,40 @@ sleep 300
         info.DurationSeconds.Should().Be(7200.0);
     }
 
+    [Test]
+    public void ParseFFprobeJson_WhenHigherScoredAudioOmitsBitDepth_DoesNotKeepPreviousTrackBitDepth()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""120.000000""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""audio"",
+      ""codec_name"": ""pcm_s24le"",
+      ""channels"": 2,
+      ""sample_rate"": ""48000"",
+      ""bits_per_raw_sample"": ""24""
+    },
+    {
+      ""codec_type"": ""audio"",
+      ""codec_name"": ""aac"",
+      ""channels"": 2,
+      ""sample_rate"": ""48000""
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioCodec.Should().Be("AAC");
+        info.AudioBitDepth.Should().Be(0);
+        info.AudioSampleRate.Should().Be(48000);
+        info.AudioChannels.Should().Be("2.0");
+    }
+
     [TestCase(720, 576)]
     [TestCase(1024, 576)]
     public void ParseFFprobeJson_WhenPalDimensions_Derives576pResolution(int width, int height)
