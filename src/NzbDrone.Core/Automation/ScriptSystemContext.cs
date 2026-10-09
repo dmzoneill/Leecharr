@@ -13,12 +13,17 @@ public class ScriptSystemContext
 {
     private readonly IManageCommandQueue? _commandQueue;
     private readonly AutomationExecutionResult? _result;
+    private readonly ScriptExecutionBudget? _executionBudget;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
-    public ScriptSystemContext(IManageCommandQueue? commandQueue = null, AutomationExecutionResult? result = null)
+    public ScriptSystemContext(
+        IManageCommandQueue? commandQueue = null,
+        AutomationExecutionResult? result = null,
+        ScriptExecutionBudget? executionBudget = null)
     {
         _commandQueue = commandQueue;
         _result = result;
+        _executionBudget = executionBudget;
     }
 
     public static long diskFreeSpace
@@ -180,8 +185,27 @@ public class ScriptSystemContext
     public void sleep(int seconds)
     {
         var clamped = Math.Clamp(seconds, 1, 30);
+        if (_executionBudget != null)
+        {
+            var remainingSeconds = _executionBudget.GetRemainingMillisecondsForBlocking() / 1000;
+            if (remainingSeconds <= 0)
+            {
+                _logger.Info("Automation script sleep skipped: script time budget exhausted");
+                return;
+            }
+
+            clamped = Math.Min(clamped, Math.Max(1, remainingSeconds));
+        }
+
         _logger.Info("Automation script sleeping for {0} seconds", clamped);
-        Thread.Sleep(clamped * 1000);
+        if (_executionBudget != null)
+        {
+            _executionBudget.SleepSeconds(clamped);
+        }
+        else
+        {
+            Thread.Sleep(clamped * 1000);
+        }
     }
 
     public void log(string message, string level = "info")
