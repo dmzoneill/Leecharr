@@ -315,12 +315,7 @@ public class ScriptHttpContext : IDisposable
         object? parsedJson = null;
         try
         {
-            if (!string.IsNullOrWhiteSpace(responseBody) &&
-                (responseBody.TrimStart().StartsWith('{') || responseBody.TrimStart().StartsWith('[')))
-            {
-                using var doc = JsonDocument.Parse(responseBody);
-                parsedJson = JsonSerializer.Deserialize<Dictionary<string, object>>(responseBody);
-            }
+            parsedJson = ScriptJsonElementConverter.TryParse(responseBody);
         }
         catch
         {

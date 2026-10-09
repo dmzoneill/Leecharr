@@ -10,6 +10,7 @@ using System.Net.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Jint;
 using NUnit.Framework;
 using NzbDrone.Core.Automation;
 
@@ -88,12 +89,52 @@ public class ScriptHttpContextTest
         result["body"].Should().Be("{\"running\": true, \"version\": \"1.0\"}");
         result["json"].Should().NotBeNull();
 
-        var json = result["json"] as Dictionary<string, object>;
+        var json = result["json"] as Dictionary<string, object?>;
         json.Should().NotBeNull();
+        json!["running"].Should().Be(true);
+        json["version"].Should().Be("1.0");
 
         var headers = result["headers"] as Dictionary<string, string>;
         headers.Should().NotBeNull();
         headers!["X-Test-Header"].Should().Be("Leecharr");
+    }
+
+    [Test]
+    public async Task ScriptHttpContext_GetAsync_ParsesJsonValuesForScriptConsumption()
+    {
+        var testHandler = new TestHttpMessageHandler(req =>
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"running\": true, \"flag\": false, \"child\": {\"z\": 1}, \"version\": \"1.0\"}",
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            };
+        });
+
+        using var context = new ScriptHttpContext(testHandler);
+        var result = await context.GetAsync("https://api.example.com/status");
+
+        var json = result["json"] as Dictionary<string, object?>;
+        json.Should().NotBeNull();
+        json!["running"].Should().Be(true);
+        json["flag"].Should().Be(false);
+        json["version"].Should().Be("1.0");
+
+        var child = json["child"] as Dictionary<string, object?>;
+        child.Should().NotBeNull();
+        child!["z"].Should().Be(1L);
+
+        var engine = new Engine();
+        engine.SetValue("response", result);
+        var ok = engine.Evaluate(
+            "response.json.running === true && " +
+            "response.json.flag === false && " +
+            "!response.json.flag === true && " +
+            "response.json.child.z === 1 && " +
+            "response.json.version === '1.0'");
+        ok.AsBoolean().Should().BeTrue();
     }
 
     [Test]
