@@ -81,11 +81,7 @@ public class NetworkStatusService : INetworkStatusService
 
     public NetworkStatus GetStatus()
     {
-        var externalIp = this.externalIpService.CachedIp;
-        if (string.IsNullOrEmpty(externalIp))
-        {
-            _ = this.externalIpService.GetExternalIpAsync();
-        }
+        var externalIp = this.externalIpService.GetExternalIpAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 
         var localAddresses = this.GetLocalAddresses();
         var primaryLocal = localAddresses.FirstOrDefault() ?? "127.0.0.1";
