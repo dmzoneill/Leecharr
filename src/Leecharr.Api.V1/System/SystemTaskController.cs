@@ -328,7 +328,7 @@ public class SystemCommandController : Controller
         var cmdName = !string.IsNullOrWhiteSpace(command.Name) ? command.Name : command.CommandName;
         if (string.IsNullOrWhiteSpace(cmdName))
         {
-            cmdName = "ManualCommand";
+            return this.BadRequest("Command name is required.");
         }
 
         if (this.commandQueueManager != null)
