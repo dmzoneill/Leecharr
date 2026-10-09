@@ -16,6 +16,8 @@ using NzbDrone.Core.Common;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Backup;
 
@@ -26,6 +28,7 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
     private readonly IConnectionStringFactory connectionStringFactory;
     private readonly IConfigFileProvider configFileProvider;
     private readonly IConfigService configService;
+    private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
 
     public BackupService(
@@ -33,13 +36,15 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
         IDiskProvider diskProvider = null,
         IConnectionStringFactory connectionStringFactory = null,
         IConfigFileProvider configFileProvider = null,
-        IConfigService configService = null)
+        IConfigService configService = null,
+        IEventAggregator eventAggregator = null)
     {
         this.appFolderInfo = appFolderInfo;
         this.diskProvider = diskProvider ?? new DiskProvider();
         this.connectionStringFactory = connectionStringFactory;
         this.configFileProvider = configFileProvider;
         this.configService = configService;
+        this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -199,6 +204,7 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to create backup archive");
+            this.eventAggregator?.PublishEvent(new BackupFailedEvent(type, ex.Message));
             throw;
         }
         finally
