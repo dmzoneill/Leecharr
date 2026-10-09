@@ -16,16 +16,19 @@ public class AutomationScriptRepository : BasicRepository<AutomationScript>, IAu
 
     public List<AutomationScript> GetByTrigger(AutomationTrigger trigger)
     {
-        using var connection = database.OpenConnection();
-        return connection.Query<AutomationScript>(
-            "SELECT * FROM \"AutomationScripts\" WHERE \"Trigger\" = @Trigger AND \"IsEnabled\" = 1",
-            new { Trigger = (int)trigger }).ToList();
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<AutomationScript>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"Trigger\" = @Trigger AND \"IsEnabled\" = @IsEnabled",
+                new { Trigger = (int)trigger, IsEnabled = true })
+            .ToList());
     }
 
     public List<AutomationScript> GetEnabled()
     {
-        using var connection = database.OpenConnection();
-        return connection.Query<AutomationScript>(
-            "SELECT * FROM \"AutomationScripts\" WHERE \"IsEnabled\" = 1").ToList();
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<AutomationScript>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = @IsEnabled",
+                new { IsEnabled = true })
+            .ToList());
     }
 }
