@@ -316,10 +316,12 @@ public class DownloadClientSyncControllerTest
     }
 
     [Test]
-    public async Task Sync_WhenHttpClientFactoryInjected_DoesNotUseSharedFactoryClient()
+    public async Task Sync_WhenSafeHttpClientServiceInjected_CreatesSafeHttpClientForRemoteQuery()
     {
-        var factory = Substitute.For<IHttpClientFactory>();
-        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient: null, safeHttpClientService: Substitute.For<ISafeHttpClientService>());
+        var safeClient = Substitute.For<ISafeHttpClientService>();
+        using var created = new HttpClient(new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        safeClient.CreateHttpClient(Arg.Any<TimeSpan>(), true).Returns(created);
+        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient: null, safeHttpClientService: safeClient);
 
         this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition>
         {
@@ -336,8 +338,7 @@ public class DownloadClientSyncControllerTest
 
         await controller.Sync();
 
-        factory.DidNotReceive().CreateClient(Arg.Any<string>());
-        factory.DidNotReceive().CreateClient();
+        safeClient.Received(1).CreateHttpClient(Arg.Any<TimeSpan>(), true);
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
