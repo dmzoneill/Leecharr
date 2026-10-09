@@ -282,6 +282,11 @@ public class DownloadClientController : Controller
             return this.Ok(TorrentResourceMapper.ToResource(existing));
         }
 
+        if (!this.TryBuildImportMagnetUri(hash, out var magnetUri, out var hashError))
+        {
+            return this.BadRequest(hashError);
+        }
+
         var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService, filterByCategory: false);
         var remoteItem = items.FirstOrDefault(i => string.Equals(i.InfoHash, hash, StringComparison.OrdinalIgnoreCase));
         if (remoteItem == null)
@@ -292,8 +297,15 @@ public class DownloadClientController : Controller
         var savePath = !string.IsNullOrWhiteSpace(remoteItem.SavePath) ? remoteItem.SavePath : null;
         var category = !string.IsNullOrWhiteSpace(remoteItem.Category) ? remoteItem.Category : client.Category;
 
-        var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
-        var added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
+        Torrent added;
+        try
+        {
+            added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
+        }
+        catch (Exception ex) when (ex is FormatException or ArgumentException)
+        {
+            return this.BadRequest(ex.Message);
+        }
         if (added == null)
         {
             added = new Torrent
@@ -498,6 +510,29 @@ public class DownloadClientController : Controller
         }
 
         return null;
+    }
+
+    private bool TryBuildImportMagnetUri(string hash, out string magnetUri, out string error)
+    {
+        magnetUri = null;
+        error = null;
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            error = "Info hash is required.";
+            return false;
+        }
+
+        try
+        {
+            magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
+            MagnetLinkParser.Parse(magnetUri);
+            return true;
+        }
+        catch (Exception ex) when (ex is FormatException or ArgumentException)
+        {
+            error = ex.Message;
+            return false;
+        }
     }
 
     private static DownloadClientResource ToResource(DownloadClientDefinition model)
