@@ -167,6 +167,37 @@ public class ScriptHttpContextTest
         postDict!["status"].Should().Be(200);
     }
 
+    [Test]
+    public async Task ScriptHttpContext_Dispose_WaitsForInFlightGetAsync()
+    {
+        var requestStarted = new ManualResetEventSlim(false);
+        var allowComplete = new ManualResetEventSlim(false);
+
+        var testHandler = new AsyncTestHttpMessageHandler(async req =>
+        {
+            req.Method.Should().Be(HttpMethod.Get);
+            requestStarted.Set();
+            await Task.Run(() => allowComplete.Wait(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"ok\": true}", System.Text.Encoding.UTF8, "application/json"),
+            };
+        });
+
+        var context = new ScriptHttpContext(testHandler);
+        var pending = context.GetAsync("https://api.example.com/delayed");
+
+        requestStarted.Wait(TimeSpan.FromSeconds(2)).Should().BeTrue();
+
+        var disposeTask = Task.Run(() => context.Dispose());
+        allowComplete.Set();
+
+        (await disposeTask.WaitAsync(TimeSpan.FromSeconds(5))).Should().BeTrue();
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        result["ok"].Should().Be(true);
+    }
+
     private class TestHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
@@ -179,6 +210,21 @@ public class ScriptHttpContextTest
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return Task.FromResult(this.handler(request));
+        }
+    }
+
+    private class AsyncTestHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, Task<HttpResponseMessage>> handler;
+
+        public AsyncTestHttpMessageHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
+        {
+            this.handler = handler;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return this.handler(request);
         }
     }
 }
