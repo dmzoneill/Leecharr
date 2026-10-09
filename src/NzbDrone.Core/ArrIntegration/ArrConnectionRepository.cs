@@ -92,22 +92,22 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
                 score += 25;
             }
 
-            if ((cat.Contains("tv", StringComparison.OrdinalIgnoreCase) || cat.Contains("series", StringComparison.OrdinalIgnoreCase) || cat.Contains("show", StringComparison.OrdinalIgnoreCase)) &&
+            if ((cat.Contains("tv", StringComparison.OrdinalIgnoreCase) || cat.Contains("series", StringComparison.OrdinalIgnoreCase) || cat.Contains("show", StringComparison.OrdinalIgnoreCase) || cat.Contains("sonarr", StringComparison.OrdinalIgnoreCase)) &&
                 string.Equals(conn.ArrType, "Sonarr", StringComparison.OrdinalIgnoreCase))
             {
                 score += 20;
             }
-            else if ((cat.Contains("movie", StringComparison.OrdinalIgnoreCase) || cat.Contains("film", StringComparison.OrdinalIgnoreCase)) &&
+            else if ((cat.Contains("movie", StringComparison.OrdinalIgnoreCase) || cat.Contains("film", StringComparison.OrdinalIgnoreCase) || cat.Contains("radarr", StringComparison.OrdinalIgnoreCase)) &&
                 string.Equals(conn.ArrType, "Radarr", StringComparison.OrdinalIgnoreCase))
             {
                 score += 20;
             }
-            else if ((cat.Contains("music", StringComparison.OrdinalIgnoreCase) || cat.Contains("audio", StringComparison.OrdinalIgnoreCase) || cat.Contains("flac", StringComparison.OrdinalIgnoreCase)) &&
+            else if ((cat.Contains("music", StringComparison.OrdinalIgnoreCase) || cat.Contains("audio", StringComparison.OrdinalIgnoreCase) || cat.Contains("flac", StringComparison.OrdinalIgnoreCase) || cat.Contains("lidarr", StringComparison.OrdinalIgnoreCase)) &&
                 string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase))
             {
                 score += 20;
             }
-            else if ((cat.Contains("book", StringComparison.OrdinalIgnoreCase) || cat.Contains("read", StringComparison.OrdinalIgnoreCase) || cat.Contains("ebook", StringComparison.OrdinalIgnoreCase)) &&
+            else if ((cat.Contains("book", StringComparison.OrdinalIgnoreCase) || cat.Contains("read", StringComparison.OrdinalIgnoreCase) || cat.Contains("ebook", StringComparison.OrdinalIgnoreCase) || cat.Contains("readarr", StringComparison.OrdinalIgnoreCase)) &&
                 string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase))
             {
                 score += 20;
