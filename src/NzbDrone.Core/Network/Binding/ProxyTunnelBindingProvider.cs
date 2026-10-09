@@ -3,10 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -198,20 +196,18 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
     private async Task<Socket> CreateAndConnectDirectSocketAsync(string targetHost, int targetPort, CancellationToken cancellationToken)
     {
-        IPAddress[] addresses;
         if (TryParseHostAddress(targetHost, out var parsedIp))
         {
-            addresses = [parsedIp];
-        }
-        else
-        {
-            addresses = await Dns.GetHostAddressesAsync(targetHost, cancellationToken).ConfigureAwait(false);
+            return await this.CreateAndConnectDirectSocketToAddressAsync(parsedIp, targetPort, cancellationToken).ConfigureAwait(false);
         }
 
-        if (addresses.Length == 0)
+        var addresses = await Dns.GetHostAddressesAsync(targetHost, cancellationToken).ConfigureAwait(false);
+        if (addresses == null || addresses.Length == 0)
         {
             throw new SocketException((int)SocketError.HostNotFound);
         }
+
+        ValidateResolvedDirectConnectAddresses(targetHost, targetPort, addresses, this.logger);
 
         if (this.blocklistService != null && addresses.Any(a => this.blocklistService.IsIpBlocked(a.ToString())))
         {
@@ -219,34 +215,77 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             throw new SocketException((int)SocketError.AccessDenied);
         }
 
-        Exception lastException = null;
+        Exception lastError = null;
         foreach (var address in addresses)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-
-            var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             try
             {
-                this.BindDirectSocket(socket);
-                await socket.ConnectAsync(new IPEndPoint(address, targetPort), cancellationToken).ConfigureAwait(false);
-                return socket;
+                return await this.CreateAndConnectDirectSocketToAddressAsync(address, targetPort, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is SocketException or IOException)
             {
-                socket.Dispose();
-                lastException = ex;
+                lastError = ex;
             }
         }
 
-        if (lastException != null)
+        if (lastError != null)
         {
-            ExceptionDispatchInfo.Capture(lastException).Throw();
+            throw lastError;
         }
 
-        throw new SocketException((int)SocketError.HostNotFound);
+        throw new SocketException((int)SocketError.HostUnreachable);
+    }
+
+    private async Task<Socket> CreateAndConnectDirectSocketToAddressAsync(IPAddress ip, int targetPort, CancellationToken cancellationToken)
+    {
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        var socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+        try
+        {
+            this.BindDirectSocket(socket);
+            await socket.ConnectAsync(new IPEndPoint(ip, targetPort), cancellationToken).ConfigureAwait(false);
+            return socket;
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    internal static void ValidateResolvedDirectConnectAddresses(string targetHost, int targetPort, IPAddress[] addresses, Logger logger)
+    {
+        foreach (var address in addresses)
+        {
+            var checkHost = FormatAddressForSecurityCheck(address);
+            if (!IsLinkLocalOrMetadata(checkHost))
+            {
+                continue;
+            }
+
+            logger?.Warn("Blocked direct connection to link-local / cloud metadata address {0}:{1} (resolved from {2}).", checkHost, targetPort, targetHost);
+            throw new SocketException((int)SocketError.AccessDenied);
+        }
+    }
+
+    internal static string FormatAddressForSecurityCheck(IPAddress address)
+    {
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return $"[{address}]";
+        }
+
+        return address.ToString();
     }
 
     private void BindDirectSocket(Socket socket)
@@ -281,19 +320,13 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         }
     }
 
-    private bool ShouldSendProxyCredentials()
-    {
-        return this.configService?.ProxyAuthEnabled == true
-            && !string.IsNullOrEmpty(this.configService?.ProxyUsername);
-    }
-
     private async Task PerformSocks5HandshakeAsync(Socket socket, string targetHost, int targetPort, CancellationToken cancellationToken)
     {
         using var stream = new NetworkStream(socket, ownsSocket: false);
 
-        var hasAuth = this.ShouldSendProxyCredentials();
-        var username = hasAuth ? this.configService?.ProxyUsername : null;
-        var password = hasAuth ? this.configService?.ProxyPassword : null;
+        var username = this.configService?.ProxyUsername;
+        var password = this.configService?.ProxyPassword;
+        var hasAuth = !string.IsNullOrEmpty(username);
 
         // 1. Send SOCKS5 Greeting
         // [0x05 (version), NMETHODS, 0x00 (no auth), 0x02 (user/pass if configured)]
@@ -448,7 +481,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         sb.Append($"CONNECT {formattedHost}:{targetPort} HTTP/1.1\r\n");
         sb.Append($"Host: {formattedHost}:{targetPort}\r\n");
 
-        if (this.ShouldSendProxyCredentials())
+        if (!string.IsNullOrEmpty(username))
         {
             var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password ?? string.Empty}"));
             sb.Append($"Proxy-Authorization: Basic {auth}\r\n");
@@ -671,9 +704,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
     {
         using var stream = new NetworkStream(socket, ownsSocket: false);
 
-        var username = this.ShouldSendProxyCredentials()
-            ? this.configService?.ProxyUsername ?? string.Empty
-            : string.Empty;
+        var username = this.configService?.ProxyUsername ?? string.Empty;
         var userBytes = Encoding.ASCII.GetBytes(username);
 
         using var ms = new MemoryStream();
@@ -682,18 +713,8 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         ms.WriteByte((byte)((targetPort >> 8) & 0xFF));
         ms.WriteByte((byte)(targetPort & 0xFF));
 
-        if (TryParseHostAddress(targetHost, out var ipAddress))
+        if (TryParseHostAddress(targetHost, out var ipAddress) && ipAddress.AddressFamily == AddressFamily.InterNetwork)
         {
-            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6)
-            {
-                throw new NotSupportedException("IPv6 targets are not supported by SOCKS4. Use SOCKS5 instead.");
-            }
-
-            if (ipAddress.AddressFamily != AddressFamily.InterNetwork)
-            {
-                throw new NotSupportedException($"Address family {ipAddress.AddressFamily} is not supported by SOCKS4.");
-            }
-
             var ipBytes = ipAddress.GetAddressBytes();
             ms.Write(ipBytes, 0, 4);
             ms.Write(userBytes, 0, userBytes.Length);
