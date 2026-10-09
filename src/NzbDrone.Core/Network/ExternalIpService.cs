@@ -223,7 +223,8 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         {
             var proxyUri = new Uri($"{proxyType}://{proxyHost}:{proxyPort}");
             ICredentials credentials = null;
-            if (!string.IsNullOrWhiteSpace(this.configService?.ProxyUsername))
+            if (this.configService?.ProxyAuthEnabled == true &&
+                !string.IsNullOrWhiteSpace(this.configService.ProxyUsername))
             {
                 credentials = new NetworkCredential(this.configService.ProxyUsername, this.configService?.ProxyPassword ?? string.Empty);
             }

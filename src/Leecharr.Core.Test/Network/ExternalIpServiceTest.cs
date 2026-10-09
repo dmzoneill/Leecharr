@@ -7,8 +7,10 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Network;
 
 namespace Leecharr.Core.Test.Network;
@@ -103,6 +105,52 @@ public class ExternalIpServiceTest
 
         Assert.That(success, Is.False);
         Assert.That(ip, Is.Empty);
+    }
+
+    private static WebProxy CreateHttpClientProxy(ExternalIpService subject)
+    {
+        var method = typeof(ExternalIpService).GetMethod("CreateHttpClient", BindingFlags.Instance | BindingFlags.NonPublic);
+        using var client = (HttpClient)method!.Invoke(subject, null)!;
+        var handler = typeof(HttpMessageInvoker)
+            .GetField("_handler", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(client);
+        var socketsHandler = (System.Net.Http.SocketsHttpHandler)handler!;
+        return (WebProxy)socketsHandler.Proxy!;
+    }
+
+    [Test]
+    public void CreateHttpClient_WhenProxyAuthDisabled_DoesNotAttachCredentials()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("proxy.example");
+        config.ProxyPort.Returns(8080);
+        config.ProxyAuthEnabled.Returns(false);
+        config.ProxyUsername.Returns("saveduser");
+        config.ProxyPassword.Returns("savedpass");
+
+        var proxy = CreateHttpClientProxy(new ExternalIpService(config));
+
+        proxy.Credentials.Should().BeNull();
+    }
+
+    [Test]
+    public void CreateHttpClient_WhenProxyAuthEnabled_AttachesCredentials()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("proxy.example");
+        config.ProxyPort.Returns(8080);
+        config.ProxyAuthEnabled.Returns(true);
+        config.ProxyUsername.Returns("saveduser");
+        config.ProxyPassword.Returns("savedpass");
+
+        var proxy = CreateHttpClientProxy(new ExternalIpService(config));
+
+        proxy.Credentials.Should().NotBeNull();
+        var creds = proxy.Credentials!.GetCredential(new Uri("http://proxy.example:8080/"), "Basic");
+        creds!.UserName.Should().Be("saveduser");
+        creds.Password.Should().Be("savedpass");
     }
 
     [Test]
