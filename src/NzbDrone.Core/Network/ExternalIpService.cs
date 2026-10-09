@@ -2,8 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
+using System.Runtime.ExceptionServices;
 using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -271,35 +271,50 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                     throw new SocketException((int)SocketError.HostNotFound);
                 }
 
-                var targetIp = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
-                var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                Exception lastException = null;
+                foreach (var targetIp in addresses)
                 {
-                    NoDelay = true,
-                };
-
-                try
-                {
-                    if (this.networkBindingService != null)
+                    if (cancellationToken.IsCancellationRequested)
                     {
-                        this.networkBindingService.BindSocket(socket, bindInterface);
+                        break;
                     }
-                    else
+
+                    var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
                     {
-                        var localIp = Binding.ManagedSocketBindingProvider.GetInterfaceIp(bindInterface, targetIp.AddressFamily);
-                        if (localIp != null)
+                        NoDelay = true,
+                    };
+
+                    try
+                    {
+                        if (this.networkBindingService != null)
                         {
-                            socket.Bind(new IPEndPoint(localIp, 0));
+                            this.networkBindingService.BindSocket(socket, bindInterface);
                         }
-                    }
+                        else
+                        {
+                            var localIp = Binding.ManagedSocketBindingProvider.GetInterfaceIp(bindInterface, targetIp.AddressFamily);
+                            if (localIp != null)
+                            {
+                                socket.Bind(new IPEndPoint(localIp, 0));
+                            }
+                        }
 
-                    await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken).ConfigureAwait(false);
-                    return new NetworkStream(socket, ownsSocket: true);
+                        await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken).ConfigureAwait(false);
+                        return new NetworkStream(socket, ownsSocket: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        socket.Dispose();
+                        lastException = ex;
+                    }
                 }
-                catch
+
+                if (lastException != null)
                 {
-                    socket.Dispose();
-                    throw;
+                    ExceptionDispatchInfo.Capture(lastException).Throw();
                 }
+
+                throw new SocketException((int)SocketError.HostNotFound);
             };
         }
 
