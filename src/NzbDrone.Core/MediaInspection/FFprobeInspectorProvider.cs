@@ -447,6 +447,11 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                     }
                     else if (string.Equals(codecType, "audio", StringComparison.OrdinalIgnoreCase))
                     {
+                        if (IsCommentaryAudioStream(stream))
+                        {
+                            continue;
+                        }
+
                         var ac = string.Empty;
                         if (stream.TryGetProperty("codec_name", out var aCodec) && aCodec.ValueKind == JsonValueKind.String)
                         {
@@ -830,23 +835,27 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         return false;
     }
 
-    private static bool IsAttachedPictureStream(JsonElement stream)
+    private static bool IsFfprobeDispositionSet(JsonElement stream, string dispositionKey)
     {
         if (!stream.TryGetProperty("disposition", out var disposition) ||
             disposition.ValueKind != JsonValueKind.Object ||
-            !disposition.TryGetProperty("attached_pic", out var attachedPic))
+            !disposition.TryGetProperty(dispositionKey, out var flag))
         {
             return false;
         }
 
-        return attachedPic.ValueKind switch
+        return flag.ValueKind switch
         {
-            JsonValueKind.Number when attachedPic.TryGetInt32(out var flag) => flag != 0,
+            JsonValueKind.Number when flag.TryGetInt32(out var value) => value != 0,
             JsonValueKind.True => true,
-            JsonValueKind.String => int.TryParse(attachedPic.GetString(), out var parsed) && parsed != 0,
+            JsonValueKind.String => int.TryParse(flag.GetString(), out var parsed) && parsed != 0,
             _ => false,
         };
     }
+
+    private static bool IsAttachedPictureStream(JsonElement stream) => IsFfprobeDispositionSet(stream, "attached_pic");
+
+    private static bool IsCommentaryAudioStream(JsonElement stream) => IsFfprobeDispositionSet(stream, "comment");
 
     private static bool HasFormatToken(string[] tokens, string token)
     {
