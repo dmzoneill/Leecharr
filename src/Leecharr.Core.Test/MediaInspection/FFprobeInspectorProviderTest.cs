@@ -275,6 +275,64 @@ sleep 300
         info.DurationSeconds.Should().Be(7200.0);
     }
 
+    [Test]
+    public void ParseFFprobeJson_WhenRotateTagSwapsDisplayDimensions()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""60.000000""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": 320,
+      ""height"": 240,
+      ""tags"": { ""ROTATE"": ""90"" }
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "phone.mkv");
+
+        info.Should().NotBeNull();
+        info!.Width.Should().Be(240);
+        info.Height.Should().Be(320);
+    }
+
+    [Test]
+    public void ParseFFprobeJson_WhenDisplayMatrixRotationSwapsDisplayDimensions()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""60.000000""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": 1920,
+      ""height"": 1080,
+      ""side_data_list"": [
+        {
+          ""side_data_type"": ""Display Matrix"",
+          ""rotation"": -90
+        }
+      ]
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "camera.mkv");
+
+        info.Should().NotBeNull();
+        info!.Width.Should().Be(1080);
+        info.Height.Should().Be(1920);
+        info.Resolution.Should().Be("1080p");
+    }
+
     [TestCase(720, 576)]
     [TestCase(1024, 576)]
     public void ParseFFprobeJson_WhenPalDimensions_Derives576pResolution(int width, int height)
