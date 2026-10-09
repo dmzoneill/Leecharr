@@ -619,6 +619,16 @@ public class ProxyTunnelBindingProviderTest
         }
     }
 
+    [Test]
+    public void ValidateResolvedDirectConnectAddresses_WhenDnsReturnsCloudMetadataIp_ThrowsSocketExceptionAccessDenied()
+    {
+        var addresses = new[] { IPAddress.Parse("169.254.169.254") };
+        var act = () => ProxyTunnelBindingProvider.ValidateResolvedDirectConnectAddresses("evil-tracker.example", 80, addresses, null);
+
+        var ex = act.Should().Throw<SocketException>().Which;
+        ex.SocketErrorCode.Should().Be(SocketError.AccessDenied);
+    }
+
     [TestCase("169.254.169.254")]
     [TestCase("169.254.1.1")]
     [TestCase("instance-data")]
