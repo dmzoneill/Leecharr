@@ -29,6 +29,8 @@ public interface ITorrentServiceContext
     ITorrentLogService TorrentLogService { get; }
 
     ISpeedSchedulerService SpeedSchedulerService { get; }
+
+    ITorrentProgressMilestoneService TorrentProgressMilestoneService { get; }
 }
 
 public class TorrentServiceContext : ITorrentServiceContext
@@ -42,7 +44,8 @@ public class TorrentServiceContext : ITorrentServiceContext
         IStoragePathService storagePathService = null,
         IAppFolderInfo appFolderInfo = null,
         ITorrentLogService torrentLogService = null,
-        ISpeedSchedulerService speedSchedulerService = null)
+        ISpeedSchedulerService speedSchedulerService = null,
+        ITorrentProgressMilestoneService torrentProgressMilestoneService = null)
     {
         this.CategoryService = categoryService;
         this.MediaEnrichmentService = mediaEnrichmentService;
@@ -53,6 +56,7 @@ public class TorrentServiceContext : ITorrentServiceContext
         this.AppFolderInfo = appFolderInfo;
         this.TorrentLogService = torrentLogService;
         this.SpeedSchedulerService = speedSchedulerService;
+        this.TorrentProgressMilestoneService = torrentProgressMilestoneService;
     }
 
     public ICategoryService CategoryService { get; }
@@ -72,4 +76,6 @@ public class TorrentServiceContext : ITorrentServiceContext
     public ITorrentLogService TorrentLogService { get; }
 
     public ISpeedSchedulerService SpeedSchedulerService { get; }
+
+    public ITorrentProgressMilestoneService TorrentProgressMilestoneService { get; }
 }

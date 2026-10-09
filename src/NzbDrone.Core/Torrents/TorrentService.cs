@@ -40,6 +40,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     private readonly IAppFolderInfo appFolderInfo;
     private readonly ITorrentLogService torrentLogService;
     private readonly ISpeedSchedulerService speedSchedulerService;
+    private readonly ITorrentProgressMilestoneService torrentProgressMilestoneService;
     private readonly Logger logger;
 
     public TorrentService(
@@ -55,7 +56,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         IStoragePathService storagePathService = null,
         IAppFolderInfo appFolderInfo = null,
         ITorrentLogService torrentLogService = null,
-        ISpeedSchedulerService speedSchedulerService = null)
+        ISpeedSchedulerService speedSchedulerService = null,
+        ITorrentProgressMilestoneService torrentProgressMilestoneService = null)
     {
         this.torrentRepository = torrentRepository;
         this.fileRepository = fileRepository;
@@ -70,6 +72,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         this.appFolderInfo = appFolderInfo;
         this.torrentLogService = torrentLogService;
         this.speedSchedulerService = speedSchedulerService;
+        this.torrentProgressMilestoneService = torrentProgressMilestoneService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -92,7 +95,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             context?.StoragePathService,
             context?.AppFolderInfo,
             context?.TorrentLogService,
-            context?.SpeedSchedulerService)
+            context?.SpeedSchedulerService,
+            context?.TorrentProgressMilestoneService)
     {
     }
 
@@ -720,6 +724,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
 
             this.eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = deleteFiles });
+            this.torrentProgressMilestoneService?.ClearTorrent(id);
 
             // Note: Cached .torrent files in AppDataFolder/Torrents are preserved for Download History
             // so historical torrents can be losslessly re-added. They are cleaned up when history records are deleted.
@@ -1571,6 +1576,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
             var statusChanged = oldStatus != torrent.Status;
             var progressChanged = Math.Abs(torrent.Progress - oldProgress) > 0.0001;
+            if (progressChanged)
+            {
+                this.torrentProgressMilestoneService?.CheckProgressMilestones(torrent, oldProgress, torrent.Progress);
+            }
+
             var statsChanged = torrent.Uploaded != oldUploaded ||
                 torrent.Downloaded != oldDownloaded ||
                 Math.Abs(torrent.Ratio - oldRatio) > 0.0001 ||
@@ -2181,8 +2191,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             : this.categoryService?.GetByName(string.Empty);
 
         var oldStatus = torrent.Status;
+        var oldProgress = torrent.Progress;
         torrent.Progress = 1.0;
         torrent.DateCompleted = DateTime.UtcNow;
+        this.torrentProgressMilestoneService?.CheckProgressMilestones(torrent, oldProgress, torrent.Progress);
 
         var completedDir = this.storagePathService?.GetCompletedDirectory(torrent.Category);
         if (string.IsNullOrWhiteSpace(completedDir))
