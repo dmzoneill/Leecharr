@@ -3574,11 +3574,6 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return 1;
         }
 
-        if (!tracker.Enabled)
-        {
-            return 0;
-        }
-
         if (tracker.Status == 2 || !string.IsNullOrWhiteSpace(tracker.ErrorMessage))
         {
             return 4;
@@ -3587,6 +3582,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         if (tracker.Status == 0)
         {
             return 1;
+        }
+
+        if (tracker.Status == 1)
+        {
+            return tracker.Enabled ? 0 : 2;
         }
 
         return 2;
