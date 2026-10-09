@@ -85,6 +85,11 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
 
     public bool IsInterfaceUp(string interfaceName)
     {
+        return IsInterfaceOperational(interfaceName, this.logger);
+    }
+
+    internal static bool IsInterfaceOperational(string interfaceName, Logger logger = null)
+    {
         if (string.IsNullOrWhiteSpace(interfaceName) ||
             string.Equals(interfaceName, "Any", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
@@ -102,7 +107,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to check interface status for {0}", interfaceName);
+            logger?.Warn(ex, "Failed to check interface status for {0}", interfaceName);
             return false;
         }
     }
