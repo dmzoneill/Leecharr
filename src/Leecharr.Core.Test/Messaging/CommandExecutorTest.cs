@@ -10,6 +10,8 @@ using NUnit.Framework;
 using NzbDrone.Common;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.Messaging;
 
@@ -27,6 +29,14 @@ public class SampleTestCommandHandler : IExecute<SampleTestCommand>
     public void Execute(SampleTestCommand message)
     {
         this.Executed = true;
+    }
+}
+
+public class SampleFailingTestCommandHandler : IExecute<SampleTestCommand>
+{
+    public void Execute(SampleTestCommand message)
+    {
+        throw new InvalidOperationException("Handler failed on purpose");
     }
 }
 
@@ -79,6 +89,7 @@ public class CommandExecutorTest
 {
     private IServiceFactory serviceFactory = null!;
     private IBasicRepository<CommandModel> repository = null!;
+    private IEventAggregator eventAggregator = null!;
     private CommandExecutor executor = null!;
 
     [SetUp]
@@ -86,7 +97,31 @@ public class CommandExecutorTest
     {
         this.serviceFactory = Substitute.For<IServiceFactory>();
         this.repository = Substitute.For<IBasicRepository<CommandModel>>();
-        this.executor = new CommandExecutor(this.serviceFactory, this.repository);
+        this.eventAggregator = Substitute.For<IEventAggregator>();
+        this.executor = new CommandExecutor(this.serviceFactory, this.repository, this.eventAggregator);
+    }
+
+    [Test]
+    public void Execute_WhenHandlerThrows_PublishesTaskFailedEvent()
+    {
+        var commandModel = new CommandModel
+        {
+            Id = 40,
+            Name = "SampleTest",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        var handler = new SampleFailingTestCommandHandler();
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
+
+        this.executor.Execute(commandModel);
+
+        commandModel.Status.Should().Be(CommandStatus.Failed);
+        commandModel.Message.Should().Be("Handler failed on purpose");
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<CommandExecutedEvent>(e => e.Command == commandModel));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TaskFailedEvent>(e =>
+            e.TaskName == "SampleTest" && e.ErrorMessage == "Handler failed on purpose"));
     }
 
     [Test]
