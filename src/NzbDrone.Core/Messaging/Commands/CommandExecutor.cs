@@ -12,6 +12,7 @@ using NzbDrone.Common;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Messaging.Commands;
 
@@ -218,6 +219,18 @@ public class CommandExecutor : ICommandExecutor
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error publishing CommandExecutedEvent for {0}", command.Name);
+            }
+
+            if (command.Status == CommandStatus.Failed)
+            {
+                try
+                {
+                    this.eventAggregator?.PublishEvent(new TaskFailedEvent(command.Name, command.Message ?? string.Empty));
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Error publishing TaskFailedEvent for {0}", command.Name);
+                }
             }
         }
     }
