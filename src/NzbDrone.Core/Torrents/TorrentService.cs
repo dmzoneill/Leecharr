@@ -1186,6 +1186,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 NewStatus = TorrentStatus.Paused,
                 Reason = reason,
             });
+            this.eventAggregator.PublishEvent(new TorrentPausedEvent(torrent));
         }
     }
 
@@ -1219,6 +1220,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
 
             this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = newStatus });
+            if (old == TorrentStatus.Paused)
+            {
+                this.eventAggregator.PublishEvent(new TorrentStartedEvent(torrent));
+            }
         }
     }
 
