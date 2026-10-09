@@ -371,6 +371,8 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                             }
                         }
 
+                        ApplyDisplayRotationToDimensions(TryGetVideoDisplayRotationDegrees(stream), info);
+
                         if (stream.TryGetProperty("field_order", out var fieldOrderProp) &&
                             fieldOrderProp.ValueKind == JsonValueKind.String)
                         {
@@ -596,6 +598,83 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         catch
         {
             return null;
+        }
+    }
+
+    private static int? TryGetVideoDisplayRotationDegrees(JsonElement stream)
+    {
+        if (stream.TryGetProperty("side_data_list", out var sideDataArray) && sideDataArray.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var sideData in sideDataArray.EnumerateArray())
+            {
+                if (sideData.ValueKind != JsonValueKind.Object ||
+                    !sideData.TryGetProperty("side_data_type", out var sdtProp) ||
+                    sdtProp.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+
+                var sdt = sdtProp.GetString() ?? string.Empty;
+                if (!sdt.Contains("Display Matrix", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (sideData.TryGetProperty("rotation", out var rotProp))
+                {
+                    if (rotProp.ValueKind == JsonValueKind.Number && rotProp.TryGetInt32(out var rotInt))
+                    {
+                        return rotInt;
+                    }
+
+                    if (rotProp.ValueKind == JsonValueKind.String && int.TryParse(rotProp.GetString(), out var rotParsed))
+                    {
+                        return rotParsed;
+                    }
+                }
+            }
+        }
+
+        if (stream.TryGetProperty("tags", out var tagsElem) && tagsElem.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in tagsElem.EnumerateObject())
+            {
+                if (!property.Name.Equals("rotate", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out var tagRotInt))
+                {
+                    return tagRotInt;
+                }
+
+                if (property.Value.ValueKind == JsonValueKind.String && int.TryParse(property.Value.GetString(), out var tagRotParsed))
+                {
+                    return tagRotParsed;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static void ApplyDisplayRotationToDimensions(int? rotationDegrees, MediaContainerInfo info)
+    {
+        if (!rotationDegrees.HasValue || info.Width <= 0 || info.Height <= 0)
+        {
+            return;
+        }
+
+        var normalized = rotationDegrees.Value % 360;
+        if (normalized < 0)
+        {
+            normalized += 360;
+        }
+
+        if (normalized is 90 or 270)
+        {
+            (info.Width, info.Height) = (info.Height, info.Width);
         }
     }
 
