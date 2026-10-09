@@ -1732,18 +1732,23 @@ public class Aria2RpcController : ControllerBase
         return new XElement("array", filesDataElem);
     }
 
-    private static XElement BuildXmlRpcTorrentStruct(Torrent t, string downloadDir, ITorrentFileService torrentFileService)
+    private static string MapToAria2Status(Torrent t)
     {
-        var gid = GetGidFromInfoHash(t.InfoHash);
-        var status = t.Status switch
+        return t.Status switch
         {
             TorrentStatus.Downloading => "active",
             TorrentStatus.Seeding => "active",
             TorrentStatus.Paused => "paused",
-            TorrentStatus.Stopped => "complete",
+            TorrentStatus.Stopped => t.Progress >= 1.0 || t.DateCompleted.HasValue ? "complete" : "paused",
             TorrentStatus.Error => "error",
             _ => "waiting",
         };
+    }
+
+    private static XElement BuildXmlRpcTorrentStruct(Torrent t, string downloadDir, ITorrentFileService torrentFileService)
+    {
+        var gid = GetGidFromInfoHash(t.InfoHash);
+        var status = MapToAria2Status(t);
         var dir = t.SavePath ?? downloadDir ?? "/downloads";
         var name = t.Name ?? string.Empty;
 
@@ -1854,15 +1859,7 @@ public class Aria2RpcController : ControllerBase
     private Dictionary<string, object> MapTorrentToAria2(Torrent t)
     {
         var gid = GetGidFromInfoHash(t.InfoHash);
-        var status = t.Status switch
-        {
-            TorrentStatus.Downloading => "active",
-            TorrentStatus.Seeding => "active",
-            TorrentStatus.Paused => "paused",
-            TorrentStatus.Stopped => "complete",
-            TorrentStatus.Error => "error",
-            _ => "waiting",
-        };
+        var status = MapToAria2Status(t);
 
         var defaultDir = this.configService.DownloadDir ?? "/downloads";
         var rawFiles = this.torrentFileService.GetFiles(t.Id)?.ToList();
