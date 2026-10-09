@@ -186,6 +186,68 @@ public class DownloadClientControllerTest
     }
 
     [Test]
+    public async Task ImportTorrent_Single_WhenHashNotOnRemoteClient_ReturnsNotFoundWithoutAdding()
+    {
+        var json = "[]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var clientDef = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Enable = true };
+        this.repository.Get(1).Returns(clientDef);
+        this.torrentService.GetByInfoHash("3333333333333333333333333333333333333333").Returns((Torrent)null!);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient);
+        var result = await controller.ImportTorrent(1, "3333333333333333333333333333333333333333");
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task ImportTorrents_Bulk_WhenHashNotOnRemoteClient_CountsFailedWithoutAdding()
+    {
+        var json = "[]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var clientDef = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Enable = true };
+        this.repository.Get(1).Returns(clientDef);
+        this.torrentService.GetByInfoHash("4444444444444444444444444444444444444444").Returns((Torrent)null!);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient);
+        var request = new ImportRequest
+        {
+            InfoHashes = new List<string> { "4444444444444444444444444444444444444444" },
+        };
+
+        var result = await controller.ImportTorrents(1, request);
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var syncResult = okResult!.Value as SyncResultResource;
+        syncResult.Should().NotBeNull();
+        syncResult!.Added.Should().Be(0);
+        syncResult.Failed.Should().Be(1);
+        syncResult.Success.Should().BeFalse();
+
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
+    }
+
+    [Test]
     public async Task Test_QBittorrent_WithCredentials_Success()
     {
         var requests = new List<HttpRequestMessage>();
