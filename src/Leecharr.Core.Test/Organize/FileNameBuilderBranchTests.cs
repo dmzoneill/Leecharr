@@ -697,6 +697,37 @@ public class FileNameBuilderBranchTests
     }
 
     [Test]
+    public void BuildFileName_Movie_WindowsOriginalPath_UsesFileNameOnly()
+    {
+        var context = new MovieNamingContext
+        {
+            MovieTitle = "Show",
+            ReleaseYear = 2024,
+            OriginalFileName = @"D:\Downloads\Show.S01E01.1080p.mkv",
+            Extension = "mkv",
+        };
+
+        var result = _builder.BuildFileName(context, "{Movie Title} [{Original Filename}]");
+        result.Should().Be("Show [Show.S01E01.1080p].mkv");
+    }
+
+    [Test]
+    public void BuildFileName_Episode_WindowsOriginalPath_UsesFileNameOnly()
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "Show",
+            SeasonNumber = 1,
+            EpisodeNumbers = new List<int> { 1 },
+            OriginalFileName = @"D:\Downloads\Show.S01E01.1080p.mkv",
+            Extension = "mkv",
+        };
+
+        var result = _builder.BuildFileName(context, "{Series Title} - S{season:00}E{episode:00} [{Original FileName}]");
+        result.Should().Be("Show - S01E01 [Show.S01E01.1080p].mkv");
+    }
+
+    [Test]
     public void BuildFileName_CleansRepeatedDashesAndEmptyBracketsAndDrivePrefix()
     {
         var context = new MovieNamingContext
