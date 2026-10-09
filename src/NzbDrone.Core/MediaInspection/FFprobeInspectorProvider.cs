@@ -186,7 +186,75 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
     public MediaContainerInfo Inspect(Stream stream, string fileName = "")
     {
-        return this.fallbackProvider.Inspect(stream, fileName);
+        return this.InspectStreamAsync(stream, fileName).GetAwaiter().GetResult();
+    }
+
+    private async Task<MediaContainerInfo> InspectStreamAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        if (stream == null || !stream.CanRead)
+        {
+            return this.fallbackProvider.Inspect(stream, fileName);
+        }
+
+        if (this.FindBinary() == null)
+        {
+            return this.fallbackProvider.Inspect(stream, fileName);
+        }
+
+        long? originalPosition = null;
+        if (stream.CanSeek)
+        {
+            originalPosition = stream.Position;
+            stream.Seek(0, SeekOrigin.Begin);
+        }
+
+        string tempPath = null;
+        try
+        {
+            tempPath = await this.MaterializeStreamToTempFileAsync(stream, fileName, cancellationToken);
+            return await this.InspectMediaAsync(tempPath, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "FFprobe failed to inspect stream for {0}", fileName);
+            if (originalPosition.HasValue && stream.CanSeek)
+            {
+                stream.Seek(originalPosition.Value, SeekOrigin.Begin);
+            }
+
+            return this.fallbackProvider.Inspect(stream, fileName);
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Trace(ex, "Failed to delete temporary FFprobe stream file {0}", tempPath);
+                }
+            }
+        }
+    }
+
+    private static async Task<string> MaterializeStreamToTempFileAsync(Stream stream, string fileName, CancellationToken cancellationToken)
+    {
+        var extension = Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            extension = ".bin";
+        }
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"leecharr_ffprobe_{Guid.NewGuid():N}{extension}");
+        await using (var fileStream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true))
+        {
+            await stream.CopyToAsync(fileStream, cancellationToken);
+        }
+
+        return tempPath;
     }
 
     public static MediaContainerInfo ParseFFprobeJson(string json, string fileName = "")
