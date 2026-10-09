@@ -1,6 +1,8 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.Automation;
@@ -87,8 +89,12 @@ public class ScriptApiContext : IDisposable
 
     private string BuildApiUrl(string path)
     {
-        var port = _configFileProvider?.Port ?? 8989;
-        var urlBase = _configFileProvider?.UrlBase?.TrimEnd('/') ?? string.Empty;
+        var enableSsl = _configFileProvider?.EnableSsl == true;
+        var scheme = enableSsl ? "https" : "http";
+        var port = enableSsl
+            ? _configFileProvider?.SslPort ?? 7890
+            : _configFileProvider?.Port ?? 7889;
+        var urlBase = NormalizeUrlBase(_configFileProvider?.UrlBase);
         var cleanPath = path?.TrimStart('/') ?? string.Empty;
 
         if (cleanPath.StartsWith("api/v1/", StringComparison.OrdinalIgnoreCase))
@@ -96,7 +102,64 @@ public class ScriptApiContext : IDisposable
             cleanPath = cleanPath.Substring(7);
         }
 
-        return $"http://127.0.0.1:{port}{urlBase}/api/v1/{cleanPath}";
+        var host = ResolveLocalApiHost(_configFileProvider?.BindAddress);
+        var authority = FormatHostWithPort(host, port);
+
+        return $"{scheme}://{authority}{urlBase}/api/v1/{cleanPath}";
+    }
+
+    private static string ResolveLocalApiHost(string? bindAddress)
+    {
+        var trimmed = bindAddress?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed) ||
+            trimmed is "*" or "0.0.0.0" or "::" or "+")
+        {
+            return "127.0.0.1";
+        }
+
+        if (trimmed.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return "127.0.0.1";
+        }
+
+        return trimmed;
+    }
+
+    private static string NormalizeUrlBase(string? urlBase)
+    {
+        if (string.IsNullOrWhiteSpace(urlBase))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = urlBase.Trim().TrimEnd('/');
+        return string.IsNullOrEmpty(trimmed) ? string.Empty : "/" + trimmed;
+    }
+
+    private static string FormatHostWithPort(string host, int port)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return string.Empty;
+        }
+
+        var trimmedHost = host.Trim().TrimEnd('/');
+
+        if (IPAddress.TryParse(trimmedHost, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            trimmedHost = $"[{ip}]";
+        }
+
+        var hasPort = trimmedHost.StartsWith('[') && trimmedHost.Contains(']')
+            ? trimmedHost[(trimmedHost.IndexOf(']') + 1)..].Contains(':')
+            : trimmedHost.Contains(':');
+
+        if (hasPort || port is 80 or 443)
+        {
+            return trimmedHost;
+        }
+
+        return $"{trimmedHost}:{port}";
     }
 
     private IDictionary<string, object> AttachAuthHeaders(object? options)
@@ -123,6 +186,11 @@ public class ScriptApiContext : IDisposable
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             headers["X-Api-Key"] = apiKey;
+        }
+
+        if (_configFileProvider?.EnableSsl == true)
+        {
+            opts["allowInsecureTls"] = true;
         }
 
         opts["headers"] = headers;
