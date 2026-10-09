@@ -13,7 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - fix(style): editorconfig indent on network binding and ffprobe
 - fix(ci): restore main build and lint after swarm drain batch
 - fix(commands): publish TaskFailedEvent when command execution fails (#1813)
-- fix(backup): publish BackupFailedEvent when archive creation fails
+- fix(backup): publish backup completed and failed events from BackupService (#1808)
 - fix(automation): publish FileMoveFailedEvent when completion move fails
 - fix(config): derive incomplete dir from DownloadDir when unset (#1820)
 - fix(config): lock ConfigFileProvider dictionary reads during save (#1822)
