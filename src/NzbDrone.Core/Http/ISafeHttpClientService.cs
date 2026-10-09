@@ -36,6 +36,8 @@ public interface ISafeHttpClientService
 
     Task<string> DownloadStringAsync(Uri uri, IDictionary<string, string> customHeaders = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 
+    Task<string> DownloadStringDirectAsync(string url, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
     void ValidateUrl(string url);
 
     void ValidateUri(Uri uri);
