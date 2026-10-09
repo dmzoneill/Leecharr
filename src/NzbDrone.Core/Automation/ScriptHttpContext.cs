@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -17,6 +18,8 @@ namespace NzbDrone.Core.Automation;
 public class ScriptHttpContext : IDisposable
 {
     private const string DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+    private const int ResponseReadBufferSize = 8192;
 
     private readonly HttpClient _client;
     private readonly bool _disposeClient;
@@ -119,22 +122,22 @@ public class ScriptHttpContext : IDisposable
 
     public object Get(string url, IDictionary<string, object>? options = null)
     {
-        return Task.Run(() => this.GetAsync(url, options)).GetAwaiter().GetResult();
+        return this.Send(HttpMethod.Get, url, null, options, CancellationToken.None);
     }
 
     public object Post(string url, object? body = null, IDictionary<string, object>? options = null)
     {
-        return Task.Run(() => this.PostAsync(url, body, options)).GetAwaiter().GetResult();
+        return this.Send(HttpMethod.Post, url, body, options, CancellationToken.None);
     }
 
     public object Put(string url, object? body = null, IDictionary<string, object>? options = null)
     {
-        return Task.Run(() => this.PutAsync(url, body, options)).GetAwaiter().GetResult();
+        return this.Send(HttpMethod.Put, url, body, options, CancellationToken.None);
     }
 
     public object Delete(string url, IDictionary<string, object>? options = null)
     {
-        return Task.Run(() => this.DeleteAsync(url, options)).GetAwaiter().GetResult();
+        return this.Send(HttpMethod.Delete, url, null, options, CancellationToken.None);
     }
 
     public Task<Dictionary<string, object?>> getAsync(string url, IDictionary<string, object>? options = null, CancellationToken cancellationToken = default) => this.GetAsync(url, options, cancellationToken);
@@ -147,22 +150,22 @@ public class ScriptHttpContext : IDisposable
 
     public Task<Dictionary<string, object?>> GetAsync(string url, IDictionary<string, object>? options = null, CancellationToken cancellationToken = default)
     {
-        return this.SendAsync(HttpMethod.Get, url, null, options, cancellationToken);
+        return Task.FromResult(this.Send(HttpMethod.Get, url, null, options, cancellationToken));
     }
 
     public Task<Dictionary<string, object?>> PostAsync(string url, object? body = null, IDictionary<string, object>? options = null, CancellationToken cancellationToken = default)
     {
-        return this.SendAsync(HttpMethod.Post, url, body, options, cancellationToken);
+        return Task.FromResult(this.Send(HttpMethod.Post, url, body, options, cancellationToken));
     }
 
     public Task<Dictionary<string, object?>> PutAsync(string url, object? body = null, IDictionary<string, object>? options = null, CancellationToken cancellationToken = default)
     {
-        return this.SendAsync(HttpMethod.Put, url, body, options, cancellationToken);
+        return Task.FromResult(this.Send(HttpMethod.Put, url, body, options, cancellationToken));
     }
 
     public Task<Dictionary<string, object?>> DeleteAsync(string url, IDictionary<string, object>? options = null, CancellationToken cancellationToken = default)
     {
-        return this.SendAsync(HttpMethod.Delete, url, null, options, cancellationToken);
+        return Task.FromResult(this.Send(HttpMethod.Delete, url, null, options, cancellationToken));
     }
 
     public void WaitForPendingOperations(TimeSpan maxWait)
@@ -194,7 +197,7 @@ public class ScriptHttpContext : IDisposable
         }
     }
 
-    private async Task<Dictionary<string, object?>> SendAsync(
+    private Dictionary<string, object?> Send(
         HttpMethod method,
         string url,
         object? body,
@@ -204,21 +207,6 @@ public class ScriptHttpContext : IDisposable
         Interlocked.Increment(ref this._pendingOperations);
         try
         {
-            return await this.SendAsyncCore(method, url, body, options, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            Interlocked.Decrement(ref this._pendingOperations);
-        }
-    }
-
-    private async Task<Dictionary<string, object?>> SendAsyncCore(
-        HttpMethod method,
-        string url,
-        object? body,
-        IDictionary<string, object>? options,
-        CancellationToken cancellationToken = default)
-    {
         using var request = new HttpRequestMessage(method, url);
 
         if (options != null)
@@ -305,9 +293,9 @@ public class ScriptHttpContext : IDisposable
         cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
         var client = this.GetClientForRequest(options);
-        using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
+        using var response = client.Send(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
 
-        var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
+        var responseBody = ReadResponseBodyAsString(response.Content, cts.Token);
         var statusCode = (int)response.StatusCode;
         var isOk = response.IsSuccessStatusCode;
 
@@ -348,6 +336,40 @@ public class ScriptHttpContext : IDisposable
             ["json"] = parsedJson,
             ["headers"] = resHeaders,
         };
+        }
+        finally
+        {
+            Interlocked.Decrement(ref this._pendingOperations);
+        }
+    }
+
+    private static string ReadResponseBodyAsString(HttpContent? content, CancellationToken cancellationToken)
+    {
+        if (content == null)
+        {
+            return string.Empty;
+        }
+
+        if (content.Headers.ContentLength is > ScriptMemoryLimits.MaxBytes)
+        {
+            throw new ScriptMemoryLimitExceededException();
+        }
+
+        using var stream = content.ReadAsStream(cancellationToken);
+        using var bufferStream = new MemoryStream();
+        var buffer = new byte[ResponseReadBufferSize];
+        int read;
+        while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            if (bufferStream.Length + read > ScriptMemoryLimits.MaxBytes)
+            {
+                throw new ScriptMemoryLimitExceededException();
+            }
+
+            bufferStream.Write(buffer, 0, read);
+        }
+
+        return Encoding.UTF8.GetString(bufferStream.ToArray());
     }
 
     private HttpClient GetClientForRequest(IDictionary<string, object>? options)
