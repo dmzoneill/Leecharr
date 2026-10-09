@@ -1,8 +1,10 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NLog;
 using NSubstitute;
@@ -278,5 +280,16 @@ public class ConfigServiceTest
         // Calling again returns the same persisted UUID
         var uuid2 = this.service.InstanceUuid;
         uuid2.Should().Be(uuid);
+    }
+
+    [Test]
+    public void InstanceUuid_ConcurrentFirstAccess_ReturnsSameUuid()
+    {
+        var uuids = new ConcurrentBag<string>();
+
+        Parallel.For(0, 32, _ => uuids.Add(this.service.InstanceUuid));
+
+        uuids.Should().OnlyContain(u => u == uuids.First());
+        this.store.Count(c => c.Key.Equals("InstanceUuid", StringComparison.OrdinalIgnoreCase)).Should().Be(1);
     }
 }
