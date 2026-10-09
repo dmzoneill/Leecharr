@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Text;
 using System.Text.Json;
@@ -268,7 +269,7 @@ public class ScriptHttpContext : IDisposable
                     contentType = "application/json";
                 }
 
-                request.Content = new StringContent(strBody, Encoding.UTF8, contentType);
+                request.Content = CreateStringContent(strBody, contentType);
             }
             else if (body is IDictionary<string, object> formDict)
             {
@@ -384,6 +385,18 @@ public class ScriptHttpContext : IDisposable
         }
 
         return this._client;
+    }
+
+    private static StringContent CreateStringContent(string body, string contentType)
+    {
+        if (MediaTypeHeaderValue.TryParse(contentType, out var mediaType))
+        {
+            var content = new StringContent(body, Encoding.UTF8, mediaType.MediaType);
+            content.Headers.ContentType = mediaType;
+            return content;
+        }
+
+        return new StringContent(body, Encoding.UTF8, contentType);
     }
 }
 #pragma warning restore SA1300
