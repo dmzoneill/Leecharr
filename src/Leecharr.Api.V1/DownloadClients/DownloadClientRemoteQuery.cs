@@ -60,13 +60,7 @@ public static class DownloadClientRemoteQuery
         HttpClient localHttp = null;
         if (httpClient == null)
         {
-            var handler = new SocketsHttpHandler
-            {
-                CookieContainer = new CookieContainer(),
-                UseCookies = true,
-                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            };
-            localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+            localHttp = CreateLocalHttpClient(safeHttpClientService, TimeSpan.FromSeconds(8));
         }
 
         var http = httpClient ?? localHttp;
@@ -353,13 +347,7 @@ public static class DownloadClientRemoteQuery
         HttpClient localHttp = null;
         if (httpClient == null)
         {
-            var handler = new SocketsHttpHandler
-            {
-                CookieContainer = new CookieContainer(),
-                UseCookies = true,
-                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            };
-            localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+            localHttp = CreateLocalHttpClient(safeHttpClientService, TimeSpan.FromSeconds(8));
         }
 
         var http = httpClient ?? localHttp;
@@ -664,5 +652,22 @@ public static class DownloadClientRemoteQuery
         }
 
         return resp;
+    }
+
+    private static HttpClient CreateLocalHttpClient(ISafeHttpClientService safeHttpClientService, TimeSpan timeout)
+    {
+        var safeClient = safeHttpClientService?.CreateHttpClient(timeout, useCookies: true);
+        if (safeClient != null)
+        {
+            return safeClient;
+        }
+
+        var handler = new SocketsHttpHandler
+        {
+            CookieContainer = new CookieContainer(),
+            UseCookies = true,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        };
+        return new HttpClient(handler) { Timeout = timeout };
     }
 }

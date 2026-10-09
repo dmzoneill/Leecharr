@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -37,6 +38,8 @@ public interface ISafeHttpClientService
     Task<string> DownloadStringAsync(Uri uri, IDictionary<string, string> customHeaders = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 
     Task<string> DownloadStringDirectAsync(string url, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
+    HttpClient CreateHttpClient(TimeSpan timeout, bool useCookies = false);
 
     void ValidateUrl(string url);
 

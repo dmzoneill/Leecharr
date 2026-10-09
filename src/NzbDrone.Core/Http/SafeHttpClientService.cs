@@ -610,6 +610,21 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
     internal SocketsHttpHandler CreateSafeSocketsHttpHandlerInternal() => this.CreateSafeSocketsHttpHandler();
 
+    public HttpClient CreateHttpClient(TimeSpan timeout, bool useCookies = false)
+    {
+        var handler = this.CreateSafeSocketsHttpHandler();
+        if (useCookies)
+        {
+            handler.CookieContainer = new CookieContainer();
+            handler.UseCookies = true;
+        }
+
+        return new HttpClient(handler, disposeHandler: true)
+        {
+            Timeout = timeout,
+        };
+    }
+
     private HttpClient GetDirectEgressHttpClient()
     {
         if (this.directEgressHttpClient != null)

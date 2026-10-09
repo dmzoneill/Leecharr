@@ -32,7 +32,6 @@ public class DownloadClientController : Controller
     private readonly IDownloadClientRepository repository;
     private readonly ITorrentService torrentService;
     private readonly HttpClient httpClient;
-    private readonly IHttpClientFactory httpClientFactory;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDataProtector protector;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
@@ -41,14 +40,12 @@ public class DownloadClientController : Controller
         IDownloadClientRepository repository,
         ITorrentService torrentService,
         HttpClient httpClient = null,
-        IHttpClientFactory httpClientFactory = null,
         ISafeHttpClientService safeHttpClientService = null,
         IDataProtectionProvider dataProtectionProvider = null)
     {
         this.repository = repository;
         this.torrentService = torrentService;
         this.httpClient = httpClient;
-        this.httpClientFactory = httpClientFactory;
         this.safeHttpClientService = safeHttpClientService;
         this.protector = dataProtectionProvider?.CreateProtector("DownloadClient.Password");
     }
@@ -661,13 +658,18 @@ public class DownloadClientController : Controller
         var http = this.GetHttpClient();
         if (http == null)
         {
-            var handler = new SocketsHttpHandler
+            localHttp = this.safeHttpClientService?.CreateHttpClient(TimeSpan.FromSeconds(5), useCookies: true);
+            if (localHttp == null)
             {
-                CookieContainer = new CookieContainer(),
-                UseCookies = true,
-                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            };
-            localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+                var handler = new SocketsHttpHandler
+                {
+                    CookieContainer = new CookieContainer(),
+                    UseCookies = true,
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                };
+                localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+            }
+
             http = localHttp;
         }
 
@@ -803,13 +805,11 @@ public class DownloadClientController : Controller
                 }
             }
 
-            using var client = new TcpClient();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await client.ConnectAsync(resource.Host, port, cts.Token);
+            using var probe = await http.GetAsync(baseUrl, HttpCompletionOption.ResponseHeadersRead);
             return this.Ok(new DownloadClientTestResult
             {
                 Success = true,
-                Message = $"Connected to {resource.ClientType ?? "Client"} socket at {resource.Host}:{port} successfully.",
+                Message = $"Connected to {resource.ClientType ?? "client"} at {resource.Host}:{port} (HTTP {(int)probe.StatusCode}).",
             });
         }
         catch (Exception ex)
