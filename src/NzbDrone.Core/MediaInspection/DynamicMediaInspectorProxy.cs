@@ -226,10 +226,7 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
             }
         }
 
-        return new MediaContainerInfo
-        {
-            ContainerFormat = string.IsNullOrWhiteSpace(filePath) ? "Unknown" : Path.GetExtension(filePath).TrimStart('.').ToUpperInvariant(),
-        };
+        return null;
     }
 
     public MediaContainerInfo Inspect(Stream stream, string fileName = "")

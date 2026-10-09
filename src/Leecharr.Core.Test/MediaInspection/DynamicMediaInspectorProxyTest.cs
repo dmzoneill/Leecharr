@@ -316,4 +316,17 @@ public class DynamicMediaInspectorProxyTest
         info.Should().NotBeNull();
         info.ContainerFormat.Should().Be("MKV");
     }
+
+    [Test]
+    public void InspectFile_WhenActiveAndFallbackFail_ReturnsNull()
+    {
+        this.tagLibProvider
+            .InspectFile(Arg.Any<string>())
+            .Returns(_ => throw new InvalidOperationException("Corrupt file"));
+
+        var info = this.proxy.InspectFile("/path/to/broken.mkv");
+
+        info.Should().BeNull();
+        this.tagLibProvider.Received(1).InspectFile("/path/to/broken.mkv");
+    }
 }
