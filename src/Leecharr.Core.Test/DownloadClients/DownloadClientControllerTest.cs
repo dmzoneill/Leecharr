@@ -747,6 +747,31 @@ public class DownloadClientControllerTest
         safeClient.Received(1).ValidateUrl("http://example.internal:8080");
     }
 
+    [Test]
+    public async Task GetAllItems_WhenHttpClientFactoryInjected_DoesNotUseSharedFactoryClient()
+    {
+        var factory = Substitute.For<IHttpClientFactory>();
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient: null, httpClientFactory: factory);
+
+        this.repository.GetEnabled().Returns(new List<DownloadClientDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Client1",
+                ClientType = "Unknown",
+                Host = "127.0.0.1",
+                Port = 8080,
+                Enable = true,
+            },
+        });
+
+        await controller.GetAllItems();
+
+        factory.DidNotReceive().CreateClient(Arg.Any<string>());
+        factory.DidNotReceive().CreateClient();
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;

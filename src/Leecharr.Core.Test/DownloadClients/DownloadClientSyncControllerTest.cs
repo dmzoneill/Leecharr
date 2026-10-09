@@ -256,6 +256,31 @@ public class DownloadClientSyncControllerTest
             false);
     }
 
+    [Test]
+    public async Task Sync_WhenHttpClientFactoryInjected_DoesNotUseSharedFactoryClient()
+    {
+        var factory = Substitute.For<IHttpClientFactory>();
+        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient: null, httpClientFactory: factory);
+
+        this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "qBit",
+                ClientType = "Unknown",
+                Host = "127.0.0.1",
+                Port = 8080,
+                Enable = true,
+            },
+        });
+
+        await controller.Sync();
+
+        factory.DidNotReceive().CreateClient(Arg.Any<string>());
+        factory.DidNotReceive().CreateClient();
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
