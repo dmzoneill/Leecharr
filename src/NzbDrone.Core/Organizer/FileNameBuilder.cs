@@ -55,10 +55,10 @@ public class FileNameBuilder : IFileNameBuilder
         var config = namingConfig ?? new NamingConfig();
         var template = !string.IsNullOrWhiteSpace(pattern)
             ? pattern
-            : (context.AirDate.HasValue && context.EpisodeNumbers.Count == 0
-                ? config.DailyEpisodeFormat
-                : (context.AbsoluteEpisodeNumbers.Count > 0 && context.EpisodeNumbers.Count == 0
-                    ? config.AnimeEpisodeFormat
+            : (context.AbsoluteEpisodeNumbers.Count > 0 && context.EpisodeNumbers.Count == 0
+                ? config.AnimeEpisodeFormat
+                : (context.AirDate.HasValue && context.EpisodeNumbers.Count == 0
+                    ? config.DailyEpisodeFormat
                     : config.StandardEpisodeFormat));
 
         var replaced = ReplaceTokens(template, token => ResolveEpisodeToken(token, context, config, this.fileNameSanitizer), config);

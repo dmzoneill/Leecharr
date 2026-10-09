@@ -214,6 +214,24 @@ public class FileNameBuilderTest
     }
 
     [Test]
+    public void BuildFileName_AnimeEpisode_WithAirDate_UsesAnimeFormatNotDaily()
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "Daily",
+            AirDate = new DateTime(2024, 5, 20),
+            EpisodeNumbers = new List<int>(),
+            AbsoluteEpisodeNumbers = new List<int> { 101 },
+            EpisodeTitles = new List<string> { "Wall" },
+            Extension = "mkv",
+        };
+
+        var result = this.builder.BuildFileName(context);
+
+        result.Should().Be("Daily - S01E00 - 101 - Wall.mkv");
+    }
+
+    [Test]
     public void BuildDirectoryMethods_FormatDirectoriesCorrectly()
     {
         var epContext = new EpisodeNamingContext
