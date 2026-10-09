@@ -987,7 +987,8 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
         if (codec.Contains("FLAC", StringComparison.OrdinalIgnoreCase) ||
             codec.Contains("ALAC", StringComparison.OrdinalIgnoreCase) ||
-            codec.Contains("Apple Lossless", StringComparison.OrdinalIgnoreCase))
+            codec.Contains("Apple Lossless", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("PCM", StringComparison.OrdinalIgnoreCase))
         {
             return 35;
         }
@@ -1027,8 +1028,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         }
 
         if (codec.Contains("MP3", StringComparison.OrdinalIgnoreCase) ||
-            codec.Contains("MPEG", StringComparison.OrdinalIgnoreCase) ||
-            codec.Contains("PCM", StringComparison.OrdinalIgnoreCase))
+            codec.Contains("MPEG", StringComparison.OrdinalIgnoreCase))
         {
             return 5;
         }
