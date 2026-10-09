@@ -27,7 +27,7 @@
     "1826": {"agent": "koala", "closed_at_github": "2026-10-09T12:16:17Z"},
     "125": {"agent": "otter", "closed_at_github": "2026-10-09T12:16:52Z", "merge_commit": "240e6f1"}
   },
-  "queued_issues": [1851, 1849, 1240, 1239, 1850],
+  "queued_issues": [1851, 1849],
   "schedule_poll_id": "sched_49b329bc",
   "worktrees_cleaned_at": "2026-10-09T12:24Z",
   "last_poll": "2026-10-09T12:28Z",
