@@ -986,6 +986,8 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 {
                     existing.TorrentId = torrent.Id;
                     existing.Status = "Active";
+                    existing.DateRemoved = null;
+                    existing.RemovalReason = null;
                     updated = true;
                 }
 
