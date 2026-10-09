@@ -24,15 +24,23 @@ public class Database : IDatabase
     public IDbConnection OpenConnection()
     {
         var connection = this.connectionFactory();
-        connection.Open();
-
-        if (this.DatabaseType == DatabaseType.SQLite)
+        try
         {
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"PRAGMA busy_timeout = {this.busyTimeout}; PRAGMA wal_autocheckpoint = 1000; PRAGMA cache_size = -64000; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;";
-            cmd.ExecuteNonQuery();
-        }
+            connection.Open();
 
-        return connection;
+            if (this.DatabaseType == DatabaseType.SQLite)
+            {
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = $"PRAGMA busy_timeout = {this.busyTimeout}; PRAGMA wal_autocheckpoint = 1000; PRAGMA cache_size = -64000; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;";
+                cmd.ExecuteNonQuery();
+            }
+
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
     }
 }
