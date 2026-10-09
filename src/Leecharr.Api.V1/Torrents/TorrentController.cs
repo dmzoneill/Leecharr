@@ -31,6 +31,7 @@ using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Subtitles;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.TrackerBoost;
 using NzbDrone.Core.Trackers;
 using NzbDrone.SignalR;
 
@@ -1084,7 +1085,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return this.NotFound();
         }
 
-        if (torrent.IsPrivate)
+        if (torrent.IsPrivate && TrackerBoostService.IsValidPublicTrackerUrl(url))
         {
             return this.BadRequest("Cannot add public trackers to private torrents");
         }
