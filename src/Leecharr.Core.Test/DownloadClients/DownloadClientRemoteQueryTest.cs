@@ -65,7 +65,7 @@ public class DownloadClientRemoteQueryTest
         var successResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
-                "{\"arguments\":{\"torrents\":[]}}",
+                "{\"result\":\"success\",\"arguments\":{\"torrents\":[]}}",
                 Encoding.UTF8,
                 "application/json"),
         };
@@ -91,6 +91,63 @@ public class DownloadClientRemoteQueryTest
         items.Should().BeEmpty();
         conflictResponse.IsDisposed.Should().BeTrue();
         successResponse.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task PauseTorrentAsync_TransmissionRpcError_ReturnsFalse()
+    {
+        var rpcResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                "{\"result\":\"invalid argument\"}",
+                Encoding.UTF8,
+                "application/json"),
+        };
+
+        var handler = new MockHttpMessageHandler(_ => rpcResponse);
+        using var httpClient = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Name = "Transmission",
+            ClientType = "Transmission",
+            Host = "127.0.0.1",
+            Port = 9091,
+        };
+
+        var result = await DownloadClientRemoteQuery.PauseTorrentAsync(
+            client,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            httpClient);
+
+        result.Should().BeFalse();
+        rpcResponse.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task QueryRemoteClientItemsAsync_TransmissionRpcError_ReturnsEmpty()
+    {
+        var rpcResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                "{\"result\":\"unauthorized session id\"}",
+                Encoding.UTF8,
+                "application/json"),
+        };
+
+        var handler = new MockHttpMessageHandler(_ => rpcResponse);
+        using var httpClient = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Name = "Transmission",
+            ClientType = "Transmission",
+            Host = "127.0.0.1",
+            Port = 9091,
+        };
+
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, httpClient);
+
+        items.Should().BeEmpty();
+        rpcResponse.IsDisposed.Should().BeTrue();
     }
 
     [Test]
