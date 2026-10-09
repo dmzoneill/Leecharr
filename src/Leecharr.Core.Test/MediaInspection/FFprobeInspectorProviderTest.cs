@@ -717,4 +717,55 @@ sleep 300
         info.Should().NotBeNull();
         info!.VideoCodec.Should().Be("AVC / H.264");
     }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenVersionCommandSucceeds_ReturnsHealthy()
+    {
+        var mockScript = Path.Combine(this.tempDirectory, "mock_ffprobe_version.sh");
+        var scriptContent = @"#!/bin/sh
+if [ ""$1"" = ""-version"" ]; then
+  echo ""ffprobe version 7.0.2-mock""
+  exit 0
+fi
+exit 1
+";
+        File.WriteAllText(mockScript, scriptContent.Replace("\r\n", "\n"));
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            File.SetUnixFileMode(mockScript, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        var provider = new FFprobeInspectorProvider(mockScript, TimeSpan.FromSeconds(10));
+
+        var health = await provider.ProbeHealthAsync();
+
+        health.IsHealthy.Should().BeTrue();
+        health.StatusMessage.Should().Contain("operational");
+        health.DependencyChecks.Should().Contain("ffprobe version 7.0.2-mock");
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenBinaryFailsVersionProbe_ReturnsUnhealthy()
+    {
+        var mockScript = Path.Combine(this.tempDirectory, "mock_ffprobe_broken.sh");
+        var scriptContent = @"#!/bin/sh
+if [ ""$1"" = ""-version"" ]; then
+  exit 127
+fi
+exit 0
+";
+        File.WriteAllText(mockScript, scriptContent.Replace("\r\n", "\n"));
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            File.SetUnixFileMode(mockScript, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        var provider = new FFprobeInspectorProvider(mockScript, TimeSpan.FromSeconds(10));
+
+        var health = await provider.ProbeHealthAsync();
+
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("failed to start");
+        health.Warnings.Should().NotBeEmpty();
+    }
 }
