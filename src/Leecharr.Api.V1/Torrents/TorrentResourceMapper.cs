@@ -85,6 +85,17 @@ public static class TorrentResourceMapper
                 leechers = task.ConnectedLeechers;
             }
 
+            if (totalSize > 0 && progress > 0)
+            {
+                downloaded = progress >= 1.0
+                    ? totalSize
+                    : (long)Math.Round(totalSize * progress, MidpointRounding.AwayFromZero);
+            }
+            else if (task.DownloadedBytes > 0)
+            {
+                downloaded = task.DownloadedBytes;
+            }
+
             if (task.Status != TorrentStatus.Downloading || model.Status != TorrentStatus.Checking)
             {
                 status = task.Status.ToString().ToLowerInvariant();
