@@ -79,9 +79,9 @@ public class TorrentResource : RestResource
 
     public bool? ForceStart { get; set; }
 
-    public int? AnnounceInterval { get; set; } = 1800;
+    public int? AnnounceInterval { get; set; }
 
-    public int? NextUpdate { get; set; } = 1800;
+    public int? NextUpdate { get; set; }
 
     public int Threshold { get; set; } = 1;
 
