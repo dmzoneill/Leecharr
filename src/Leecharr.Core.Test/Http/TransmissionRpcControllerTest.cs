@@ -3095,7 +3095,7 @@ public class TransmissionRpcControllerTest
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
         this.configService.ListenPort.Returns(51413);
-        this.safeHttpClientService.DownloadStringAsync(
+        this.safeHttpClientService.DownloadStringDirectAsync(
             "https://portcheck.transmissionbt.com/51413",
             Arg.Any<TimeSpan?>(),
             Arg.Any<CancellationToken>())
@@ -3127,7 +3127,7 @@ public class TransmissionRpcControllerTest
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
         this.configService.ListenPort.Returns(51413);
-        this.safeHttpClientService.DownloadStringAsync(
+        this.safeHttpClientService.DownloadStringDirectAsync(
             "https://portcheck.transmissionbt.com/51413",
             Arg.Any<TimeSpan?>(),
             Arg.Any<CancellationToken>())
@@ -3159,7 +3159,7 @@ public class TransmissionRpcControllerTest
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
         this.configService.ListenPort.Returns(6881);
-        this.safeHttpClientService.DownloadStringAsync(
+        this.safeHttpClientService.DownloadStringDirectAsync(
             "https://portcheck.transmissionbt.com/6881",
             Arg.Any<TimeSpan?>(),
             Arg.Any<CancellationToken>())
@@ -3207,7 +3207,7 @@ public class TransmissionRpcControllerTest
         args.Should().NotBeNull();
         args!["port-is-open"].Should().Be(false);
 
-        await this.safeHttpClientService.DidNotReceiveWithAnyArgs().DownloadStringAsync(default(string)!, default, default);
+        await this.safeHttpClientService.DidNotReceiveWithAnyArgs().DownloadStringDirectAsync(default(string)!, default, default);
     }
 
     [Test]
