@@ -131,9 +131,10 @@ public static class DownloadClientRemoteQuery
 
                 if (resp.IsSuccessStatusCode)
                 {
-                    var json = await resp.Content.ReadAsStringAsync();
+                    var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                     using var doc = JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("arguments", out var args) && args.TryGetProperty("torrents", out var torrents) && torrents.ValueKind == JsonValueKind.Array)
+                    if (TryGetTransmissionRpcSuccess(doc.RootElement, "query", baseUrl) &&
+                        doc.RootElement.TryGetProperty("arguments", out var args) && args.TryGetProperty("torrents", out var torrents) && torrents.ValueKind == JsonValueKind.Array)
                     {
                         var idx = 1;
                         foreach (var el in torrents.EnumerateArray())
@@ -454,7 +455,14 @@ public static class DownloadClientRemoteQuery
                 var rpcContent = JsonSerializer.Serialize(rpcPayload);
 
                 using var resp = await SendTransmissionRpcAsync(http, baseUrl, rpcContent, client, password);
-                return resp.IsSuccessStatusCode;
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return false;
+                }
+
+                var actionJson = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                using var actionDoc = JsonDocument.Parse(actionJson);
+                return TryGetTransmissionRpcSuccess(actionDoc.RootElement, action, baseUrl);
             }
             else if (string.Equals(client.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
             {
@@ -622,6 +630,22 @@ public static class DownloadClientRemoteQuery
         }
 
         return req;
+    }
+
+    private static bool TryGetTransmissionRpcSuccess(JsonElement root, string operationContext, string baseUrl)
+    {
+        if (root.TryGetProperty("result", out var resultElem) &&
+            resultElem.ValueKind == JsonValueKind.String &&
+            string.Equals(resultElem.GetString(), "success", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var resultText = root.TryGetProperty("result", out var errElem) && errElem.ValueKind == JsonValueKind.String
+            ? errElem.GetString()
+            : root.GetRawText();
+        Logger.Warn("Transmission {0} RPC failed: {1} for {2}", operationContext, resultText, baseUrl);
+        return false;
     }
 
     private static async Task<HttpResponseMessage> SendTransmissionRpcAsync(
