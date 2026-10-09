@@ -309,6 +309,40 @@ sleep 300
         info.AudioChannels.Should().Be("2.0");
     }
 
+    [Test]
+    public void ParseFFprobeJson_WhenEqualCodecScore_PrefersTrackWithMoreChannels()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""120.000000""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""audio"",
+      ""codec_name"": ""aac"",
+      ""channels"": 2,
+      ""sample_rate"": ""44100""
+    },
+    {
+      ""codec_type"": ""audio"",
+      ""codec_name"": ""aac"",
+      ""channels"": 6,
+      ""sample_rate"": ""48000"",
+      ""bits_per_raw_sample"": ""16""
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioCodec.Should().Be("AAC");
+        info.AudioChannels.Should().Be("5.1");
+        info.AudioSampleRate.Should().Be(48000);
+        info.AudioBitDepth.Should().Be(16);
+    }
+
     [TestCase(720, 576)]
     [TestCase(1024, 576)]
     public void ParseFFprobeJson_WhenPalDimensions_Derives576pResolution(int width, int height)
