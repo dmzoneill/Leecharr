@@ -605,7 +605,7 @@ public class FileNameBuilder : IFileNameBuilder
         var lastDot = cleaned.LastIndexOf('.');
         string baseName;
         string extension;
-        if (lastDot > 0)
+        if (lastDot >= 0)
         {
             baseName = cleaned.Substring(0, lastDot);
             extension = cleaned.Substring(lastDot);
