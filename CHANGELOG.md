@@ -6,6 +6,92 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.3.2](https://github.com/dmzoneill/Leecharr/releases/tag/v2.3.2) - 2026-10-09
+
+### 🐛 Bug Fixes
+- fix(ci): repair qB tracker mapping and live download telemetry
+- fix(style): editorconfig indent on network binding and ffprobe
+- fix(ci): restore main build and lint after swarm drain batch
+- fix(commands): publish TaskFailedEvent when command execution fails (#1813)
+- fix(backup): publish BackupFailedEvent when archive creation fails
+- fix(automation): publish FileMoveFailedEvent when completion move fails
+- fix(config): derive incomplete dir from DownloadDir when unset (#1820)
+- fix(config): lock ConfigFileProvider dictionary reads during save (#1822)
+- fix(config): keep in-memory config unchanged when config.xml save fails
+- fix(config): reload cache from DB after SaveConfigDictionary
+- fix(config): serialize first InstanceUuid generation (#1825)
+- fix(network): treat IPv4 hosts with trailing dot as private/loopback
+- fix(automation): publish MediaInspectionFailedEvent when file probe fails (#1814)
+- fix(network): parse bracketed IPv6 hosts in proxy tunnel paths
+- fix(automation): publish ArrImportCompletedEvent from Arr webhooks
+- fix(download): skip directory symlinks in cross-volume copy
+- fix(torrents): publish pause/resume automation events from TorrentService
+- fix(network): treat 0.0.0.0 as local for proxy tunnel guards (#1836)
+- fix(download): strip incomplete extensions when a subdirectory is unreadable
+- fix(arr): resolve GetByType to enabled primary connection
+- fix(network-binding): probe NIC status in ProxyTunnel IsInterfaceUp
+- fix(arr): require enabled type match in GetByAffinity (#1834)
+- fix(download-history): roll back engine torrent on ReAdd failure
+- fix(torrents): publish TorrentProgressMilestoneEvent at download milestones
+- fix(network-binding): ignore superseded config-driven provider switches
+- fix(arr): score affinity from Category column and whole-word keywords (#1835)
+- fix(mediainsp): run ffprobe on stream inspection (#1842)
+- Fix #1832: clear removal fields when reconcile re-links history
+- fix(inspection): rollback active inspector when config save fails (fixes #1844)
+- fix(media-inspection): propagate FFprobe timeout/cancel instead of TagLib fallback
+- fix(mediainsp): skip attached_pic streams for VideoCodec (#1845)
+- fix(logging): treat blank FileLogLevel as Info on reconfigure
+- Fix #1846: label interlaced FFprobe streams as 1080i/480i from field_order
+- Fix #1847: map FFprobe format.tags to container metadata
+- fix(mediainsp): fall back to stream duration when format duration missing (#1848)
+- Fix #1849: score category names sonarr, radarr, lidarr in affinity
+- fix(bandwidth): publish BandwidthQuotaApproachingEvent when quota threshold is reached
+- Fix #124: Aria2/Flood stopped torrent RPC status mapping
+- Fix tracker stats on history re-add and manual announce (#179).
+- fix(datastore): use boolean params in AutomationScriptRepository for PostgreSQL
+- fix(notifications): expose TORRENT_SIZE_BYTES in custom script env
+- fix(torrents): stop API list from exposing session download bytes (fixes #125)
+- fix(config): apply config.xml LogLevel to console logging (#1826)
+- fix(orchestrator): coordinator-only state after worker overwrites
+- Fix #125: keep lifetime download stats off session counters
+- fix(blocklist): hold switchLock in DynamicBlocklistProxy.ClearRules (#177)
+- fix(mediainsp): map ffprobe format_name tokens using file extension (fixes #1841)
+- fix(disk): keep longest mount match when drive inspection throws
+- fix(automation): publish TrackerBoostAppliedEvent after successful tracker boost
+- fix(automation): publish TrackerBoostAppliedEvent after successful tracker boost
+
+### 🔧 Maintenance & Improvements
+- test(media-inspection): expect FFprobe timeout/cancel to throw
+- Apply media-type affinity keywords to tags (#1850)
+- chore(orchestrator): #257 done, grant push #179, sloth on #1849
+- orchestrator: queue penguin #124 push after sheep #179
+- chore(orchestrator): refill snake #1851, push queue #179
+- chore(orchestrator): serial push sloth #257, queue sheep #179
+- chore(orchestrator): poll v2, grant push lock #123, queue #257
+- chore(orchestrator): fix v2 issue queue
+- chore(orchestrator): resume v2 with five manual workers
+- chore(orchestrator): validation while halted
+- chore(orchestrator): validation pass while halted
+- chore(orchestrator): remove abandoned agent worktrees
+- chore(orchestrator): re-validate halted state vs swarm and GitHub
+- chore(orchestrator): validate halted state vs GitHub and swarm plan
+- chore(orchestrator): halt swarm; document v2 coordinator-only state
+- chore(orchestrator): poll reconcile; coordinator-only state
+- chore(orchestrator): reconcile state; coordinator-only writes
+- chore: mark orchestrator issue 1841 completed
+- chore(orchestrator): reconcile state with GitHub and swarm v32
+- chore(orchestrator): validate poll, record #1819 closed
+- chore(orchestrator): poll OK five workers active
+- chore(orchestrator): record poll at 12:09Z, five workers active
+- chore: orchestrator poll schedule and issue queue
+- chore: map orchestrator workers to swarm session IDs
+- chore: track Leecharr multi-agent issue orchestrator state
+- chore(orchestrator): poll OK five workers active
+- chore(orchestrator): record poll at 12:09Z, five workers active
+- chore: orchestrator poll schedule and issue queue
+- chore: map orchestrator workers to swarm session IDs
+- chore: track Leecharr multi-agent issue orchestrator state
+
 ## [v2.3.1](https://github.com/dmzoneill/Leecharr/releases/tag/v2.3.1) - 2026-10-08
 
 ## [v2.3.0](https://github.com/dmzoneill/Leecharr/releases/tag/v2.3.0) - 2026-10-04
