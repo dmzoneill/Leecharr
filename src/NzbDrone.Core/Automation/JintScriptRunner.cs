@@ -22,6 +22,8 @@ public interface IScriptRunner
 
 public class JintScriptRunner : IScriptRunner
 {
+    private const int ScriptTimeoutSeconds = 15;
+
     private readonly IManageCommandQueue? _commandQueue;
     private readonly IConfigFileProvider? _configFileProvider;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
@@ -44,10 +46,12 @@ public class JintScriptRunner : IScriptRunner
 
         try
         {
+            var executionBudget = new ScriptExecutionBudget(TimeSpan.FromSeconds(ScriptTimeoutSeconds));
+
             var engine = new Engine(options =>
             {
                 options.LimitMemory(ScriptMemoryLimits.MaxBytes);
-                options.TimeoutInterval(TimeSpan.FromSeconds(15));
+                options.TimeoutInterval(TimeSpan.FromSeconds(ScriptTimeoutSeconds));
                 options.LimitRecursion(64);
             });
 
@@ -55,7 +59,7 @@ public class JintScriptRunner : IScriptRunner
             engine.SetValue("console", new ScriptConsoleContext(logBuilder));
 
             // HTTP context
-            using var httpContext = new ScriptHttpContext();
+            using var httpContext = new ScriptHttpContext(executionBudget: executionBudget);
             engine.SetValue("http", httpContext);
 
             // API context (local pre-authenticated)
@@ -63,18 +67,18 @@ public class JintScriptRunner : IScriptRunner
             engine.SetValue("api", apiContext);
 
             // System / Command context
-            var systemContext = new ScriptSystemContext(_commandQueue, result);
+            var systemContext = new ScriptSystemContext(_commandQueue, result, executionBudget);
             engine.SetValue("system", systemContext);
 
             // HTML context
             var htmlContext = new ScriptHtmlContext();
             engine.SetValue("html", htmlContext);
 
-            // Sleep helper (clamped to max 5s)
+            // Sleep helper (clamped to max 5s and remaining script budget)
             engine.SetValue("sleep", new Action<int>(ms =>
             {
                 var clamped = Math.Clamp(ms, 0, 5000);
-                Thread.Sleep(clamped);
+                executionBudget.SleepMilliseconds(clamped);
             }));
 
             // Inputs / Secrets
@@ -134,7 +138,7 @@ public class JintScriptRunner : IScriptRunner
         catch (TimeoutException)
         {
             result.Success = false;
-            result.Error = "Script execution timed out (limit: 15s)";
+            result.Error = $"Script execution timed out (limit: {ScriptTimeoutSeconds}s)";
             logBuilder.AppendLine("[ERROR] Execution timed out.");
         }
         catch (MemoryLimitExceededException)
