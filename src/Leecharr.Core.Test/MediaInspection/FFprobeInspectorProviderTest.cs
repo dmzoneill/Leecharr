@@ -152,14 +152,12 @@ sleep 300
         var provider = new FFprobeInspectorProvider(mockScript, TimeSpan.FromMilliseconds(250));
 
         var startTime = DateTime.UtcNow;
-        var result = await provider.InspectMediaAsync(this.dummyMediaFile);
+        var act = async () => await provider.InspectMediaAsync(this.dummyMediaFile);
+        await act.Should().ThrowAsync<OperationCanceledException>();
         var elapsed = DateTime.UtcNow - startTime;
 
         // Ensure timeout kicked in promptly rather than waiting 300 seconds
         elapsed.Should().BeLessThan(TimeSpan.FromSeconds(5));
-
-        // Provider gracefully returns fallback instead of throwing
-        result.Should().NotBeNull();
 
         // Verify the child process was terminated
         if (File.Exists(pidFile))
@@ -206,11 +204,11 @@ sleep 300
         cts.CancelAfter(TimeSpan.FromMilliseconds(250));
 
         var startTime = DateTime.UtcNow;
-        var result = await provider.InspectMediaAsync(this.dummyMediaFile, cts.Token);
+        var act = async () => await provider.InspectMediaAsync(this.dummyMediaFile, cts.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
         var elapsed = DateTime.UtcNow - startTime;
 
         elapsed.Should().BeLessThan(TimeSpan.FromSeconds(5));
-        result.Should().NotBeNull();
 
         if (File.Exists(pidFile))
         {
