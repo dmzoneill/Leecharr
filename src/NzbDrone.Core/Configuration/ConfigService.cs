@@ -367,6 +367,12 @@ public interface IConfigService
 
     int DownloadThresholdPercent { get; }
 
+    long MonthlyBandwidthQuotaBytes { get; }
+
+    int MonthlyBandwidthQuotaGb { get; }
+
+    int BandwidthQuotaThresholdPercent { get; }
+
     // Scheduler
     bool SchedulerEnabled { get; }
 
@@ -1161,6 +1167,12 @@ public class ConfigService : IConfigService
     public double SpeedVariationMax => this.GetValueDouble("SpeedVariationMax", 0.8);
 
     public int DownloadThresholdPercent => this.GetValueInt("DownloadThresholdPercent", 80);
+
+    public long MonthlyBandwidthQuotaBytes => this.GetValueLong("MonthlyBandwidthQuotaBytes", 0L);
+
+    public int MonthlyBandwidthQuotaGb => this.GetValueInt("MonthlyBandwidthQuotaGb", 0);
+
+    public int BandwidthQuotaThresholdPercent => this.GetValueInt("BandwidthQuotaThresholdPercent", this.DownloadThresholdPercent);
 
     // Scheduler
     public bool SchedulerEnabled => this.GetValueBoolean("SchedulerEnabled", false);

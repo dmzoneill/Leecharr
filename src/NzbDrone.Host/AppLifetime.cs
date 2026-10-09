@@ -615,6 +615,11 @@ public class AppLifetime : IHostedService, IDisposable
                             this.services.DiskSpaceService.CheckDiskSpaceThresholds();
                         }
 
+                        if (this.services.BandwidthQuotaService != null)
+                        {
+                            this.services.BandwidthQuotaService.CheckBandwidthQuotaThresholds();
+                        }
+
                         if (tasks != null && tasks.Count > 0)
                         {
                             long totalDlSpeed = 0;
