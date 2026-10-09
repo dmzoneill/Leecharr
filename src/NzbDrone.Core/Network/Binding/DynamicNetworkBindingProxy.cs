@@ -83,7 +83,12 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         return await provider.ProbeHealthAsync();
     }
 
-    public async Task<NetworkBindingSwitchResult> SwitchProviderAsync(string targetProviderId, int? configSavedGeneration = null)
+    public Task<NetworkBindingSwitchResult> SwitchProviderAsync(string targetProviderId)
+    {
+        return this.SwitchProviderWithGenerationAsync(targetProviderId, null);
+    }
+
+    private async Task<NetworkBindingSwitchResult> SwitchProviderWithGenerationAsync(string targetProviderId, int? configSavedGeneration)
     {
         if (string.IsNullOrWhiteSpace(targetProviderId))
         {
@@ -258,7 +263,7 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
                     return;
                 }
 
-                await this.SwitchProviderAsync(desiredProviderId, generation);
+                await this.SwitchProviderWithGenerationAsync(desiredProviderId, generation);
             }
             catch (Exception ex)
             {

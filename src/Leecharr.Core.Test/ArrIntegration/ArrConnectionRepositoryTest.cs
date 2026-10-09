@@ -182,7 +182,7 @@ public class ArrConnectionRepositoryTest
             Priority = 2,
         });
 
-        var match = this.repository.GetByAffinity(category: "hdtv");
+        var match = this.repository.GetByAffinity(arrType: null, category: "hdtv");
         match.Should().NotBeNull();
         match.Name.Should().Be("Primary Radarr");
     }
