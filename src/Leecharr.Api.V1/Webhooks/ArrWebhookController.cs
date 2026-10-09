@@ -166,6 +166,8 @@ public class ArrWebhookController : Controller
             if (torrent != null)
             {
                 var torrentNeedsRepoUpdate = false;
+                string arrImportCompletedInstance = null;
+                ArrWebhookPayload arrImportCompletedPayload = null;
 
                 if (string.IsNullOrWhiteSpace(torrent.Category) || string.Equals(torrent.Category, "NONE", StringComparison.OrdinalIgnoreCase))
                 {
@@ -212,6 +214,8 @@ public class ArrWebhookController : Controller
                         ? arrType
                         : (payload.InstanceName ?? "Arr");
                     torrent.ImportedByArr = resolvedArr;
+                    arrImportCompletedInstance = resolvedArr;
+                    arrImportCompletedPayload = payload;
 
                     updated = true;
                     torrentNeedsRepoUpdate = true;
@@ -249,6 +253,18 @@ public class ArrWebhookController : Controller
                 if (torrentNeedsRepoUpdate)
                 {
                     this.torrentRepository.Update(torrent);
+                }
+
+                if (arrImportCompletedPayload != null)
+                {
+                    var importedFilesCount = ExtractImportedFilesCount(arrImportCompletedPayload);
+                    if (importedFilesCount < 1)
+                    {
+                        importedFilesCount = 1;
+                    }
+
+                    var arrInstance = arrImportCompletedInstance ?? payload?.InstanceName ?? arrType ?? "Arr";
+                    this.eventAggregator?.PublishEvent(new ArrImportCompletedEvent(torrent, arrInstance, importedFilesCount));
                 }
 
                 if (!IsDeleteEvent(eventType))
@@ -990,6 +1006,61 @@ public class ArrWebhookController : Controller
         }
 
         return null;
+    }
+
+    private static int ExtractImportedFilesCount(ArrWebhookPayload payload)
+    {
+        if (payload == null)
+        {
+            return 0;
+        }
+
+        if (payload.TrackFiles != null && payload.TrackFiles.Count > 0)
+        {
+            return payload.TrackFiles.Count(f => !string.IsNullOrWhiteSpace(f.Path));
+        }
+
+        if (payload.BookFiles != null && payload.BookFiles.Count > 0)
+        {
+            return payload.BookFiles.Count(f => !string.IsNullOrWhiteSpace(f.Path));
+        }
+
+        if (payload.RenamedFiles != null && payload.RenamedFiles.Count > 0)
+        {
+            return payload.RenamedFiles.Count(f => !string.IsNullOrWhiteSpace(f.Path));
+        }
+
+        if (payload.Episodes != null && payload.Episodes.Count > 0)
+        {
+            return payload.Episodes.Count;
+        }
+
+        if (payload.EpisodeFile != null && !string.IsNullOrWhiteSpace(payload.EpisodeFile.Path))
+        {
+            return 1;
+        }
+
+        if (payload.MovieFile != null && !string.IsNullOrWhiteSpace(payload.MovieFile.Path))
+        {
+            return 1;
+        }
+
+        if (payload.TrackFile != null && !string.IsNullOrWhiteSpace(payload.TrackFile.Path))
+        {
+            return 1;
+        }
+
+        if (payload.BookFile != null && !string.IsNullOrWhiteSpace(payload.BookFile.Path))
+        {
+            return 1;
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.DestinationPath) || !string.IsNullOrWhiteSpace(payload.Path))
+        {
+            return 1;
+        }
+
+        return 0;
     }
 
     private void TryEnrichMetadata(Torrent torrent, string arrType, ArrWebhookPayload payload)
