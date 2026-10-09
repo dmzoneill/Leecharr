@@ -266,6 +266,80 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public async Task Update_WhenAnnounceIntervalOmitted_DoesNotResetTrackerAnnounceInterval()
+    {
+        var existing = new Torrent
+        {
+            Id = 12,
+            Name = "Announce Torrent",
+            Category = "old",
+            DateAdded = DateTime.UtcNow.AddHours(-1),
+            Threshold = 1,
+            SmallTorrentLimit = 50,
+        };
+        var tracker = new TrackerEntry
+        {
+            Id = 1,
+            TorrentId = 12,
+            Url = "http://tracker.example/announce",
+            AnnounceInterval = 300,
+            LastAnnounce = DateTime.UtcNow.AddMinutes(-5),
+        };
+
+        this.torrentService.Get(12).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+        this.trackerEntryRepository.GetByTorrentId(12).Returns(new List<TrackerEntry> { tracker });
+
+        var resource = new TorrentResource
+        {
+            Category = "movies",
+            Threshold = 1,
+            SmallTorrentLimit = 50,
+        };
+
+        var response = await this.controller.Update(12, resource);
+
+        this.trackerEntryRepository.DidNotReceive().Update(Arg.Any<TrackerEntry>());
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resultResource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resultResource.AnnounceInterval.Should().Be(300);
+        resultResource.NextUpdate.Should().BeLessThan(1800);
+    }
+
+    [Test]
+    public async Task Update_WhenAnnounceIntervalProvided_UpdatesAllTrackerRows()
+    {
+        var existing = new Torrent
+        {
+            Id = 13,
+            Name = "Announce Torrent",
+            DateAdded = DateTime.UtcNow,
+            Threshold = 1,
+            SmallTorrentLimit = 50,
+        };
+        var trackers = new List<TrackerEntry>
+        {
+            new() { Id = 1, TorrentId = 13, Url = "http://a/announce", AnnounceInterval = 300 },
+            new() { Id = 2, TorrentId = 13, Url = "http://b/announce", AnnounceInterval = 300 },
+        };
+
+        this.torrentService.Get(13).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+        this.trackerEntryRepository.GetByTorrentId(13).Returns(trackers);
+
+        var resource = new TorrentResource
+        {
+            AnnounceInterval = 900,
+            Threshold = 1,
+            SmallTorrentLimit = 50,
+        };
+
+        await this.controller.Update(13, resource);
+
+        this.trackerEntryRepository.Received(2).Update(Arg.Is<TrackerEntry>(t => t.AnnounceInterval == 900));
+    }
+
+    [Test]
     public void GetById_ReturnsTorrentWithPersistedThresholdAndSmallTorrentLimit()
     {
         var torrent = new Torrent
