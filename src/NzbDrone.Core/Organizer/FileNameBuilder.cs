@@ -342,7 +342,7 @@ public class FileNameBuilder : IFileNameBuilder
 
             case "originaltitle":
             case "originalfilename":
-                return Path.GetFileNameWithoutExtension(context.OriginalFileName) ?? string.Empty;
+                return GetOriginalNameWithoutExtension(context.OriginalFileName);
 
             case "releaseyear":
             case "year":
@@ -418,7 +418,7 @@ public class FileNameBuilder : IFileNameBuilder
 
             case "originaltitle":
             case "originalfilename":
-                return Path.GetFileNameWithoutExtension(context.OriginalFileName) ?? string.Empty;
+                return GetOriginalNameWithoutExtension(context.OriginalFileName);
 
             case "imdbid":
                 return context.ImdbId ?? string.Empty;
@@ -663,6 +663,23 @@ public class FileNameBuilder : IFileNameBuilder
         }
 
         return cleaned;
+    }
+
+    private static string GetOriginalNameWithoutExtension(string originalFileName)
+    {
+        if (string.IsNullOrWhiteSpace(originalFileName))
+        {
+            return string.Empty;
+        }
+
+        var normalized = originalFileName.Replace('\\', '/');
+        var fileName = Path.GetFileName(normalized);
+        if (string.IsNullOrEmpty(fileName))
+        {
+            fileName = normalized;
+        }
+
+        return Path.GetFileNameWithoutExtension(fileName) ?? string.Empty;
     }
 
     private static string RemoveControlChars(string text)
