@@ -154,11 +154,14 @@ public class ExternalIpService : BackgroundService, IExternalIpService
             return this.cachedIp;
         }
 
-        var httpClient = this.client ?? this.CreateHttpClient();
-        var ownsClient = this.client == null;
+        HttpClient httpClient = null;
+        var ownsClient = false;
 
         try
         {
+            httpClient = this.client ?? this.CreateHttpClient();
+            ownsClient = this.client == null;
+
             var uuid = this.configService?.InstanceUuid;
             if (string.IsNullOrWhiteSpace(uuid))
             {
@@ -197,7 +200,7 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         }
         finally
         {
-            if (ownsClient)
+            if (ownsClient && httpClient != null)
             {
                 httpClient.Dispose();
             }
