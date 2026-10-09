@@ -23,6 +23,7 @@ public class ScriptHttpContext : IDisposable
 
     private readonly HttpClient _client;
     private readonly bool _disposeClient;
+    private readonly ScriptExecutionBudget? _executionBudget;
     private HttpClient? _insecureClient;
     private bool _disposed;
     private int _pendingOperations;
@@ -42,10 +43,11 @@ public class ScriptHttpContext : IDisposable
     {
     }
 
-    public ScriptHttpContext(HttpMessageHandler handler, CookieContainer? cookieContainer = null)
+    public ScriptHttpContext(HttpMessageHandler handler, CookieContainer? cookieContainer = null, ScriptExecutionBudget? executionBudget = null)
     {
         this.CookieContainer = cookieContainer ?? new CookieContainer();
         this.AllowInsecureTls = false;
+        this._executionBudget = executionBudget;
         this._client = new HttpClient(handler)
         {
             Timeout = Timeout.InfiniteTimeSpan,
@@ -54,10 +56,11 @@ public class ScriptHttpContext : IDisposable
         this._disposeClient = true;
     }
 
-    public ScriptHttpContext(HttpClient? client, CookieContainer? cookieContainer = null, bool allowInsecureTls = false)
+    public ScriptHttpContext(HttpClient? client, CookieContainer? cookieContainer = null, bool allowInsecureTls = false, ScriptExecutionBudget? executionBudget = null)
     {
         this.CookieContainer = cookieContainer ?? new CookieContainer();
         this.AllowInsecureTls = allowInsecureTls;
+        this._executionBudget = executionBudget;
 
         if (client != null)
         {
@@ -289,8 +292,18 @@ public class ScriptHttpContext : IDisposable
             }
         }
 
+        var timeoutMs = timeoutSeconds * 1000;
+        if (this._executionBudget != null)
+        {
+            timeoutMs = this._executionBudget.CapTimeoutMilliseconds(timeoutSeconds);
+            if (timeoutMs <= 0)
+            {
+                throw new OperationCanceledException("Script execution time budget exhausted before HTTP request could start.");
+            }
+        }
+
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+        cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
 
         var client = this.GetClientForRequest(options);
         using var response = client.Send(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
