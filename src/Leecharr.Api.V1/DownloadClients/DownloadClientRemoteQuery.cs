@@ -74,30 +74,12 @@ public static class DownloadClientRemoteQuery
         {
             if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+                if (!await EnsureQbittorrentLoggedInAsync(http, baseUrl, client, password))
                 {
-                    var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
-                    {
-                        { "username", client.Username ?? string.Empty },
-                        { "password", password ?? string.Empty },
-                    });
-
-                    var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent);
-                    if (!loginResp.IsSuccessStatusCode)
-                    {
-                        Logger.Warn("qBittorrent login failed with status {0} for {1}", loginResp.StatusCode, baseUrl);
-                        return items;
-                    }
-
-                    var loginResult = await loginResp.Content.ReadAsStringAsync();
-                    if (string.Equals(loginResult.Trim(), "Fails.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        Logger.Warn("qBittorrent authentication failed (Fails.) for {0}", baseUrl);
-                        return items;
-                    }
+                    return items;
                 }
 
-                var resp = await http.GetAsync($"{baseUrl}/api/v2/torrents/info");
+                using var resp = await http.GetAsync($"{baseUrl}/api/v2/torrents/info");
                 if (resp.IsSuccessStatusCode)
                 {
                     var json = await resp.Content.ReadAsStringAsync();
@@ -142,41 +124,9 @@ public static class DownloadClientRemoteQuery
             }
             else if (string.Equals(client.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
             {
-                var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
-                {
-                    Content = new StringContent(
-                        "{\"method\":\"torrent-get\",\"arguments\":{\"fields\":[\"id\",\"hashString\",\"name\",\"totalSize\",\"percentDone\",\"status\",\"downloadDir\",\"labels\"]}}",
-                        Encoding.UTF8,
-                        "application/json"),
-                };
-
-                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
-                {
-                    var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
-                    req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
-                }
-
-                var resp = await http.SendAsync(req);
-                if (resp.StatusCode == HttpStatusCode.Conflict && resp.Headers.TryGetValues("X-Transmission-Session-Id", out var sessValues))
-                {
-                    var sessionId = sessValues.FirstOrDefault();
-                    using var req2 = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
-                    {
-                        Content = new StringContent(
-                            "{\"method\":\"torrent-get\",\"arguments\":{\"fields\":[\"id\",\"hashString\",\"name\",\"totalSize\",\"percentDone\",\"status\",\"downloadDir\",\"labels\"]}}",
-                            Encoding.UTF8,
-                            "application/json"),
-                    };
-
-                    if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
-                    {
-                        var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
-                        req2.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
-                    }
-
-                    req2.Headers.Add("X-Transmission-Session-Id", sessionId);
-                    resp = await http.SendAsync(req2);
-                }
+                const string torrentGetPayload =
+                    "{\"method\":\"torrent-get\",\"arguments\":{\"fields\":[\"id\",\"hashString\",\"name\",\"totalSize\",\"percentDone\",\"status\",\"downloadDir\",\"labels\"]}}";
+                using var resp = await SendTransmissionRpcAsync(http, baseUrl, torrentGetPayload, client, password);
 
                 if (resp.IsSuccessStatusCode)
                 {
@@ -232,29 +182,8 @@ public static class DownloadClientRemoteQuery
             {
                 if (!string.IsNullOrWhiteSpace(password))
                 {
-                    var loginContent = new StringContent(
-                        JsonSerializer.Serialize(new
-                        {
-                            method = "auth.login",
-                            @params = new object[] { password },
-                            id = 1,
-                        }),
-                        Encoding.UTF8,
-                        "application/json");
-
-                    var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent);
-                    if (!loginResp.IsSuccessStatusCode)
+                    if (!await EnsureDelugeLoggedInAsync(http, baseUrl, password))
                     {
-                        Logger.Warn("Deluge login failed with status code {0} for {1}", loginResp.StatusCode, baseUrl);
-                        return items;
-                    }
-
-                    var loginJson = await loginResp.Content.ReadAsStringAsync();
-                    using var loginDoc = JsonDocument.Parse(loginJson);
-                    if (loginDoc.RootElement.TryGetProperty("result", out var resElem) &&
-                        resElem.ValueKind == JsonValueKind.False)
-                    {
-                        Logger.Warn("Deluge authentication failed for {0}", baseUrl);
                         return items;
                     }
                 }
@@ -264,7 +193,7 @@ public static class DownloadClientRemoteQuery
                     Encoding.UTF8,
                     "application/json");
 
-                var resp = await http.PostAsync($"{baseUrl}/json", body);
+                using var resp = await http.PostAsync($"{baseUrl}/json", body);
                 if (resp.IsSuccessStatusCode)
                 {
                     var json = await resp.Content.ReadAsStringAsync();
@@ -441,36 +370,19 @@ public static class DownloadClientRemoteQuery
         {
             if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+                if (!await EnsureQbittorrentLoggedInAsync(http, baseUrl, client, password))
                 {
-                    var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
-                    {
-                        { "username", client.Username ?? string.Empty },
-                        { "password", password ?? string.Empty },
-                    });
-
-                    var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent);
-                    if (!loginResp.IsSuccessStatusCode)
-                    {
-                        Logger.Warn("qBittorrent login failed with status {0} for {1}", loginResp.StatusCode, baseUrl);
-                        return false;
-                    }
-
-                    var loginResult = await loginResp.Content.ReadAsStringAsync();
-                    if (string.Equals(loginResult.Trim(), "Fails.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        Logger.Warn("qBittorrent authentication failed (Fails.) for {0}", baseUrl);
-                        return false;
-                    }
+                    return false;
                 }
 
                 if (action == "pause")
                 {
                     var content = new FormUrlEncodedContent(new Dictionary<string, string> { { "hashes", infoHash } });
-                    var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/pause", content);
+                    using var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/pause", content);
                     if (resp.StatusCode == HttpStatusCode.NotFound)
                     {
-                        resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/stop", content);
+                        using var fallback = await http.PostAsync($"{baseUrl}/api/v2/torrents/stop", content);
+                        return fallback.IsSuccessStatusCode;
                     }
 
                     return resp.IsSuccessStatusCode;
@@ -478,10 +390,11 @@ public static class DownloadClientRemoteQuery
                 else if (action == "resume")
                 {
                     var content = new FormUrlEncodedContent(new Dictionary<string, string> { { "hashes", infoHash } });
-                    var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/resume", content);
+                    using var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/resume", content);
                     if (resp.StatusCode == HttpStatusCode.NotFound)
                     {
-                        resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/start", content);
+                        using var fallback = await http.PostAsync($"{baseUrl}/api/v2/torrents/start", content);
+                        return fallback.IsSuccessStatusCode;
                     }
 
                     return resp.IsSuccessStatusCode;
@@ -493,7 +406,7 @@ public static class DownloadClientRemoteQuery
                         { "hashes", infoHash },
                         { "deleteFiles", deleteData ? "true" : "false" },
                     });
-                    var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/delete", content);
+                    using var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/delete", content);
                     return resp.IsSuccessStatusCode;
                 }
 
@@ -533,65 +446,15 @@ public static class DownloadClientRemoteQuery
 
                 var rpcContent = JsonSerializer.Serialize(rpcPayload);
 
-                var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
-                {
-                    Content = new StringContent(rpcContent, Encoding.UTF8, "application/json"),
-                };
-
-                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
-                {
-                    var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
-                    req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
-                }
-
-                var resp = await http.SendAsync(req);
-                if (resp.StatusCode == HttpStatusCode.Conflict && resp.Headers.TryGetValues("X-Transmission-Session-Id", out var sessValues))
-                {
-                    var sessionId = sessValues.FirstOrDefault();
-                    using var req2 = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
-                    {
-                        Content = new StringContent(rpcContent, Encoding.UTF8, "application/json"),
-                    };
-
-                    if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
-                    {
-                        var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
-                        req2.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
-                    }
-
-                    req2.Headers.Add("X-Transmission-Session-Id", sessionId);
-                    resp = await http.SendAsync(req2);
-                }
-
+                using var resp = await SendTransmissionRpcAsync(http, baseUrl, rpcContent, client, password);
                 return resp.IsSuccessStatusCode;
             }
             else if (string.Equals(client.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
             {
                 if (!string.IsNullOrWhiteSpace(password))
                 {
-                    var loginContent = new StringContent(
-                        JsonSerializer.Serialize(new
-                        {
-                            method = "auth.login",
-                            @params = new object[] { password },
-                            id = 1,
-                        }),
-                        Encoding.UTF8,
-                        "application/json");
-
-                    var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent);
-                    if (!loginResp.IsSuccessStatusCode)
+                    if (!await EnsureDelugeLoggedInAsync(http, baseUrl, password))
                     {
-                        Logger.Warn("Deluge login failed with status code {0} for {1}", loginResp.StatusCode, baseUrl);
-                        return false;
-                    }
-
-                    var loginJson = await loginResp.Content.ReadAsStringAsync();
-                    using var loginDoc = JsonDocument.Parse(loginJson);
-                    if (loginDoc.RootElement.TryGetProperty("result", out var resElem) &&
-                        resElem.ValueKind == JsonValueKind.False)
-                    {
-                        Logger.Warn("Deluge authentication failed for {0}", baseUrl);
                         return false;
                     }
                 }
@@ -628,7 +491,7 @@ public static class DownloadClientRemoteQuery
                     Encoding.UTF8,
                     "application/json");
 
-                var resp = await http.PostAsync($"{baseUrl}/json", body);
+                using var resp = await http.PostAsync($"{baseUrl}/json", body);
                 return resp.IsSuccessStatusCode;
             }
             else
@@ -646,5 +509,112 @@ public static class DownloadClientRemoteQuery
         {
             localHttp?.Dispose();
         }
+    }
+
+    private static async Task<bool> EnsureQbittorrentLoggedInAsync(
+        HttpClient http,
+        string baseUrl,
+        DownloadClientDefinition client,
+        string password)
+    {
+        if (string.IsNullOrWhiteSpace(client.Username) && string.IsNullOrWhiteSpace(password))
+        {
+            return true;
+        }
+
+        var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "username", client.Username ?? string.Empty },
+            { "password", password ?? string.Empty },
+        });
+
+        using var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent).ConfigureAwait(false);
+        if (!loginResp.IsSuccessStatusCode)
+        {
+            Logger.Warn("qBittorrent login failed with status {0} for {1}", loginResp.StatusCode, baseUrl);
+            return false;
+        }
+
+        var loginResult = await loginResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+        if (string.Equals(loginResult.Trim(), "Fails.", StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Warn("qBittorrent authentication failed (Fails.) for {0}", baseUrl);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static async Task<bool> EnsureDelugeLoggedInAsync(HttpClient http, string baseUrl, string password)
+    {
+        var loginContent = new StringContent(
+            JsonSerializer.Serialize(new
+            {
+                method = "auth.login",
+                @params = new object[] { password },
+                id = 1,
+            }),
+            Encoding.UTF8,
+            "application/json");
+
+        using var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent).ConfigureAwait(false);
+        if (!loginResp.IsSuccessStatusCode)
+        {
+            Logger.Warn("Deluge login failed with status code {0} for {1}", loginResp.StatusCode, baseUrl);
+            return false;
+        }
+
+        var loginJson = await loginResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+        using var loginDoc = JsonDocument.Parse(loginJson);
+        if (loginDoc.RootElement.TryGetProperty("result", out var resElem) &&
+            resElem.ValueKind == JsonValueKind.False)
+        {
+            Logger.Warn("Deluge authentication failed for {0}", baseUrl);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static HttpRequestMessage CreateTransmissionRpcRequest(
+        string baseUrl,
+        string rpcContent,
+        DownloadClientDefinition client,
+        string password)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
+        {
+            Content = new StringContent(rpcContent, Encoding.UTF8, "application/json"),
+        };
+
+        if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+        {
+            var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
+            req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
+        }
+
+        return req;
+    }
+
+    private static async Task<HttpResponseMessage> SendTransmissionRpcAsync(
+        HttpClient http,
+        string baseUrl,
+        string rpcContent,
+        DownloadClientDefinition client,
+        string password)
+    {
+        using var req = CreateTransmissionRpcRequest(baseUrl, rpcContent, client, password);
+        var resp = await http.SendAsync(req).ConfigureAwait(false);
+        if (resp.StatusCode == HttpStatusCode.Conflict &&
+            resp.Headers.TryGetValues("X-Transmission-Session-Id", out var sessValues))
+        {
+            var sessionId = sessValues.FirstOrDefault();
+            resp.Dispose();
+            using var req2 = CreateTransmissionRpcRequest(baseUrl, rpcContent, client, password);
+            req2.Headers.Add("X-Transmission-Session-Id", sessionId);
+            return await http.SendAsync(req2).ConfigureAwait(false);
+        }
+
+        return resp;
     }
 }
