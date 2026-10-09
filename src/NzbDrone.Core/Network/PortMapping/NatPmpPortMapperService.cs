@@ -12,6 +12,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Network.PortMapping;
 
@@ -27,6 +29,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     private readonly int gatewayPort;
     private readonly string boundInterface;
     private readonly IConfigService configService;
+    private readonly IEventAggregator eventAggregator;
 
     private readonly ConcurrentDictionary<IPAddress, uint> gatewayEpochs = new();
     private readonly ConcurrentDictionary<IPAddress, DateTime> gatewayLastContact = new();
@@ -40,11 +43,13 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     public NatPmpPortMapperService(
         int gatewayPort = NatPmpPort,
         string boundInterface = null,
-        IConfigService configService = null)
+        IConfigService configService = null,
+        IEventAggregator eventAggregator = null)
     {
         this.gatewayPort = gatewayPort > 0 ? gatewayPort : NatPmpPort;
         this.boundInterface = boundInterface;
         this.configService = configService;
+        this.eventAggregator = eventAggregator;
 
         // Periodic lease renewal check every 30 seconds
         this.renewalTimer = new Timer(
@@ -596,22 +601,26 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         if (this.isSuspended != 0)
         {
+            const string errorMessage = "NAT-PMP service is suspended.";
+            this.PublishPortForwardingFailed(internalPort, protocol, errorMessage);
             return new NatPmpMappingResult
             {
                 Success = false,
                 InternalPort = internalPort,
-                ErrorMessage = "NAT-PMP service is suspended.",
+                ErrorMessage = errorMessage,
             };
         }
 
         var targetGateway = this.ResolveGateway(gateway);
         if (targetGateway == null || targetGateway.AddressFamily != AddressFamily.InterNetwork)
         {
+            const string errorMessage = "No IPv4 default gateway found for NAT-PMP.";
+            this.PublishPortForwardingFailed(internalPort, protocol, errorMessage);
             return new NatPmpMappingResult
             {
                 Success = false,
                 InternalPort = internalPort,
-                ErrorMessage = "No IPv4 default gateway found for NAT-PMP.",
+                ErrorMessage = errorMessage,
             };
         }
 
@@ -664,8 +673,32 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 this.activeMappings.TryRemove((internalPort, protocol), out _);
             }
         }
+        else
+        {
+            this.PublishPortForwardingFailed(internalPort, protocol, result.ErrorMessage);
+        }
 
         return result;
+    }
+
+    private void PublishPortForwardingFailed(int internalPort, NatPmpProtocol protocol, string errorMessage)
+    {
+        if (this.eventAggregator == null)
+        {
+            return;
+        }
+
+        var protocolName = protocol switch
+        {
+            NatPmpProtocol.Udp => "UDP",
+            NatPmpProtocol.Tcp => "TCP",
+            _ => protocol.ToString(),
+        };
+
+        this.eventAggregator.PublishEvent(new PortForwardingFailedEvent(
+            internalPort,
+            protocolName,
+            string.IsNullOrWhiteSpace(errorMessage) ? "NAT-PMP port mapping failed." : errorMessage));
     }
 
     public async Task<bool> UnmapPortAsync(

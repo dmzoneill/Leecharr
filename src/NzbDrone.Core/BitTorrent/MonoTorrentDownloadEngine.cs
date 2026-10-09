@@ -274,7 +274,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.diskProvider = diskProvider ?? new DiskProvider();
         this.eventAggregator = eventAggregator;
         this.blocklistService = blocklistService;
-        this.natPmpPortMapperService = natPmpPortMapperService ?? new NatPmpPortMapperService(configService: configService);
+        this.natPmpPortMapperService = natPmpPortMapperService ?? new NatPmpPortMapperService(configService: configService, eventAggregator: eventAggregator);
         this.vpnKillSwitchService = vpnKillSwitchService;
         this.networkBindingService = networkBindingService;
         this.appFolderInfo = appFolderInfo;
