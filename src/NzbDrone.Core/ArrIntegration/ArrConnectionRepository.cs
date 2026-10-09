@@ -78,44 +78,69 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
         if (!string.IsNullOrWhiteSpace(category))
         {
             var cat = category.Trim();
-            if (string.Equals(conn.Name, cat, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 50;
-            }
-            else if (conn.Name != null && (conn.Name.Contains(cat, StringComparison.OrdinalIgnoreCase) || cat.Contains(conn.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                score += 30;
-            }
-
-            if (conn.Settings != null && conn.Settings.Contains(cat, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 25;
-            }
-
+            score += ScoreLabelMatch(conn.Category, conn.Name, cat, categoryExact: 60, nameExact: 50, nameContains: 30);
             score += GetMediaTypeKeywordBonus(conn, cat);
         }
 
         if (!string.IsNullOrWhiteSpace(tag))
         {
             var t = tag.Trim();
-            if (string.Equals(conn.Name, t, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 40;
-            }
-            else if (conn.Name != null && (conn.Name.Contains(t, StringComparison.OrdinalIgnoreCase) || t.Contains(conn.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                score += 25;
-            }
-
-            if (conn.Settings != null && conn.Settings.Contains(t, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 20;
-            }
-
+            score += ScoreLabelMatch(label: null, conn.Name, t, categoryExact: 0, nameExact: 40, nameContains: 25);
             score += GetMediaTypeKeywordBonus(conn, t);
         }
 
         return score;
+    }
+
+    private static int ScoreLabelMatch(string label, string name, string value, int categoryExact, int nameExact, int nameContains)
+    {
+        var score = 0;
+
+        if (!string.IsNullOrWhiteSpace(label) && string.Equals(label.Trim(), value, StringComparison.OrdinalIgnoreCase))
+        {
+            score += categoryExact;
+        }
+
+        if (string.Equals(name, value, StringComparison.OrdinalIgnoreCase))
+        {
+            score += nameExact;
+        }
+        else if (!string.IsNullOrEmpty(name) && name.Contains(value, StringComparison.OrdinalIgnoreCase))
+        {
+            score += nameContains;
+        }
+
+        return score;
+    }
+
+    private static bool ContainsWholeWord(string text, string word)
+    {
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(word))
+        {
+            return false;
+        }
+
+        var idx = 0;
+        while (idx <= text.Length - word.Length)
+        {
+            var pos = text.IndexOf(word, idx, StringComparison.OrdinalIgnoreCase);
+            if (pos < 0)
+            {
+                return false;
+            }
+
+            var beforeOk = pos == 0 || !char.IsLetterOrDigit(text[pos - 1]);
+            var afterPos = pos + word.Length;
+            var afterOk = afterPos >= text.Length || !char.IsLetterOrDigit(text[afterPos]);
+            if (beforeOk && afterOk)
+            {
+                return true;
+            }
+
+            idx = pos + 1;
+        }
+
+        return false;
     }
 
     private static int GetMediaTypeKeywordBonus(ArrConnectionDefinition conn, string text)
@@ -126,25 +151,25 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
         }
 
         var s = text.Trim();
-        if ((s.Contains("tv", StringComparison.OrdinalIgnoreCase) || s.Contains("series", StringComparison.OrdinalIgnoreCase) || s.Contains("show", StringComparison.OrdinalIgnoreCase) || s.Contains("sonarr", StringComparison.OrdinalIgnoreCase)) &&
+        if ((ContainsWholeWord(s, "tv") || ContainsWholeWord(s, "series") || ContainsWholeWord(s, "show") || ContainsWholeWord(s, "sonarr")) &&
             string.Equals(conn.ArrType, "Sonarr", StringComparison.OrdinalIgnoreCase))
         {
             return 20;
         }
 
-        if ((s.Contains("movie", StringComparison.OrdinalIgnoreCase) || s.Contains("film", StringComparison.OrdinalIgnoreCase) || s.Contains("radarr", StringComparison.OrdinalIgnoreCase)) &&
+        if ((ContainsWholeWord(s, "movie") || ContainsWholeWord(s, "film") || ContainsWholeWord(s, "radarr")) &&
             string.Equals(conn.ArrType, "Radarr", StringComparison.OrdinalIgnoreCase))
         {
             return 20;
         }
 
-        if ((s.Contains("music", StringComparison.OrdinalIgnoreCase) || s.Contains("audio", StringComparison.OrdinalIgnoreCase) || s.Contains("flac", StringComparison.OrdinalIgnoreCase) || s.Contains("lidarr", StringComparison.OrdinalIgnoreCase)) &&
+        if ((ContainsWholeWord(s, "music") || ContainsWholeWord(s, "audio") || ContainsWholeWord(s, "flac") || ContainsWholeWord(s, "lidarr")) &&
             string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase))
         {
             return 20;
         }
 
-        if ((s.Contains("book", StringComparison.OrdinalIgnoreCase) || s.Contains("read", StringComparison.OrdinalIgnoreCase) || s.Contains("ebook", StringComparison.OrdinalIgnoreCase) || s.Contains("readarr", StringComparison.OrdinalIgnoreCase)) &&
+        if ((ContainsWholeWord(s, "book") || ContainsWholeWord(s, "read") || ContainsWholeWord(s, "ebook") || ContainsWholeWord(s, "readarr")) &&
             string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase))
         {
             return 20;
