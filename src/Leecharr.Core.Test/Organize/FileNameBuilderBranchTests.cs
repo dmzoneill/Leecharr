@@ -379,7 +379,7 @@ public class FileNameBuilderBranchTests
         };
 
         var result = _builder.BuildFileName(context, "{Movie Title}", config);
-        result.Should().Be("mkv");
+        result.Should().Be("_.mkv");
     }
 
     [Test]
