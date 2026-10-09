@@ -142,11 +142,26 @@ public class ContainerLifecycleTest
     }
 
     [Test]
+    public void RegisterSingletonWithInterfaces_AfterAppendNotKeyedMapping_KeepsExistingEventHandlers()
+    {
+        var container = new Container(rules => rules.WithNzbDroneRules());
+        container.Register(typeof(HandlerA), Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Keep);
+        container.RegisterMapping(typeof(IHandle<EventOne>), typeof(HandlerA), ifAlreadyRegistered: IfAlreadyRegistered.AppendNotKeyed);
+
+        container.RegisterSingletonWithInterfaces<HandlerB>();
+
+        var handlers = container.ResolveMany<IHandle<EventOne>>().ToList();
+        handlers.Should().HaveCount(2);
+        handlers.OfType<HandlerA>().Should().ContainSingle();
+        handlers.OfType<HandlerB>().Should().ContainSingle();
+    }
+
+    [Test]
     public void MultipleEventHandlersForSameEvent_AllResolvedAndMaintainSingletonIdentity()
     {
         var container = new Container(rules => rules.WithNzbDroneRules());
-        container.RegisterSingletonWithInterfaces<HandlerA>(IfAlreadyRegistered.AppendNotKeyed);
-        container.RegisterSingletonWithInterfaces<HandlerB>(IfAlreadyRegistered.AppendNotKeyed);
+        container.RegisterSingletonWithInterfaces<HandlerA>();
+        container.RegisterSingletonWithInterfaces<HandlerB>();
 
         var handlers = container.ResolveMany<IHandle<EventOne>>().ToList();
         handlers.Should().HaveCount(2);
