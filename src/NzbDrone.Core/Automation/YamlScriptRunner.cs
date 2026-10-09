@@ -1099,70 +1099,298 @@ public class YamlScriptRunner : IScriptRunner
             return true;
         }
 
-        var trimmed = substituted.Trim();
+        return EvaluateConditionExpression(substituted.Trim());
+    }
 
-        // Single boolean expression like: !${torrent.isPrivate} or ${torrent.isPrivate}
-        if (!trimmed.Contains("==") && !trimmed.Contains("!=") && !trimmed.Contains(">=") && !trimmed.Contains("<=") && !trimmed.Contains('>') && !trimmed.Contains('<'))
+    private static bool EvaluateConditionExpression(string expr)
+    {
+        foreach (var orSegment in SplitConditionExpression(expr, "||"))
         {
-            if (trimmed.StartsWith('!'))
+            if (EvaluateAndExpression(orSegment.Trim()))
             {
-                var inner = trimmed[1..].Trim();
-                return IsFalsy(inner);
+                return true;
             }
-
-            return !IsFalsy(trimmed);
         }
 
-        if (substituted.Contains("=="))
+        return false;
+    }
+
+    private static bool EvaluateAndExpression(string expr)
+    {
+        foreach (var andSegment in SplitConditionExpression(expr, "&&"))
         {
-            var parts = substituted.Split(EqualsOperator, StringSplitOptions.TrimEntries);
+            if (!EvaluateConditionAtom(andSegment.Trim()))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool EvaluateConditionAtom(string atom)
+    {
+        if (atom.StartsWith('!'))
+        {
+            return !EvaluateConditionAtom(atom[1..].Trim());
+        }
+
+        if (atom.Length >= 2 && atom[0] == '(' && atom[^1] == ')' && IsBalancedParentheses(atom))
+        {
+            return EvaluateConditionExpression(atom[1..^1].Trim());
+        }
+
+        if (TryEvaluateStringFunction(atom, out var functionResult))
+        {
+            return functionResult;
+        }
+
+        // Single boolean expression like: ${torrent.isPrivate}
+        if (!atom.Contains("==") && !atom.Contains("!=") && !atom.Contains(">=") && !atom.Contains("<=") && !atom.Contains('>') && !atom.Contains('<'))
+        {
+            return !IsFalsy(atom);
+        }
+
+        if (atom.Contains("=="))
+        {
+            var parts = atom.Split(EqualsOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2)
             {
                 return AreEqual(parts[0], parts[1]);
             }
         }
-        else if (substituted.Contains("!="))
+        else if (atom.Contains("!="))
         {
-            var parts = substituted.Split(NotEqualsOperator, StringSplitOptions.TrimEntries);
+            var parts = atom.Split(NotEqualsOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2)
             {
                 return !AreEqual(parts[0], parts[1]);
             }
         }
-        else if (substituted.Contains(">="))
+        else if (atom.Contains(">="))
         {
-            var parts = substituted.Split(GreaterThanOrEqualOperator, StringSplitOptions.TrimEntries);
+            var parts = atom.Split(GreaterThanOrEqualOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l >= r;
             }
         }
-        else if (substituted.Contains("<="))
+        else if (atom.Contains("<="))
         {
-            var parts = substituted.Split(LessThanOrEqualOperator, StringSplitOptions.TrimEntries);
+            var parts = atom.Split(LessThanOrEqualOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l <= r;
             }
         }
-        else if (substituted.Contains('>'))
+        else if (atom.Contains('>'))
         {
-            var parts = substituted.Split(GreaterThanOperator, StringSplitOptions.TrimEntries);
+            var parts = atom.Split(GreaterThanOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l > r;
             }
         }
-        else if (substituted.Contains('<'))
+        else if (atom.Contains('<'))
         {
-            var parts = substituted.Split(LessThanOperator, StringSplitOptions.TrimEntries);
+            var parts = atom.Split(LessThanOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l < r;
             }
         }
 
-        return !IsFalsy(substituted);
+        return !IsFalsy(atom);
+    }
+
+    private static List<string> SplitConditionExpression(string expr, string delimiter)
+    {
+        var parts = new List<string>();
+        var current = new StringBuilder();
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var parenDepth = 0;
+
+        for (var i = 0; i < expr.Length; i++)
+        {
+            var c = expr[i];
+            if (c == '\'' && !inDoubleQuote)
+            {
+                inSingleQuote = !inSingleQuote;
+            }
+            else if (c == '"' && !inSingleQuote)
+            {
+                inDoubleQuote = !inDoubleQuote;
+            }
+
+            if (!inSingleQuote && !inDoubleQuote)
+            {
+                if (c == '(')
+                {
+                    parenDepth++;
+                }
+                else if (c == ')' && parenDepth > 0)
+                {
+                    parenDepth--;
+                }
+                else if (parenDepth == 0 && i + delimiter.Length <= expr.Length &&
+                         string.Compare(expr, i, delimiter, 0, delimiter.Length, StringComparison.Ordinal) == 0)
+                {
+                    parts.Add(current.ToString());
+                    current.Clear();
+                    i += delimiter.Length - 1;
+                    continue;
+                }
+            }
+
+            current.Append(c);
+        }
+
+        parts.Add(current.ToString());
+        return parts;
+    }
+
+    private static bool TryEvaluateStringFunction(string atom, out bool result)
+    {
+        result = false;
+        var openParen = atom.IndexOf('(');
+        if (openParen <= 0 || !atom.TrimEnd().EndsWith(')', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var functionName = atom[..openParen].Trim();
+        if (!functionName.Equals("contains", StringComparison.OrdinalIgnoreCase) &&
+            !functionName.Equals("startsWith", StringComparison.OrdinalIgnoreCase) &&
+            !functionName.Equals("endsWith", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var inner = atom[(openParen + 1)..^1];
+        if (!TrySplitFunctionArguments(inner, out var leftRaw, out var rightRaw))
+        {
+            return false;
+        }
+
+        var left = UnquoteConditionArgument(leftRaw);
+        var right = UnquoteConditionArgument(rightRaw);
+
+        if (functionName.Equals("contains", StringComparison.OrdinalIgnoreCase))
+        {
+            result = left.Contains(right, StringComparison.OrdinalIgnoreCase);
+        }
+        else if (functionName.Equals("startsWith", StringComparison.OrdinalIgnoreCase))
+        {
+            result = left.StartsWith(right, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            result = left.EndsWith(right, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return true;
+    }
+
+    private static bool TrySplitFunctionArguments(string inner, out string left, out string right)
+    {
+        left = string.Empty;
+        right = string.Empty;
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var parenDepth = 0;
+
+        for (var i = 0; i < inner.Length; i++)
+        {
+            var c = inner[i];
+            if (c == '\'' && !inDoubleQuote)
+            {
+                inSingleQuote = !inSingleQuote;
+            }
+            else if (c == '"' && !inSingleQuote)
+            {
+                inDoubleQuote = !inDoubleQuote;
+            }
+
+            if (!inSingleQuote && !inDoubleQuote)
+            {
+                if (c == '(')
+                {
+                    parenDepth++;
+                }
+                else if (c == ')' && parenDepth > 0)
+                {
+                    parenDepth--;
+                }
+                else if (c == ',' && parenDepth == 0)
+                {
+                    left = inner[..i].Trim();
+                    right = inner[(i + 1)..].Trim();
+                    return !string.IsNullOrEmpty(left) && !string.IsNullOrEmpty(right);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsBalancedParentheses(string expr)
+    {
+        var depth = 0;
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+
+        for (var i = 0; i < expr.Length; i++)
+        {
+            var c = expr[i];
+            if (c == '\'' && !inDoubleQuote)
+            {
+                inSingleQuote = !inSingleQuote;
+                continue;
+            }
+
+            if (c == '"' && !inSingleQuote)
+            {
+                inDoubleQuote = !inDoubleQuote;
+                continue;
+            }
+
+            if (inSingleQuote || inDoubleQuote)
+            {
+                continue;
+            }
+
+            if (c == '(')
+            {
+                depth++;
+            }
+            else if (c == ')')
+            {
+                depth--;
+                if (depth < 0)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return depth == 0;
+    }
+
+    private static string UnquoteConditionArgument(string raw)
+    {
+        var trimmed = raw.Trim();
+        if (trimmed.Length >= 2 && trimmed[0] == '\'' && trimmed[^1] == '\'')
+        {
+            return trimmed[1..^1];
+        }
+
+        if (trimmed.Length >= 2 && trimmed[0] == '"' && trimmed[^1] == '"')
+        {
+            return trimmed[1..^1];
+        }
+
+        return trimmed;
     }
 
     private static bool TryParseNumber(string raw, out double number)
