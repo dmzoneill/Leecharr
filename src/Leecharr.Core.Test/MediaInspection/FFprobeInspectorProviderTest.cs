@@ -659,4 +659,64 @@ sleep 300
         info.Should().NotBeNull();
         info!.DurationSeconds.Should().Be(1800.0);
     }
+
+    [Test]
+    public void ParseFFprobeJson_WhenCoverArtVideoStreamFirst_UsesFeatureVideoCodec()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""7200.0""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""mjpeg"",
+      ""width"": 800,
+      ""height"": 600,
+      ""disposition"": { ""attached_pic"": 1 }
+    },
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""hevc"",
+      ""width"": 3840,
+      ""height"": 2160
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "Movie.2160p.UHD.mkv");
+
+        info.Should().NotBeNull();
+        info!.VideoCodec.Should().Be("HEVC / H.265");
+    }
+
+    [Test]
+    public void ParseFFprobeJson_WhenPngCoverArtBeforeH264_UsesH264VideoCodec()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""mp4"",
+    ""duration"": ""5400.0""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""png"",
+      ""disposition"": { ""attached_pic"": 1 }
+    },
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": 1920,
+      ""height"": 1080
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mp4");
+
+        info.Should().NotBeNull();
+        info!.VideoCodec.Should().Be("AVC / H.264");
+    }
 }

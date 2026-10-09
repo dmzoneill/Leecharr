@@ -235,7 +235,10 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
                     if (string.Equals(codecType, "video", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (string.IsNullOrEmpty(info.VideoCodec) && stream.TryGetProperty("codec_name", out var vCodec) && vCodec.ValueKind == JsonValueKind.String)
+                        if (!IsAttachedPictureStream(stream) &&
+                            string.IsNullOrEmpty(info.VideoCodec) &&
+                            stream.TryGetProperty("codec_name", out var vCodec) &&
+                            vCodec.ValueKind == JsonValueKind.String)
                         {
                             var vc = vCodec.GetString() ?? string.Empty;
                             info.VideoCodec = vc.ToUpperInvariant() switch
@@ -730,6 +733,24 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         }
 
         return false;
+    }
+
+    private static bool IsAttachedPictureStream(JsonElement stream)
+    {
+        if (!stream.TryGetProperty("disposition", out var disposition) ||
+            disposition.ValueKind != JsonValueKind.Object ||
+            !disposition.TryGetProperty("attached_pic", out var attachedPic))
+        {
+            return false;
+        }
+
+        return attachedPic.ValueKind switch
+        {
+            JsonValueKind.Number when attachedPic.TryGetInt32(out var flag) => flag != 0,
+            JsonValueKind.True => true,
+            JsonValueKind.String => int.TryParse(attachedPic.GetString(), out var parsed) && parsed != 0,
+            _ => false,
+        };
     }
 
     private static bool HasFormatToken(string[] tokens, string token)
