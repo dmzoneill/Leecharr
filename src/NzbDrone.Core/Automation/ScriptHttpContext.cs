@@ -21,6 +21,7 @@ public class ScriptHttpContext : IDisposable
     private readonly bool _disposeClient;
     private HttpClient? _insecureClient;
     private bool _disposed;
+    private int _pendingOperations;
 
     public ScriptHttpContext()
         : this(null, null, false)
@@ -163,11 +164,26 @@ public class ScriptHttpContext : IDisposable
         return this.SendAsync(HttpMethod.Delete, url, null, options, cancellationToken);
     }
 
+    public void WaitForPendingOperations(TimeSpan maxWait)
+    {
+        if (maxWait <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        var deadline = Environment.TickCount64 + (long)maxWait.TotalMilliseconds;
+        while (Volatile.Read(ref this._pendingOperations) > 0 && Environment.TickCount64 < deadline)
+        {
+            Thread.Sleep(10);
+        }
+    }
+
     public void Dispose()
     {
         if (!this._disposed)
         {
             this._disposed = true;
+            this.WaitForPendingOperations(TimeSpan.FromSeconds(60));
             if (this._disposeClient)
             {
                 this._client.Dispose();
@@ -178,6 +194,24 @@ public class ScriptHttpContext : IDisposable
     }
 
     private async Task<Dictionary<string, object?>> SendAsync(
+        HttpMethod method,
+        string url,
+        object? body,
+        IDictionary<string, object>? options,
+        CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref this._pendingOperations);
+        try
+        {
+            return await this.SendAsyncCore(method, url, body, options, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref this._pendingOperations);
+        }
+    }
+
+    private async Task<Dictionary<string, object?>> SendAsyncCore(
         HttpMethod method,
         string url,
         object? body,
