@@ -729,7 +729,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return null;
         }
 
-        var canonicalBase = Path.GetFullPath(baseDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var canonicalBaseDir = Path.GetFullPath(baseDir);
+        var canonicalBase = canonicalBaseDir.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         var cleanRelPath = relativeFilePath.Replace('\\', '/').TrimStart('/');
 
         var candidateBases = new List<string> { baseDir };
@@ -754,8 +755,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             foreach (var cand in candidates)
             {
                 var full = Path.GetFullPath(cand);
-                var isSafe = full.StartsWith(canonicalBase, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(full, Path.GetFullPath(baseDir), StringComparison.OrdinalIgnoreCase);
+                var isSafe = full.StartsWith(canonicalBase, StringComparison.Ordinal) ||
+                    string.Equals(full, canonicalBaseDir, StringComparison.Ordinal);
 
                 if (isSafe && global::System.IO.File.Exists(full))
                 {
