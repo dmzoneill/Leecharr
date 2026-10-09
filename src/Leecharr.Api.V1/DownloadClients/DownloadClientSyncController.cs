@@ -51,7 +51,7 @@ public class DownloadClientSyncController : Controller
             var syncedCount = 0;
             var totalDiscovered = 0;
             var failedClients = 0;
-
+            var failedTorrents = 0;
             foreach (var client in clients)
             {
                 try
@@ -89,6 +89,11 @@ public class DownloadClientSyncController : Controller
                                 syncedCount++;
                             }
                         }
+                        catch (Exception ex)
+                        {
+                            failedTorrents++;
+                            this.logger.Warn(ex, "Failed to import torrent {0} from download client {1}", item.InfoHash, client.Name);
+                        }
                         finally
                         {
                             InFlightInfoHashes.TryRemove(item.InfoHash, out _);
@@ -108,7 +113,8 @@ public class DownloadClientSyncController : Controller
                 SyncedCount = syncedCount,
                 TotalCount = totalDiscovered,
                 Added = syncedCount,
-                Skipped = Math.Max(0, totalDiscovered - syncedCount),
+                Skipped = Math.Max(0, totalDiscovered - syncedCount - failedTorrents),
+                FailedCount = failedTorrents,
                 Failed = failedClients,
                 Message = $"Download client sync completed successfully ({syncedCount} torrent(s) imported).",
             });
