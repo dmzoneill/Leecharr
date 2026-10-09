@@ -377,14 +377,21 @@ public class StoragePathService : IStoragePathService
                 {
                     foreach (var file in files)
                     {
-                        foreach (var ext in candidateExtensions)
+                        try
                         {
-                            if (file.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                            foreach (var ext in candidateExtensions)
                             {
-                                var cleanPath = file[..^ext.Length];
-                                this.diskProvider.MoveFile(file, cleanPath, overwrite: true);
-                                break;
+                                if (file.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var cleanPath = file[..^ext.Length];
+                                    this.diskProvider.MoveFile(file, cleanPath, overwrite: true);
+                                    break;
+                                }
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Warn(ex, "Failed to strip incomplete extension from file {0}", file);
                         }
                     }
                 }

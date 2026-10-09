@@ -230,7 +230,26 @@ public class DiskProvider : IDiskProvider
 
     public IEnumerable<string> GetFiles(string path, bool recursive)
     {
-        return Directory.GetFiles(path, "*", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+        if (!recursive)
+        {
+            return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly);
+        }
+
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        };
+
+        try
+        {
+            return Directory.EnumerateFiles(path, "*", options).ToArray();
+        }
+        catch (Exception ex)
+        {
+            Logger.Debug(ex, "Failed to enumerate files under {Path}", path);
+            return Array.Empty<string>();
+        }
     }
 
     public long GetFolderSize(string path)
