@@ -72,11 +72,6 @@ public static class TorrentResourceMapper
                 progress = task.Progress;
             }
 
-            if (task.DownloadedBytes > 0)
-            {
-                downloaded = task.DownloadedBytes;
-            }
-
             if (totalSize <= 0 && task.TotalBytes > 0)
             {
                 totalSize = task.TotalBytes;
