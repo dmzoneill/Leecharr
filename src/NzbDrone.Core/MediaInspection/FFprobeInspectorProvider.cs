@@ -454,6 +454,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
                         var ac = MapFfprobeAudioCodecFromStream(stream);
 
+                        var channelCount = 0;
                         string channelsStr = null;
                         if (stream.TryGetProperty("channels", out var chanProp))
                         {
@@ -469,6 +470,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
                             if (channels > 0)
                             {
+                                channelCount = channels;
                                 channelsStr = channels switch
                                 {
                                     1 => "1.0",
@@ -482,8 +484,11 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
                         var incomingScore = GetAudioCodecScore(ac);
                         var currentScore = GetAudioCodecScore(info.AudioCodec);
+                        var currentChannelCount = GetAudioChannelCount(info.AudioChannels);
 
-                        if (string.IsNullOrEmpty(info.AudioCodec) || incomingScore > currentScore)
+                        if (string.IsNullOrEmpty(info.AudioCodec) ||
+                            incomingScore > currentScore ||
+                            (incomingScore == currentScore && channelCount > currentChannelCount))
                         {
                             info.AudioChannels = null;
                             info.AudioSampleRate = 0;
@@ -930,6 +935,32 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         }
 
         return false;
+    }
+
+    internal static int GetAudioChannelCount(string channelsLabel)
+    {
+        if (string.IsNullOrWhiteSpace(channelsLabel))
+        {
+            return 0;
+        }
+
+        if (channelsLabel == "5.1")
+        {
+            return 6;
+        }
+
+        if (channelsLabel == "7.1")
+        {
+            return 8;
+        }
+
+        if (channelsLabel.EndsWith(".0", StringComparison.Ordinal) &&
+            int.TryParse(channelsLabel[..^2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var count))
+        {
+            return count;
+        }
+
+        return 0;
     }
 
     private static int GetAudioCodecScore(string codec)
