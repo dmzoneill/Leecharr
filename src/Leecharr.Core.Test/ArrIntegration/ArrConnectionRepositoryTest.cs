@@ -97,6 +97,97 @@ public class ArrConnectionRepositoryTest
     }
 
     [Test]
+    public void GetByAffinity_WithStoredCategoryColumn_PrefersExactCategoryOverShorterName()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Radarr",
+            ArrType = "Radarr",
+            Implementation = "Radarr",
+            Url = "http://radarr:7878",
+            ApiKey = "key1",
+            Enable = true,
+            Priority = 1,
+        });
+
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Radarr 4K",
+            Category = "radarr-4k",
+            ArrType = "Radarr",
+            Implementation = "Radarr",
+            Url = "http://radarr-4k:7878",
+            ApiKey = "key2",
+            Enable = true,
+            Priority = 2,
+        });
+
+        var match = this.repository.GetByAffinity("Radarr", category: "radarr-4k");
+        match.Should().NotBeNull();
+        match.Name.Should().Be("Radarr 4K");
+    }
+
+    [Test]
+    public void GetByAffinity_WithBlankName_DoesNotMatchEveryCategory()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = string.Empty,
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://blank:8989",
+            ApiKey = "key1",
+            Enable = true,
+            Priority = 1,
+        });
+
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Sonarr TV",
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://sonarr-tv:8989",
+            ApiKey = "key2",
+            Enable = true,
+            Priority = 2,
+        });
+
+        var match = this.repository.GetByAffinity("Sonarr", category: "tv");
+        match.Should().NotBeNull();
+        match.Name.Should().Be("Sonarr TV");
+    }
+
+    [Test]
+    public void GetByAffinity_HdtvCategory_DoesNotPreferSonarrFromSubstringTvKeyword()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Primary Radarr",
+            ArrType = "Radarr",
+            Implementation = "Radarr",
+            Url = "http://radarr:7878",
+            ApiKey = "key1",
+            Enable = true,
+            Priority = 1,
+        });
+
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Primary Sonarr",
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "key2",
+            Enable = true,
+            Priority = 2,
+        });
+
+        var match = this.repository.GetByAffinity(category: "hdtv");
+        match.Should().NotBeNull();
+        match.Name.Should().Be("Primary Radarr");
+    }
+
+    [Test]
     public void GetByAffinity_WithTagMatch_ReturnsMatchingConnection()
     {
         this.repository.Insert(new ArrConnectionDefinition
