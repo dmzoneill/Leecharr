@@ -1111,6 +1111,30 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public async Task Announce_WhenCalled_DoesNotOptimisticallyUpdateTrackerEntries()
+    {
+        var tracker = new TrackerEntry
+        {
+            Id = 5,
+            TorrentId = 42,
+            Url = "http://tracker.example.com/announce",
+            Status = 1,
+            TotalAnnounces = 3,
+            SuccessfulAnnounces = 2,
+            LastAnnounce = DateTime.UtcNow.AddHours(-1),
+        };
+        this.trackerEntryRepository.GetByTorrentId(42).Returns(new List<TrackerEntry> { tracker });
+
+        var response = await this.controller.Announce(42);
+
+        response.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).ForceAnnounceAsync(42);
+        this.trackerEntryRepository.DidNotReceive().Update(Arg.Any<TrackerEntry>());
+        tracker.TotalAnnounces.Should().Be(3);
+        tracker.LastAnnounce.Should().NotBeNull();
+    }
+
+    [Test]
     public async Task AnnounceTracker_WhenCalled_DispatchesToTorrentServiceAndLogsEvent()
     {
         var torrent = new Torrent
@@ -1121,11 +1145,22 @@ public class TorrentControllerTest
         };
 
         this.torrentService.Get(99).Returns(torrent);
+        var tracker = new TrackerEntry
+        {
+            Id = 1,
+            TorrentId = 99,
+            Url = "http://tracker.example.com/announce",
+            TotalAnnounces = 2,
+            LastAnnounce = DateTime.UtcNow.AddHours(-2),
+        };
+        this.trackerEntryRepository.Get(1).Returns(tracker);
 
         var response = await this.controller.AnnounceTracker(99, 1);
 
         response.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).ForceAnnounceAsync(99);
+        this.trackerEntryRepository.DidNotReceive().Update(Arg.Any<TrackerEntry>());
+        tracker.TotalAnnounces.Should().Be(2);
         this.torrentLogService.Received(1).Log(99, "Info", "Tracker", Arg.Is<string>(s => s.Contains("Manual tracker update requested")));
     }
 

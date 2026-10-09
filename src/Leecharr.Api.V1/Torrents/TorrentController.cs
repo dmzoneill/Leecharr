@@ -1178,17 +1178,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpPost("{id:int}/trackers/{trackerId:int}/announce")]
     public async Task<ActionResult> AnnounceTracker(int id, int trackerId)
     {
-        var tracker = this.trackerEntryRepository?.Get(trackerId);
-        if (tracker != null)
-        {
-            var now = DateTime.UtcNow;
-            tracker.Status = 0;
-            tracker.LastAnnounce = now;
-            tracker.NextAnnounce = now.AddSeconds(tracker.AnnounceInterval > 0 ? tracker.AnnounceInterval : 1800);
-            tracker.TotalAnnounces++;
-            this.trackerEntryRepository.Update(tracker);
-        }
-
         this.torrentLogService?.Log(id, "Info", "Tracker", "Manual tracker update requested (announcing to all active trackers...)");
         await this.torrentService.ForceAnnounceAsync(id);
         return this.Ok(new { success = true, message = "Announce triggered successfully" });
@@ -1863,20 +1852,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpPost("{id:int}/announce")]
     public async Task<ActionResult> Announce(int id)
     {
-        var trackers = this.trackerEntryRepository?.GetByTorrentId(id).ToList();
-        if (trackers != null && trackers.Count > 0)
-        {
-            var now = DateTime.UtcNow;
-            foreach (var tracker in trackers)
-            {
-                tracker.Status = 0;
-                tracker.LastAnnounce = now;
-                tracker.NextAnnounce = now.AddSeconds(tracker.AnnounceInterval > 0 ? tracker.AnnounceInterval : 1800);
-                tracker.TotalAnnounces++;
-                this.trackerEntryRepository.Update(tracker);
-            }
-        }
-
         await this.torrentService.ForceAnnounceAsync(id);
         return this.Ok(new { success = true, message = "Announce triggered successfully" });
     }

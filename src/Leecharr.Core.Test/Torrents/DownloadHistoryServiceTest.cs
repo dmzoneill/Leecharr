@@ -742,7 +742,12 @@ public class DownloadHistoryServiceTest
             list.Count == 3 &&
             list[0].Url == trackers[0] &&
             list[1].Url == trackers[1] &&
-            list[2].Url == trackers[2]));
+            list[2].Url == trackers[2] &&
+            list.All(t =>
+                t.Status == 0 &&
+                t.TotalAnnounces == 0 &&
+                t.SuccessfulAnnounces == 0 &&
+                t.LastAnnounce == null)));
 
         // Verify all trackers passed to download engine
         await this.downloadEngine.Received(1).AddTrackersAsync(77, Arg.Is<List<string>>(list =>

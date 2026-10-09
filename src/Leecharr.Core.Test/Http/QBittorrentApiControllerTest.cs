@@ -3741,4 +3741,46 @@ public class QBittorrentApiControllerTest
         objResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
         objResult.Value.Should().Be("Tracker not found.");
     }
+
+    [TestCase(false, 2, null, 4)]
+    [TestCase(false, 2, "timeout", 4)]
+    [TestCase(false, 0, null, 1)]
+    [TestCase(false, 1, null, 2)]
+    [TestCase(true, 1, null, 0)]
+    public void MapToQBitTrackerStatus_MapsLeecharrStateToQbWebApiEnum(bool enabled, int status, string errorMessage, int expectedQbStatus)
+    {
+        var tracker = new TrackerEntry
+        {
+            Enabled = enabled,
+            Status = status,
+            ErrorMessage = errorMessage,
+        };
+
+        QBittorrentApiController.MapToQBitTrackerStatus(tracker).Should().Be(expectedQbStatus);
+    }
+
+    [Test]
+    public void GetTrackers_WhenTrackerErrored_ReturnsQbStatusFour()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "abc123" };
+        this.torrentService.GetByInfoHash("abc123").Returns(torrent);
+        this.trackerEntryRepository.GetByTorrentId(1).Returns(new List<TrackerEntry>
+        {
+            new()
+            {
+                Url = "http://tracker.example.com/announce",
+                Tier = 0,
+                Enabled = true,
+                Status = 2,
+                ErrorMessage = "Connection refused",
+            },
+        });
+
+        var result = this.controller.GetTrackers("abc123");
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var trackers = ok.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        trackers.Should().ContainSingle();
+        trackers[0]["status"].Should().Be(4);
+        trackers[0]["msg"].Should().Be("Connection refused");
+    }
 }

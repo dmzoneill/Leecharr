@@ -738,12 +738,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                                 Url = url.Trim(),
                                 Tier = tier,
                                 Enabled = true,
-                                Status = 1,
+                                Status = 0,
                                 AnnounceInterval = defaultAnnounceInterval,
-                                LastAnnounce = added.DateAdded,
+                                LastAnnounce = null,
                                 NextAnnounce = added.DateAdded.AddSeconds(defaultAnnounceInterval),
-                                TotalAnnounces = 1,
-                                SuccessfulAnnounces = 1,
+                                TotalAnnounces = 0,
+                                SuccessfulAnnounces = 0,
                             });
                         }
                     }
@@ -764,12 +764,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                         Url = url.Trim(),
                         Tier = 0,
                         Enabled = true,
-                        Status = 1,
+                        Status = 0,
                         AnnounceInterval = defaultAnnounceInterval,
-                        LastAnnounce = added.DateAdded,
+                        LastAnnounce = null,
                         NextAnnounce = added.DateAdded.AddSeconds(defaultAnnounceInterval),
-                        TotalAnnounces = 1,
-                        SuccessfulAnnounces = 1,
+                        TotalAnnounces = 0,
+                        SuccessfulAnnounces = 0,
                     }).ToList();
 
                 this.trackerEntryRepository.InsertMany(trackerEntries);
@@ -782,12 +782,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     Url = torrent.TrackerUrl.Trim(),
                     Tier = 0,
                     Enabled = true,
-                    Status = 1,
+                    Status = 0,
                     AnnounceInterval = defaultAnnounceInterval,
-                    LastAnnounce = added.DateAdded,
+                    LastAnnounce = null,
                     NextAnnounce = added.DateAdded.AddSeconds(defaultAnnounceInterval),
-                    TotalAnnounces = 1,
-                    SuccessfulAnnounces = 1,
+                    TotalAnnounces = 0,
+                    SuccessfulAnnounces = 0,
                 });
             }
             else if (!string.IsNullOrWhiteSpace(entry.PrimaryTracker))
@@ -798,12 +798,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     Url = entry.PrimaryTracker.Trim(),
                     Tier = 0,
                     Enabled = true,
-                    Status = 1,
+                    Status = 0,
                     AnnounceInterval = defaultAnnounceInterval,
-                    LastAnnounce = added.DateAdded,
+                    LastAnnounce = null,
                     NextAnnounce = added.DateAdded.AddSeconds(defaultAnnounceInterval),
-                    TotalAnnounces = 1,
-                    SuccessfulAnnounces = 1,
+                    TotalAnnounces = 0,
+                    SuccessfulAnnounces = 0,
                 });
             }
         }
