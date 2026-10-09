@@ -12,8 +12,10 @@
     "1841": {"agent": "mouse", "session": "session_mouse_1791547596480_8cb419c277e4e97b", "area": "MediaInspection"},
     "1819": {"agent": "horse", "session": "session_horse_1791547595123_5a26f5b962b0ba69", "area": "Automation"}
   },
-  "queued_issues": [],
-  "schedule_poll_id": "sched_c09b34f1",
+  "queued_issues": [177, 125, 1849, 257, 1818],
+  "schedule_poll_id": "sched_3b105963",
+  "last_resync": "2026-10-09T12:08Z",
+  "notes": "run_plan failed on default model not_found; manual spawn on composer-2.5-fast OK. Avoid second run_plan while plan Active.",
   "rules": {
     "no_local_test_build": true,
     "lint_format_ok": true,
