@@ -145,7 +145,7 @@ public class ContainerLifecycleTest
     public void RegisterSingletonWithInterfaces_AfterAppendNotKeyedMapping_KeepsExistingEventHandlers()
     {
         var container = new Container(rules => rules.WithNzbDroneRules());
-        container.Register(typeof(HandlerA), Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Keep);
+        container.Register<HandlerA>(Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Keep);
         container.RegisterMapping(typeof(IHandle<EventOne>), typeof(HandlerA), ifAlreadyRegistered: IfAlreadyRegistered.AppendNotKeyed);
 
         container.RegisterSingletonWithInterfaces<HandlerB>();
