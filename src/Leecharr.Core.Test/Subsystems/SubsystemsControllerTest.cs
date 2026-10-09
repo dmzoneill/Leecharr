@@ -526,6 +526,49 @@ public class SubsystemsControllerTest
         this.signalRBroadcaster.Received(1).BroadcastMessage(Arg.Any<SignalRMessage>());
     }
 
+    [TestCase("geoip")]
+    [TestCase("blocklist")]
+    [TestCase("ai")]
+    public async Task SwitchProvider_BoolManagerFailure_SetsErrorAndIgnoresPostAwaitActiveProvider(string subsystemId)
+    {
+        const string previousProvider = "provider-a";
+        const string requestedProvider = "provider-b";
+        const string otherActiveProvider = "provider-c";
+
+        switch (subsystemId)
+        {
+            case "geoip":
+                this.geoIpManager.ActiveProviderId.Returns(previousProvider, otherActiveProvider);
+                this.geoIpManager.SwitchProviderAsync(requestedProvider).Returns(false);
+                break;
+            case "blocklist":
+                this.blocklistManager.ActiveProviderId.Returns(previousProvider, otherActiveProvider);
+                this.blocklistManager.SwitchProviderAsync(requestedProvider).Returns(false);
+                break;
+            case "ai":
+                this.aiManager.ActiveProviderId.Returns(previousProvider, otherActiveProvider);
+                this.aiManager.SwitchProviderAsync(requestedProvider).Returns(false);
+                break;
+        }
+
+        var result = await this.controller.SwitchProvider(subsystemId, new SwitchSubsystemProviderRequest
+        {
+            ProviderId = requestedProvider,
+        });
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var switchResult = okResult!.Value as SwitchSubsystemProviderResult;
+        switchResult!.Success.Should().BeFalse();
+        switchResult.SubsystemId.Should().Be(subsystemId);
+        switchResult.PreviousProvider.Should().Be(previousProvider);
+        switchResult.ActiveProvider.Should().Be(previousProvider);
+        switchResult.Error.Should().Be(switchResult.Message);
+        switchResult.Error.Should().Contain(requestedProvider);
+
+        this.signalRBroadcaster.DidNotReceive().BroadcastMessage(Arg.Any<SignalRMessage>());
+    }
+
     [Test]
     public async Task SwitchProvider_NullOrEmptyProviderId_ReturnsBadRequest()
     {
