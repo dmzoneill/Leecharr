@@ -849,19 +849,7 @@ public class ConfigService : IConfigService
     public int HistoryRetentionDays => this.GetValueInt("HistoryRetentionDays", 0);
 
     // Storage & Disk
-    public string DownloadDir
-    {
-        get
-        {
-            var val = this.GetValue("DownloadDir", string.Empty);
-            if (string.IsNullOrWhiteSpace(val) && Directory.Exists("/downloads"))
-            {
-                return "/downloads";
-            }
-
-            return val;
-        }
-    }
+    public string DownloadDir => this.GetValue("DownloadDir", string.Empty);
 
     public string IncompleteDownloadDir
     {

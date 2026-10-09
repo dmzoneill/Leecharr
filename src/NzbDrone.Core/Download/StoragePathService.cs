@@ -60,17 +60,10 @@ public class StoragePathService : IStoragePathService
         var configured = this.configService.IncompleteDownloadDir;
         if (string.IsNullOrWhiteSpace(configured))
         {
-            if (this.diskProvider.FolderExists("/downloads"))
-            {
-                configured = "/downloads/incomplete";
-            }
-            else
-            {
-                var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
-                    ? this.appFolderInfo.AppDataFolder
-                    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
-                configured = Path.Combine(appData, "downloads", "incomplete");
-            }
+            var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                ? this.appFolderInfo.AppDataFolder
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
+            configured = Path.Combine(appData, "downloads", "incomplete");
         }
 
         if (!this.diskProvider.FolderExists(configured))
@@ -104,17 +97,10 @@ public class StoragePathService : IStoragePathService
         var baseDir = this.configService.DownloadDir;
         if (string.IsNullOrWhiteSpace(baseDir))
         {
-            if (this.diskProvider.FolderExists("/downloads"))
-            {
-                baseDir = "/downloads";
-            }
-            else
-            {
-                var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
-                    ? this.appFolderInfo.AppDataFolder
-                    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
-                baseDir = Path.Combine(appData, "downloads");
-            }
+            var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                ? this.appFolderInfo.AppDataFolder
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
+            baseDir = Path.Combine(appData, "downloads");
         }
 
         var target = baseDir;
