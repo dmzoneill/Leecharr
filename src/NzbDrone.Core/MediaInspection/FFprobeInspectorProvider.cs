@@ -501,6 +501,10 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
                         if (string.IsNullOrEmpty(info.AudioCodec) || incomingScore > currentScore)
                         {
+                            info.AudioChannels = null;
+                            info.AudioSampleRate = 0;
+                            info.AudioBitDepth = 0;
+
                             if (!string.IsNullOrWhiteSpace(ac))
                             {
                                 info.AudioCodec = ac;
