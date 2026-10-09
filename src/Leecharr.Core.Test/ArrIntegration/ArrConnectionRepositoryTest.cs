@@ -248,6 +248,85 @@ public class ArrConnectionRepositoryTest
     }
 
     [Test]
+    public void GetByType_WhenOnlyTypeGiven_ReturnsTopPriority()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Primary Sonarr",
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://sonarr1:8989",
+            ApiKey = "key1",
+            Enable = true,
+            Priority = 1,
+        });
+
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Secondary Sonarr",
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://sonarr2:8989",
+            ApiKey = "key2",
+            Enable = true,
+            Priority = 2,
+        });
+
+        var match = this.repository.GetByType("Sonarr");
+        match.Should().NotBeNull();
+        match.Name.Should().Be("Primary Sonarr");
+    }
+
+    [Test]
+    public void GetByType_IgnoresDisabledConnection()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Disabled Sonarr",
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://disabled:8989",
+            ApiKey = "key1",
+            Enable = false,
+            Priority = 0,
+        });
+
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Enabled Sonarr",
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://enabled:8989",
+            ApiKey = "key2",
+            Enable = true,
+            Priority = 1,
+        });
+
+        var match = this.repository.GetByType("Sonarr");
+        match.Should().NotBeNull();
+        match.Name.Should().Be("Enabled Sonarr");
+    }
+
+    [Test]
+    public void GetByType_MatchesArrTypeCaseInsensitively()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "key1",
+            Enable = true,
+            Priority = 1,
+        });
+
+        var match = this.repository.GetByType("sonarr");
+        match.Should().NotBeNull();
+        match.Name.Should().Be("Sonarr");
+    }
+
+    [Test]
     public void GetByAffinity_WhenNoConnections_ReturnsNull()
     {
         var match = this.repository.GetByAffinity("Sonarr", "tv", "hd");
