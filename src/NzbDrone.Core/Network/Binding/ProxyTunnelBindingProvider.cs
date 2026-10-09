@@ -549,20 +549,20 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             return false;
         }
 
-        var cleanHost = host.Trim('[', ']');
+        var cleanHost = host.Trim('[', ']').TrimEnd('.');
         if (IsLinkLocalOrMetadata(cleanHost))
         {
             return true;
         }
 
-        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-            host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-            host.EndsWith(".lan", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(cleanHost, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            cleanHost.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+            cleanHost.EndsWith(".lan", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        if (TryParseHostAddress(host, out var ip))
+        if (TryParseHostAddress(cleanHost, out var ip))
         {
             if (IPAddress.IsLoopback(ip))
             {

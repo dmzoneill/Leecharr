@@ -539,6 +539,12 @@ public class ProxyTunnelBindingProviderTest
     }
 
     [Test]
+    public void IsPrivateOrLoopback_WhenLoopbackIpv4HasTrailingDot_ReturnsTrue()
+    {
+        ProxyTunnelBindingProvider.IsPrivateOrLoopback("127.0.0.1.").Should().BeTrue();
+    }
+
+    [Test]
     public async Task ConnectTunnelAsync_WhenProxyConfiguredAndTargetIsUnspecifiedIpv4_AndForceProxyIsTrue_ThrowsSocketExceptionAccessDenied()
     {
         var config = Substitute.For<IConfigService>();
