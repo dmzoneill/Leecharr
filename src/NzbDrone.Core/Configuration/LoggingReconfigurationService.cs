@@ -37,7 +37,15 @@ public class LoggingReconfigurationService :
             consoleLevel = "Info";
         }
 
-        var fileLevel = _configService.LogToFile ? (_configService.FileLogLevel ?? "Info") : "Off";
+        var fileLevel = "Off";
+        if (_configService.LogToFile)
+        {
+            fileLevel = _configService.FileLogLevel;
+            if (string.IsNullOrWhiteSpace(fileLevel))
+            {
+                fileLevel = "Info";
+            }
+        }
 
         NzbDroneLogger.Reconfigure(consoleLevel, fileLevel);
         _logger.Debug("Logging reconfigured: consoleLevel={0}, fileLevel={1}", consoleLevel, fileLevel);
