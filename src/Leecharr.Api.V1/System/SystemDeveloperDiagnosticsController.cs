@@ -18,15 +18,14 @@ public class SystemDeveloperDiagnosticsController : Controller
     }
 
     [HttpGet("threads")]
-    public ActionResult GetThreads()
+    public ActionResult<IReadOnlyList<ThreadDiagnosticItem>> GetThreads()
     {
         if (this.diagnosticsService == null)
         {
-            return this.Content("[]", "application/json");
+            return this.Ok(Array.Empty<ThreadDiagnosticItem>());
         }
 
-        var json = global::System.Text.Json.JsonSerializer.Serialize(this.diagnosticsService.GetThreads());
-        return this.Content(json, "application/json");
+        return this.Ok(this.diagnosticsService.GetThreads());
     }
 
     [HttpGet("memory")]
