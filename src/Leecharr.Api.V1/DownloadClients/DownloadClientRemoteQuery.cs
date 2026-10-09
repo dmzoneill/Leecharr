@@ -98,10 +98,6 @@ public static class DownloadClientRemoteQuery
                             var save = el.TryGetProperty("save_path", out var sp) ? sp.GetString() : string.Empty;
                             var cat = el.TryGetProperty("category", out var c) ? c.GetString() : string.Empty;
                             var tags = el.TryGetProperty("tags", out var tg) ? tg.GetString() : string.Empty;
-                            if (string.IsNullOrWhiteSpace(cat) && !string.IsNullOrWhiteSpace(tags))
-                            {
-                                cat = tags;
-                            }
 
                             items.Add(new DownloadClientRemoteItem
                             {
