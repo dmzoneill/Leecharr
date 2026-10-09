@@ -448,14 +448,16 @@ public class FileNameBuilder : IFileNameBuilder
         }
 
         var epPrefix = isLower ? "e" : "E";
+        var firstEpisode = episodeNumbers.Min();
+        var lastEpisode = episodeNumbers.Max();
 
         return style switch
         {
             MultiEpisodeStyle.Extend =>
-                $"{episodeNumbers.First().ToString(format)}-{epPrefix}{episodeNumbers.Last().ToString(format)}",
+                $"{firstEpisode.ToString(format)}-{epPrefix}{lastEpisode.ToString(format)}",
 
             MultiEpisodeStyle.Range =>
-                $"{episodeNumbers.First().ToString(format)}-{episodeNumbers.Last().ToString(format)}",
+                $"{firstEpisode.ToString(format)}-{lastEpisode.ToString(format)}",
 
             MultiEpisodeStyle.HyphenatedNumbers =>
                 string.Join(string.Empty, episodeNumbers.Select((ep, idx) =>
@@ -465,7 +467,7 @@ public class FileNameBuilder : IFileNameBuilder
                 string.Join(string.Empty, episodeNumbers.Select((ep, idx) =>
                     idx == 0 ? ep.ToString(format) : $".{epPrefix}{ep.ToString(format)}")),
 
-            _ => $"{episodeNumbers.First().ToString(format)}-{epPrefix}{episodeNumbers.Last().ToString(format)}",
+            _ => $"{firstEpisode.ToString(format)}-{epPrefix}{lastEpisode.ToString(format)}",
         };
     }
 
@@ -484,10 +486,13 @@ public class FileNameBuilder : IFileNameBuilder
             return absoluteNumbers[0].ToString(format);
         }
 
+        var firstAbsolute = absoluteNumbers.Min();
+        var lastAbsolute = absoluteNumbers.Max();
+
         return style switch
         {
             MultiEpisodeStyle.Extend or MultiEpisodeStyle.Range =>
-                $"{absoluteNumbers.First().ToString(format)}-{absoluteNumbers.Last().ToString(format)}",
+                $"{firstAbsolute.ToString(format)}-{lastAbsolute.ToString(format)}",
 
             MultiEpisodeStyle.HyphenatedNumbers =>
                 string.Join("-", absoluteNumbers.Select(num => num.ToString(format))),
@@ -495,7 +500,7 @@ public class FileNameBuilder : IFileNameBuilder
             MultiEpisodeStyle.Scene =>
                 string.Join(".", absoluteNumbers.Select(num => num.ToString(format))),
 
-            _ => $"{absoluteNumbers.First().ToString(format)}-{absoluteNumbers.Last().ToString(format)}",
+            _ => $"{firstAbsolute.ToString(format)}-{lastAbsolute.ToString(format)}",
         };
     }
 
