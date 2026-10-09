@@ -226,12 +226,20 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
 
     public void ClearRules()
     {
-        lock (this.rulesLock)
+        this.switchLock.Wait();
+        try
         {
-            this.loadedRawRules.Clear();
-        }
+            lock (this.rulesLock)
+            {
+                this.loadedRawRules.Clear();
+            }
 
-        Volatile.Read(ref this.activeProvider)?.ClearRules();
+            Volatile.Read(ref this.activeProvider)?.ClearRules();
+        }
+        finally
+        {
+            this.switchLock.Release();
+        }
     }
 
     public void Handle(ConfigSavedEvent message)
