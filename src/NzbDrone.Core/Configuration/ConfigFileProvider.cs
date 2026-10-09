@@ -127,8 +127,14 @@ public class ConfigFileProvider : IConfigFileProvider
 
     private void SetValue(string key, string value)
     {
-        this.config[key] = value;
-        this.SaveToFile();
+        lock (Mutex)
+        {
+            var updated = new Dictionary<string, string>(this.config, StringComparer.OrdinalIgnoreCase);
+            updated[key] = value;
+            SaveToFileCore(updated);
+            this.config[key] = value;
+        }
+
         this.eventAggregator?.PublishEvent(new ConfigFileSavedEvent());
     }
 
@@ -141,25 +147,24 @@ public class ConfigFileProvider : IConfigFileProvider
 
         lock (Mutex)
         {
+            var updated = new Dictionary<string, string>(this.config, StringComparer.OrdinalIgnoreCase);
             foreach (var (key, value) in values)
             {
                 if (value != null)
                 {
-                    var valStr = value.ToString();
-                    if (string.Equals(key, "UrlBase", StringComparison.OrdinalIgnoreCase))
-                    {
-                        valStr = valStr?.Trim().TrimEnd('/') ?? string.Empty;
-                        if (!string.IsNullOrEmpty(valStr) && !valStr.StartsWith('/'))
-                        {
-                            valStr = "/" + valStr;
-                        }
-                    }
-
-                    this.config[key] = valStr;
+                    updated[key] = FormatConfigValue(key, value);
                 }
             }
 
-            this.SaveToFile();
+            SaveToFileCore(updated);
+
+            foreach (var (key, value) in values)
+            {
+                if (value != null)
+                {
+                    this.config[key] = updated[key];
+                }
+            }
         }
 
         this.eventAggregator?.PublishEvent(new ConfigFileSavedEvent());
@@ -169,15 +174,35 @@ public class ConfigFileProvider : IConfigFileProvider
     {
         lock (Mutex)
         {
-            var configElement = new XElement(ConfigElementName);
-            foreach (var kvp in this.config)
-            {
-                configElement.Add(new XElement(kvp.Key, kvp.Value));
-            }
-
-            var xDoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), configElement);
-            xDoc.Save(this.configFile);
+            SaveToFileCore(this.config);
         }
+    }
+
+    private void SaveToFileCore(Dictionary<string, string> source)
+    {
+        var configElement = new XElement(ConfigElementName);
+        foreach (var kvp in source)
+        {
+            configElement.Add(new XElement(kvp.Key, kvp.Value));
+        }
+
+        var xDoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), configElement);
+        xDoc.Save(this.configFile);
+    }
+
+    private static string FormatConfigValue(string key, object value)
+    {
+        var valStr = value.ToString();
+        if (string.Equals(key, "UrlBase", StringComparison.OrdinalIgnoreCase))
+        {
+            valStr = valStr?.Trim().TrimEnd('/') ?? string.Empty;
+            if (!string.IsNullOrEmpty(valStr) && !valStr.StartsWith('/'))
+            {
+                valStr = "/" + valStr;
+            }
+        }
+
+        return valStr;
     }
 
     private string GetValue(string key, string defaultValue)
