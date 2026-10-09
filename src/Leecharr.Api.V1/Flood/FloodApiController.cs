@@ -441,7 +441,10 @@ public class FloodApiController : ControllerBase, IActionFilter
         return dict;
     }
 
-    public static string MapToFloodStatus(TorrentStatus status, double progress = 0.0)
+    private static bool IsFloodDownloadComplete(double progress, DateTime? dateCompleted) =>
+        progress >= 1.0 || dateCompleted.HasValue;
+
+    public static string MapToFloodStatus(TorrentStatus status, double progress = 0.0, DateTime? dateCompleted = null)
     {
         return status switch
         {
@@ -449,8 +452,8 @@ public class FloodApiController : ControllerBase, IActionFilter
             TorrentStatus.Seeding => "seeding",
             TorrentStatus.Completed => "complete",
             TorrentStatus.Checking => "checking",
-            TorrentStatus.Paused => progress >= 1.0 ? "complete" : "stopped",
-            TorrentStatus.Stopped => progress >= 1.0 ? "complete" : "stopped",
+            TorrentStatus.Paused => IsFloodDownloadComplete(progress, dateCompleted) ? "complete" : "stopped",
+            TorrentStatus.Stopped => IsFloodDownloadComplete(progress, dateCompleted) ? "complete" : "stopped",
             TorrentStatus.Error => "error",
             _ => "inactive",
         };
@@ -463,7 +466,7 @@ public class FloodApiController : ControllerBase, IActionFilter
             return "inactive";
         }
 
-        return MapToFloodStatus(torrent.Status, torrent.Progress);
+        return MapToFloodStatus(torrent.Status, torrent.Progress, torrent.DateCompleted);
     }
 
     [HttpPost]

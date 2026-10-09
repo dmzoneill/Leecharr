@@ -1799,6 +1799,73 @@ public class Aria2RpcControllerTest
         contentResult.Content.Should().Contain("1.36.0");
     }
 
+    [Test]
+    public async Task TellStatus_WhenStoppedAndIncomplete_ReturnsPaused()
+    {
+        var torrent = new Torrent
+        {
+            Id = 99,
+            Name = "Incomplete.Stopped",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+            Progress = 0.45,
+            TotalSize = 1000,
+            Downloaded = 450,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 101,
+              "method": "aria2.tellStatus",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(ok.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("result").GetProperty("status").GetString().Should().Be("paused");
+    }
+
+    [Test]
+    public async Task TellStatus_WhenStoppedAndComplete_ReturnsComplete()
+    {
+        var torrent = new Torrent
+        {
+            Id = 100,
+            Name = "Complete.Stopped",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+            Progress = 1.0,
+            TotalSize = 1000,
+            Downloaded = 1000,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 102,
+              "method": "aria2.tellStatus",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(ok.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("result").GetProperty("status").GetString().Should().Be("complete");
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);
