@@ -281,13 +281,13 @@ public class FileNameBuilder : IFileNameBuilder
 
             case "season":
                 {
-                    var fmt = !string.IsNullOrWhiteSpace(format) ? format : "0";
+                    var fmt = ResolveIntegerTokenFormat(format, "0");
                     return context.SeasonNumber.ToString(fmt);
                 }
 
             case "episode":
                 {
-                    var fmt = !string.IsNullOrWhiteSpace(format) ? format : "00";
+                    var fmt = ResolveIntegerTokenFormat(format, "00");
                     var isLower = tokenName.Equals("e", StringComparison.Ordinal) || tokenName.StartsWith("e:", StringComparison.Ordinal);
                     if (context.EpisodeNumbers == null || context.EpisodeNumbers.Count == 0)
                     {
@@ -305,7 +305,7 @@ public class FileNameBuilder : IFileNameBuilder
 
             case "absolute":
                 {
-                    var fmt = !string.IsNullOrWhiteSpace(format) ? format : "000";
+                    var fmt = ResolveIntegerTokenFormat(format, "000");
                     return FormatAbsoluteEpisode(context.AbsoluteEpisodeNumbers, fmt, config.MultiEpisodeStyle);
                 }
 
@@ -346,7 +346,7 @@ public class FileNameBuilder : IFileNameBuilder
 
             case "releaseyear":
             case "year":
-                return context.ReleaseYear?.ToString(format ?? "0000") ?? string.Empty;
+                return context.ReleaseYear?.ToString(ResolveIntegerTokenFormat(format, "0000")) ?? string.Empty;
 
             case "imdbid":
                 return context.ImdbId ?? string.Empty;
@@ -382,7 +382,7 @@ public class FileNameBuilder : IFileNameBuilder
             case "movieyear":
             case "year":
                 return context.ReleaseYear > 0
-                    ? context.ReleaseYear.ToString(format ?? "0000")
+                    ? context.ReleaseYear.ToString(ResolveIntegerTokenFormat(format, "0000"))
                     : string.Empty;
 
             case "editiontags":
@@ -668,5 +668,45 @@ public class FileNameBuilder : IFileNameBuilder
         }
 
         return sb.ToString();
+    }
+
+    private static string ResolveIntegerTokenFormat(string format, string defaultFormat)
+    {
+        if (string.IsNullOrWhiteSpace(format))
+        {
+            return defaultFormat;
+        }
+
+        if (IsValidIntegerToStringFormat(format))
+        {
+            return format;
+        }
+
+        if (format.Equals("yyyy", StringComparison.OrdinalIgnoreCase) &&
+            defaultFormat == "0000")
+        {
+            return "0000";
+        }
+
+        return defaultFormat;
+    }
+
+    private static bool IsValidIntegerToStringFormat(string format)
+    {
+        if (format.Any(c => c is '0' or '#'))
+        {
+            return true;
+        }
+
+        if (format.Length >= 1)
+        {
+            var specifier = format[0];
+            if (specifier is 'D' or 'd' or 'G' or 'g' or 'N' or 'n' or 'X' or 'x' or 'F' or 'f' or 'E' or 'e' or 'C' or 'c')
+            {
+                return format.Length == 1 || format[1..].All(char.IsDigit);
+            }
+        }
+
+        return false;
     }
 }
