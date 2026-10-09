@@ -145,7 +145,7 @@ public class YamlScriptRunner : IScriptRunner
                 var targetPath = !string.IsNullOrWhiteSpace(torrent?.SavePath) && Directory.Exists(torrent.SavePath)
                     ? torrent.SavePath
                     : AppContext.BaseDirectory;
-                var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(targetPath)) ?? "/");
+                var drive = new DriveInfo(Path.GetFullPath(targetPath));
                 diskFreeSpace = drive.AvailableFreeSpace;
                 diskTotalSpace = drive.TotalSize;
             }
@@ -153,7 +153,7 @@ public class YamlScriptRunner : IScriptRunner
             {
                 try
                 {
-                    var drive = new DriveInfo(Path.GetPathRoot(Environment.CurrentDirectory) ?? "/");
+                    var drive = new DriveInfo(Path.GetFullPath(Environment.CurrentDirectory));
                     diskFreeSpace = drive.AvailableFreeSpace;
                     diskTotalSpace = drive.TotalSize;
                 }
