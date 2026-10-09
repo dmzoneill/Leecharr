@@ -1462,6 +1462,9 @@ public class DownloadHistoryServiceTest
             InfoHash = "existingreconcilehash",
             IsPrivate = false,
             Trackers = new List<string>(),
+            Status = "Removed",
+            DateRemoved = DateTime.UtcNow.AddDays(-1),
+            RemovalReason = "Deleted from active library",
         };
 
         this.torrentRepository.All().Returns(new List<Torrent> { t1, t2, t3 });
@@ -1482,6 +1485,8 @@ public class DownloadHistoryServiceTest
 
         existingH2.TorrentId.Should().Be(702);
         existingH2.Status.Should().Be("Active");
+        existingH2.DateRemoved.Should().BeNull();
+        existingH2.RemovalReason.Should().BeNull();
         existingH2.IsPrivate.Should().BeTrue();
         existingH2.Trackers.Should().Contain("udp://recon-tracker.org:1337");
         this.historyRepository.Received(1).Update(existingH2);
