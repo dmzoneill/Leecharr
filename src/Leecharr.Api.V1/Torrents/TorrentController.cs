@@ -338,7 +338,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             res.Trackers = dbTrackers.Select(x => TrackerUrlSanitizer.Sanitize(x.Url)).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
             if (string.IsNullOrWhiteSpace(res.TrackerUrl) && res.Trackers.Count > 0)
             {
-                res.TrackerUrl = dbTrackers[0].Url;
+                res.TrackerUrl = res.Trackers[0];
             }
 
             var primary = dbTrackers[0];
