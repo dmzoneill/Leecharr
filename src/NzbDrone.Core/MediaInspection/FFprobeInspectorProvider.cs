@@ -452,23 +452,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                             continue;
                         }
 
-                        var ac = string.Empty;
-                        if (stream.TryGetProperty("codec_name", out var aCodec) && aCodec.ValueKind == JsonValueKind.String)
-                        {
-                            var rawCodec = aCodec.GetString() ?? string.Empty;
-                            ac = rawCodec.ToUpperInvariant() switch
-                            {
-                                "EAC3" => "E-AC3 / DD+",
-                                "AC3" => "AC3 / Dolby Digital",
-                                "TRUEHD" => "Dolby TrueHD",
-                                "DTS" => "DTS",
-                                "FLAC" => "FLAC",
-                                "AAC" => "AAC",
-                                "MP3" => "MP3",
-                                "OPUS" => "Opus",
-                                _ => rawCodec,
-                            };
-                        }
+                        var ac = MapFfprobeAudioCodecFromStream(stream);
 
                         string channelsStr = null;
                         if (stream.TryGetProperty("channels", out var chanProp))
@@ -860,6 +844,80 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
     private static bool IsAttachedPictureStream(JsonElement stream) => IsFfprobeDispositionSet(stream, "attached_pic");
 
     private static bool IsCommentaryAudioStream(JsonElement stream) => IsFfprobeDispositionSet(stream, "comment");
+
+    private static string MapFfprobeAudioCodecFromStream(JsonElement stream)
+    {
+        var ac = string.Empty;
+        if (stream.TryGetProperty("codec_name", out var aCodec) && aCodec.ValueKind == JsonValueKind.String)
+        {
+            var rawCodec = aCodec.GetString() ?? string.Empty;
+            ac = rawCodec.ToUpperInvariant() switch
+            {
+                "EAC3" => "E-AC3 / DD+",
+                "AC3" => "AC3 / Dolby Digital",
+                "TRUEHD" => "Dolby TrueHD",
+                "DTS" => "DTS",
+                "FLAC" => "FLAC",
+                "AAC" => "AAC",
+                "MP3" => "MP3",
+                "OPUS" => "Opus",
+                _ => rawCodec,
+            };
+        }
+
+        if (stream.TryGetProperty("profile", out var profileProp) &&
+            profileProp.ValueKind == JsonValueKind.String)
+        {
+            ac = RefineFfprobeAudioCodecFromProfile(ac, profileProp.GetString());
+        }
+
+        return ac;
+    }
+
+    internal static string RefineFfprobeAudioCodecFromProfile(string codecFromName, string profile)
+    {
+        if (string.IsNullOrWhiteSpace(profile))
+        {
+            return codecFromName ?? string.Empty;
+        }
+
+        if (profile.Contains("DTS:X", StringComparison.OrdinalIgnoreCase) ||
+            profile.Contains("DTS-HD MA + DTS:X", StringComparison.OrdinalIgnoreCase))
+        {
+            return "DTS:X";
+        }
+
+        if (profile.Contains("DTS-HD MA", StringComparison.OrdinalIgnoreCase))
+        {
+            return "DTS-HD MA";
+        }
+
+        if (profile.Contains("DTS-HD HRA", StringComparison.OrdinalIgnoreCase))
+        {
+            return "DTS-HD HRA";
+        }
+
+        if (profile.Contains("TrueHD", StringComparison.OrdinalIgnoreCase) &&
+            profile.Contains("Atmos", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Dolby TrueHD / Atmos";
+        }
+
+        if (profile.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase) &&
+            profile.Contains("Atmos", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Dolby Atmos";
+        }
+
+        if (profile.Contains("Atmos", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(codecFromName) &&
+            codecFromName.Contains("TrueHD", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Dolby TrueHD / Atmos";
+        }
+
+        return codecFromName ?? string.Empty;
+    }
 
     private static bool HasFormatToken(string[] tokens, string token)
     {
