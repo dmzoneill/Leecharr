@@ -1194,40 +1194,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var entries = this.torrentLogService?.GetLogs(id, count);
-        if (entries == null || entries.Count == 0)
-        {
-            if (this.torrentLogService != null)
-            {
-                this.torrentLogService.Log(
-                    id,
-                    "Info",
-                    "Engine",
-                    $"Torrent '{torrent.Name}' added to queue in category '{torrent.Category ?? "Default"}'",
-                    torrent.DateAdded);
-
-                if (!string.IsNullOrWhiteSpace(torrent.SavePath))
-                {
-                    this.torrentLogService.Log(
-                        id,
-                        "Info",
-                        "Storage",
-                        $"Storage allocation configured at '{torrent.SavePath}'",
-                        torrent.DateAdded.AddSeconds(1));
-                }
-
-                if (torrent.DateCompleted.HasValue)
-                {
-                    this.torrentLogService.Log(
-                        id,
-                        "Info",
-                        "Download",
-                        "Torrent download completed (100% verified)",
-                        torrent.DateCompleted.Value);
-                }
-
-                entries = this.torrentLogService.GetLogs(id, count);
-            }
-        }
 
         var resources = (entries ?? Array.Empty<TorrentEventLog>()).Select(e => new TorrentEventLogResource
         {
@@ -1238,46 +1204,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             Message = e.Message,
             Timestamp = e.Timestamp,
         }).ToList();
-
-        if (resources.Count == 0)
-        {
-            var logId = 1;
-            resources.Add(new TorrentEventLogResource
-            {
-                Id = logId++,
-                TorrentId = id,
-                Level = "Info",
-                Source = "Engine",
-                Message = $"Torrent '{torrent.Name}' added to queue in category '{torrent.Category ?? "Default"}'",
-                Timestamp = torrent.DateAdded,
-            });
-
-            if (!string.IsNullOrWhiteSpace(torrent.SavePath))
-            {
-                resources.Add(new TorrentEventLogResource
-                {
-                    Id = logId++,
-                    TorrentId = id,
-                    Level = "Info",
-                    Source = "Storage",
-                    Message = $"Storage allocation configured at '{torrent.SavePath}'",
-                    Timestamp = torrent.DateAdded.AddSeconds(1),
-                });
-            }
-
-            if (torrent.DateCompleted.HasValue)
-            {
-                resources.Add(new TorrentEventLogResource
-                {
-                    Id = logId++,
-                    TorrentId = id,
-                    Level = "Info",
-                    Source = "Download",
-                    Message = "Torrent download completed (100% verified)",
-                    Timestamp = torrent.DateCompleted.Value,
-                });
-            }
-        }
 
         return this.Ok(resources);
     }
