@@ -114,15 +114,24 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             throw new PlatformNotSupportedException("SO_BINDTODEVICE is only supported on Linux platforms.");
         }
 
+        var kernelInterfaceName = ResolveKernelInterfaceName(interfaceName);
+
         try
         {
-            var ifaceBytes = Encoding.ASCII.GetBytes(interfaceName + "\0");
+            var ifaceBytes = Encoding.ASCII.GetBytes(kernelInterfaceName + "\0");
             socket.SetRawSocketOption((int)SocketOptionLevel.Socket, SoBindToDevice, ifaceBytes);
-            this.logger.Debug("Applied SO_BINDTODEVICE kernel lock to socket for interface '{0}'", interfaceName);
+            this.logger.Debug(
+                "Applied SO_BINDTODEVICE kernel lock to socket for interface '{0}' (resolved from '{1}')",
+                kernelInterfaceName,
+                interfaceName);
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to apply SO_BINDTODEVICE on interface '{0}'", interfaceName);
+            this.logger.Warn(
+                ex,
+                "Failed to apply SO_BINDTODEVICE on interface '{0}' (resolved from '{1}')",
+                kernelInterfaceName,
+                interfaceName);
             throw;
         }
     }
@@ -143,9 +152,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
 
         try
         {
-            var nic = NetworkInterface.GetAllNetworkInterfaces()
-                .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+            var nic = FindNetworkInterface(interfaceName);
 
             if (nic == null || nic.OperationalStatus != OperationalStatus.Up)
             {
@@ -164,5 +171,17 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         {
             return false;
         }
+    }
+
+    private static NetworkInterface FindNetworkInterface(string interfaceName)
+    {
+        return NetworkInterface.GetAllNetworkInterfaces()
+            .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string ResolveKernelInterfaceName(string interfaceName)
+    {
+        return FindNetworkInterface(interfaceName)?.Name ?? interfaceName;
     }
 }
