@@ -102,18 +102,6 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
             };
         }
 
-        var current = Volatile.Read(ref this.activeProvider);
-        if (string.Equals(current.ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
-        {
-            return new MediaInspectorSwitchResult
-            {
-                Success = true,
-                PreviousProvider = current.ProviderId,
-                ActiveProvider = targetProvider.ProviderId,
-                Message = $"Media inspector provider '{targetProvider.DisplayName}' is already active.",
-            };
-        }
-
         MediaInspectorSwitchedEvent switchedEvent = null;
         MediaInspectorSwitchResult result;
         IMediaInspectorProvider previousProvider = null;
@@ -121,6 +109,17 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         await this.switchLock.WaitAsync(cancellationToken);
         try
         {
+            if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return new MediaInspectorSwitchResult
+                {
+                    Success = true,
+                    PreviousProvider = Volatile.Read(ref this.activeProvider).ProviderId,
+                    ActiveProvider = targetProvider.ProviderId,
+                    Message = $"Media inspector provider '{targetProvider.DisplayName}' is already active.",
+                };
+            }
+
             var health = await targetProvider.ProbeHealthAsync(cancellationToken);
             if (!health.IsHealthy)
             {
