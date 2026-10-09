@@ -158,16 +158,27 @@ public class NetworkStatusService : INetworkStatusService
     {
         var addresses = new List<string>();
 
+        NetworkInterface[] interfaces;
         try
         {
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (ni.OperationalStatus != OperationalStatus.Up ||
-                    ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                {
-                    continue;
-                }
+            interfaces = NetworkInterface.GetAllNetworkInterfaces();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to enumerate network interfaces");
+            return addresses;
+        }
 
+        foreach (var ni in interfaces)
+        {
+            if (ni.OperationalStatus != OperationalStatus.Up ||
+                ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+            {
+                continue;
+            }
+
+            try
+            {
                 foreach (var ip in ni.GetIPProperties().UnicastAddresses)
                 {
                     if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
@@ -176,10 +187,10 @@ public class NetworkStatusService : INetworkStatusService
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            this.logger.Debug(ex, "Failed to enumerate network interfaces");
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to read IP properties for network interface {0}", ni.Name);
+            }
         }
 
         return addresses.Distinct().ToList();
