@@ -83,7 +83,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
     public bool IsInterfaceUp(string interfaceName)
     {
-        return true;
+        return ManagedSocketBindingProvider.IsInterfaceOperational(interfaceName, this.logger);
     }
 
     public Socket ConnectTunnel(string targetHost, int targetPort)
