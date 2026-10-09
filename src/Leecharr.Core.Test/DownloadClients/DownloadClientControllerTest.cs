@@ -844,10 +844,12 @@ public class DownloadClientControllerTest
     }
 
     [Test]
-    public async Task GetAllItems_WhenHttpClientFactoryInjected_DoesNotUseSharedFactoryClient()
+    public async Task GetAllItems_WhenSafeHttpClientServiceInjected_CreatesSafeHttpClientForRemoteQuery()
     {
-        var factory = Substitute.For<IHttpClientFactory>();
-        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient: null, httpClientFactory: factory);
+        var safeClient = Substitute.For<ISafeHttpClientService>();
+        using var created = new HttpClient(new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        safeClient.CreateHttpClient(Arg.Any<TimeSpan>(), true).Returns(created);
+        var controller = new DownloadClientController(this.repository, this.torrentService, safeHttpClientService: safeClient);
 
         this.repository.GetEnabled().Returns(new List<DownloadClientDefinition>
         {
@@ -864,8 +866,40 @@ public class DownloadClientControllerTest
 
         await controller.GetAllItems();
 
-        factory.DidNotReceive().CreateClient(Arg.Any<string>());
-        factory.DidNotReceive().CreateClient();
+        safeClient.Received(1).CreateHttpClient(Arg.Any<TimeSpan>(), true);
+    }
+
+    [Test]
+    public async Task TestDirect_WhenNoInjectedHttpClient_UsesSafeHttpClientServiceCreateHttpClient()
+    {
+        var safeClient = Substitute.For<ISafeHttpClientService>();
+        using var created = new HttpClient(new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v2/auth/login", StringComparison.OrdinalIgnoreCase))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("Ok.") };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("2.0.0") };
+        }));
+        safeClient.CreateHttpClient(Arg.Any<TimeSpan>(), true).Returns(created);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, safeHttpClientService: safeClient);
+        var resource = new DownloadClientResource
+        {
+            Name = "qBit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+        };
+
+        var result = await controller.TestDirect(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as DownloadClientTestResult;
+        testResult!.Success.Should().BeTrue();
+        safeClient.Received(1).CreateHttpClient(Arg.Any<TimeSpan>(), true);
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
