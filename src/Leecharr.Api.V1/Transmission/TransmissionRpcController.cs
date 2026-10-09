@@ -1477,7 +1477,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            var response = await this.safeHttpClientService.DownloadStringAsync(
+            var response = await this.safeHttpClientService.DownloadStringDirectAsync(
                 $"https://portcheck.transmissionbt.com/{port}",
                 TimeSpan.FromSeconds(3),
                 cts.Token);

@@ -97,7 +97,7 @@ public class NetworkController : Controller
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var response = await this.safeHttpClientService.DownloadStringAsync(
+            var response = await this.safeHttpClientService.DownloadStringDirectAsync(
                 $"https://portcheck.transmissionbt.com/{port}",
                 TimeSpan.FromSeconds(5),
                 cts.Token);

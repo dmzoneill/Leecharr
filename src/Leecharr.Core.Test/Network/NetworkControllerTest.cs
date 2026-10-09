@@ -185,7 +185,7 @@ public class NetworkControllerTest
     [Test]
     public async Task TestPort_WhenPortIsOpen_ReturnsOpen()
     {
-        this.safeHttpClientService.DownloadStringAsync(
+        this.safeHttpClientService.DownloadStringDirectAsync(
             Arg.Is<string>(url => url.Contains("51413")),
             Arg.Any<TimeSpan>(),
             Arg.Any<CancellationToken>())
@@ -206,7 +206,7 @@ public class NetworkControllerTest
     [Test]
     public async Task TestPort_WhenPortIsClosed_ReturnsClosed()
     {
-        this.safeHttpClientService.DownloadStringAsync(
+        this.safeHttpClientService.DownloadStringDirectAsync(
             Arg.Is<string>(url => url.Contains("51413")),
             Arg.Any<TimeSpan>(),
             Arg.Any<CancellationToken>())
@@ -227,7 +227,7 @@ public class NetworkControllerTest
     [Test]
     public async Task TestPort_WhenCustomPortProvided_TestsSpecifiedPort()
     {
-        this.safeHttpClientService.DownloadStringAsync(
+        this.safeHttpClientService.DownloadStringDirectAsync(
             Arg.Is<string>(url => url.Contains("6881")),
             Arg.Any<TimeSpan>(),
             Arg.Any<CancellationToken>())
