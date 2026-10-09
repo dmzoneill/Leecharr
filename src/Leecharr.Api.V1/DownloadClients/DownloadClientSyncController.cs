@@ -26,7 +26,6 @@ public class DownloadClientSyncController : Controller
     private readonly IDownloadClientRepository clientRepository;
     private readonly ITorrentService torrentService;
     private readonly HttpClient httpClient;
-    private readonly IHttpClientFactory httpClientFactory;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -34,13 +33,11 @@ public class DownloadClientSyncController : Controller
         IDownloadClientRepository clientRepository,
         ITorrentService torrentService,
         HttpClient httpClient = null,
-        IHttpClientFactory httpClientFactory = null,
         ISafeHttpClientService safeHttpClientService = null)
     {
         this.clientRepository = clientRepository;
         this.torrentService = torrentService;
         this.httpClient = httpClient;
-        this.httpClientFactory = httpClientFactory;
         this.safeHttpClientService = safeHttpClientService;
     }
 
@@ -54,13 +51,12 @@ public class DownloadClientSyncController : Controller
             var syncedCount = 0;
             var totalDiscovered = 0;
             var failedClients = 0;
-            var http = this.httpClient ?? this.httpClientFactory?.CreateClient();
 
             foreach (var client in clients)
             {
                 try
                 {
-                    var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService);
+                    var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.httpClient, this.safeHttpClientService);
                     totalDiscovered += items.Count;
 
                     foreach (var item in items)
