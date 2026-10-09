@@ -20,6 +20,7 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
     private readonly SemaphoreSlim switchLock = new(1, 1);
+    private int configSwitchGeneration;
     private INetworkBindingProvider activeProvider;
     private bool isKillSwitchActive;
     private bool disposed;
@@ -82,7 +83,7 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         return await provider.ProbeHealthAsync();
     }
 
-    public async Task<NetworkBindingSwitchResult> SwitchProviderAsync(string targetProviderId)
+    public async Task<NetworkBindingSwitchResult> SwitchProviderAsync(string targetProviderId, int? configSavedGeneration = null)
     {
         if (string.IsNullOrWhiteSpace(targetProviderId))
         {
@@ -103,23 +104,28 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             };
         }
 
-        if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
-        {
-            return new NetworkBindingSwitchResult
-            {
-                Success = true,
-                PreviousProvider = Volatile.Read(ref this.activeProvider).ProviderId,
-                ActiveProvider = targetProvider.ProviderId,
-                Message = $"Network binding provider '{targetProvider.DisplayName}' is already active.",
-            };
-        }
-
         NetworkBindingProviderSwitchedEvent switchedEvent = null;
         NetworkBindingSwitchResult result;
 
         await this.switchLock.WaitAsync();
         try
         {
+            if (this.IsConfigSwitchSuperseded(configSavedGeneration, targetProviderId))
+            {
+                return this.CreateSupersededSwitchResult(targetProviderId);
+            }
+
+            if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return new NetworkBindingSwitchResult
+                {
+                    Success = true,
+                    PreviousProvider = Volatile.Read(ref this.activeProvider).ProviderId,
+                    ActiveProvider = targetProvider.ProviderId,
+                    Message = $"Network binding provider '{targetProvider.DisplayName}' is already active.",
+                };
+            }
+
             var health = await targetProvider.ProbeHealthAsync();
             if (!health.IsHealthy)
             {
@@ -130,6 +136,11 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
                     ActiveProvider = Volatile.Read(ref this.activeProvider).ProviderId,
                     Error = $"Cannot switch to provider '{targetProvider.DisplayName}': health check failed ({health.StatusMessage}).",
                 };
+            }
+
+            if (this.IsConfigSwitchSuperseded(configSavedGeneration, targetProviderId))
+            {
+                return this.CreateSupersededSwitchResult(targetProviderId);
             }
 
             var previousProvider = Volatile.Read(ref this.activeProvider);
@@ -229,21 +240,66 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
     public void Handle(ConfigSavedEvent message)
     {
         var desiredProviderId = this.configService?.ActiveNetworkBindingProvider;
-        if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
-            !string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(desiredProviderId) ||
+            string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
         {
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await this.SwitchProviderAsync(desiredProviderId);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "Failed to switch active network binding provider on ConfigSavedEvent to {0}", desiredProviderId);
-                }
-            });
+            return;
         }
+
+        var generation = Interlocked.Increment(ref this.configSwitchGeneration);
+        Task.Run(async () =>
+        {
+            try
+            {
+                desiredProviderId = this.configService?.ActiveNetworkBindingProvider;
+                if (string.IsNullOrWhiteSpace(desiredProviderId) ||
+                    string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                await this.SwitchProviderAsync(desiredProviderId, generation);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Failed to switch active network binding provider on ConfigSavedEvent");
+            }
+        });
+    }
+
+    private bool IsConfigSwitchSuperseded(int? configSavedGeneration, string targetProviderId)
+    {
+        if (!configSavedGeneration.HasValue)
+        {
+            return false;
+        }
+
+        if (configSavedGeneration.Value != Volatile.Read(ref this.configSwitchGeneration))
+        {
+            return true;
+        }
+
+        var configuredProviderId = this.configService?.ActiveNetworkBindingProvider;
+        return !string.IsNullOrWhiteSpace(configuredProviderId) &&
+               !string.Equals(configuredProviderId, targetProviderId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private NetworkBindingSwitchResult CreateSupersededSwitchResult(string targetProviderId)
+    {
+        var activeProviderId = Volatile.Read(ref this.activeProvider)?.ProviderId;
+        this.logger.Debug(
+            "Skipping stale network binding switch to {0}; active provider is {1} and config now requests {2}.",
+            targetProviderId,
+            activeProviderId,
+            this.configService?.ActiveNetworkBindingProvider);
+
+        return new NetworkBindingSwitchResult
+        {
+            Success = true,
+            PreviousProvider = activeProviderId,
+            ActiveProvider = activeProviderId,
+            Message = "Network binding switch was superseded by a newer configuration save.",
+        };
     }
 
     public void Dispose()
