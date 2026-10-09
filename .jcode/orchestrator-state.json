@@ -26,15 +26,15 @@
   "worktrees_removed": [90, 125, 177, 1818, 1819, 1830, 1841, 1849, 257],
   "last_poll": "2026-10-09T12:22Z",
   "last_validation": {
-    "at": "2026-10-09T12:25Z",
+    "at": "2026-10-09T12:26Z",
     "checks": [
       "swarm_list: coordinator_only_sauropod",
       "active_workers: 0",
       "plan_v36: all_nodes_completed",
       "in_progress: empty",
       "completed_issues: 7 match github closed (spot #1826 #125)",
-      "queued_1849_257_1818: still open (spot #1849)",
-      "git: ahead 5 unpushed orchestrator commits",
+      "queued_124: open (spot)",
+      "git: ahead 6 unpushed orchestrator commits",
       "worktrees: leecharr-wt-* removed"
     ]
   },
