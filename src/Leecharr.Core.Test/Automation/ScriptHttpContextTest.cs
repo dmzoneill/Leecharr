@@ -198,6 +198,40 @@ public class ScriptHttpContextTest
         result["ok"].Should().Be(true);
     }
 
+    [Test]
+    public void ScriptHttpContext_Get_RejectsResponseBodyAboveScriptMemoryLimit()
+    {
+        var testHandler = new TestHttpMessageHandler(_ =>
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new OversizedScriptHttpContent(),
+            };
+        });
+
+        using var context = new ScriptHttpContext(testHandler);
+
+        var act = () => context.Get("https://api.example.com/large");
+        act.Should().Throw<ScriptMemoryLimitExceededException>();
+    }
+
+    [Test]
+    public async Task ScriptHttpContext_GetAsync_RejectsResponseBodyAboveScriptMemoryLimit()
+    {
+        var testHandler = new TestHttpMessageHandler(_ =>
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new OversizedScriptHttpContent(),
+            };
+        });
+
+        using var context = new ScriptHttpContext(testHandler);
+
+        var act = async () => await context.GetAsync("https://api.example.com/large");
+        await act.Should().ThrowAsync<ScriptMemoryLimitExceededException>();
+    }
+
     private class TestHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
@@ -225,6 +259,26 @@ public class ScriptHttpContextTest
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return this.handler(request);
+        }
+    }
+
+    private sealed class OversizedScriptHttpContent : HttpContent
+    {
+        protected override bool TryComputeLength(out long length)
+        {
+            length = ScriptMemoryLimits.MaxBytes + 1L;
+            return true;
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            var chunk = new byte[8192];
+            for (var written = 0L; written <= ScriptMemoryLimits.MaxBytes; written += chunk.Length)
+            {
+                stream.Write(chunk, 0, chunk.Length);
+            }
+
+            return Task.CompletedTask;
         }
     }
 }
