@@ -107,6 +107,29 @@ public class DynamicNetworkBindingProxyTest
     }
 
     [Test]
+    public void Constructor_WhenConfiguredProviderUnhealthy_FallsBackToManagedSocket()
+    {
+        this.linuxBindProvider.ProbeHealthAsync().Returns(Task.FromResult(new NetworkBindingHealthCheckResult
+        {
+            IsHealthy = false,
+            StatusMessage = "Not supported on this platform",
+        }));
+
+        var config = Substitute.For<IConfigService>();
+        config.ActiveNetworkBindingProvider.Returns("LinuxBindToDevice");
+
+        using var proxy = new DynamicNetworkBindingProxy(
+            new[] { this.managedSocketProvider, this.linuxBindProvider },
+            config,
+            this.eventAggregator);
+
+        proxy.ActiveProviderId.Should().Be("ManagedSocket");
+        proxy.ActiveProvider.Should().BeSameAs(this.managedSocketProvider);
+        this.linuxBindProvider.Received(1).ProbeHealthAsync();
+        this.managedSocketProvider.Received(1).ProbeHealthAsync();
+    }
+
+    [Test]
     public void Constructor_WhenNoProviders_ThrowsInvalidOperationException()
     {
         var act = () => new DynamicNetworkBindingProxy(
