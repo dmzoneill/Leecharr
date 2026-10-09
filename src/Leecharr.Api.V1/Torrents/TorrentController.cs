@@ -1769,8 +1769,21 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         var meta = this.mediaEnrichmentService.GetMetadata(id);
         var res = TorrentResourceMapper.ToResource(updated, meta);
-        res.AnnounceInterval = resource.AnnounceInterval ?? 1800;
-        res.NextUpdate = resource.NextUpdate ?? 1800;
+        var updateTrackers = this.trackerEntryRepository?.GetByTorrentId(id).ToList();
+        if (updateTrackers != null && updateTrackers.Count > 0)
+        {
+            var primary = updateTrackers[0];
+            res.AnnounceInterval = primary.AnnounceInterval > 0 ? primary.AnnounceInterval : 1800;
+            var lastAnnounce = primary.LastAnnounce ?? updated.DateAdded;
+            var nextAnnounce = primary.NextAnnounce ?? lastAnnounce.AddSeconds(res.AnnounceInterval.Value);
+            res.NextUpdate = Math.Max(0, (int)(nextAnnounce - DateTime.UtcNow).TotalSeconds);
+        }
+        else
+        {
+            res.AnnounceInterval = 1800;
+            res.NextUpdate = 1800;
+        }
+
         res.Threshold = resource.Threshold;
         res.SmallTorrentLimit = resource.SmallTorrentLimit;
         res.Active = updated.Status == TorrentStatus.Downloading || updated.Status == TorrentStatus.Seeding;
