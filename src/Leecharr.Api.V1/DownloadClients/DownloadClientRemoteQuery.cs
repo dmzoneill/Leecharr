@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.DownloadClients;
 
@@ -370,6 +371,12 @@ public static class DownloadClientRemoteQuery
         {
             if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
             {
+                if (!IsSingleTorrentInfoHash(infoHash))
+                {
+                    Logger.Warn("Rejected qBittorrent torrent action {0} for unsafe hash value", action);
+                    return false;
+                }
+
                 if (!await EnsureQbittorrentLoggedInAsync(http, baseUrl, client, password))
                 {
                     return false;
@@ -509,6 +516,27 @@ public static class DownloadClientRemoteQuery
         {
             localHttp?.Dispose();
         }
+    }
+
+    private static bool IsSingleTorrentInfoHash(string infoHash)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return false;
+        }
+
+        var hash = infoHash.Trim();
+        if (string.Equals(hash, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (hash.IndexOf('|') >= 0)
+        {
+            return false;
+        }
+
+        return hash.Length is 40 or 64 && MagnetLinkParser.IsValidHex(hash);
     }
 
     private static async Task<bool> EnsureQbittorrentLoggedInAsync(
