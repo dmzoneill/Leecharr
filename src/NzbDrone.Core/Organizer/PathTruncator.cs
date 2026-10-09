@@ -185,7 +185,7 @@ public class PathTruncator : IPathTruncator
         if (fileBase.Length > excessChars + 3)
         {
             var newBaseLength = fileBase.Length - excessChars;
-            var truncatedBase = fileBase.Substring(0, newBaseLength).TrimEnd(' ', '-', '.', '_');
+            var truncatedBase = TruncatePrefixByCharCount(fileBase, newBaseLength).TrimEnd(' ', '-', '.', '_');
             segments[^1] = truncatedBase + fileExt;
         }
         else
@@ -197,7 +197,7 @@ public class PathTruncator : IPathTruncator
                 var reduction = Math.Min(excessChars, Math.Max(0, dir.Length - 4));
                 if (reduction > 0)
                 {
-                    segments[i] = dir.Substring(0, dir.Length - reduction).TrimEnd(' ', '-', '.', '_');
+                    segments[i] = TruncatePrefixByCharCount(dir, dir.Length - reduction).TrimEnd(' ', '-', '.', '_');
                     excessChars -= reduction;
                 }
             }
@@ -205,7 +205,7 @@ public class PathTruncator : IPathTruncator
             if (excessChars > 0 && fileBase.Length > 1)
             {
                 var newBaseLength = Math.Max(1, fileBase.Length - excessChars);
-                segments[^1] = fileBase.Substring(0, newBaseLength).TrimEnd(' ', '-', '.', '_') + fileExt;
+                segments[^1] = TruncatePrefixByCharCount(fileBase, newBaseLength).TrimEnd(' ', '-', '.', '_') + fileExt;
             }
         }
 
@@ -220,6 +220,26 @@ public class PathTruncator : IPathTruncator
         }
 
         return result;
+    }
+
+    private static string TruncatePrefixByCharCount(string text, int charCount)
+    {
+        if (string.IsNullOrEmpty(text) || charCount <= 0)
+        {
+            return string.Empty;
+        }
+
+        if (charCount >= text.Length)
+        {
+            return text;
+        }
+
+        if (char.IsHighSurrogate(text[charCount - 1]))
+        {
+            charCount--;
+        }
+
+        return charCount <= 0 ? string.Empty : text.Substring(0, charCount);
     }
 
     public static string TruncateUtf8(string text, int maxBytes)
