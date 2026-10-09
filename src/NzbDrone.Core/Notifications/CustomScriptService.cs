@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
@@ -340,6 +341,7 @@ public class CustomScriptService : ICustomScriptService
             env["TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
             env["TORRENT_SAVEPATH"] = torrent.SavePath ?? string.Empty;
             env["TORRENT_SIZE"] = torrent.TotalSize.ToString(CultureInfo.InvariantCulture);
+            env["TORRENT_SIZE_BYTES"] = torrent.TotalSize.ToString(CultureInfo.InvariantCulture);
             env["TORRENT_RATIO"] = torrent.Ratio.ToString("F2", CultureInfo.InvariantCulture);
             env["TORRENT_STATUS"] = torrent.Status.ToString();
 
@@ -356,6 +358,7 @@ public class CustomScriptService : ICustomScriptService
             env["LEECHARR_TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
             env["LEECHARR_TORRENT_SAVEPATH"] = torrent.SavePath ?? string.Empty;
             env["LEECHARR_TORRENT_SIZE"] = torrent.TotalSize.ToString(CultureInfo.InvariantCulture);
+            env["LEECHARR_TORRENT_SIZE_BYTES"] = torrent.TotalSize.ToString(CultureInfo.InvariantCulture);
             env["LEECHARR_TORRENT_RATIO"] = torrent.Ratio.ToString("F2", CultureInfo.InvariantCulture);
             env["LEECHARR_TORRENT_STATUS"] = torrent.Status.ToString();
 
@@ -365,7 +368,7 @@ public class CustomScriptService : ICustomScriptService
             env["TR_TORRENT_HASH"] = torrent.InfoHash ?? string.Empty;
             env["TR_TORRENT_ID"] = torrent.Id.ToString(CultureInfo.InvariantCulture);
             env["TR_TIME_LOCALTIME"] = DateTime.Now.ToString("s", CultureInfo.InvariantCulture);
-            env["TR_APP_VERSION"] = "4.0.0";
+            env["TR_APP_VERSION"] = BuildInfo.Version?.ToString() ?? "1.0.0";
 
             if (meta != null)
             {
