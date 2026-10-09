@@ -200,6 +200,11 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                 {
                     info.DurationSeconds = formatDuration;
                 }
+
+                if (formatElement.TryGetProperty("tags", out var formatTags) && formatTags.ValueKind == JsonValueKind.Object)
+                {
+                    ApplyFfprobeFormatTags(info, formatTags);
+                }
             }
 
             var maxStreamDurationSeconds = 0.0;
@@ -483,6 +488,110 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         catch
         {
             return null;
+        }
+    }
+
+    private static void ApplyFfprobeFormatTags(MediaContainerInfo info, JsonElement tagsElement)
+    {
+        if (string.IsNullOrEmpty(info.Title) && TryGetFfprobeTagString(tagsElement, "title", out var title))
+        {
+            info.Title = title;
+        }
+
+        if (string.IsNullOrEmpty(info.Artist))
+        {
+            if (TryGetFfprobeTagString(tagsElement, "artist", out var artist) ||
+                TryGetFfprobeTagString(tagsElement, "album_artist", out artist))
+            {
+                info.Artist = artist;
+            }
+        }
+
+        if (string.IsNullOrEmpty(info.Album) && TryGetFfprobeTagString(tagsElement, "album", out var album))
+        {
+            info.Album = album;
+        }
+
+        if (TryGetFfprobeTagString(tagsElement, "track", out var trackRaw))
+        {
+            ParseFfprobeIndexTag(trackRaw, out var trackNumber, out var trackTotal);
+            if (info.Track == 0 && trackNumber > 0)
+            {
+                info.Track = trackNumber;
+            }
+
+            if (info.TrackCount == 0 && trackTotal > 0)
+            {
+                info.TrackCount = trackTotal;
+            }
+        }
+
+        if (TryGetFfprobeTagString(tagsElement, "disc", out var discRaw))
+        {
+            ParseFfprobeIndexTag(discRaw, out var discNumber, out var discTotal);
+            if (info.Disc == 0 && discNumber > 0)
+            {
+                info.Disc = discNumber;
+            }
+
+            if (info.DiscCount == 0 && discTotal > 0)
+            {
+                info.DiscCount = discTotal;
+            }
+        }
+    }
+
+    private static bool TryGetFfprobeTagString(JsonElement tagsElement, string key, out string value)
+    {
+        value = null;
+        if (tagsElement.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        foreach (var property in tagsElement.EnumerateObject())
+        {
+            if (!property.Name.Equals(key, StringComparison.OrdinalIgnoreCase) ||
+                property.Value.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            var candidate = property.Value.GetString();
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
+            value = candidate.Trim();
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void ParseFfprobeIndexTag(string raw, out int number, out int total)
+    {
+        number = 0;
+        total = 0;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return;
+        }
+
+        var parts = raw.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length > 0 &&
+            int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedNumber) &&
+            parsedNumber > 0)
+        {
+            number = parsedNumber;
+        }
+
+        if (parts.Length > 1 &&
+            int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedTotal) &&
+            parsedTotal > 0)
+        {
+            total = parsedTotal;
         }
     }
 
