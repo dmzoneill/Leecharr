@@ -495,6 +495,37 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public async Task AddTracker_PrivateTorrent_AllowsPrivateTrackerAnnounceUrl()
+    {
+        var torrent = new Torrent
+        {
+            Id = 6,
+            Name = "Private Torrent",
+            IsPrivate = true,
+        };
+        this.torrentService.Get(6).Returns(torrent);
+        this.trackerEntryRepository.GetByTorrentId(6).Returns(new List<TrackerEntry>());
+        this.trackerEntryRepository.Insert(Arg.Any<TrackerEntry>())
+            .Returns(callInfo =>
+            {
+                var entry = callInfo.Arg<TrackerEntry>();
+                entry.Id = 100;
+                return entry;
+            });
+
+        var privateAnnounce = "https://tracker.example.org/0123456789ABCDEF0123456789ABCDEF/announce";
+        var request = new AddTrackerRequest { Url = privateAnnounce, Tier = 0 };
+        var actionResult = await this.controller.AddTracker(6, request);
+
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        okResult.Value.Should().BeOfType<TrackerResource>();
+
+        this.trackerEntryRepository.Received(1)
+            .Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 6 && t.Url == privateAnnounce));
+        await this.downloadEngine.Received(1).AddTrackersAsync(6, Arg.Is<IEnumerable<string>>(urls => urls.Single() == privateAnnounce));
+    }
+
+    [Test]
     public async Task AddTracker_DuplicateTracker_ReturnsConflict()
     {
         var torrent = new Torrent
