@@ -36,21 +36,19 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
         var connections = this.GetEnabled().ToList();
         if (connections.Count == 0)
         {
-            connections = this.All().ToList();
-        }
-
-        if (connections.Count == 0)
-        {
             return null;
         }
 
         var candidates = connections;
         if (!string.IsNullOrWhiteSpace(arrType))
         {
-            var typeMatches = connections.Where(c => string.Equals(c.ArrType, arrType, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (typeMatches.Count > 0)
+            candidates = connections
+                .Where(c => string.Equals(c.ArrType, arrType, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (candidates.Count == 0)
             {
-                candidates = typeMatches;
+                return null;
             }
         }
 

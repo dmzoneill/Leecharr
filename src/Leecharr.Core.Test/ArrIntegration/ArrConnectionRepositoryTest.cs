@@ -253,4 +253,66 @@ public class ArrConnectionRepositoryTest
         var match = this.repository.GetByAffinity("Sonarr", "tv", "hd");
         match.Should().BeNull();
     }
+
+    [Test]
+    public void GetByAffinity_WhenRequestedTypeMissing_DoesNotReturnOtherApp()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Primary Radarr",
+            ArrType = "Radarr",
+            Implementation = "Radarr",
+            Url = "http://radarr:7878",
+            ApiKey = "key1",
+            Enable = true,
+            Priority = 1,
+        });
+
+        this.repository.GetByAffinity("Sonarr").Should().BeNull();
+    }
+
+    [Test]
+    public void GetByAffinity_WhenRequestedTypeMissingWithMultipleApps_DoesNotReturnLowestPriorityOtherApp()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Primary Radarr",
+            ArrType = "Radarr",
+            Implementation = "Radarr",
+            Url = "http://radarr:7878",
+            ApiKey = "key1",
+            Enable = true,
+            Priority = 1,
+        });
+
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Primary Lidarr",
+            ArrType = "Lidarr",
+            Implementation = "Lidarr",
+            Url = "http://lidarr:8686",
+            ApiKey = "key2",
+            Enable = true,
+            Priority = 2,
+        });
+
+        this.repository.GetByAffinity("Sonarr").Should().BeNull();
+    }
+
+    [Test]
+    public void GetByAffinity_WhenOnlyDisabledConnectionForType_ReturnsNull()
+    {
+        this.repository.Insert(new ArrConnectionDefinition
+        {
+            Name = "Disabled Sonarr",
+            ArrType = "Sonarr",
+            Implementation = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "key1",
+            Enable = false,
+            Priority = 1,
+        });
+
+        this.repository.GetByAffinity("Sonarr").Should().BeNull();
+    }
 }
