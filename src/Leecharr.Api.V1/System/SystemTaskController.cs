@@ -275,6 +275,18 @@ public class SystemCommandController : Controller
         this.commandQueueManager = commandQueueManager;
     }
 
+    private static string FormatCommandRunDuration(DateTime? startedAt, DateTime? endedAt)
+    {
+        if (!startedAt.HasValue)
+        {
+            return null;
+        }
+
+        var end = endedAt ?? DateTime.UtcNow;
+        var duration = end >= startedAt.Value ? end - startedAt.Value : TimeSpan.Zero;
+        return duration.ToString(@"hh\:mm\:ss");
+    }
+
     [HttpGet]
     public ActionResult<List<CommandResource>> GetCommands()
     {
@@ -285,7 +297,7 @@ public class SystemCommandController : Controller
 
         var commands = this.commandQueueManager.GetAll().Select(c =>
         {
-            var duration = (c.EndedAt ?? DateTime.UtcNow) - (c.StartedAt ?? c.QueuedAt);
+            var duration = FormatCommandRunDuration(c.StartedAt, c.EndedAt);
             var result = c.Status == CommandStatus.Completed ? "Successful" : (c.Status == CommandStatus.Failed ? "Failed" : (c.Status == CommandStatus.Cancelled ? "Cancelled" : "Pending"));
 
             return new CommandResource
@@ -298,7 +310,7 @@ public class SystemCommandController : Controller
                 Queued = c.QueuedAt,
                 Started = c.StartedAt,
                 Ended = c.EndedAt,
-                Duration = duration.ToString(@"hh\:mm\:ss"),
+                Duration = duration,
             };
         }).ToList();
 
@@ -340,7 +352,7 @@ public class SystemCommandController : Controller
         if (this.commandQueueManager != null)
         {
             var model = this.commandQueueManager.PushRaw(cmdName, "{}", CommandTrigger.Manual);
-            var duration = (model.EndedAt ?? DateTime.UtcNow) - (model.StartedAt ?? model.QueuedAt);
+            var duration = FormatCommandRunDuration(model.StartedAt, model.EndedAt);
             var result = model.Status == CommandStatus.Completed ? "Successful" : (model.Status == CommandStatus.Failed ? "Failed" : "Pending");
 
             return this.Ok(new CommandResource
@@ -353,7 +365,7 @@ public class SystemCommandController : Controller
                 Queued = model.QueuedAt,
                 Started = model.StartedAt,
                 Ended = model.EndedAt,
-                Duration = duration.ToString(@"hh\:mm\:ss"),
+                Duration = duration,
             });
         }
 
