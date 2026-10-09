@@ -83,10 +83,12 @@ public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
         {
             if (IsCommandForTask(message.Command.Name, task.TypeName))
             {
-                task.LastExecution = message.Command.EndedAt ?? DateTime.UtcNow;
+                var endedAt = message.Command.EndedAt ?? DateTime.UtcNow;
+                task.LastExecution = endedAt;
                 if (message.Command.StartedAt.HasValue)
                 {
                     task.LastStartTime = message.Command.StartedAt.Value;
+                    RecordCompletedRunDuration(task, endedAt, message.Command.StartedAt);
                 }
 
                 this.taskManager.Update(task);
@@ -124,6 +126,7 @@ public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
                             }
 
                             this.logger.Debug("Executing scheduled task: {0}", task.TypeName);
+                            SnapshotCompletedRunDurationBeforeNewStart(task);
                             var startTime = DateTime.UtcNow;
                             task.LastStartTime = startTime;
                             this.taskManager.Update(task);
@@ -200,6 +203,7 @@ public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
                     if (matching.StartedAt.HasValue)
                     {
                         task.LastStartTime = matching.StartedAt.Value;
+                        RecordCompletedRunDuration(task, matching.EndedAt.Value, matching.StartedAt);
                     }
 
                     this.taskManager.Update(task);
@@ -272,5 +276,25 @@ public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
         {
             this.commandQueueManager.PushRaw(name, "{}", CommandTrigger.Scheduled);
         }
+    }
+
+    private static void RecordCompletedRunDuration(ScheduledTask task, DateTime endedAt, DateTime? startedAt)
+    {
+        if (!startedAt.HasValue || endedAt < startedAt.Value)
+        {
+            return;
+        }
+
+        task.LastCompletedDurationSeconds = (long)(endedAt - startedAt.Value).TotalSeconds;
+    }
+
+    private static void SnapshotCompletedRunDurationBeforeNewStart(ScheduledTask task)
+    {
+        if (!task.LastStartTime.HasValue || task.LastExecution < task.LastStartTime.Value)
+        {
+            return;
+        }
+
+        task.LastCompletedDurationSeconds = (long)(task.LastExecution - task.LastStartTime.Value).TotalSeconds;
     }
 }

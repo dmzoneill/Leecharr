@@ -91,6 +91,33 @@ public class SystemTaskControllerTest
     }
 
     [Test]
+    public void GetTasks_WhenTaskInProgress_ReportsLastCompletedDurationNotZero()
+    {
+        var lastExecution = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var lastStartTime = new DateTime(2026, 1, 2, 12, 0, 0, DateTimeKind.Utc);
+
+        this.taskManager.GetAll().Returns(new List<ScheduledTask>
+        {
+            new ScheduledTask
+            {
+                Id = 3,
+                TypeName = "BackupTask",
+                Interval = 60,
+                LastExecution = lastExecution,
+                LastStartTime = lastStartTime,
+                LastCompletedDurationSeconds = 125,
+            },
+        });
+
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var list = (controller.GetTasks().Result as OkObjectResult).Value as List<ScheduledTaskResource>;
+
+        list.Should().ContainSingle();
+        list[0].LastDuration.Should().Be("00:02:05");
+        list[0].LastDuration.Should().NotBe("00:00:00");
+    }
+
+    [Test]
     public void GetTasks_ReturnsEmptyList_WhenNoTasksInDatabase()
     {
         this.taskManager.GetAll().Returns(new List<ScheduledTask>());

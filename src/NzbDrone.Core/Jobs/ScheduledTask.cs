@@ -14,4 +14,6 @@ public class ScheduledTask : ModelBase
     public DateTime LastExecution { get; set; }
 
     public DateTime? LastStartTime { get; set; }
+
+    public long? LastCompletedDurationSeconds { get; set; }
 }
