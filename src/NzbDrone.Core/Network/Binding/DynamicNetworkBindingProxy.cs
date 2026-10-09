@@ -203,34 +203,36 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
 
     public bool CheckVpnKillSwitch(string interfaceName)
     {
-        if (string.IsNullOrWhiteSpace(interfaceName) ||
-            string.Equals(interfaceName, "any", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
+        this.switchLock.Wait();
+        try
         {
-            if (this.isKillSwitchActive)
+            if (string.IsNullOrWhiteSpace(interfaceName) ||
+                string.Equals(interfaceName, "any", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
             {
-                this.isKillSwitchActive = false;
-                this.logger.Info("VPN Kill Switch disengaged for interface '{0}'.", interfaceName);
-                this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(interfaceName ?? string.Empty));
+                if (this.isKillSwitchActive)
+                {
+                    this.isKillSwitchActive = false;
+                    this.logger.Info("VPN Kill Switch disengaged for interface '{0}'.", interfaceName);
+                    this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(interfaceName ?? string.Empty));
+                }
+
+                return false;
             }
 
-            return false;
-        }
-
-        var isUp = this.IsInterfaceUp(interfaceName);
-        if (!isUp)
-        {
-            if (!this.isKillSwitchActive)
+            var isUp = this.IsInterfaceUp(interfaceName);
+            if (!isUp)
             {
-                this.isKillSwitchActive = true;
-                this.logger.Error("VPN Kill Switch triggered! Interface '{0}' dropped.", interfaceName);
-                this.eventAggregator?.PublishEvent(new VpnKillSwitchTriggeredEvent(interfaceName));
+                if (!this.isKillSwitchActive)
+                {
+                    this.isKillSwitchActive = true;
+                    this.logger.Error("VPN Kill Switch triggered! Interface '{0}' dropped.", interfaceName);
+                    this.eventAggregator?.PublishEvent(new VpnKillSwitchTriggeredEvent(interfaceName));
+                }
+
+                return true;
             }
 
-            return true;
-        }
-        else
-        {
             if (this.isKillSwitchActive)
             {
                 this.isKillSwitchActive = false;
@@ -239,6 +241,10 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             }
 
             return false;
+        }
+        finally
+        {
+            this.switchLock.Release();
         }
     }
 
