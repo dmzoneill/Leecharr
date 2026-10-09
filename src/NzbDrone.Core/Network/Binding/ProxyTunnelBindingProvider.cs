@@ -647,8 +647,18 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         ms.WriteByte((byte)((targetPort >> 8) & 0xFF));
         ms.WriteByte((byte)(targetPort & 0xFF));
 
-        if (TryParseHostAddress(targetHost, out var ipAddress) && ipAddress.AddressFamily == AddressFamily.InterNetwork)
+        if (TryParseHostAddress(targetHost, out var ipAddress))
         {
+            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                throw new NotSupportedException("IPv6 targets are not supported by SOCKS4. Use SOCKS5 instead.");
+            }
+
+            if (ipAddress.AddressFamily != AddressFamily.InterNetwork)
+            {
+                throw new NotSupportedException($"Address family {ipAddress.AddressFamily} is not supported by SOCKS4.");
+            }
+
             var ipBytes = ipAddress.GetAddressBytes();
             ms.Write(ipBytes, 0, 4);
             ms.Write(userBytes, 0, userBytes.Length);
