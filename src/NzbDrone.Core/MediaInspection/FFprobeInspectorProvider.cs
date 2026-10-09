@@ -58,25 +58,40 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         SupportsPureManagedStreams = false,
     };
 
-    public Task<MediaInspectorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default)
+    public async Task<MediaInspectorHealthCheckResult> ProbeHealthAsync(CancellationToken cancellationToken = default)
     {
         var binary = this.FindBinary();
-        if (binary != null)
+        if (binary == null)
         {
-            return Task.FromResult(new MediaInspectorHealthCheckResult
+            return new MediaInspectorHealthCheckResult
             {
-                IsHealthy = true,
-                StatusMessage = $"FFprobe CLI executable found at {binary}.",
-                DependencyChecks = new List<string> { $"FFprobe binary: {binary}" },
-            });
+                IsHealthy = false,
+                StatusMessage = "FFprobe executable not found on PATH or standard locations.",
+                Warnings = new List<string> { "Install ffmpeg/ffprobe or set FFPROBE_PATH environment variable." },
+            };
         }
 
-        return Task.FromResult(new MediaInspectorHealthCheckResult
+        var versionLine = await this.ProbeBinaryVersionAsync(binary, cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(versionLine))
+        {
+            return new MediaInspectorHealthCheckResult
+            {
+                IsHealthy = true,
+                StatusMessage = $"FFprobe CLI operational at {binary}. {versionLine}",
+                DependencyChecks = new List<string> { $"FFprobe binary: {binary}", versionLine },
+            };
+        }
+
+        return new MediaInspectorHealthCheckResult
         {
             IsHealthy = false,
-            StatusMessage = "FFprobe executable not found on PATH or standard locations.",
-            Warnings = new List<string> { "Install ffmpeg/ffprobe or set FFPROBE_PATH environment variable." },
-        });
+            StatusMessage = $"FFprobe executable at {binary} failed to start or returned a non-zero exit code.",
+            DependencyChecks = new List<string> { $"FFprobe binary: {binary}" },
+            Warnings = new List<string>
+            {
+                "Verify ffprobe runs successfully (for example `ffprobe -version`) and required shared libraries are installed.",
+            },
+        };
     }
 
     public async Task<MediaContainerInfo> InspectMediaAsync(string mediaPath, CancellationToken cancellationToken = default)
@@ -917,6 +932,79 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         }
 
         return 1;
+    }
+
+    private async Task<string> ProbeBinaryVersionAsync(string binary, CancellationToken cancellationToken)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = binary,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        startInfo.ArgumentList.Add("-version");
+
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        var probeTimeout = TimeSpan.FromSeconds(10);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(probeTimeout);
+
+        try
+        {
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+            var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token)).ConfigureAwait(false);
+
+            if (process.ExitCode != 0)
+            {
+                return null;
+            }
+
+            var stdout = (await stdoutTask.ConfigureAwait(false))?.Trim();
+            if (!string.IsNullOrWhiteSpace(stdout))
+            {
+                return ExtractFirstLine(stdout);
+            }
+
+            var stderr = (await stderrTask.ConfigureAwait(false))?.Trim();
+            return string.IsNullOrWhiteSpace(stderr) ? null : ExtractFirstLine(stderr);
+        }
+        catch (OperationCanceledException)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "Failed to kill FFprobe process after health probe timeout");
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Trace(ex, "FFprobe health probe failed for {0}", binary);
+            return null;
+        }
+    }
+
+    private static string ExtractFirstLine(string output)
+    {
+        var newlineIndex = output.IndexOf('\n');
+        return newlineIndex >= 0 ? output[..newlineIndex].Trim() : output.Trim();
     }
 
     private string FindBinary()
