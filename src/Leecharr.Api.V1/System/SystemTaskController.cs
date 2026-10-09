@@ -60,6 +60,8 @@ public class CommandResource : RestResource
     public string EndedAt => this.Ended?.ToString("o");
 
     public string Duration { get; set; } = "00:00:01";
+
+    public string Message { get; set; }
 }
 
 [V1ApiController("system/task")]
@@ -311,6 +313,7 @@ public class SystemCommandController : Controller
                 Started = c.StartedAt,
                 Ended = c.EndedAt,
                 Duration = duration,
+                Message = c.Message,
             };
         }).ToList();
 
@@ -366,6 +369,7 @@ public class SystemCommandController : Controller
                 Started = model.StartedAt,
                 Ended = model.EndedAt,
                 Duration = duration,
+                Message = model.Message,
             });
         }
 
