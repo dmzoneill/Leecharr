@@ -136,6 +136,11 @@ public class ArrWebhookControllerTest
             m.Title == "Severance" &&
             m.Year == 2022 &&
             m.TvdbId == "371980"));
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArrImportCompletedEvent>(e =>
+            e.Torrent.Id == 1 &&
+            e.ArrInstance == "Sonarr" &&
+            e.ImportedFilesCount == 1));
     }
 
     [Test]
