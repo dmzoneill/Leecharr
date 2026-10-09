@@ -22,6 +22,8 @@
   },
   "queued_issues": [124, 123, 1851, 1849, 257, 1818],
   "schedule_poll_id": null,
+  "worktrees_cleaned_at": "2026-10-09T12:24Z",
+  "worktrees_removed": [90, 125, 177, 1818, 1819, 1830, 1841, 1849, 257],
   "last_poll": "2026-10-09T12:22Z",
   "last_validation": {
     "at": "2026-10-09T12:22Z",
