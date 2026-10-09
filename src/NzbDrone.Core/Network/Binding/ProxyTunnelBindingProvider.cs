@@ -573,6 +573,12 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             {
                 var bytes = ip.GetAddressBytes();
 
+                // 0.0.0.0/8 (unspecified / current network; reaches local host when used as destination)
+                if (bytes[0] == 0)
+                {
+                    return true;
+                }
+
                 // 127.0.0.0/8
                 if (bytes[0] == 127)
                 {
