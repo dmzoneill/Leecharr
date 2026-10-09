@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -134,12 +135,36 @@ public class ConfigServiceTest
         this.service.SaveConfigDictionary(values);
 
         this.service.DownloadDir.Should().Be("/media/downloads");
+        this.service.IncompleteDownloadDir.Should().Be(Path.Combine("/media/downloads", "incomplete"));
         this.service.ListeningPort.Should().Be(55000);
         this.service.EnableDht.Should().BeFalse();
         this.service.EnableBep27PrivateTorrents.Should().BeFalse();
         this.service.GlobalSeedRatioLimit.Should().Be(2.5);
 
         this.eventAggregator.Received(1).PublishEvent(Arg.Any<ConfigSavedEvent>());
+    }
+
+    [Test]
+    public void IncompleteDownloadDir_WhenUnset_UsesIncompleteSubfolderUnderDownloadDir()
+    {
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "DownloadDir", "/data/torrents" },
+        });
+
+        this.service.IncompleteDownloadDir.Should().Be(Path.Combine("/data/torrents", "incomplete"));
+    }
+
+    [Test]
+    public void IncompleteDownloadDir_WhenExplicitlySet_ReturnsConfiguredPath()
+    {
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "DownloadDir", "/data/torrents" },
+            { "IncompleteDownloadDir", "/scratch/incomplete" },
+        });
+
+        this.service.IncompleteDownloadDir.Should().Be("/scratch/incomplete");
     }
 
     [Test]

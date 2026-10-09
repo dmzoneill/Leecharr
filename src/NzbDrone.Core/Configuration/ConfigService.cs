@@ -868,9 +868,17 @@ public class ConfigService : IConfigService
         get
         {
             var val = this.GetValue("IncompleteDownloadDir", string.Empty);
-            if (string.IsNullOrWhiteSpace(val) && Directory.Exists("/downloads"))
+            if (!string.IsNullOrWhiteSpace(val))
             {
-                return "/downloads/incomplete";
+                return val;
+            }
+
+            var downloadDir = this.DownloadDir;
+            if (!string.IsNullOrWhiteSpace(downloadDir))
+            {
+                return Path.Combine(
+                    downloadDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    "incomplete");
             }
 
             return val;
