@@ -189,6 +189,10 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
                 return result;
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Active inspector '{0}' failed for '{1}'", active?.ProviderId, filePath);
@@ -272,6 +276,10 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
             {
                 return result;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
