@@ -533,6 +533,45 @@ public class ProxyTunnelBindingProviderTest
     }
 
     [Test]
+    public void IsPrivateOrLoopback_WhenHostIsUnspecifiedIpv4_ReturnsTrue()
+    {
+        ProxyTunnelBindingProvider.IsPrivateOrLoopback("0.0.0.0").Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_WhenProxyConfiguredAndTargetIsUnspecifiedIpv4_AndForceProxyIsTrue_ThrowsSocketExceptionAccessDenied()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("socks5");
+        config.ProxyHost.Returns("10.0.0.1");
+        config.ProxyPort.Returns(1080);
+        config.ForceProxy.Returns(true);
+
+        var provider = new ProxyTunnelBindingProvider(config);
+        var act = async () => await provider.ConnectTunnelAsync("0.0.0.0", 6881);
+
+        var ex = await act.Should().ThrowAsync<SocketException>();
+        ex.Which.SocketErrorCode.Should().Be(SocketError.AccessDenied);
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_WhenProxyConfiguredAndTargetIsUnspecifiedIpv4_AndBypassLocalNetworksIsFalse_ThrowsSocketExceptionAccessDenied()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("10.0.0.1");
+        config.ProxyPort.Returns(8080);
+        config.ForceProxy.Returns(false);
+        config.ProxyBypassLocalNetworks.Returns(false);
+
+        var provider = new ProxyTunnelBindingProvider(config);
+        var act = async () => await provider.ConnectTunnelAsync("0.0.0.0", 6881);
+
+        var ex = await act.Should().ThrowAsync<SocketException>();
+        ex.Which.SocketErrorCode.Should().Be(SocketError.AccessDenied);
+    }
+
+    [Test]
     public async Task ConnectTunnelAsync_WhenProxyConfiguredAndTargetIsPrivate_AndBypassLocalNetworksIsTrue_ConnectsDirectly()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
