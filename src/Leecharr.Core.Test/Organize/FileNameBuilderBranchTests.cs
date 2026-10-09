@@ -651,6 +651,22 @@ public class FileNameBuilderBranchTests
     }
 
     [Test]
+    public void BuildFileName_Episode_EpisodeCleanTitles_BlankEntriesFallbackToOriginalTitles()
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "Show",
+            SeasonNumber = 1,
+            EpisodeNumbers = new List<int> { 1 },
+            EpisodeCleanTitles = new List<string> { "", "   " },
+            EpisodeTitles = new List<string> { "Pilot" },
+            Extension = "mkv",
+        };
+        var res = _builder.BuildFileName(context, "{Series Title} - S{season:00}E{episode:00} - {Episode CleanTitle}");
+        res.Should().Be("Show - S01E01 - Pilot.mkv");
+    }
+
+    [Test]
     public void BuildFileName_StaticMethods_ExecuteSuccessfully()
     {
         var movieContext = new MovieNamingContext { MovieTitle = "The Dark Knight", ReleaseYear = 2008, Extension = "mkv" };

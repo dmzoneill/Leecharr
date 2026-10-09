@@ -518,7 +518,11 @@ public class FileNameBuilder : IFileNameBuilder
     {
         if (cleanTitles != null && cleanTitles.Count > 0)
         {
-            return string.Join(" + ", cleanTitles.Where(t => !string.IsNullOrWhiteSpace(t)));
+            var formattedClean = string.Join(" + ", cleanTitles.Where(t => !string.IsNullOrWhiteSpace(t)));
+            if (!string.IsNullOrEmpty(formattedClean))
+            {
+                return formattedClean;
+            }
         }
 
         if (originalTitles != null && originalTitles.Count > 0)
