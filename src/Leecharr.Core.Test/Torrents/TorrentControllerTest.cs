@@ -287,6 +287,39 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public void GetById_WhenTorrentHasNoTrackerUrl_UsesSanitizedTrackerFromDbEntries()
+    {
+        const string rawUrl = "http://private.tracker.org/announce?passkey=123456";
+        const string sanitizedUrl = "http://private.tracker.org/announce?passkey=********";
+        var torrent = new Torrent
+        {
+            Id = 7,
+            Name = "Private Torrent",
+            TrackerUrl = null,
+            DateAdded = DateTime.UtcNow.AddHours(-1),
+        };
+        var trackerEntry = new TrackerEntry
+        {
+            Id = 1,
+            TorrentId = 7,
+            Url = rawUrl,
+            AnnounceInterval = 1800,
+        };
+
+        this.torrentService.Get(7).Returns(torrent);
+        this.mediaEnrichmentService.GetMetadata(7).Returns((TorrentMediaMetadata)null!);
+        this.trackerEntryRepository.GetByTorrentId(7).Returns(new List<TrackerEntry> { trackerEntry });
+
+        var result = this.controller.GetById(7);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resource.TrackerUrl.Should().Be(sanitizedUrl);
+        resource.Trackers.Should().Equal(sanitizedUrl);
+        resource.TrackerUrl.Should().NotContain("123456");
+    }
+
+    [Test]
     public async Task Update_CanClearCategoryAndLabel_WhenEmptyStringsProvided()
     {
         var existing = new Torrent
