@@ -46,7 +46,7 @@ public class JintScriptRunner : IScriptRunner
         {
             var engine = new Engine(options =>
             {
-                options.LimitMemory(32 * 1024 * 1024);
+                options.LimitMemory(ScriptMemoryLimits.MaxBytes);
                 options.TimeoutInterval(TimeSpan.FromSeconds(15));
                 options.LimitRecursion(64);
             });
@@ -138,6 +138,12 @@ public class JintScriptRunner : IScriptRunner
             logBuilder.AppendLine("[ERROR] Execution timed out.");
         }
         catch (MemoryLimitExceededException)
+        {
+            result.Success = false;
+            result.Error = "Script exceeded memory limit (32MB)";
+            logBuilder.AppendLine("[ERROR] Memory limit exceeded.");
+        }
+        catch (ScriptMemoryLimitExceededException)
         {
             result.Success = false;
             result.Error = "Script exceeded memory limit (32MB)";
