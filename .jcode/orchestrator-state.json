@@ -7,15 +7,16 @@
   "model": "composer-2.5-fast",
   "in_progress": {
     "1826": {"agent": "koala", "session": "session_koala_1791547595482_311d8eb2fe3886a7", "area": "Config/Logging", "swarm_status": "running"},
-    "1841": {"agent": "mouse", "session": "session_mouse_1791547596480_8cb419c277e4e97b", "area": "MediaInspection", "swarm_status": "running"},
+
     "125": {"agent": "otter", "session": "session_otter_1791547596855_ae89b442731bbcff", "area": "TorrentEngine", "swarm_status": "running", "note": "pivot from #90 via DM"},
-    "177": {"agent": "horse", "session": "session_horse_1791547595123_5a26f5b962b0ba69", "area": "Network/Blocklist", "swarm_status": "ready", "plan_task_id": "issue-1819", "note": "pivot from #1819; editing wt-177"},
     "1849": {"agent": "llama", "session": "session_llama_1791547595974_1a453453c29011c2", "area": "ArrIntegration", "swarm_status": "completed", "plan_task_id": "issue-1830", "note": "#1830 done; DM pivot to #1849"}
   },
   "completed_issues": {
     "1819": {"agent": "horse", "closed_at_github": "2026-10-09T12:09:38Z", "commit": "05125de"},
+    "177": {"agent": "horse", "closed_at_github": "2026-10-09T12:18:00Z", "commit": "d482563", "worktree": "leecharr-wt-177"},
     "90": {"agent": "otter", "closed_at_github": "2026-10-09T12:10:55Z", "plan_completed": "issue-90"},
-    "1830": {"agent": "llama", "closed_at_github": "2026-10-09T12:11:32Z", "commit": "8be3ace"}
+    "1830": {"agent": "llama", "closed_at_github": "2026-10-09T12:11:32Z", "commit": "8be3ace"},
+    "1841": {"agent": "mouse", "closed_at_github": "2026-10-09T12:13:32Z", "commit": "c1d22c4"}
   },
   "queued_issues": [257, 1818],
   "extra_agents": {
