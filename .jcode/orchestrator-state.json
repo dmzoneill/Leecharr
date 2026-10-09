@@ -1,0 +1,21 @@
+{
+  "repo": "dmzoneill/Leecharr",
+  "base_path": "/home/daoneill/src/usr/leecharr",
+  "target_agents": 5,
+  "poll_interval_sec": 30,
+  "model": "composer-2.5-fast",
+  "in_progress": {
+    "1826": {"agent": "horse", "area": "Config/Logging"},
+    "90": {"agent": "koala", "area": "Frontend"},
+    "1830": {"agent": "llama", "area": "Disk"},
+    "1841": {"agent": "mouse", "area": "MediaInspection"},
+    "1819": {"agent": "otter", "area": "Automation"}
+  },
+  "queued_issues": [],
+  "rules": {
+    "no_local_test_build": true,
+    "lint_format_ok": true,
+    "push_branch": "main",
+    "worktree_pattern": "leecharr-wt-{issue}"
+  }
+}
