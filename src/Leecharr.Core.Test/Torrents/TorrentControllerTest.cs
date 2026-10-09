@@ -340,6 +340,48 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public async Task Update_WhenSavePathChanges_PreservesOtherFieldEditsOnSameRequest()
+    {
+        var existing = new Torrent
+        {
+            Id = 10,
+            Name = "Old Name",
+            SavePath = "/downloads/old",
+            Category = "old-cat",
+        };
+
+        var reloadedFromDb = new Torrent
+        {
+            Id = 10,
+            Name = "Old Name",
+            SavePath = "/downloads/new",
+            Category = "old-cat",
+        };
+
+        this.torrentService.Get(10).Returns(existing, reloadedFromDb);
+        this.torrentService.SetLocationAsync(10, "/downloads/new", true).Returns(Task.CompletedTask);
+        this.torrentService.UpdateAsync(Arg.Any<Torrent>()).Returns(ci => Task.FromResult(ci.Arg<Torrent>()));
+
+        var resource = new TorrentResource
+        {
+            Id = 10,
+            SavePath = "/downloads/new",
+            Category = "movies",
+            Name = "New Name",
+        };
+
+        await this.controller.Update(10, resource);
+
+        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/new", true);
+        this.torrentService.Received(1).Get(10);
+        existing.SavePath.Should().Be("/downloads/new");
+        existing.Category.Should().Be("movies");
+        existing.Name.Should().Be("New Name");
+        await this.torrentService.Received(1).UpdateAsync(
+            Arg.Is<Torrent>(t => t.Category == "movies" && t.Name == "New Name" && t.SavePath == "/downloads/new"));
+    }
+
+    [Test]
     public void GetById_ReturnsTorrentWithPersistedThresholdAndSmallTorrentLimit()
     {
         var torrent = new Torrent
