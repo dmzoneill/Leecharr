@@ -24,6 +24,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
     private static readonly char[] HostnameAndSubnetSeparators = [',', ';', ' ', '\t', '\r', '\n'];
     private readonly HttpClient httpClient;
+    private HttpClient directEgressHttpClient;
     private readonly bool ownsClient;
     private readonly Logger logger;
     private readonly IConfigService configService;
@@ -216,6 +217,22 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
     public async Task<string> DownloadStringAsync(Uri uri, IDictionary<string, string> customHeaders = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         var bytes = await this.DownloadBytesAsync(uri, DefaultMaxSizeBytes, customHeaders, timeout, cancellationToken);
+        return Encoding.UTF8.GetString(bytes);
+    }
+
+    public async Task<string> DownloadStringDirectAsync(string url, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            throw new ArgumentException($"Invalid URL format: '{url}'", nameof(url));
+        }
+
+        var bytes = await this.DownloadBytesDirectAsync(uri, DefaultMaxSizeBytes, null, timeout, cancellationToken);
         return Encoding.UTF8.GetString(bytes);
     }
 
@@ -585,11 +602,82 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         {
             this.httpClient?.Dispose();
         }
+
+        this.directEgressHttpClient?.Dispose();
+        this.directEgressHttpClient = null;
     }
 
     internal SocketsHttpHandler CreateSafeSocketsHttpHandlerInternal() => this.CreateSafeSocketsHttpHandler();
 
-    private SocketsHttpHandler CreateSafeSocketsHttpHandler()
+    private HttpClient GetDirectEgressHttpClient()
+    {
+        if (this.directEgressHttpClient != null)
+        {
+            return this.directEgressHttpClient;
+        }
+
+        var handler = this.CreateSafeSocketsHttpHandler(useConfiguredProxy: false);
+        this.directEgressHttpClient = new HttpClient(handler, disposeHandler: true)
+        {
+            Timeout = TimeSpan.FromSeconds(30),
+        };
+
+        return this.directEgressHttpClient;
+    }
+
+    private async Task<byte[]> DownloadBytesDirectAsync(Uri uri, long maxSizeBytes, IDictionary<string, string> customHeaders, TimeSpan? timeout, CancellationToken cancellationToken)
+    {
+        this.ValidateUri(uri);
+
+        using var timeoutCts = timeout.HasValue ? new CancellationTokenSource(timeout.Value) : null;
+        using var linkedCts = timeoutCts != null
+            ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token)
+            : null;
+        var token = linkedCts?.Token ?? cancellationToken;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        if (customHeaders != null)
+        {
+            foreach (var (header, value) in customHeaders)
+            {
+                request.Headers.TryAddWithoutValidation(header, value);
+            }
+        }
+
+        var client = this.GetDirectEgressHttpClient();
+        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+        response.EnsureSuccessStatusCode();
+
+        if (response.Content.Headers.ContentLength.HasValue)
+        {
+            var contentLength = response.Content.Headers.ContentLength.Value;
+            if (contentLength > maxSizeBytes)
+            {
+                throw new InvalidOperationException($"Response Content-Length ({contentLength} bytes) exceeds maximum allowed size of {maxSizeBytes} bytes.");
+            }
+        }
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync(token);
+        using var memoryStream = new MemoryStream();
+        var buffer = new byte[81920];
+        long totalBytesRead = 0;
+
+        int bytesRead;
+        while ((bytesRead = await responseStream.ReadAsync(buffer, token)) > 0)
+        {
+            totalBytesRead += bytesRead;
+            if (totalBytesRead > maxSizeBytes)
+            {
+                throw new InvalidOperationException($"Response body size exceeded maximum allowed limit of {maxSizeBytes} bytes.");
+            }
+
+            memoryStream.Write(buffer, 0, bytesRead);
+        }
+
+        return memoryStream.ToArray();
+    }
+
+    private SocketsHttpHandler CreateSafeSocketsHttpHandler(bool useConfiguredProxy = true)
     {
         var handler = new SocketsHttpHandler
         {
@@ -661,7 +749,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         var proxyHost = this.configService?.ProxyHost;
         var proxyPort = this.configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" ? 1080 : 8080);
 
-        if (!string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
+        if (useConfiguredProxy && !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
         {
             var scheme = proxyType switch
             {
