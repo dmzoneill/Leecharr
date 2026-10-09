@@ -22,14 +22,17 @@
   },
   "queued_issues": [124, 123, 1851, 1849, 257, 1818],
   "schedule_poll_id": null,
-  "last_poll": "2026-10-09T12:21Z",
+  "last_poll": "2026-10-09T12:22Z",
   "last_validation": {
-    "at": "2026-10-09T12:21Z",
+    "at": "2026-10-09T12:22Z",
     "checks": [
-      "swarm_list: coordinator_only",
-      "github_1826_125: closed",
-      "plan_v36: completed_all_nodes",
-      "in_progress_empty_matches_halt"
+      "swarm_list: coordinator_only_sauropod",
+      "active_workers: 0",
+      "plan_v36: all_nodes_completed",
+      "in_progress: empty",
+      "completed_issues: 7 match github closed",
+      "queued_1849_257_1818: still open",
+      "git: no worker agents"
     ]
   },
   "rules": {
