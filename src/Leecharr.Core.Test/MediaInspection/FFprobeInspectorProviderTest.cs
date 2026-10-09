@@ -421,4 +421,50 @@ sleep 300
         info.AudioSampleRate.Should().Be(96000);
         info.AudioBitDepth.Should().Be(24);
     }
+
+    [Test]
+    public void ParseFFprobeJson_WhenWebmExtension_MapsContainerToWebM()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""vp9"",
+      ""width"": 1920,
+      ""height"": 1080
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "clip.webm");
+
+        info.Should().NotBeNull();
+        info!.ContainerFormat.Should().Be("WebM");
+    }
+
+    [Test]
+    public void ParseFFprobeJson_When3gpExtension_MapsContainerTo3gpNotMp4()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""mov,mp4,m4a,3gp,3g2,mj2""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": 640,
+      ""height"": 480
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "phone.3gp");
+
+        info.Should().NotBeNull();
+        info!.ContainerFormat.Should().Be("3GP");
+    }
 }

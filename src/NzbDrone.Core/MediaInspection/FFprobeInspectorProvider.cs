@@ -191,30 +191,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                 if (formatElement.TryGetProperty("format_name", out var fnProp) && fnProp.ValueKind == JsonValueKind.String)
                 {
                     var fn = fnProp.GetString() ?? string.Empty;
-                    if (fn.Contains("matroska", StringComparison.OrdinalIgnoreCase))
-                    {
-                        info.ContainerFormat = "Matroska (MKV)";
-                    }
-                    else if (fn.Contains("mp4", StringComparison.OrdinalIgnoreCase) || fn.Contains("mov", StringComparison.OrdinalIgnoreCase))
-                    {
-                        info.ContainerFormat = "MP4";
-                    }
-                    else if (fn.Contains("avi", StringComparison.OrdinalIgnoreCase))
-                    {
-                        info.ContainerFormat = "AVI";
-                    }
-                    else if (fn.Contains("flac", StringComparison.OrdinalIgnoreCase))
-                    {
-                        info.ContainerFormat = "FLAC";
-                    }
-                    else if (fn.Contains("mp3", StringComparison.OrdinalIgnoreCase))
-                    {
-                        info.ContainerFormat = "MP3";
-                    }
-                    else
-                    {
-                        info.ContainerFormat = fn;
-                    }
+                    info.ContainerFormat = MapFfprobeFormatName(fn, fileName);
                 }
 
                 if (formatElement.TryGetProperty("duration", out var durProp))
@@ -495,6 +472,87 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         {
             return null;
         }
+    }
+
+    internal static string MapFfprobeFormatName(string formatName, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(formatName))
+        {
+            return formatName ?? string.Empty;
+        }
+
+        var tokens = formatName.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0)
+        {
+            return formatName;
+        }
+
+        var ext = Path.GetExtension(fileName).TrimStart('.').ToLowerInvariant();
+
+        if (HasFormatToken(tokens, "matroska") || HasFormatToken(tokens, "webm"))
+        {
+            if (ext == "webm" && HasFormatToken(tokens, "webm"))
+            {
+                return "WebM";
+            }
+
+            if ((ext == "mkv" || ext == "mka" || ext == "mks" || ext == "mk3d") && HasFormatToken(tokens, "matroska"))
+            {
+                return "Matroska (MKV)";
+            }
+
+            if (HasFormatToken(tokens, "webm") && !HasFormatToken(tokens, "matroska"))
+            {
+                return "WebM";
+            }
+
+            return "Matroska (MKV)";
+        }
+
+        if (HasFormatToken(tokens, "mov") || HasFormatToken(tokens, "mp4") || HasFormatToken(tokens, "m4a") ||
+            HasFormatToken(tokens, "3gp") || HasFormatToken(tokens, "3g2") || HasFormatToken(tokens, "mj2"))
+        {
+            return ext switch
+            {
+                "3gp" => "3GP",
+                "3g2" => "3G2",
+                "mov" => "MP4",
+                "m4v" => "MP4",
+                "mp4" => "MP4",
+                "m4a" => "MP4",
+                _ => "MP4",
+            };
+        }
+
+        if (HasFormatToken(tokens, "avi"))
+        {
+            return "AVI";
+        }
+
+        if (HasFormatToken(tokens, "flac"))
+        {
+            return "FLAC";
+        }
+
+        if (HasFormatToken(tokens, "mp3"))
+        {
+            return "MP3";
+        }
+
+        return tokens.Length == 1 ? tokens[0] : formatName;
+    }
+
+    private static bool HasFormatToken(string[] tokens, string token)
+    {
+        foreach (var entry in tokens)
+        {
+            if (entry.Equals(token, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int GetAudioCodecScore(string codec)
