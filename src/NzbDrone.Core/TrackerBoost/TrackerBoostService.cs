@@ -64,6 +64,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     private readonly ITrackerBoostStateStore stateStore;
     private readonly INetworkBindingService networkBindingService;
     private readonly IVpnKillSwitchService vpnKillSwitchService;
+    private readonly IEventAggregator eventAggregator;
     private readonly HttpClient httpClient;
     private readonly bool ownsHttpClient;
     private readonly SemaphoreSlim globalScrapeThrottle = new(10, 10);
@@ -82,6 +83,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         ITrackerBoostStateStore stateStore = null,
         INetworkBindingService networkBindingService = null,
         IVpnKillSwitchService vpnKillSwitchService = null,
+        IEventAggregator eventAggregator = null,
         HttpClient httpClient = null)
     {
         this.trackerRepository = trackerRepository;
@@ -94,6 +96,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         this.stateStore = stateStore ?? TrackerBoostStateStore.Shared;
         this.networkBindingService = networkBindingService;
         this.vpnKillSwitchService = vpnKillSwitchService;
+        this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
 
         if (httpClient != null)
@@ -505,6 +508,16 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         while (this.stateStore.LogBuffer.Count > MaxLogEntries && this.stateStore.LogBuffer.TryDequeue(out _))
         {
         }
+    }
+
+    private void PublishTrackerBoostApplied(Torrent torrent, int addedTrackersCount)
+    {
+        if (torrent == null || addedTrackersCount <= 0)
+        {
+            return;
+        }
+
+        this.eventAggregator?.PublishEvent(new TrackerBoostAppliedEvent(torrent, addedTrackersCount));
     }
 
     public List<TrackerBoostTracker> GetAllTrackers()
@@ -1153,6 +1166,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 $"Boosted torrent '{torrent.Name}': injected {addedList.Count} verified tracker(s) (+{totalSeeders} seeds, +{totalLeechers} leeches) into swarm",
                 infoHash: torrent.InfoHash);
 
+            this.PublishTrackerBoostApplied(torrent, addedList.Count);
+
             return new SwarmBoostResult
             {
                 TorrentId = torrentId,
@@ -1318,6 +1333,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, new[] { trackerUrl.Trim() }).ConfigureAwait(false);
         this.LogActivity("Success", "Inject", $"Injected tracker {trackerUrl} into torrent '{torrent.Name}'", trackerUrl, torrent.InfoHash);
+
+        this.PublishTrackerBoostApplied(torrent, 1);
 
         return new SwarmBoostResult
         {
