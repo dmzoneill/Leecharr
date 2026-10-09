@@ -1780,23 +1780,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         {
             foreach (var t in dbTrackers)
             {
-                int qbStatus;
-                if (!t.Enabled)
-                {
-                    qbStatus = 0;
-                }
-                else if (t.Status == 2 || !string.IsNullOrWhiteSpace(t.ErrorMessage))
-                {
-                    qbStatus = 4;
-                }
-                else if (t.Status == 0)
-                {
-                    qbStatus = 1;
-                }
-                else
-                {
-                    qbStatus = 2;
-                }
+                var qbStatus = MapToQBitTrackerStatus(t);
 
                 trackers.Add(new Dictionary<string, object>
                 {
@@ -3581,6 +3565,31 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         return (saveDir, Path.Combine(saveDir, t.Name));
+    }
+
+    internal static int MapToQBitTrackerStatus(TrackerEntry tracker)
+    {
+        if (tracker == null)
+        {
+            return 1;
+        }
+
+        if (!tracker.Enabled)
+        {
+            return 0;
+        }
+
+        if (tracker.Status == 2 || !string.IsNullOrWhiteSpace(tracker.ErrorMessage))
+        {
+            return 4;
+        }
+
+        if (tracker.Status == 0)
+        {
+            return 1;
+        }
+
+        return 2;
     }
 
     internal static string MapToQBitState(TorrentStatus status, double progress, long downloadSpeed = 0, long uploadSpeed = 0)
