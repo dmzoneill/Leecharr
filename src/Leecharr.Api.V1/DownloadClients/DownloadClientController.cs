@@ -527,17 +527,7 @@ public class DownloadClientController : Controller
 
     private HttpClient GetHttpClient()
     {
-        if (this.httpClient != null)
-        {
-            return this.httpClient;
-        }
-
-        if (this.httpClientFactory != null)
-        {
-            return this.httpClientFactory.CreateClient();
-        }
-
-        return null;
+        return this.httpClient;
     }
 
     private void ValidateSsrf(string host, int port, bool useSsl = false)
