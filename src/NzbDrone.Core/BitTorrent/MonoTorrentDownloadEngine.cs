@@ -3695,20 +3695,33 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.logger.Debug(ex, "Failed to save FastResume checkpoint on completion for {0}", infoHash);
         }
 
-        var completionSavePath = moveSucceeded ? seedingSavePath : currentIncompletePath;
-
-        this.logger.Info("[State Machine] Torrent #{0} ('{1}') download completed (100% verified). Final destination: '{2}'. Publishing completion event.", torrentId, torrentName, finalDestination);
-        this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
+        if (moveSucceeded)
         {
-            Id = torrentId,
-            InfoHash = infoHash,
-            Name = torrentName,
-            Status = TorrentStatus.Seeding,
-            Category = category,
-            SavePath = completionSavePath,
-            Progress = 1.0,
-            DateCompleted = DateTime.UtcNow,
-        }));
+            this.logger.Info(
+                "[State Machine] Torrent #{0} ('{1}') download completed (100% verified). Final destination: '{2}'. Publishing completion event.",
+                torrentId,
+                torrentName,
+                finalDestination);
+            this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
+            {
+                Id = torrentId,
+                InfoHash = infoHash,
+                Name = torrentName,
+                Status = TorrentStatus.Seeding,
+                Category = category,
+                SavePath = seedingSavePath,
+                Progress = 1.0,
+                DateCompleted = DateTime.UtcNow,
+            }));
+        }
+        else
+        {
+            this.logger.Warn(
+                "[State Machine] Torrent #{0} ('{1}') finished downloading but relocation to completed folder failed. Files remain at '{2}'. Skipping TorrentDownloadCompletedEvent; FileMoveFailedEvent was published.",
+                torrentId,
+                torrentName,
+                finalDestination);
+        }
     }
 
     private void PublishFileMoveFailedEvent(
