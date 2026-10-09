@@ -184,6 +184,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var info = new MediaContainerInfo();
+            var isInterlaced = false;
 
             // 1. Format section
             if (root.TryGetProperty("format", out var formatElement) && formatElement.ValueKind == JsonValueKind.Object)
@@ -270,6 +271,12 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                             {
                                 info.Height = heightParsed;
                             }
+                        }
+
+                        if (stream.TryGetProperty("field_order", out var fieldOrderProp) &&
+                            fieldOrderProp.ValueKind == JsonValueKind.String)
+                        {
+                            isInterlaced = IsInterlacedFieldOrder(fieldOrderProp.GetString());
                         }
 
                         // Check HDR indicators
@@ -482,6 +489,11 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                 info.Resolution = "480p";
             }
 
+            if (isInterlaced && !string.IsNullOrEmpty(info.Resolution))
+            {
+                info.Resolution = ApplyInterlacedScanTypeLabel(info.Resolution);
+            }
+
             TagLibInspectorProvider.ApplyFilenameHints(info, fileName);
             return info;
         }
@@ -595,6 +607,31 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         }
     }
 
+    internal static bool IsInterlacedFieldOrder(string fieldOrder)
+    {
+        if (string.IsNullOrWhiteSpace(fieldOrder))
+        {
+            return false;
+        }
+
+        return fieldOrder.Equals("tt", StringComparison.OrdinalIgnoreCase) ||
+               fieldOrder.Equals("bb", StringComparison.OrdinalIgnoreCase) ||
+               fieldOrder.Equals("tb", StringComparison.OrdinalIgnoreCase) ||
+               fieldOrder.Equals("bt", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static string ApplyInterlacedScanTypeLabel(string progressiveResolution)
+    {
+        return progressiveResolution switch
+        {
+            "4K UHD (2160p)" => "4K UHD (2160i)",
+            "1080p" => "1080i",
+            "720p" => "720i",
+            "576p" => "576i",
+            "480p" => "480i",
+            _ => progressiveResolution,
+        };
+    }
     internal static string MapFfprobeFormatName(string formatName, string fileName)
     {
         if (string.IsNullOrWhiteSpace(formatName))

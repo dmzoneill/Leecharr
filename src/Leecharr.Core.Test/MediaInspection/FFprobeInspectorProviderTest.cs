@@ -327,6 +327,81 @@ sleep 300
         info!.Resolution.Should().Be("480p");
     }
 
+    [TestCase("tt")]
+    [TestCase("bb")]
+    [TestCase("tb")]
+    [TestCase("bt")]
+    public void ParseFFprobeJson_When1080InterlacedFieldOrder_Derives1080iResolution(string fieldOrder)
+    {
+        var json = $@"
+{{
+  ""format"": {{
+    ""format_name"": ""mpegts"",
+    ""duration"": ""3600.000000""
+  }},
+  ""streams"": [
+    {{
+      ""codec_type"": ""video"",
+      ""codec_name"": ""mpeg2video"",
+      ""width"": 1920,
+      ""height"": 1080,
+      ""field_order"": ""{fieldOrder}""
+    }}
+  ]
+}}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "broadcast.ts");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("1080i");
+    }
+
+    [Test]
+    public void ParseFFprobeJson_When480InterlacedFieldOrder_Derives480iResolution()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""mpegts"",
+    ""duration"": ""3600.000000""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""mpeg2video"",
+      ""width"": 720,
+      ""height"": 480,
+      ""field_order"": ""tt""
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sd-interlaced.ts");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("480i");
+    }
+
+    [Test]
+    public void ParseFFprobeJson_WhenProgressiveFieldOrder_Keeps1080pResolution()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""3600.000000""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": 1920,
+      ""height"": 1080,
+      ""field_order"": ""progressive""
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("1080p");
+    }
+
     [Test]
     public void ParseFFprobeJson_WhenSubtitleTagsIsNull_DoesNotThrowAndParsesSuccessfully()
     {
