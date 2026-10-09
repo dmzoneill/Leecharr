@@ -116,6 +116,7 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
 
         MediaInspectorSwitchedEvent switchedEvent = null;
         MediaInspectorSwitchResult result;
+        IMediaInspectorProvider previousProvider = null;
 
         await this.switchLock.WaitAsync(cancellationToken);
         try
@@ -132,15 +133,15 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
                 };
             }
 
-            var previousProvider = Volatile.Read(ref this.activeProvider);
+            previousProvider = Volatile.Read(ref this.activeProvider);
             this.logger.Info("Switching media inspector: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
-
-            Volatile.Write(ref this.activeProvider, targetProvider);
 
             this.configService.SaveConfigDictionary(new Dictionary<string, object>
             {
                 { "ActiveMediaInspector", targetProvider.ProviderId },
             });
+
+            Volatile.Write(ref this.activeProvider, targetProvider);
 
             switchedEvent = new MediaInspectorSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
 
@@ -157,11 +158,18 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         catch (Exception ex)
         {
             this.logger.Error(ex, "Fatal error during media inspector hot-swap to {0}", targetProviderId);
+
+            if (previousProvider != null)
+            {
+                Volatile.Write(ref this.activeProvider, previousProvider);
+            }
+
+            var activeProviderId = previousProvider?.ProviderId ?? Volatile.Read(ref this.activeProvider)?.ProviderId;
             return new MediaInspectorSwitchResult
             {
                 Success = false,
-                PreviousProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
-                ActiveProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
+                PreviousProvider = activeProviderId,
+                ActiveProvider = activeProviderId,
                 Error = $"Media inspector switch failed: {ex.Message}",
             };
         }
