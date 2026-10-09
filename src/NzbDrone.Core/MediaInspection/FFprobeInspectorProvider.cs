@@ -134,10 +134,18 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Trace(ex, "Failed to kill FFprobe process on timeout");
+                    this.logger.Trace(ex, "Failed to kill FFprobe process after cancellation");
                 }
 
-                this.logger.Warn("FFprobe execution timed out after {0} seconds for {1}", this.executionTimeout.TotalSeconds, mediaPath);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    this.logger.Debug("FFprobe inspection cancelled for {0}", mediaPath);
+                }
+                else
+                {
+                    this.logger.Warn("FFprobe execution timed out after {0} seconds for {1}", this.executionTimeout.TotalSeconds, mediaPath);
+                }
+
                 throw;
             }
 
@@ -159,6 +167,10 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             }
 
             return this.fallbackProvider.InspectFile(mediaPath);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
