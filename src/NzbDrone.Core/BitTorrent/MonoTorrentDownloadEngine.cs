@@ -3335,12 +3335,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
                 else if (e.OldState == TorrentState.Hashing)
                 {
+                    var allVerified = manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue);
                     if (this.tasks.TryGetValue(torrentId, out var activeTask))
                     {
                         var wasExplicitRecheck = activeTask.IsExplicitRecheck;
                         activeTask.IsExplicitRecheck = false;
                         activeTask.IsQueuedForRecheck = false;
-                        var allVerified = manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue);
                         if (!allVerified && activeTask.IsFilesMovedToCompleted && wasExplicitRecheck)
                         {
                             activeTask.IsFilesMovedToCompleted = false;
@@ -3348,6 +3348,26 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             this.torrentLogService?.Log(torrentId, "Warn", "Storage", $"Hash check detected missing pieces ({manager.Progress:F1}% verified). Resuming download to repair.");
                         }
                     }
+
+                    var hashCheckStatus = MapTorrentStateToStatus(e.NewState);
+                    if (hashCheckStatus == TorrentStatus.Downloading &&
+                        (manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) || currentTask?.IsFilesMovedToCompleted == true))
+                    {
+                        hashCheckStatus = TorrentStatus.Seeding;
+                    }
+
+                    this.eventAggregator?.PublishEvent(new TorrentHashCheckCompletedEvent(
+                        new CoreTorrent
+                        {
+                            Id = torrentId,
+                            InfoHash = infoHash,
+                            Name = torrentName,
+                            Status = hashCheckStatus,
+                            Category = currentTask?.Category,
+                            SavePath = currentTask?.SavePath ?? this.storagePathService?.GetCompletedDirectory(currentTask?.Category) ?? this.configService?.DownloadDir ?? "/downloads",
+                            Progress = manager.Progress / 100.0,
+                        },
+                        allVerified));
 
                     this.logger.Info("[State Machine] Torrent #{0} ('{1}') finished data integrity hash check ({2:F1}% verified). Next state: {3}", torrentId, torrentName, manager.Progress, e.NewState);
                     this.torrentLogService?.Log(torrentId, "Info", "Storage", $"Data integrity check finished ({manager.Progress:F1}% verified). Next state: {e.NewState}");
