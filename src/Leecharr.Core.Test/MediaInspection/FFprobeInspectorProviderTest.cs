@@ -467,4 +467,85 @@ sleep 300
         info.Should().NotBeNull();
         info!.ContainerFormat.Should().Be("3GP");
     }
+
+    [Test]
+    public void ParseFFprobeJson_WhenFormatDurationIsNa_UsesVideoStreamDuration()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""mpegts"",
+    ""duration"": ""N/A""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": 1920,
+      ""height"": 1080,
+      ""duration"": ""5432.160000""
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "capture.ts");
+
+        info.Should().NotBeNull();
+        info!.DurationSeconds.Should().Be(5432.16);
+    }
+
+    [Test]
+    public void ParseFFprobeJson_WhenFormatDurationIsZero_UsesLongestStreamDuration()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""mpegts"",
+    ""duration"": 0
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": 1280,
+      ""height"": 720,
+      ""duration"": ""3600.0""
+    },
+    {
+      ""codec_type"": ""audio"",
+      ""codec_name"": ""aac"",
+      ""channels"": 2,
+      ""duration"": ""3605.5""
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "recording.ts");
+
+        info.Should().NotBeNull();
+        info!.DurationSeconds.Should().Be(3605.5);
+    }
+
+    [Test]
+    public void ParseFFprobeJson_WhenFormatDurationIsValid_KeepsFormatDurationOverStreams()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""1800.0""
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""video"",
+      ""codec_name"": ""h264"",
+      ""width"": 1920,
+      ""height"": 1080,
+      ""duration"": ""7200.0""
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.DurationSeconds.Should().Be(1800.0);
+    }
 }

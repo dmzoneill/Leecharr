@@ -194,19 +194,15 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                     info.ContainerFormat = MapFfprobeFormatName(fn, fileName);
                 }
 
-                if (formatElement.TryGetProperty("duration", out var durProp))
+                if (formatElement.TryGetProperty("duration", out var durProp) &&
+                    TryParseFfprobeDurationSeconds(durProp, out var formatDuration) &&
+                    formatDuration > 0)
                 {
-                    if (durProp.ValueKind == JsonValueKind.Number && durProp.TryGetDouble(out var durationSecNum))
-                    {
-                        info.DurationSeconds = durationSecNum;
-                    }
-                    else if (durProp.ValueKind == JsonValueKind.String &&
-                        double.TryParse(durProp.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var durationSecStr))
-                    {
-                        info.DurationSeconds = durationSecStr;
-                    }
+                    info.DurationSeconds = formatDuration;
                 }
             }
+
+            var maxStreamDurationSeconds = 0.0;
 
             // 2. Streams section
             if (root.TryGetProperty("streams", out var streamsElement) && streamsElement.ValueKind == JsonValueKind.Array)
@@ -219,6 +215,17 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                     }
 
                     var codecType = typeProp.GetString();
+
+                    if (string.Equals(codecType, "video", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(codecType, "audio", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (stream.TryGetProperty("duration", out var streamDurProp) &&
+                            TryParseFfprobeDurationSeconds(streamDurProp, out var streamDuration) &&
+                            streamDuration > maxStreamDurationSeconds)
+                        {
+                            maxStreamDurationSeconds = streamDuration;
+                        }
+                    }
 
                     if (string.Equals(codecType, "video", StringComparison.OrdinalIgnoreCase))
                     {
@@ -443,6 +450,11 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                 }
             }
 
+            if (info.DurationSeconds <= 0 && maxStreamDurationSeconds > 0)
+            {
+                info.DurationSeconds = maxStreamDurationSeconds;
+            }
+
             // Derive resolution
             if (info.Width >= 3800 || info.Height >= 2100)
             {
@@ -540,6 +552,38 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         }
 
         return tokens.Length == 1 ? tokens[0] : formatName;
+    }
+
+    private static bool TryParseFfprobeDurationSeconds(JsonElement durProp, out double durationSeconds)
+    {
+        durationSeconds = 0;
+        if (durProp.ValueKind == JsonValueKind.Number && durProp.TryGetDouble(out var durationSecNum))
+        {
+            durationSeconds = durationSecNum;
+            return true;
+        }
+
+        if (durProp.ValueKind == JsonValueKind.String)
+        {
+            var durationText = durProp.GetString();
+            if (string.IsNullOrWhiteSpace(durationText))
+            {
+                return false;
+            }
+
+            if (durationText.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (double.TryParse(durationText, NumberStyles.Float, CultureInfo.InvariantCulture, out var durationSecStr))
+            {
+                durationSeconds = durationSecStr;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool HasFormatToken(string[] tokens, string token)
