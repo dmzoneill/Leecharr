@@ -196,10 +196,15 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
     private async Task<Socket> CreateAndConnectDirectSocketAsync(string targetHost, int targetPort, CancellationToken cancellationToken)
     {
+        var connectHost = targetHost;
         var addressFamily = AddressFamily.InterNetwork;
-        if (IPAddress.TryParse(targetHost, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6)
+        if (TryParseHostAddress(targetHost, out var ip))
         {
-            addressFamily = AddressFamily.InterNetworkV6;
+            connectHost = ip.ToString();
+            if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                addressFamily = AddressFamily.InterNetworkV6;
+            }
         }
 
         var socket = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -207,7 +212,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         try
         {
             this.BindDirectSocket(socket);
-            await socket.ConnectAsync(targetHost, targetPort, cancellationToken).ConfigureAwait(false);
+            await socket.ConnectAsync(connectHost, targetPort, cancellationToken).ConfigureAwait(false);
             return socket;
         }
         catch
@@ -321,7 +326,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         ms.WriteByte(0x01); // CMD: CONNECT
         ms.WriteByte(0x00); // RSV
 
-        if (IPAddress.TryParse(targetHost, out var ipAddress))
+        if (TryParseHostAddress(targetHost, out var ipAddress))
         {
             if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
             {
@@ -491,7 +496,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             return targetHost;
         }
 
-        if ((IPAddress.TryParse(targetHost, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6) ||
+        if ((TryParseHostAddress(targetHost, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6) ||
             (targetHost.Contains(':') && !targetHost.StartsWith('[')))
         {
             return $"[{targetHost}]";
@@ -557,7 +562,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             return true;
         }
 
-        if (IPAddress.TryParse(host, out var ip))
+        if (TryParseHostAddress(host, out var ip))
         {
             if (IPAddress.IsLoopback(ip))
             {
@@ -642,7 +647,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         ms.WriteByte((byte)((targetPort >> 8) & 0xFF));
         ms.WriteByte((byte)(targetPort & 0xFF));
 
-        if (IPAddress.TryParse(targetHost, out var ipAddress) && ipAddress.AddressFamily == AddressFamily.InterNetwork)
+        if (TryParseHostAddress(targetHost, out var ipAddress) && ipAddress.AddressFamily == AddressFamily.InterNetwork)
         {
             var ipBytes = ipAddress.GetAddressBytes();
             ms.Write(ipBytes, 0, 4);
@@ -676,5 +681,22 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         }
 
         this.logger.Debug("SOCKS4 tunnel established successfully to {0}:{1}", targetHost, targetPort);
+    }
+
+    internal static bool TryParseHostAddress(string host, out IPAddress address)
+    {
+        address = null;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        var cleanHost = host.Trim();
+        if (cleanHost.Length >= 2 && cleanHost[0] == '[' && cleanHost[^1] == ']')
+        {
+            cleanHost = cleanHost[1..^1];
+        }
+
+        return IPAddress.TryParse(cleanHost, out address);
     }
 }
