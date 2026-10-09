@@ -8,6 +8,8 @@
   "poll_interval_sec": 30,
   "model": "composer-2.5-fast",
   "state_writer": "coordinator_only",
+  "active_workers": 0,
+  "swarm_plan": {"version": 36, "mode": "light", "terminal": "all_nodes_completed"},
   "in_progress": {},
   "completed_issues": {
     "1819": {"agent": "horse", "closed_at_github": "2026-10-09T12:09:38Z"},
@@ -15,12 +17,21 @@
     "90": {"agent": "otter", "closed_at_github": "2026-10-09T12:10:55Z"},
     "1830": {"agent": "llama", "closed_at_github": "2026-10-09T12:11:32Z"},
     "1841": {"agent": "mouse", "closed_at_github": "2026-10-09T12:13:32Z"},
-    "1826": {"agent": "koala", "note": "verify on resume"},
-    "125": {"agent": "otter", "note": "merged main 240e6f1"}
+    "1826": {"agent": "koala", "closed_at_github": "2026-10-09T12:16:17Z"},
+    "125": {"agent": "otter", "closed_at_github": "2026-10-09T12:16:52Z", "merge_commit": "240e6f1"}
   },
   "queued_issues": [124, 123, 1851, 1849, 257, 1818],
   "schedule_poll_id": null,
-  "last_poll": "2026-10-09T12:20Z",
+  "last_poll": "2026-10-09T12:21Z",
+  "last_validation": {
+    "at": "2026-10-09T12:21Z",
+    "checks": [
+      "swarm_list: coordinator_only",
+      "github_1826_125: closed",
+      "plan_v36: completed_all_nodes",
+      "in_progress_empty_matches_halt"
+    ]
+  },
   "rules": {
     "no_local_test_build": true,
     "lint_format_ok": true,
