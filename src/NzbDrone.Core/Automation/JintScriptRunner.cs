@@ -59,7 +59,7 @@ public class JintScriptRunner : IScriptRunner
             engine.SetValue("console", new ScriptConsoleContext(logBuilder));
 
             // HTTP context
-            using var httpContext = new ScriptHttpContext(executionBudget: executionBudget);
+            using var httpContext = new ScriptHttpContext(client: null, executionBudget: executionBudget);
             engine.SetValue("http", httpContext);
 
             // API context (local pre-authenticated)

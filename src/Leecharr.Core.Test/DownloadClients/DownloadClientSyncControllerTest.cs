@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.DownloadClients;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.DownloadClients;
@@ -318,7 +319,7 @@ public class DownloadClientSyncControllerTest
     public async Task Sync_WhenHttpClientFactoryInjected_DoesNotUseSharedFactoryClient()
     {
         var factory = Substitute.For<IHttpClientFactory>();
-        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient: null, httpClientFactory: factory);
+        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient: null, safeHttpClientService: Substitute.For<ISafeHttpClientService>());
 
         this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition>
         {

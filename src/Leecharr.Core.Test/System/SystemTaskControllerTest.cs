@@ -66,7 +66,7 @@ public class SystemTaskControllerTest
     {
         var lastExecution = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var lastStartTime = new DateTime(2026, 1, 2, 12, 0, 0, DateTimeKind.Utc);
-        const double intervalMinutes = 1440;
+        const int intervalMinutes = 1440;
 
         this.taskManager.GetAll().Returns(new List<ScheduledTask>
         {

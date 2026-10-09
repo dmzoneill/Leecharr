@@ -282,7 +282,7 @@ public class DownloadClientController : Controller
             return this.Ok(TorrentResourceMapper.ToResource(existing));
         }
 
-        if (!this.TryBuildImportMagnetUri(hash, out var magnetUri, out var hashError))
+        if (!TryBuildImportMagnetUri(hash, out var magnetUri, out var hashError))
         {
             return this.BadRequest(hashError);
         }
@@ -512,7 +512,7 @@ public class DownloadClientController : Controller
         return null;
     }
 
-    private bool TryBuildImportMagnetUri(string hash, out string magnetUri, out string error)
+    private static bool TryBuildImportMagnetUri(string hash, out string magnetUri, out string error)
     {
         magnetUri = null;
         error = null;

@@ -535,7 +535,7 @@ public static class DownloadClientRemoteQuery
             return false;
         }
 
-        if (hash.IndexOf('|') >= 0)
+        if (hash.Contains('|'))
         {
             return false;
         }
