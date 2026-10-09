@@ -196,23 +196,53 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
     private async Task<Socket> CreateAndConnectDirectSocketAsync(string targetHost, int targetPort, CancellationToken cancellationToken)
     {
-        var connectHost = targetHost;
-        var addressFamily = AddressFamily.InterNetwork;
-        if (TryParseHostAddress(targetHost, out var ip))
+        if (TryParseHostAddress(targetHost, out var parsedIp))
         {
-            connectHost = ip.ToString();
-            if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            return await this.CreateAndConnectDirectSocketToAddressAsync(parsedIp, targetPort, cancellationToken).ConfigureAwait(false);
+        }
+
+        var addresses = await Dns.GetHostAddressesAsync(targetHost, cancellationToken).ConfigureAwait(false);
+        if (addresses == null || addresses.Length == 0)
+        {
+            throw new SocketException((int)SocketError.HostNotFound);
+        }
+
+        ValidateResolvedDirectConnectAddresses(targetHost, targetPort, addresses, this.logger);
+
+        Exception lastError = null;
+        foreach (var address in addresses)
+        {
+            try
             {
-                addressFamily = AddressFamily.InterNetworkV6;
+                return await this.CreateAndConnectDirectSocketToAddressAsync(address, targetPort, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is SocketException or IOException)
+            {
+                lastError = ex;
             }
         }
 
-        var socket = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp);
+        if (lastError != null)
+        {
+            throw lastError;
+        }
+
+        throw new SocketException((int)SocketError.HostUnreachable);
+    }
+
+    private async Task<Socket> CreateAndConnectDirectSocketToAddressAsync(IPAddress ip, int targetPort, CancellationToken cancellationToken)
+    {
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        var socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
         try
         {
             this.BindDirectSocket(socket);
-            await socket.ConnectAsync(connectHost, targetPort, cancellationToken).ConfigureAwait(false);
+            await socket.ConnectAsync(new IPEndPoint(ip, targetPort), cancellationToken).ConfigureAwait(false);
             return socket;
         }
         catch
@@ -220,6 +250,36 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             socket.Dispose();
             throw;
         }
+    }
+
+    internal static void ValidateResolvedDirectConnectAddresses(string targetHost, int targetPort, IPAddress[] addresses, Logger logger)
+    {
+        foreach (var address in addresses)
+        {
+            var checkHost = FormatAddressForSecurityCheck(address);
+            if (!IsLinkLocalOrMetadata(checkHost))
+            {
+                continue;
+            }
+
+            logger?.Warn("Blocked direct connection to link-local / cloud metadata address {0}:{1} (resolved from {2}).", checkHost, targetPort, targetHost);
+            throw new SocketException((int)SocketError.AccessDenied);
+        }
+    }
+
+    internal static string FormatAddressForSecurityCheck(IPAddress address)
+    {
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return $"[{address}]";
+        }
+
+        return address.ToString();
     }
 
     private void BindDirectSocket(Socket socket)
