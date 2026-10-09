@@ -91,7 +91,10 @@ public class NetworkStatusService : INetworkStatusService
         var primaryLocal = localAddresses.FirstOrDefault() ?? "127.0.0.1";
         var port = this.configFileProvider?.Port ?? 7889;
         var btPort = this.configService?.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
-        var activeInterface = !string.IsNullOrWhiteSpace(this.configService?.BindInterface) ? this.configService.BindInterface : "Auto";
+        var boundInterface = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService?.BindInterface;
+        var activeInterface = !string.IsNullOrWhiteSpace(boundInterface) ? boundInterface : "Auto";
 
         var portMappings = new List<PortMappingInfo>();
         if (this.natPmpPortMapperService?.ActiveMappings != null && this.natPmpPortMapperService.ActiveMappings.Count > 0)
