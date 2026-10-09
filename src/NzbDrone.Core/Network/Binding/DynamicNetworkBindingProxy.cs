@@ -41,8 +41,8 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
 
         var desiredProviderId = this.configService?.ActiveNetworkBindingProvider;
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ManagedSocket", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault();
+            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ManagedSocket", StringComparison.OrdinalIgnoreCase))
+            ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {
@@ -286,7 +286,7 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
 
         var configuredProviderId = this.configService?.ActiveNetworkBindingProvider;
         return !string.IsNullOrWhiteSpace(configuredProviderId) &&
-               !string.Equals(configuredProviderId, targetProviderId, StringComparison.OrdinalIgnoreCase);
+            !string.Equals(configuredProviderId, targetProviderId, StringComparison.OrdinalIgnoreCase);
     }
 
     private NetworkBindingSwitchResult CreateSupersededSwitchResult(string targetProviderId)

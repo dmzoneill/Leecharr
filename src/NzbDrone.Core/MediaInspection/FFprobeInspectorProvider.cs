@@ -698,9 +698,9 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         }
 
         return fieldOrder.Equals("tt", StringComparison.OrdinalIgnoreCase) ||
-               fieldOrder.Equals("bb", StringComparison.OrdinalIgnoreCase) ||
-               fieldOrder.Equals("tb", StringComparison.OrdinalIgnoreCase) ||
-               fieldOrder.Equals("bt", StringComparison.OrdinalIgnoreCase);
+            fieldOrder.Equals("bb", StringComparison.OrdinalIgnoreCase) ||
+            fieldOrder.Equals("tb", StringComparison.OrdinalIgnoreCase) ||
+            fieldOrder.Equals("bt", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static string ApplyInterlacedScanTypeLabel(string progressiveResolution)
