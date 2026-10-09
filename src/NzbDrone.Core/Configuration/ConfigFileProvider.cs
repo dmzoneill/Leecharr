@@ -222,7 +222,10 @@ public class ConfigFileProvider : IConfigFileProvider
             return envVal;
         }
 
-        return this.config.TryGetValue(key, out var value) ? value : defaultValue;
+        lock (Mutex)
+        {
+            return this.config.TryGetValue(key, out var value) ? value : defaultValue;
+        }
     }
 
     private static string ToSnakeCaseUpper(string input)
