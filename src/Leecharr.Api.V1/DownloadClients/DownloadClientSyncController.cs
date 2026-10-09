@@ -54,13 +54,11 @@ public class DownloadClientSyncController : Controller
             var syncedCount = 0;
             var totalDiscovered = 0;
             var failedClients = 0;
-            var http = this.httpClient ?? this.httpClientFactory?.CreateClient();
-
             foreach (var client in clients)
             {
                 try
                 {
-                    var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService);
+                    var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.httpClient, this.safeHttpClientService);
                     totalDiscovered += items.Count;
 
                     foreach (var item in items)
