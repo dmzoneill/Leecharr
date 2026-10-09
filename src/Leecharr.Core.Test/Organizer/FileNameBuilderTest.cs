@@ -352,6 +352,27 @@ public class FileNameBuilderTest
     }
 
     [Test]
+    public void BuildFileName_WhenReplaceIllegalCharactersIsFalse_StripsControlCharacters()
+    {
+        var context = new MovieNamingContext
+        {
+            MovieTitle = "Good\0Evil",
+            ReleaseYear = 2020,
+            Extension = "mkv",
+        };
+
+        var config = new NamingConfig
+        {
+            ReplaceIllegalCharacters = false,
+        };
+
+        var result = this.builder.BuildFileName(context, "{Movie Title} ({Release Year})", config);
+
+        result.Should().NotContain("\0");
+        result.Should().Be("GoodEvil (2020).mkv");
+    }
+
+    [Test]
     public void BuildFileName_WhenReservedDosNameAndReplaceIllegalCharactersFalse_PrefixesUnderscore()
     {
         var context = new EpisodeNamingContext

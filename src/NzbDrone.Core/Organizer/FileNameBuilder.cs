@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using NzbDrone.Core.Torrents;
 
@@ -578,8 +579,10 @@ public class FileNameBuilder : IFileNameBuilder
             return "Unnamed";
         }
 
+        var cleaned = RemoveControlChars(fullFileName);
+
         // Strip drive prefix and root slashes
-        var cleaned = Regex.Replace(fullFileName, @"^[a-zA-Z]:[/\\]*", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
+        cleaned = Regex.Replace(cleaned, @"^[a-zA-Z]:[/\\]*", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         cleaned = cleaned.TrimStart('/', '\\');
 
         // Strip traversal sequences and directory separators
@@ -625,8 +628,10 @@ public class FileNameBuilder : IFileNameBuilder
             return "Unnamed";
         }
 
+        var cleaned = RemoveControlChars(folderName);
+
         // Strip drive prefix and root slashes
-        var cleaned = Regex.Replace(folderName, @"^[a-zA-Z]:[/\\]*", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
+        cleaned = Regex.Replace(cleaned, @"^[a-zA-Z]:[/\\]*", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
         cleaned = cleaned.TrimStart('/', '\\');
 
         // Strip traversal sequences and directory separators
@@ -649,5 +654,19 @@ public class FileNameBuilder : IFileNameBuilder
         }
 
         return cleaned;
+    }
+
+    private static string RemoveControlChars(string text)
+    {
+        var sb = new StringBuilder(text.Length);
+        foreach (var c in text)
+        {
+            if (c > 0x1F && c != 0x7F)
+            {
+                sb.Append(c);
+            }
+        }
+
+        return sb.ToString();
     }
 }
