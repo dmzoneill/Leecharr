@@ -27,7 +27,7 @@ public class ScriptSystemContext
         {
             try
             {
-                var drive = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(Environment.CurrentDirectory) ?? "/");
+                var drive = GetDriveForPath(Environment.CurrentDirectory);
                 return drive.AvailableFreeSpace;
             }
             catch
@@ -43,7 +43,7 @@ public class ScriptSystemContext
         {
             try
             {
-                var drive = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(Environment.CurrentDirectory) ?? "/");
+                var drive = GetDriveForPath(Environment.CurrentDirectory);
                 return drive.TotalSize;
             }
             catch
@@ -62,13 +62,18 @@ public class ScriptSystemContext
         try
         {
             var target = !string.IsNullOrWhiteSpace(path) ? path : Environment.CurrentDirectory;
-            var drive = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(System.IO.Path.GetFullPath(target)) ?? "/");
+            var drive = GetDriveForPath(target);
             return drive.AvailableFreeSpace;
         }
         catch
         {
             return 0;
         }
+    }
+
+    private static System.IO.DriveInfo GetDriveForPath(string path)
+    {
+        return new System.IO.DriveInfo(System.IO.Path.GetFullPath(path));
     }
 
     public object? runCommand(string commandName, object? payload = null)
