@@ -14,7 +14,8 @@
     "124": {"agent": "koala", "session": "penguin", "worktree": "/home/daoneill/src/usr/leecharr-wt-124"},
     "179": {"agent": "llama", "session": "sheep", "worktree": "/home/daoneill/src/usr/leecharr-wt-179", "ready_push": true, "commit": "d73aaca"},
     "257": {"agent": "mouse", "session": "sloth", "worktree": "/home/daoneill/src/usr/leecharr-wt-257", "push_granted": "2026-10-09T12:30Z", "commit": "2830cae"},
-    "1818": {"agent": "horse", "session": "snail", "worktree": "/home/daoneill/src/usr/leecharr-wt-1818"}
+    "1818": {"agent": "horse", "session": "snail", "worktree": "/home/daoneill/src/usr/leecharr-wt-1818"},
+    "1851": {"agent": "otter", "session": "snake", "worktree": "/home/daoneill/src/usr/leecharr-wt-1851"}
   },
   "push_lock": {"holder_issue": 257, "holder_session": "sloth", "granted_at": "2026-10-09T12:30Z"},
   "push_queue": [179],
@@ -28,7 +29,7 @@
     "125": {"agent": "otter", "closed_at_github": "2026-10-09T12:16:52Z", "merge_commit": "240e6f1"},
     "123": {"agent": "otter", "closed_at_github": "2026-10-09T12:28:41Z", "merge_commit": "993a704"}
   },
-  "queued_issues": [1851, 1849],
+  "queued_issues": [1849],
   "schedule_poll_id": "sched_49b329bc",
   "worktrees_cleaned_at": "2026-10-09T12:24Z",
   "last_poll": "2026-10-09T12:30Z",
