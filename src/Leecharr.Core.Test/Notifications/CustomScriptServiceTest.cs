@@ -155,6 +155,8 @@ public class CustomScriptServiceTest
 
             var env = CustomScriptService.BuildEnvironmentVariables("OnDownloadComplete", torrent, meta);
 
+            env["TORRENT_SIZE_BYTES"].Should().Be("1048576");
+            env["LEECHARR_TORRENT_SIZE_BYTES"].Should().Be("1048576");
             env["TORRENT_RATIO"].Should().Be("1.75");
             env["LEECHARR_TORRENT_RATIO"].Should().Be("1.75");
             env["LEECHARR_MEDIA_RATING"].Should().Be("8.5");
