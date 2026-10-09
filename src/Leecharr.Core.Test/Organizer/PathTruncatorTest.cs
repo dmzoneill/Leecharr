@@ -91,4 +91,39 @@ public class PathTruncatorTest
         result.Should().StartWith("/media/tv/Long Series Name/");
         result.Should().EndWith(".mkv");
     }
+
+    [Test]
+    public void TruncatePath_WhenCutFallsOnSurrogatePair_DoesNotLeaveUnpairedSurrogate()
+    {
+        var emoji = char.ConvertFromUtf32(0x1F600);
+        var path = new string('a', 10) + emoji + ".mkv";
+
+        var result = this.truncator.TruncatePath(path, maxPathChars: 15);
+
+        result.Length.Should().BeLessThanOrEqualTo(15);
+        ContainsUnpairedSurrogate(result).Should().BeFalse();
+        result.Should().EndWith(".mkv");
+    }
+
+    private static bool ContainsUnpairedSurrogate(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (char.IsHighSurrogate(text[i]))
+            {
+                if (i + 1 >= text.Length || !char.IsLowSurrogate(text[i + 1]))
+                {
+                    return true;
+                }
+
+                i++;
+            }
+            else if (char.IsLowSurrogate(text[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
