@@ -281,13 +281,19 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         }
     }
 
+    private bool ShouldSendProxyCredentials()
+    {
+        return this.configService?.ProxyAuthEnabled == true
+            && !string.IsNullOrEmpty(this.configService?.ProxyUsername);
+    }
+
     private async Task PerformSocks5HandshakeAsync(Socket socket, string targetHost, int targetPort, CancellationToken cancellationToken)
     {
         using var stream = new NetworkStream(socket, ownsSocket: false);
 
-        var username = this.configService?.ProxyUsername;
-        var password = this.configService?.ProxyPassword;
-        var hasAuth = !string.IsNullOrEmpty(username);
+        var hasAuth = this.ShouldSendProxyCredentials();
+        var username = hasAuth ? this.configService?.ProxyUsername : null;
+        var password = hasAuth ? this.configService?.ProxyPassword : null;
 
         // 1. Send SOCKS5 Greeting
         // [0x05 (version), NMETHODS, 0x00 (no auth), 0x02 (user/pass if configured)]
@@ -442,7 +448,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         sb.Append($"CONNECT {formattedHost}:{targetPort} HTTP/1.1\r\n");
         sb.Append($"Host: {formattedHost}:{targetPort}\r\n");
 
-        if (!string.IsNullOrEmpty(username))
+        if (this.ShouldSendProxyCredentials())
         {
             var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password ?? string.Empty}"));
             sb.Append($"Proxy-Authorization: Basic {auth}\r\n");
@@ -665,7 +671,9 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
     {
         using var stream = new NetworkStream(socket, ownsSocket: false);
 
-        var username = this.configService?.ProxyUsername ?? string.Empty;
+        var username = this.ShouldSendProxyCredentials()
+            ? this.configService?.ProxyUsername ?? string.Empty
+            : string.Empty;
         var userBytes = Encoding.ASCII.GetBytes(username);
 
         using var ms = new MemoryStream();
