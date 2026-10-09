@@ -284,8 +284,13 @@ public class DownloadClientController : Controller
 
         var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService, filterByCategory: false);
         var remoteItem = items.FirstOrDefault(i => string.Equals(i.InfoHash, hash, StringComparison.OrdinalIgnoreCase));
-        var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
-        var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client.Category;
+        if (remoteItem == null)
+        {
+            return this.NotFound();
+        }
+
+        var savePath = !string.IsNullOrWhiteSpace(remoteItem.SavePath) ? remoteItem.SavePath : null;
+        var category = !string.IsNullOrWhiteSpace(remoteItem.Category) ? remoteItem.Category : client.Category;
 
         var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
         var added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
@@ -357,6 +362,7 @@ public class DownloadClientController : Controller
 
         var importedCount = 0;
         var skippedCount = 0;
+        var failedCount = 0;
 
         foreach (var hash in hashes)
         {
@@ -372,9 +378,15 @@ public class DownloadClientController : Controller
                 continue;
             }
 
-            itemMap.TryGetValue(hash, out var remoteEntry);
+            if (!itemMap.TryGetValue(hash, out var remoteEntry))
+            {
+                this.logger.Warn("Torrent {0} was not returned by the download client during import", hash);
+                failedCount++;
+                continue;
+            }
+
             var remoteItem = remoteEntry.Item;
-            var client = remoteEntry.Client ?? clients.FirstOrDefault();
+            var client = remoteEntry.Client;
             var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
             var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client?.Category;
             var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
@@ -387,20 +399,22 @@ public class DownloadClientController : Controller
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to import torrent {0} from {1}", hash, client?.Name ?? "unknown");
-                skippedCount++;
+                failedCount++;
             }
         }
 
         var clientNameMsg = clients.Count == 1 ? clients[0].Name : $"{clients.Count} clients";
         return this.Ok(new SyncResultResource
         {
-            Success = true,
+            Success = failedCount == 0,
             SyncedCount = importedCount,
             TotalCount = hashes.Count,
             Added = importedCount,
             Skipped = skippedCount,
-            Failed = 0,
-            Message = $"Imported {importedCount} torrent(s) from {clientNameMsg}.",
+            Failed = failedCount,
+            Message = failedCount == 0
+                ? $"Imported {importedCount} torrent(s) from {clientNameMsg}."
+                : $"Imported {importedCount} torrent(s) from {clientNameMsg}; {failedCount} hash(es) were not on the download client or failed to import.",
         });
     }
 
