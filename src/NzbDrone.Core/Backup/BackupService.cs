@@ -61,6 +61,7 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
 
     public BackupResult CreateBackup(string type = "Manual")
     {
+        var stopwatch = Stopwatch.StartNew();
         string tempDumpFile = null;
         try
         {
@@ -198,6 +199,9 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
                 backupDir,
                 this.configService?.BackupRetentionMaxCount ?? 14,
                 this.configService?.BackupRetentionDays ?? 28);
+
+            stopwatch.Stop();
+            this.eventAggregator?.PublishEvent(new BackupCompletedEvent(zipName, fi.Length, stopwatch.ElapsedMilliseconds));
 
             return backup;
         }
