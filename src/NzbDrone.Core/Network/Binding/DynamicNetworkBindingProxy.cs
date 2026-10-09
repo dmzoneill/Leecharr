@@ -217,6 +217,18 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             return false;
         }
 
+        if (this.configService == null || !this.configService.EnableVpnKillSwitch)
+        {
+            if (this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = false;
+                this.logger.Info("VPN Kill switch disabled. Restoring interface state for '{0}'.", interfaceName);
+                this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(interfaceName));
+            }
+
+            return false;
+        }
+
         var isUp = this.IsInterfaceUp(interfaceName);
         if (!isUp)
         {

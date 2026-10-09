@@ -249,6 +249,7 @@ public class DynamicNetworkBindingProxyTest
     [Test]
     public void CheckVpnKillSwitch_WhenInterfaceDropped_PublishesEventAndReturnsTrue()
     {
+        this.configService.EnableVpnKillSwitch.Returns(true);
         this.managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
 
         var killSwitchTriggered = this.proxy.CheckVpnKillSwitch("tun0");
@@ -259,6 +260,7 @@ public class DynamicNetworkBindingProxyTest
     [Test]
     public void CheckVpnKillSwitch_WhenInterfaceRecovers_PublishesVpnInterfaceRestoredEvent()
     {
+        this.configService.EnableVpnKillSwitch.Returns(true);
         this.managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
         this.proxy.CheckVpnKillSwitch("tun0").Should().BeTrue();
 
@@ -272,6 +274,7 @@ public class DynamicNetworkBindingProxyTest
     [Test]
     public void CheckVpnKillSwitch_WhenKillSwitchDisengaged_PublishesVpnInterfaceRestoredEvent()
     {
+        this.configService.EnableVpnKillSwitch.Returns(true);
         this.managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
         this.proxy.CheckVpnKillSwitch("tun0").Should().BeTrue();
 
@@ -286,6 +289,17 @@ public class DynamicNetworkBindingProxyTest
     {
         var killSwitchTriggered = this.proxy.CheckVpnKillSwitch(string.Empty);
         killSwitchTriggered.Should().BeFalse();
+    }
+
+    [Test]
+    public void CheckVpnKillSwitch_WhenDisabledAndInterfaceDropped_DoesNotPublishEventOrTrigger()
+    {
+        this.configService.EnableVpnKillSwitch.Returns(false);
+        this.managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
+
+        var killSwitchTriggered = this.proxy.CheckVpnKillSwitch("tun0");
+        killSwitchTriggered.Should().BeFalse();
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<VpnKillSwitchTriggeredEvent>());
     }
 
     [Test]
