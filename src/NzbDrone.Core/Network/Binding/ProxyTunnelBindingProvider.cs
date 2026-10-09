@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -196,30 +197,55 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
     private async Task<Socket> CreateAndConnectDirectSocketAsync(string targetHost, int targetPort, CancellationToken cancellationToken)
     {
-        var connectHost = targetHost;
-        var addressFamily = AddressFamily.InterNetwork;
-        if (TryParseHostAddress(targetHost, out var ip))
+        IPAddress[] addresses;
+        if (TryParseHostAddress(targetHost, out var parsedIp))
         {
-            connectHost = ip.ToString();
-            if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            addresses = [parsedIp];
+        }
+        else
+        {
+            addresses = await Dns.GetHostAddressesAsync(targetHost, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (addresses.Length == 0)
+        {
+            throw new SocketException((int)SocketError.HostNotFound);
+        }
+
+        if (this.blocklistService != null && addresses.Any(a => this.blocklistService.IsIpBlocked(a.ToString())))
+        {
+            this.logger.Warn("Blocked connection to blocklisted resolved address for host {0}:{1}.", targetHost, targetPort);
+            throw new SocketException((int)SocketError.AccessDenied);
+        }
+
+        Exception lastException = null;
+        foreach (var address in addresses)
+        {
+            if (cancellationToken.IsCancellationRequested)
             {
-                addressFamily = AddressFamily.InterNetworkV6;
+                break;
+            }
+
+            var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            try
+            {
+                this.BindDirectSocket(socket);
+                await socket.ConnectAsync(new IPEndPoint(address, targetPort), cancellationToken).ConfigureAwait(false);
+                return socket;
+            }
+            catch (Exception ex)
+            {
+                socket.Dispose();
+                lastException = ex;
             }
         }
 
-        var socket = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp);
+        if (lastException != null)
+        {
+            ExceptionDispatchInfo.Capture(lastException).Throw();
+        }
 
-        try
-        {
-            this.BindDirectSocket(socket);
-            await socket.ConnectAsync(connectHost, targetPort, cancellationToken).ConfigureAwait(false);
-            return socket;
-        }
-        catch
-        {
-            socket.Dispose();
-            throw;
-        }
+        throw new SocketException((int)SocketError.HostNotFound);
     }
 
     private void BindDirectSocket(Socket socket)
