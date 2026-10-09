@@ -257,6 +257,64 @@ public class DownloadClientSyncControllerTest
     }
 
     [Test]
+    public async Task Sync_WhenOneTorrentImportFails_ContinuesRemainingTorrentsAndIncrementsFailedCount()
+    {
+        var badHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        var goodHash = "cccccccccccccccccccccccccccccccccccccccc";
+        var json = $"[{{\"hash\":\"{badHash}\",\"name\":\"Bad\",\"size\":1,\"progress\":1.0,\"state\":\"seeding\"}},{{\"hash\":\"{goodHash}\",\"name\":\"Good\",\"size\":1,\"progress\":1.0,\"state\":\"seeding\"}}]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient);
+
+        var clientDef = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "qBit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Enable = true,
+        };
+        this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition> { clientDef });
+        this.torrentService.GetByInfoHash(Arg.Any<string>()).Returns((Torrent)null!);
+        this.torrentService.AddFromMagnetAsync(
+                Arg.Is<string>(m => m.Contains(badHash, StringComparison.OrdinalIgnoreCase)),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                false)
+            .Returns<Task<Torrent>>(_ => throw new FormatException("Invalid btih info hash"));
+        this.torrentService.AddFromMagnetAsync(
+                Arg.Is<string>(m => m.Contains(goodHash, StringComparison.OrdinalIgnoreCase)),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                false)
+            .Returns(Task.FromResult(new Torrent { Id = 2, InfoHash = goodHash }));
+
+        var actionResult = await controller.Sync();
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var result = okResult!.Value as SyncResultResource;
+        result.Should().NotBeNull();
+        result!.Success.Should().BeTrue();
+        result.SyncedCount.Should().Be(1);
+        result.TotalCount.Should().Be(2);
+        result.FailedCount.Should().Be(1);
+        result.Failed.Should().Be(0);
+        result.Skipped.Should().Be(0);
+
+        await this.torrentService.Received(1).AddFromMagnetAsync(
+            Arg.Is<string>(m => m.Contains(goodHash, StringComparison.OrdinalIgnoreCase)),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            false);
+    }
+
+    [Test]
     public async Task Sync_WhenHttpClientFactoryInjected_DoesNotUseSharedFactoryClient()
     {
         var factory = Substitute.For<IHttpClientFactory>();
