@@ -5,6 +5,7 @@ using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Categories;
+using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.DiskSpace;
@@ -40,7 +41,8 @@ public class AppLifetimeServices : IAppLifetimeServices
         IProwlarrSyncService prowlarrSyncService = null,
         IManageCommandQueue commandQueueManager = null,
         IDatabase database = null,
-        IDiskSpaceService diskSpaceService = null)
+        IDiskSpaceService diskSpaceService = null,
+        IBandwidthQuotaService bandwidthQuotaService = null)
     {
         this.ConfigService = configService;
         this.EventAggregator = eventAggregator;
@@ -61,6 +63,7 @@ public class AppLifetimeServices : IAppLifetimeServices
         this.CommandQueueManager = commandQueueManager;
         this.Database = database;
         this.DiskSpaceService = diskSpaceService;
+        this.BandwidthQuotaService = bandwidthQuotaService;
     }
 
     public IConfigService ConfigService { get; }
@@ -100,4 +103,6 @@ public class AppLifetimeServices : IAppLifetimeServices
     public IDatabase Database { get; }
 
     public IDiskSpaceService DiskSpaceService { get; }
+
+    public IBandwidthQuotaService BandwidthQuotaService { get; }
 }
