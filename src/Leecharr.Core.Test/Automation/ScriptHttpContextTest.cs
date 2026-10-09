@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
@@ -234,7 +235,7 @@ public class ScriptHttpContextTest
         var disposeTask = Task.Run(() => context.Dispose());
         allowComplete.Set();
 
-        (await disposeTask.WaitAsync(TimeSpan.FromSeconds(5))).Should().BeTrue();
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
         var result = await pending.WaitAsync(TimeSpan.FromSeconds(5));
         result["ok"].Should().Be(true);
     }

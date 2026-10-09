@@ -1254,7 +1254,7 @@ public class YamlScriptRunner : IScriptRunner
     {
         result = false;
         var openParen = atom.IndexOf('(');
-        if (openParen <= 0 || !atom.TrimEnd().EndsWith(')', StringComparison.Ordinal))
+        if (openParen <= 0 || !atom.TrimEnd().EndsWith(')'))
         {
             return false;
         }

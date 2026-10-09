@@ -24,13 +24,14 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
     private static readonly char[] HostnameAndSubnetSeparators = [',', ';', ' ', '\t', '\r', '\n'];
     private readonly HttpClient httpClient;
-    private HttpClient directEgressHttpClient;
     private readonly bool ownsClient;
     private readonly Logger logger;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly INetworkBindingService networkBindingService;
     private readonly IVpnKillSwitchService vpnKillSwitchService;
+
+    private HttpClient directEgressHttpClient;
 
     private bool? allowPrivateNetworkRequestsOverride;
     private string allowedSsrfHostnamesOverride;
