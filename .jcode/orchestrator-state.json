@@ -12,13 +12,12 @@
   "swarm_plan": {"version": 36, "mode": "manual_spawn_v2", "terminal": "all_nodes_completed"},
   "in_progress": {
     "124": {"agent": "koala", "session": "penguin", "worktree": "/home/daoneill/src/usr/leecharr-wt-124"},
-    "123": {"agent": "otter", "session": "shark", "worktree": "/home/daoneill/src/usr/leecharr-wt-123", "push_granted": "2026-10-09T12:29Z"},
-    "179": {"agent": "llama", "session": "sheep", "worktree": "/home/daoneill/src/usr/leecharr-wt-179"},
-    "257": {"agent": "mouse", "session": "sloth", "worktree": "/home/daoneill/src/usr/leecharr-wt-257", "ready_push": true, "commit": "2830cae"},
+    "179": {"agent": "llama", "session": "sheep", "worktree": "/home/daoneill/src/usr/leecharr-wt-179", "ready_push": true, "commit": "d73aaca"},
+    "257": {"agent": "mouse", "session": "sloth", "worktree": "/home/daoneill/src/usr/leecharr-wt-257", "push_granted": "2026-10-09T12:30Z", "commit": "2830cae"},
     "1818": {"agent": "horse", "session": "snail", "worktree": "/home/daoneill/src/usr/leecharr-wt-1818"}
   },
-  "push_lock": {"holder_issue": 123, "holder_session": "shark", "granted_at": "2026-10-09T12:29Z"},
-  "push_queue": [257],
+  "push_lock": {"holder_issue": 257, "holder_session": "sloth", "granted_at": "2026-10-09T12:30Z"},
+  "push_queue": [179],
   "completed_issues": {
     "1819": {"agent": "horse", "closed_at_github": "2026-10-09T12:09:38Z"},
     "177": {"agent": "horse", "closed_at_github": "2026-10-09T12:14:05Z"},
@@ -26,19 +25,19 @@
     "1830": {"agent": "llama", "closed_at_github": "2026-10-09T12:11:32Z"},
     "1841": {"agent": "mouse", "closed_at_github": "2026-10-09T12:13:32Z"},
     "1826": {"agent": "koala", "closed_at_github": "2026-10-09T12:16:17Z"},
-    "125": {"agent": "otter", "closed_at_github": "2026-10-09T12:16:52Z", "merge_commit": "240e6f1"}
+    "125": {"agent": "otter", "closed_at_github": "2026-10-09T12:16:52Z", "merge_commit": "240e6f1"},
+    "123": {"agent": "otter", "closed_at_github": "2026-10-09T12:28:41Z", "merge_commit": "993a704"}
   },
   "queued_issues": [1851, 1849],
   "schedule_poll_id": "sched_49b329bc",
   "worktrees_cleaned_at": "2026-10-09T12:24Z",
-  "last_poll": "2026-10-09T12:29Z",
+  "last_poll": "2026-10-09T12:30Z",
   "last_validation": {
-    "at": "2026-10-09T12:29Z",
+    "at": "2026-10-09T12:30Z",
     "checks": [
-      "poll: 5 workers active",
-      "github: 123 257 open",
-      "push lock shark #123",
-      "queue sloth #257"
+      "shark DONE #123 closed github",
+      "push lock sloth #257 granted",
+      "sheep #179 queued push d73aaca"
     ]
   },
   "rules": {
