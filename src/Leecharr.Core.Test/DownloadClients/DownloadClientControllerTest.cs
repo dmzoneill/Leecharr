@@ -211,6 +211,40 @@ public class DownloadClientControllerTest
     }
 
     [Test]
+    public async Task ImportTorrent_Single_WhenHashInvalid_ReturnsBadRequestWithoutQueryingClient()
+    {
+        var handler = new MockHttpMessageHandler(_ => throw new InvalidOperationException("Should not query remote client for invalid hash"));
+        using var httpClient = new HttpClient(handler);
+
+        var clientDef = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Enable = true };
+        this.repository.Get(1).Returns(clientDef);
+        this.torrentService.GetByInfoHash("nope").Returns((Torrent)null!);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient);
+        var result = await controller.ImportTorrent(1, "nope");
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task ImportTorrent_Single_WhenHashWhitespace_ReturnsBadRequest()
+    {
+        var clientDef = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Enable = true };
+        this.repository.Get(1).Returns(clientDef);
+        this.torrentService.GetByInfoHash("   ").Returns((Torrent)null!);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var result = await controller.ImportTorrent(1, "   ");
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
     public async Task ImportTorrents_Bulk_WhenHashNotOnRemoteClient_CountsFailedWithoutAdding()
     {
         var json = "[]";
