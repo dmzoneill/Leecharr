@@ -3536,6 +3536,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             !string.Equals(currentManagerPath, targetSeedingPath, StringComparison.OrdinalIgnoreCase);
 
         var moveSucceeded = true;
+        string moveFailureReason = null;
 
         if (needsRelocation)
         {
@@ -3552,6 +3553,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     totalSize,
                     availableSpace.Value);
                 moveSucceeded = false;
+                moveFailureReason =
+                    $"Insufficient disk space on '{seedingSavePath}'. Required {totalSize} bytes, available {availableSpace.Value} bytes.";
             }
             else
             {
@@ -3567,11 +3570,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                 torrentId,
                                 torrentName,
                                 seedingSavePath);
+                            moveFailureReason =
+                                $"StoragePathService.MoveToCompleted failed for destination '{seedingSavePath}'.";
                         }
                     }
                     catch (Exception ex)
                     {
                         moveSucceeded = false;
+                        moveFailureReason = ex.Message ?? "StoragePathService.MoveToCompleted threw an exception.";
                         this.logger.Error(
                             ex,
                             "File relocation failed for torrent #{0} ('{1}'): StoragePathService.MoveToCompleted threw an exception for destination '{2}'.",
@@ -3598,6 +3604,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             torrentId,
                             torrentName,
                             seedingSavePath);
+                        moveFailureReason = ex.Message ?? $"MonoTorrent MoveFilesAsync to '{seedingSavePath}' failed.";
                     }
                 }
             }
@@ -3606,11 +3613,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             try
             {
-                this.storagePathService.MoveToCompleted(sourcePath, category, torrentName, out finalDestination);
+                moveSucceeded = this.storagePathService.MoveToCompleted(sourcePath, category, torrentName, out finalDestination);
+                if (!moveSucceeded)
+                {
+                    moveFailureReason =
+                        $"StoragePathService.MoveToCompleted failed for destination '{finalDestination ?? seedingSavePath}'.";
+                    this.logger.Error(
+                        "File relocation failed for torrent #{0} ('{1}'): StoragePathService.MoveToCompleted returned false for destination '{2}'.",
+                        torrentId,
+                        torrentName,
+                        finalDestination ?? seedingSavePath);
+                }
             }
             catch (Exception ex)
             {
-                this.logger.Debug(ex, "StoragePathService.MoveToCompleted notification completed with exception for {0}", infoHash);
+                moveSucceeded = false;
+                moveFailureReason = ex.Message ?? "StoragePathService.MoveToCompleted threw an exception.";
+                this.logger.Error(ex, "File relocation failed for torrent #{0} ('{1}') during MoveToCompleted.", torrentId, torrentName);
             }
         }
 
@@ -3636,6 +3655,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 existingTask.SavePath = currentIncompletePath;
                 existingTask.IsFilesMovedToCompleted = false;
             }
+
+            this.PublishFileMoveFailedEvent(
+                torrentId,
+                infoHash,
+                torrentName,
+                category,
+                sourcePath,
+                seedingSavePath,
+                moveFailureReason);
         }
 
         try
@@ -3661,6 +3689,37 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             Progress = 1.0,
             DateCompleted = DateTime.UtcNow,
         }));
+    }
+
+    private void PublishFileMoveFailedEvent(
+        int torrentId,
+        string infoHash,
+        string torrentName,
+        string category,
+        string sourcePath,
+        string destinationPath,
+        string errorMessage)
+    {
+        if (this.eventAggregator == null || torrentId <= 0)
+        {
+            return;
+        }
+
+        var message = string.IsNullOrWhiteSpace(errorMessage)
+            ? "Completed download file move failed."
+            : errorMessage;
+
+        this.eventAggregator.PublishEvent(new FileMoveFailedEvent(
+            new CoreTorrent
+            {
+                Id = torrentId,
+                InfoHash = infoHash,
+                Name = torrentName,
+                Category = category,
+            },
+            sourcePath,
+            destinationPath,
+            message));
     }
 
     private async Task CloseDiskManagerFilesAsync(TorrentManager manager)
