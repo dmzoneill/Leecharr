@@ -385,6 +385,42 @@ sleep 300
     }
 
     [Test]
+    public void ParseFFprobeJson_WhenFormatTagsPresent_MapsTitleArtistAlbumAndTrack()
+    {
+        var json = @"
+{
+  ""format"": {
+    ""format_name"": ""flac"",
+    ""duration"": ""240.000000"",
+    ""tags"": {
+      ""title"": ""Theme"",
+      ""artist"": ""Artist Name"",
+      ""album"": ""Album Name"",
+      ""track"": ""3/12"",
+      ""disc"": ""1/2""
+    }
+  },
+  ""streams"": [
+    {
+      ""codec_type"": ""audio"",
+      ""codec_name"": ""flac"",
+      ""channels"": 2
+    }
+  ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "track.flac");
+
+        info.Should().NotBeNull();
+        info!.Title.Should().Be("Theme");
+        info.Artist.Should().Be("Artist Name");
+        info.Album.Should().Be("Album Name");
+        info.Track.Should().Be(3);
+        info.TrackCount.Should().Be(12);
+        info.Disc.Should().Be(1);
+        info.DiscCount.Should().Be(2);
+    }
+
+    [Test]
     public void ParseFFprobeJson_WhenNumericFormatDurationAndStreamProperties_ParsesCorrectly()
     {
         var json = @"
