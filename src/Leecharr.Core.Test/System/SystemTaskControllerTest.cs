@@ -61,6 +61,36 @@ public class SystemTaskControllerTest
     }
 
     [Test]
+    public void GetTasks_WhenTaskInProgress_ReportsNextExecutionFromLastStartTime()
+    {
+        var lastExecution = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var lastStartTime = new DateTime(2026, 1, 2, 12, 0, 0, DateTimeKind.Utc);
+        const double intervalMinutes = 1440;
+
+        this.taskManager.GetAll().Returns(new List<ScheduledTask>
+        {
+            new ScheduledTask
+            {
+                Id = 2,
+                TypeName = "BackupTask",
+                Interval = intervalMinutes,
+                LastExecution = lastExecution,
+                LastStartTime = lastStartTime,
+            },
+        });
+
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var actionResult = controller.GetTasks();
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var list = (actionResult.Result as OkObjectResult).Value as List<ScheduledTaskResource>;
+
+        list.Should().NotBeNull();
+        list.Should().ContainSingle();
+        list[0].NextExecution.Should().Be(lastStartTime.AddMinutes(intervalMinutes));
+    }
+
+    [Test]
     public void GetTasks_ReturnsEmptyList_WhenNoTasksInDatabase()
     {
         this.taskManager.GetAll().Returns(new List<ScheduledTask>());

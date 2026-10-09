@@ -106,9 +106,15 @@ public class SystemTaskController : Controller
             }
 
             var intervalMinutes = t.Interval > 0 ? t.Interval : 15;
-            var nextExecution = hasRun
-                ? (t.LastExecution.AddMinutes(intervalMinutes) < now ? now : t.LastExecution.AddMinutes(intervalMinutes))
-                : now;
+            var nextFromLastExecution = hasRun ? t.LastExecution.AddMinutes(intervalMinutes) : now;
+            var inProgress = hasRun
+                && lastStartTime.HasValue
+                && t.LastExecution < lastStartTime.Value;
+            var nextExecution = !hasRun
+                ? now
+                : inProgress
+                    ? lastStartTime.Value.AddMinutes(intervalMinutes)
+                    : (nextFromLastExecution < now ? now : nextFromLastExecution);
 
             list.Add(new ScheduledTaskResource
             {
