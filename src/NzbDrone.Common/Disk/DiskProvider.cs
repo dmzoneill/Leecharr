@@ -96,32 +96,39 @@ public class DiskProvider : IDiskProvider
 
         foreach (var drive in drives)
         {
+            string mountPath;
             try
             {
-                var mountPath = drive.RootDirectory.FullName;
+                mountPath = drive.RootDirectory.FullName;
                 if (!OperatingSystem.IsWindows())
                 {
                     mountPath = ResolveSymlinkPath(mountPath);
-                }
-
-                if (!mountPath.EndsWith(Path.DirectorySeparatorChar.ToString()) && mountPath != "/")
-                {
-                    mountPath += Path.DirectorySeparatorChar;
-                }
-
-                if (normalizedFullPath.StartsWith(mountPath, StringComparison.OrdinalIgnoreCase) ||
-                    fullPath.Equals(drive.Name.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
-                {
-                    if (mountPath.Length > longestMatchLength)
-                    {
-                        longestMatchLength = mountPath.Length;
-                        bestMatch = drive;
-                    }
                 }
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
             {
                 Logger.Trace(ex, "Failed to inspect drive '{0}' for path '{1}'", drive.Name, fullPath);
+                mountPath = drive.Name.TrimEnd(Path.DirectorySeparatorChar);
+            }
+
+            if (string.IsNullOrEmpty(mountPath))
+            {
+                continue;
+            }
+
+            if (!mountPath.EndsWith(Path.DirectorySeparatorChar.ToString()) && mountPath != "/")
+            {
+                mountPath += Path.DirectorySeparatorChar;
+            }
+
+            if (normalizedFullPath.StartsWith(mountPath, StringComparison.OrdinalIgnoreCase) ||
+                fullPath.Equals(drive.Name.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+            {
+                if (mountPath.Length > longestMatchLength)
+                {
+                    longestMatchLength = mountPath.Length;
+                    bestMatch = drive;
+                }
             }
         }
 
