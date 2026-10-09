@@ -220,11 +220,18 @@ public class ExternalIpService : BackgroundService, IExternalIpService
 
         var proxyType = this.configService?.ProxyType?.ToLowerInvariant();
         var proxyHost = this.configService?.ProxyHost;
-        var proxyPort = this.configService?.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType == "socks5" ? 1080 : 8080);
+        var proxyPort = this.configService?.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType is "socks5" or "socks4" ? 1080 : 8080);
 
-        if ((proxyType == "socks5" || proxyType == "http") && !string.IsNullOrWhiteSpace(proxyHost))
+        if ((proxyType is "socks5" or "socks4" or "http") && !string.IsNullOrWhiteSpace(proxyHost))
         {
-            var proxyUri = new Uri($"{proxyType}://{proxyHost}:{proxyPort}");
+            var scheme = proxyType switch
+            {
+                "socks5" => "socks5",
+                "socks4" => "socks4",
+                "http" => "http",
+                _ => "http",
+            };
+            var proxyUri = new Uri($"{scheme}://{proxyHost}:{proxyPort}");
             ICredentials credentials = null;
             if (this.configService?.ProxyAuthEnabled == true &&
                 !string.IsNullOrWhiteSpace(this.configService.ProxyUsername))
