@@ -7,28 +7,36 @@
   "model": "composer-2.5-fast",
   "in_progress": {
     "1826": {"agent": "koala", "session": "session_koala_1791547595482_311d8eb2fe3886a7", "area": "Config/Logging", "swarm_status": "running"},
-    "90": {"agent": "otter", "session": "session_otter_1791547596855_ae89b442731bbcff", "area": "Frontend", "swarm_status": "running"},
     "1841": {"agent": "mouse", "session": "session_mouse_1791547596480_8cb419c277e4e97b", "area": "MediaInspection", "swarm_status": "running"},
-    "177": {"agent": "horse", "session": "session_horse_1791547595123_5a26f5b962b0ba69", "area": "Network/Blocklist", "swarm_status": "ready", "plan_task_id": "issue-1819", "note": "#1819 done; DM sent to pivot #177, plan node not salvaged yet"}
+    "125": {"agent": "otter", "session": "session_otter_1791547596855_ae89b442731bbcff", "area": "TorrentEngine", "swarm_status": "running", "note": "pivot from #90 via DM"},
+    "177": {"agent": "horse", "session": "session_horse_1791547595123_5a26f5b962b0ba69", "area": "Network/Blocklist", "swarm_status": "ready", "plan_task_id": "issue-1819", "note": "pivot from #1819; editing wt-177"},
+    "1849": {"agent": "llama", "session": "session_llama_1791547595974_1a453453c29011c2", "area": "ArrIntegration", "swarm_status": "completed", "plan_task_id": "issue-1830", "note": "#1830 done; DM pivot to #1849"}
   },
   "completed_issues": {
     "1819": {"agent": "horse", "closed_at_github": "2026-10-09T12:09:38Z", "commit": "05125de"},
-    "1830": {"agent": "llama", "closed_at_github": "2026-10-09T12:15:00Z", "commit": "8be3ace"}
+    "90": {"agent": "otter", "closed_at_github": "2026-10-09T12:10:55Z", "plan_completed": "issue-90"},
+    "1830": {"agent": "llama", "closed_at_github": "2026-10-09T12:11:32Z", "commit": "8be3ace"}
   },
-  "queued_issues": [125, 1849, 257, 1818],
+  "queued_issues": [257, 1818],
+  "extra_agents": {
+    "peacock": {"session": "session_peacock_1791547816085_259efa0cd80f5eab", "status": "ready_idle", "model": "gemini-3.8-flash-tiered", "note": "not in core five; consider stop"}
+  },
   "schedule_poll_id": "sched_3b105963",
-  "last_resync": "2026-10-09T12:08Z",
-  "last_poll": "2026-10-09T12:15Z",
+  "last_resync": "2026-10-09T12:12Z",
+  "last_poll": "2026-10-09T12:13Z",
   "last_validation": {
-    "at": "2026-10-09T12:15Z",
+    "at": "2026-10-09T12:13Z",
     "workers_running": 3,
     "workers_ready": 1,
-    "plan_version": 31,
-    "plan_active": ["issue-1826", "issue-1841", "issue-90"],
+    "workers_completed_pivoting": 1,
+    "plan_version": 32,
+    "plan_active": ["issue-1819", "issue-1826", "issue-1830", "issue-1841"],
+    "plan_completed": ["issue-90"],
+    "github_closed_match": {"90": true, "1819": true, "1830": true, "1826": false, "1841": false},
     "state_matches_swarm": true,
-    "github_1830_closed": false
+    "actions": ["dm otter #125", "dm horse #177", "dm llama #1849", "resync_plan v32"]
   },
-  "notes": "run_plan failed on default model not_found; manual spawn on composer-2.5-fast OK. Avoid second run_plan while plan Active. Plan still lists issue-1819 Active though GitHub closed.",
+  "notes": "Plan still Active on closed issues 1819/1830 until salvaged. Pivots via DM outside plan item list. Queue 257, 1818.",
   "rules": {
     "no_local_test_build": true,
     "lint_format_ok": true,
