@@ -7,6 +7,7 @@ using Leecharr.Api.V1.System;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Backup;
 using NzbDrone.Core.Jobs;
 using NzbDrone.Core.Messaging.Commands;
 
@@ -180,6 +181,18 @@ public class SystemTaskControllerTest
         actionResult.Should().BeOfType<OkObjectResult>();
         this.commandQueueManager.Received(1).Push(
             Arg.Any<NzbDrone.Core.WatchFolder.WatchFolderScanCommand>(),
+            CommandTrigger.Manual);
+    }
+
+    [Test]
+    public void ExecuteTaskByName_BackupTask_PushesManualBackupCommand()
+    {
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var actionResult = controller.ExecuteTaskByName("BackupTask");
+
+        actionResult.Should().BeOfType<OkObjectResult>();
+        this.commandQueueManager.Received(1).Push(
+            Arg.Is<BackupCommand>(c => c.Type == "Manual"),
             CommandTrigger.Manual);
     }
 

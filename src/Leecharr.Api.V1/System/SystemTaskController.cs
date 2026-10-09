@@ -233,7 +233,7 @@ public class SystemTaskController : Controller
         }
         else if (string.Equals(name, "Backup", StringComparison.OrdinalIgnoreCase))
         {
-            this.commandQueueManager?.Push(new BackupCommand(), CommandTrigger.Manual);
+            this.commandQueueManager?.Push(new BackupCommand { Type = "Manual" }, CommandTrigger.Manual);
         }
         else if (string.Equals(name, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase))
         {
