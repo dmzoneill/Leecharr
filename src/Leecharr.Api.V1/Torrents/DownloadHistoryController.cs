@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.Torrents;
 
@@ -316,16 +317,68 @@ public class DownloadHistoryController : Controller
             Downloaded = model.Downloaded,
             Ratio = model.Ratio,
             SeedingTime = model.SeedingTime,
-            PrimaryTracker = model.PrimaryTracker,
+            PrimaryTracker = SanitizeTrackerUrl(model.PrimaryTracker),
             IndexerName = model.IndexerName,
             Source = model.Source,
-            MagnetUrl = model.MagnetUrl,
-            DownloadUrl = model.DownloadUrl,
+            MagnetUrl = SanitizeMagnetUrl(model.MagnetUrl),
+            DownloadUrl = SanitizeTrackerUrl(model.DownloadUrl),
             Status = model.Status,
             RemovalReason = model.RemovalReason,
             IsPrivate = model.IsPrivate,
-            Trackers = model.Trackers ?? new List<string>(),
+            Trackers = SanitizeTrackerList(model.Trackers),
             Metadata = MediaMetadataResourceMapper.ToResource(metadata),
         };
+    }
+
+    private static List<string> SanitizeTrackerList(IEnumerable<string> trackers)
+    {
+        if (trackers == null)
+        {
+            return new List<string>();
+        }
+
+        return trackers
+            .Select(SanitizeTrackerUrl)
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .ToList();
+    }
+
+    private static string SanitizeTrackerUrl(string url)
+    {
+        return string.IsNullOrWhiteSpace(url) ? url : TrackerUrlSanitizer.Sanitize(url);
+    }
+
+    private static string SanitizeMagnetUrl(string magnetUrl)
+    {
+        if (string.IsNullOrWhiteSpace(magnetUrl))
+        {
+            return magnetUrl;
+        }
+
+        var trimmed = magnetUrl.Trim();
+        if (!trimmed.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
+        {
+            return SanitizeTrackerUrl(trimmed);
+        }
+
+        try
+        {
+            var parsed = MagnetLinkParser.Parse(trimmed);
+            var sanitizedTrackers = parsed.Trackers
+                .Select(SanitizeTrackerUrl)
+                .Where(u => !string.IsNullOrWhiteSpace(u))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return MagnetLinkParser.BuildMagnetUri(
+                parsed.InfoHash,
+                parsed.DisplayName,
+                sanitizedTrackers,
+                parsed.V2InfoHash);
+        }
+        catch
+        {
+            return SanitizeTrackerUrl(trimmed);
+        }
     }
 }
