@@ -40,20 +40,13 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         this.logger = LogManager.GetCurrentClassLogger();
 
         var desiredProviderId = this.configService?.ActiveNetworkBindingProvider;
-        this.activeProvider = this.SelectInitialActiveProvider(desiredProviderId);
+        this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
+            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ManagedSocket", StringComparison.OrdinalIgnoreCase))
+            ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {
             throw new InvalidOperationException("No network binding providers are registered in the system container.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
-            !string.Equals(desiredProviderId, this.activeProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
-        {
-            this.logger.Warn(
-                "Configured network binding provider '{0}' is unavailable or unhealthy at startup; using '{1}' instead.",
-                desiredProviderId,
-                this.activeProvider.ProviderId);
         }
 
         this.logger.Info("DynamicNetworkBindingProxy initialized with active provider: {0} ({1})", this.activeProvider.DisplayName, this.activeProvider.ProviderId);
@@ -210,36 +203,46 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
 
     public bool CheckVpnKillSwitch(string interfaceName)
     {
-        this.switchLock.Wait();
-        try
+        if (string.IsNullOrWhiteSpace(interfaceName) ||
+            string.Equals(interfaceName, "any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
         {
-            if (string.IsNullOrWhiteSpace(interfaceName) ||
-                string.Equals(interfaceName, "any", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
+            if (this.isKillSwitchActive)
             {
-                if (this.isKillSwitchActive)
-                {
-                    this.isKillSwitchActive = false;
-                    this.logger.Info("VPN Kill Switch disengaged for interface '{0}'.", interfaceName);
-                    this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(interfaceName ?? string.Empty));
-                }
-
-                return false;
+                this.isKillSwitchActive = false;
+                this.logger.Info("VPN Kill Switch disengaged for interface '{0}'.", interfaceName);
+                this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(interfaceName ?? string.Empty));
             }
 
-            var isUp = this.IsInterfaceUp(interfaceName);
-            if (!isUp)
-            {
-                if (!this.isKillSwitchActive)
-                {
-                    this.isKillSwitchActive = true;
-                    this.logger.Error("VPN Kill Switch triggered! Interface '{0}' dropped.", interfaceName);
-                    this.eventAggregator?.PublishEvent(new VpnKillSwitchTriggeredEvent(interfaceName));
-                }
+            return false;
+        }
 
-                return true;
+        if (this.configService == null || !this.configService.EnableVpnKillSwitch)
+        {
+            if (this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = false;
+                this.logger.Info("VPN Kill switch disabled. Restoring interface state for '{0}'.", interfaceName);
+                this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(interfaceName));
             }
 
+            return false;
+        }
+
+        var isUp = this.IsInterfaceUp(interfaceName);
+        if (!isUp)
+        {
+            if (!this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = true;
+                this.logger.Error("VPN Kill Switch triggered! Interface '{0}' dropped.", interfaceName);
+                this.eventAggregator?.PublishEvent(new VpnKillSwitchTriggeredEvent(interfaceName));
+            }
+
+            return true;
+        }
+        else
+        {
             if (this.isKillSwitchActive)
             {
                 this.isKillSwitchActive = false;
@@ -248,10 +251,6 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             }
 
             return false;
-        }
-        finally
-        {
-            this.switchLock.Release();
         }
     }
 
@@ -318,67 +317,6 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             ActiveProvider = activeProviderId,
             Message = "Network binding switch was superseded by a newer configuration save.",
         };
-    }
-
-    private INetworkBindingProvider SelectInitialActiveProvider(string desiredProviderId)
-    {
-        var candidates = new List<INetworkBindingProvider>();
-
-        if (!string.IsNullOrWhiteSpace(desiredProviderId))
-        {
-            var desiredProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase));
-            if (desiredProvider != null)
-            {
-                candidates.Add(desiredProvider);
-            }
-        }
-
-        var managedSocketProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ManagedSocket", StringComparison.OrdinalIgnoreCase));
-        if (managedSocketProvider != null && !candidates.Contains(managedSocketProvider))
-        {
-            candidates.Add(managedSocketProvider);
-        }
-
-        foreach (var provider in this.availableProviders)
-        {
-            if (!candidates.Contains(provider))
-            {
-                candidates.Add(provider);
-            }
-        }
-
-        foreach (var provider in candidates)
-        {
-            if (this.IsProviderHealthyAtStartup(provider))
-            {
-                return provider;
-            }
-        }
-
-        return null;
-    }
-
-    private bool IsProviderHealthyAtStartup(INetworkBindingProvider provider)
-    {
-        try
-        {
-            var health = provider.ProbeHealthAsync().GetAwaiter().GetResult();
-            if (health.IsHealthy)
-            {
-                return true;
-            }
-
-            this.logger.Warn(
-                "Skipping network binding provider '{0}' at startup: health check failed ({1}).",
-                provider.ProviderId,
-                health.StatusMessage);
-        }
-        catch (Exception ex)
-        {
-            this.logger.Warn(ex, "Skipping network binding provider '{0}' at startup: health check threw.", provider.ProviderId);
-        }
-
-        return false;
     }
 
     public void Dispose()
