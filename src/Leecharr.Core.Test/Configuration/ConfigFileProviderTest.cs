@@ -1,8 +1,10 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using FluentAssertions;
 using NSubstitute;
@@ -248,5 +250,44 @@ public class ConfigFileProviderTest
         var reloadedProvider = new ConfigFileProvider(this.appFolderInfo);
         reloadedProvider.AuthenticationEnabled.Should().BeTrue();
         reloadedProvider.AuthenticationRequired.Should().Be(AuthenticationRequiredType.DisabledForLocalhost);
+    }
+
+    [Test]
+    public void GetValue_ConcurrentWithSaveConfigDictionary_DoesNotThrow()
+    {
+        var provider = new ConfigFileProvider(this.appFolderInfo);
+        var exceptions = new ConcurrentBag<Exception>();
+
+        Parallel.For(
+            0,
+            200,
+            i =>
+            {
+                try
+                {
+                    if (i % 2 == 0)
+                    {
+                        provider.SaveConfigDictionary(new Dictionary<string, object>
+                        {
+                            { "Port", 8000 + (i % 50) },
+                            { "AuthenticationEnabled", i % 4 == 0 },
+                            { "LogLevel", i % 3 == 0 ? "debug" : "info" },
+                        });
+                    }
+                    else
+                    {
+                        _ = provider.Port;
+                        _ = provider.ApiKey;
+                        _ = provider.AuthenticationEnabled;
+                        _ = provider.BindAddress;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                }
+            });
+
+        exceptions.Should().BeEmpty();
     }
 }
