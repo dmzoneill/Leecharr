@@ -98,20 +98,33 @@ public class SystemTaskController : Controller
                 ? t.LastStartTime
                 : null;
 
-            string lastDuration = null;
-            if (hasRun && lastStartTime.HasValue)
-            {
-                var diff = t.LastExecution >= lastStartTime.Value
-                    ? t.LastExecution - lastStartTime.Value
-                    : TimeSpan.Zero;
-                lastDuration = diff.ToString(@"hh\:mm\:ss");
-            }
-
             var intervalMinutes = t.Interval > 0 ? t.Interval : 15;
             var nextFromLastExecution = hasRun ? t.LastExecution.AddMinutes(intervalMinutes) : now;
             var inProgress = hasRun
                 && lastStartTime.HasValue
                 && t.LastExecution < lastStartTime.Value;
+
+            string lastDuration = null;
+            if (hasRun && lastStartTime.HasValue)
+            {
+                TimeSpan? diff = null;
+                if (inProgress)
+                {
+                    if (t.LastCompletedDurationSeconds.HasValue)
+                    {
+                        diff = TimeSpan.FromSeconds(t.LastCompletedDurationSeconds.Value);
+                    }
+                }
+                else if (t.LastExecution >= lastStartTime.Value)
+                {
+                    diff = t.LastExecution - lastStartTime.Value;
+                }
+
+                if (diff.HasValue)
+                {
+                    lastDuration = diff.Value.ToString(@"hh\:mm\:ss");
+                }
+            }
             var nextExecution = !hasRun
                 ? now
                 : inProgress
