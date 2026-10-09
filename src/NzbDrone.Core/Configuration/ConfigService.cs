@@ -671,21 +671,8 @@ public class ConfigService : IConfigService
 
         lock (this.cacheLock)
         {
-            var newCache = this.cache != null
-                ? new Dictionary<string, string>(this.cache, StringComparer.OrdinalIgnoreCase)
-                : allConfig.ToDictionary(c => c.Key, c => c.Value.Value, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var item in toInsert)
-            {
-                newCache[item.Key] = item.Value;
-            }
-
-            foreach (var item in toUpdate)
-            {
-                newCache[item.Key] = item.Value;
-            }
-
-            this.cache = newCache;
+            this.cache = this.repository.All()
+                .ToDictionary(c => c.Key, c => c.Value, StringComparer.OrdinalIgnoreCase);
         }
 
         this.eventAggregator.PublishEvent(new ConfigSavedEvent());
