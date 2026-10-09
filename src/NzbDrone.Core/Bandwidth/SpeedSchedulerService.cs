@@ -61,6 +61,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     private readonly Logger logger;
     private readonly HashSet<int> schedulerPausedTorrentIds = new();
     private bool wasPausedByScheduler;
+    private bool speedThresholdExceeded;
 
     public bool WasPausedByScheduler => this.wasPausedByScheduler;
 
@@ -215,12 +216,34 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                     var metrics = this.downloadEngine.GetEngineMetrics();
                     if (metrics != null)
                     {
-                        var maxDlBytes = limits.MaxDownloadSpeedKbps > 0 ? (long)limits.MaxDownloadSpeedKbps * 1024L : 0;
-                        var maxUlBytes = limits.MaxUploadSpeedKbps > 0 ? (long)limits.MaxUploadSpeedKbps * 1024L : 0;
-                        if ((maxDlBytes > 0 && metrics.TotalDownloadSpeed >= maxDlBytes) || (maxUlBytes > 0 && metrics.TotalUploadSpeed >= maxUlBytes))
+                        var maxDlBytes = !limits.IsDownloadPaused && limits.MaxDownloadSpeedKbps > 0
+                            ? (long)limits.MaxDownloadSpeedKbps * 1024L
+                            : 0;
+                        var maxUlBytes = !limits.IsUploadPaused && limits.MaxUploadSpeedKbps > 0
+                            ? (long)limits.MaxUploadSpeedKbps * 1024L
+                            : 0;
+                        var dlExceeded = maxDlBytes > 0 && metrics.TotalDownloadSpeed > maxDlBytes;
+                        var ulExceeded = maxUlBytes > 0 && metrics.TotalUploadSpeed > maxUlBytes;
+                        var isExceeded = dlExceeded || ulExceeded;
+
+                        if (isExceeded && !this.speedThresholdExceeded)
                         {
-                            this.eventAggregator.PublishEvent(new SpeedThresholdExceededEvent(metrics.TotalDownloadSpeed, metrics.TotalUploadSpeed, metrics.ActiveTorrents));
+                            this.eventAggregator.PublishEvent(new SpeedThresholdExceededEvent(
+                                metrics.TotalDownloadSpeed,
+                                metrics.TotalUploadSpeed,
+                                metrics.ActiveTorrents));
                         }
+                        else if (!isExceeded && this.speedThresholdExceeded)
+                        {
+                            var currentSpeed = Math.Max(metrics.TotalDownloadSpeed, metrics.TotalUploadSpeed);
+                            var expectedMinimum = Math.Max(maxDlBytes, maxUlBytes);
+                            this.eventAggregator.PublishEvent(new SpeedThresholdDroppedEvent(
+                                currentSpeed,
+                                expectedMinimum,
+                                metrics.ActiveTorrents));
+                        }
+
+                        this.speedThresholdExceeded = isExceeded;
                     }
                 }
             }
