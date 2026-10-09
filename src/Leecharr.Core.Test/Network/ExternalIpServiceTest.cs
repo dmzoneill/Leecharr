@@ -154,6 +154,25 @@ public class ExternalIpServiceTest
     }
 
     [Test]
+    public void GetExternalIpAsync_WhenProxyUriInvalid_ReleasesFetchLockForRetry()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("socks5");
+        config.ProxyHost.Returns("2001:db8::1");
+        config.ProxyPort.Returns(1080);
+        config.InstanceUuid.Returns("test-uuid");
+
+        var subject = new ExternalIpService(config);
+
+        Assert.ThrowsAsync<UriFormatException>(() => subject.GetExternalIpAsync());
+        Assert.ThrowsAsync<UriFormatException>(() => subject.GetExternalIpAsync());
+
+        var lockField = typeof(ExternalIpService).GetField("fetchLock", BindingFlags.Instance | BindingFlags.NonPublic);
+        var fetchLock = (SemaphoreSlim)lockField!.GetValue(subject)!;
+        fetchLock.CurrentCount.Should().Be(1);
+    }
+
+    [Test]
     public void Constructor_AcceptsConfigAndBindingServices()
     {
         var configService = NSubstitute.Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
