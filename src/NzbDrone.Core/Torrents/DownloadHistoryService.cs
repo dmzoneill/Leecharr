@@ -867,6 +867,15 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
             try
             {
+                await this.downloadEngine.RemoveTorrentAsync(added.Id, deleteFiles: false);
+            }
+            catch (Exception engineEx)
+            {
+                this.logger.Warn(engineEx, "Failed to remove re-added torrent {0} from download engine during rollback", added.Id);
+            }
+
+            try
+            {
                 this.trackerEntryRepository?.DeleteByTorrentId(added.Id);
             }
             catch (Exception trackerEx)
@@ -899,6 +908,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             catch (Exception torrentEx)
             {
                 this.logger.Warn(torrentEx, "Failed to roll back torrent {0}", added.Id);
+            }
+
+            if (!string.IsNullOrWhiteSpace(added.InfoHash))
+            {
+                this.CleanupCachedTorrentFile(added.InfoHash);
             }
 
             entry.TorrentId = previousTorrentId;
