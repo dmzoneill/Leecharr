@@ -25,10 +25,16 @@ public class ArrConnectionRepository : BasicRepository<ArrConnectionDefinition>,
 
     public ArrConnectionDefinition GetByType(string arrType)
     {
-        return this.ExecuteWithRetry(connection =>
-            connection.QueryFirstOrDefault<ArrConnectionDefinition>(
-                "SELECT * FROM \"ArrConnectionDefinitions\" WHERE \"ArrType\" = @ArrType",
-                new { ArrType = arrType }));
+        if (string.IsNullOrWhiteSpace(arrType))
+        {
+            return null;
+        }
+
+        return this.GetEnabled()
+            .Where(c => string.Equals(c.ArrType, arrType, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(c => c.Priority)
+            .ThenBy(c => c.Id)
+            .FirstOrDefault();
     }
 
     public ArrConnectionDefinition GetByAffinity(string arrType, string category = null, string tag = null)
