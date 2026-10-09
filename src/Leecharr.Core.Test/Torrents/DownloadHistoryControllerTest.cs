@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Torrents;
@@ -184,7 +185,7 @@ public class DownloadHistoryControllerTest
             },
         };
 
-        this.historyService.GetAll(null, null, 1000).Returns(records);
+        this.historyService.GetAll(null, null, 1000, 0, null, null).Returns(records);
 
         this.mediaEnrichmentService.EnrichTorrentAsync(Arg.Any<Torrent>())
             .Returns(callInfo =>
@@ -207,6 +208,43 @@ public class DownloadHistoryControllerTest
         records[1].DataJson.Should().Contain("Radarr");
 
         this.downloadHistoryRepository.Received(2).Update(Arg.Any<DownloadHistory>());
+    }
+
+    [Test]
+    public async Task EnrichAll_WhenMoreThanOneBatch_PagesThroughAllHistoryRows()
+    {
+        var firstBatch = Enumerable.Range(1, 1000)
+            .Select(i => new DownloadHistory
+            {
+                Id = i,
+                Title = $"Title.{i}",
+                InfoHash = $"hash{i}",
+                Source = "movies",
+            })
+            .ToList();
+        var secondBatch = new List<DownloadHistory>
+        {
+            new DownloadHistory
+            {
+                Id = 1001,
+                Title = "Extra.Row",
+                InfoHash = "extra",
+                Source = "tv",
+            },
+        };
+
+        this.historyService.GetAll(null, null, 1000, 0, null, null).Returns(firstBatch);
+        this.historyService.GetAll(null, null, 1000, 1000, null, null).Returns(secondBatch);
+
+        this.mediaEnrichmentService.EnrichTorrentAsync(Arg.Any<Torrent>())
+            .Returns(Task.FromResult(new TorrentMediaMetadata { Title = "Enriched" }));
+
+        var result = await this.controller.EnrichAll();
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.mediaEnrichmentService.Received(1001).EnrichTorrentAsync(Arg.Any<Torrent>());
+        this.historyService.Received(1).GetAll(null, null, 1000, 0, null, null);
+        this.historyService.Received(1).GetAll(null, null, 1000, 1000, null, null);
     }
 
     [Test]
@@ -235,7 +273,7 @@ public class DownloadHistoryControllerTest
         };
 
         this.historyService.ReconcileAllTorrents().Returns(2);
-        this.historyService.GetAll(null, null, 1000).Returns(records);
+        this.historyService.GetAll(null, null, 1000, 0, null, null).Returns(records);
 
         this.mediaEnrichmentService.EnrichTorrentAsync(Arg.Is<Torrent>(t => t.Name == "Dark.Matter.S01E01"))
             .Returns(Task.FromResult(new TorrentMediaMetadata
