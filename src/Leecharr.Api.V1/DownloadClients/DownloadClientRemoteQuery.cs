@@ -471,12 +471,12 @@ public static class DownloadClientRemoteQuery
                 if (action == "pause")
                 {
                     delugeMethod = "core.pause_torrent";
-                    delugeParams = new object[] { infoHash };
+                    delugeParams = new object[] { new[] { infoHash } };
                 }
                 else if (action == "resume")
                 {
                     delugeMethod = "core.resume_torrent";
-                    delugeParams = new object[] { infoHash };
+                    delugeParams = new object[] { new[] { infoHash } };
                 }
                 else if (action == "delete")
                 {
