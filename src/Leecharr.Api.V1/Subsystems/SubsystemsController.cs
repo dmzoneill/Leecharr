@@ -226,26 +226,34 @@ public class SubsystemsController : Controller
             case "geoip":
                 var previousGeo = this.geoIpManager.ActiveProviderId;
                 var geoSuccess = await this.geoIpManager.SwitchProviderAsync(request.ProviderId);
+                var geoMessage = geoSuccess
+                    ? $"Switched GeoIP provider to {request.ProviderId}."
+                    : $"Failed to switch GeoIP provider to {request.ProviderId}.";
                 result = new SwitchSubsystemProviderResult
                 {
                     Success = geoSuccess,
                     SubsystemId = "geoip",
                     PreviousProvider = previousGeo,
-                    ActiveProvider = this.geoIpManager.ActiveProviderId,
-                    Message = geoSuccess ? $"Switched GeoIP provider to {request.ProviderId}." : $"Failed to switch GeoIP provider to {request.ProviderId}.",
+                    ActiveProvider = geoSuccess ? request.ProviderId : previousGeo,
+                    Message = geoMessage,
+                    Error = geoSuccess ? null : geoMessage,
                 };
                 break;
 
             case "blocklist":
                 var previousBlock = this.blocklistManager.ActiveProviderId;
                 var blockSuccess = await this.blocklistManager.SwitchProviderAsync(request.ProviderId);
+                var blockMessage = blockSuccess
+                    ? $"Switched Blocklist provider to {request.ProviderId}."
+                    : $"Failed to switch Blocklist provider to {request.ProviderId}.";
                 result = new SwitchSubsystemProviderResult
                 {
                     Success = blockSuccess,
                     SubsystemId = "blocklist",
                     PreviousProvider = previousBlock,
-                    ActiveProvider = this.blocklistManager.ActiveProviderId,
-                    Message = blockSuccess ? $"Switched Blocklist provider to {request.ProviderId}." : $"Failed to switch Blocklist provider to {request.ProviderId}.",
+                    ActiveProvider = blockSuccess ? request.ProviderId : previousBlock,
+                    Message = blockMessage,
+                    Error = blockSuccess ? null : blockMessage,
                 };
                 break;
 
@@ -291,13 +299,17 @@ public class SubsystemsController : Controller
             case "ai" or "intelligence":
                 var previousAi = this.aiManager.ActiveProviderId;
                 var aiSuccess = await this.aiManager.SwitchProviderAsync(request.ProviderId);
+                var aiMessage = aiSuccess
+                    ? $"Switched AI provider to {request.ProviderId}."
+                    : $"Failed to switch AI provider to {request.ProviderId}.";
                 result = new SwitchSubsystemProviderResult
                 {
                     Success = aiSuccess,
                     SubsystemId = "ai",
                     PreviousProvider = previousAi,
-                    ActiveProvider = this.aiManager.ActiveProviderId,
-                    Message = aiSuccess ? $"Switched AI provider to {request.ProviderId}." : $"Failed to switch AI provider to {request.ProviderId}.",
+                    ActiveProvider = aiSuccess ? request.ProviderId : previousAi,
+                    Message = aiMessage,
+                    Error = aiSuccess ? null : aiMessage,
                 };
                 break;
 
