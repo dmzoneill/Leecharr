@@ -55,6 +55,7 @@ cache/
 
 # Worktrees
 .worktrees/
+leecharr-wt-*/
 
 # Scratch scripts
 patch*.py
