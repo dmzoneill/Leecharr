@@ -44,6 +44,11 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain("\"testId\"");
+        json.Should().Contain("\"status\"");
+        json.Should().Contain("\"durationMs\"");
+        json.Should().Contain("\"output\"");
+
         var result = JsonSerializer.Deserialize<DeveloperTestResult>(json, CaseInsensitiveJsonOptions);
 
         result.Should().NotBeNull();
