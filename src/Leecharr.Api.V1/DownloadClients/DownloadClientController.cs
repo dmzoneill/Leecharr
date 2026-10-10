@@ -29,6 +29,8 @@ namespace Leecharr.Api.V1.DownloadClients;
 [Authorize(Policy = "RequireOperator")]
 public class DownloadClientController : Controller
 {
+    private static readonly TimeSpan ConnectionTestTimeout = TimeSpan.FromSeconds(5);
+
     private readonly IDownloadClientRepository repository;
     private readonly ITorrentService torrentService;
     private readonly HttpClient httpClient;
@@ -573,6 +575,8 @@ public class DownloadClientController : Controller
 
     private HttpClient GetHttpClient()
     {
+        // Production leaves the injected client null so remote queries allocate per-host clients with short timeouts.
+        // Never fall back to IHttpClientFactory here: factory clients use the default 100 second timeout and share cookies.
         return this.httpClient;
     }
 
@@ -658,7 +662,7 @@ public class DownloadClientController : Controller
         var http = this.GetHttpClient();
         if (http == null)
         {
-            localHttp = this.safeHttpClientService?.CreateHttpClient(TimeSpan.FromSeconds(5), useCookies: true);
+            localHttp = this.safeHttpClientService?.CreateHttpClient(ConnectionTestTimeout, useCookies: true);
             if (localHttp == null)
             {
                 var handler = new SocketsHttpHandler
@@ -667,11 +671,14 @@ public class DownloadClientController : Controller
                     UseCookies = true,
                     PooledConnectionLifetime = TimeSpan.FromMinutes(2),
                 };
-                localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+                localHttp = new HttpClient(handler) { Timeout = ConnectionTestTimeout };
             }
 
             http = localHttp;
         }
+
+        using var testTimeoutCts = new CancellationTokenSource(ConnectionTestTimeout);
+        var testToken = testTimeoutCts.Token;
 
         try
         {
@@ -685,7 +692,7 @@ public class DownloadClientController : Controller
                         { "password", password ?? string.Empty },
                     });
 
-                    using var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent);
+                    using var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent, testToken);
                     if (!loginResp.IsSuccessStatusCode)
                     {
                         return this.Ok(new DownloadClientTestResult
@@ -706,7 +713,7 @@ public class DownloadClientController : Controller
                     }
                 }
 
-                using var resp = await http.GetAsync($"{baseUrl}/api/v2/app/webapiVersion");
+                using var resp = await http.GetAsync($"{baseUrl}/api/v2/app/webapiVersion", testToken);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden)
                 {
                     return this.Ok(new DownloadClientTestResult
@@ -731,7 +738,7 @@ public class DownloadClientController : Controller
                     req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
                 }
 
-                using var resp = await http.SendAsync(req);
+                using var resp = await http.SendAsync(req, testToken);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     return this.Ok(new DownloadClientTestResult
@@ -760,7 +767,7 @@ public class DownloadClientController : Controller
                         Encoding.UTF8,
                         "application/json");
 
-                    using var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent);
+                    using var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent, testToken);
                     if (!loginResp.IsSuccessStatusCode)
                     {
                         return this.Ok(new DownloadClientTestResult
@@ -784,7 +791,7 @@ public class DownloadClientController : Controller
                 }
 
                 var content = new StringContent("{\"method\":\"auth.check_session\",\"params\":[],\"id\":1}", Encoding.UTF8, "application/json");
-                using var resp = await http.PostAsync($"{baseUrl}/json", content);
+                using var resp = await http.PostAsync($"{baseUrl}/json", content, testToken);
                 if (resp.IsSuccessStatusCode)
                 {
                     var json = await resp.Content.ReadAsStringAsync();
@@ -805,7 +812,7 @@ public class DownloadClientController : Controller
                 }
             }
 
-            using var probe = await http.GetAsync(baseUrl, HttpCompletionOption.ResponseHeadersRead);
+            using var probe = await http.GetAsync(baseUrl, HttpCompletionOption.ResponseHeadersRead, testToken);
             return this.Ok(new DownloadClientTestResult
             {
                 Success = true,
