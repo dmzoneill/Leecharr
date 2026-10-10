@@ -19,7 +19,7 @@
     "kangaroo": "session_kangaroo_1791661462423_77d76bf2ebd0c419"
   },
   "in_progress": {
-    "orangutan": 1706,
+    "orangutan": null,
     "hedgehog": 1700,
     "skunk": 1708,
     "raccoon": 1707,
@@ -29,29 +29,28 @@
   },
   "issue_queue": [],
   "push_lock": {
-    "agent": "orangutan",
-    "session": "orangutan",
-    "issue": 1706,
-    "tip": "5f22b4a",
-    "granted_at": "2026-10-10T21:47Z",
+    "agent": "hedgehog",
+    "session": "hedgehog",
+    "issue": 1700,
+    "tip": "5400394",
+    "granted_at": "2026-10-10T21:53Z",
     "status": "running",
-    "nudged_at": "2026-10-10T21:52Z"
+    "nudged_at": null
   },
   "push_queue": [
-    {"agent": "hedgehog", "session": "hedgehog", "issue": 1700, "tip": "5400394"},
     {"agent": "skunk", "session": "skunk", "issue": 1708, "tip": "224bbef"},
     {"agent": "raccoon", "session": "raccoon", "issue": 1707, "tip": "70dc843"},
     {"agent": "flamingo", "session": "flamingo", "issue": 1705, "tip": "808de33"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T21:52Z",
-  "next_scheduled_poll": "sched_elephant_land",
+  "last_poll": "2026-10-10T21:53Z",
+  "next_scheduled_poll": "sched_poll_15s",
   "ci_last": {
-    "sha": "5835b0b",
+    "sha": "dcc0a46",
     "cicd": "in_progress",
-    "run_id": 38089213525
+    "run_id": 38089266790
   },
-  "origin_main": "5835b0b",
+  "origin_main": "dcc0a46",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
