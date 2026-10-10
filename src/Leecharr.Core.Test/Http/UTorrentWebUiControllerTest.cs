@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -74,6 +75,35 @@ public class UTorrentWebUiControllerTest
         result.Should().BeOfType<ObjectResult>();
         var objectResult = (ObjectResult)result;
         objectResult.StatusCode.Should().Be(StatusCodes.Status405MethodNotAllowed);
+    }
+
+    [Test]
+    public async Task HandleWebUi_TorrentList_IncludesErrorMessageForFailedTorrents()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "GET";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "abc12345abcdef1234567890abcdef12345678",
+            Name = "broken.torrent",
+            Status = TorrentStatus.Error,
+            ErrorMessage = "Tracker timeout",
+            DateAdded = DateTime.UtcNow,
+            TotalSize = 1000,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.categoryService.GetAll().Returns(new List<Category>());
+
+        var result = await this.controller.HandleWebUi(null!, null!, null!, null!, null!, null!, null!, null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(okResult.Value));
+        var row = doc.RootElement.GetProperty("torrents")[0];
+        row[21].GetString().Should().Be("Tracker timeout");
     }
 
     [TestCase("getprops")]
