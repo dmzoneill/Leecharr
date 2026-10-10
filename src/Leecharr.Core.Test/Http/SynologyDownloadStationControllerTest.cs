@@ -447,6 +447,36 @@ public class SynologyDownloadStationControllerTest
     }
 
     [Test]
+    public void Auth_Logout_RevokesSession_AndDoesNotMintNewSid()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("master_key");
+
+        var loginContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+        var loginResult = (OkObjectResult)this.controller.Auth("SYNO.API.Auth", "login", passwd: "master_key");
+        var loginJson = JsonSerializer.Serialize(loginResult.Value);
+        using var loginDoc = JsonDocument.Parse(loginJson);
+        var sid = loginDoc.RootElement.GetProperty("data").GetProperty("sid").GetString();
+
+        var authedContext = new DefaultHttpContext();
+        authedContext.Request.QueryString = new QueryString($"?_sid={sid}");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = authedContext };
+        this.controller.Info("getinfo").Should().BeOfType<OkObjectResult>();
+
+        var logoutResult = (OkObjectResult)this.controller.Auth("SYNO.API.Auth", "logout");
+        var logoutJson = JsonSerializer.Serialize(logoutResult.Value);
+        using var logoutDoc = JsonDocument.Parse(logoutJson);
+        logoutDoc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
+        logoutDoc.RootElement.TryGetProperty("data", out _).Should().BeFalse();
+
+        var postLogoutContext = new DefaultHttpContext();
+        postLogoutContext.Request.QueryString = new QueryString($"?_sid={sid}");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = postLogoutContext };
+        this.controller.Info("getinfo").Should().BeOfType<UnauthorizedResult>();
+    }
+
+    [Test]
     public void Info_And_Statistic_WhenAuthenticated_ReturnExpectedData()
     {
         var httpContext = new DefaultHttpContext();
