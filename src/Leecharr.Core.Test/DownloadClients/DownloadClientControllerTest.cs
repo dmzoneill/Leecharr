@@ -101,7 +101,7 @@ public class DownloadClientControllerTest
 
         var addedTorrent = new Torrent { Id = 5, InfoHash = "1122334455667788990011223344556677889900", Name = "Fedora 38" };
         this.torrentService.AddFromMagnetAsync(
-            "magnet:?xt=urn:btih:1122334455667788990011223344556677889900",
+            "magnet:?xt=urn:btih:1122334455667788990011223344556677889900&dn=Fedora%2038",
             "distro",
             "/data/iso",
             false).Returns(Task.FromResult(addedTorrent));
@@ -145,7 +145,7 @@ public class DownloadClientControllerTest
         syncResult!.SyncedCount.Should().Be(1);
 
         await this.torrentService.Received(1).AddFromMagnetAsync(
-            "magnet:?xt=urn:btih:1111111111111111111111111111111111111111",
+            "magnet:?xt=urn:btih:1111111111111111111111111111111111111111&dn=Item%201",
             "cat1",
             "/path/1",
             false);
@@ -180,7 +180,7 @@ public class DownloadClientControllerTest
         syncResult!.SyncedCount.Should().Be(1);
 
         await this.torrentService.Received(1).AddFromMagnetAsync(
-            "magnet:?xt=urn:btih:2222222222222222222222222222222222222222",
+            "magnet:?xt=urn:btih:2222222222222222222222222222222222222222&dn=Item%202",
             "cat2",
             "/path/2",
             false);
