@@ -636,7 +636,7 @@ public class UTorrentWebUiController : ControllerBase
                 Math.Max(0, t.TotalSize - t.Downloaded),
                 string.Empty,
                 string.Empty,
-                string.Empty,
+                t.ErrorMessage ?? string.Empty,
                 string.Empty,
                 addedUnix,
                 completedUnix,
