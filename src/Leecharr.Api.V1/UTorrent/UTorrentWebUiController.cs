@@ -183,6 +183,20 @@ public class UTorrentWebUiController : ControllerBase
 
                 case "start":
                 case "unpause":
+                    if (!string.IsNullOrWhiteSpace(effHash))
+                    {
+                        foreach (var h in effHash.Split(HashSeparators, StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            var t = this.torrentService.GetByInfoHash(h.Trim());
+                            if (t != null)
+                            {
+                                await this.torrentService.ResumeAsync(t.Id);
+                            }
+                        }
+                    }
+
+                    return this.BuildTorrentListResponse();
+
                 case "forcestart":
                     if (!string.IsNullOrWhiteSpace(effHash))
                     {
@@ -191,6 +205,8 @@ public class UTorrentWebUiController : ControllerBase
                             var t = this.torrentService.GetByInfoHash(h.Trim());
                             if (t != null)
                             {
+                                t.ForceStart = true;
+                                await this.torrentService.UpdateAsync(t);
                                 await this.torrentService.ResumeAsync(t.Id);
                             }
                         }
