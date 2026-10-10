@@ -1360,6 +1360,72 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task SearchGet_WhenRequestCancelled_DoesNotRecordFailureForIndexers()
+    {
+        var mockStatusService = Substitute.For<IIndexerStatusService>();
+        var customController = new IndexerController(
+            this.indexerRepository,
+            this.torznabClient,
+            this.prowlarrSyncService,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: mockStatusService);
+
+        var indexer = new IndexerDefinition { Id = 5, Name = "CancelTracker", Enable = true, EnableSearch = true, Url = "http://cancel" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        using var cts = new System.Threading.CancellationTokenSource();
+        cts.Cancel();
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var token = callInfo.Arg<System.Threading.CancellationToken>();
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult(new List<TorznabSearchResult>());
+            });
+
+        await customController.SearchGet(new IndexerSearchRequest { Query = "test" }, cts.Token);
+
+        mockStatusService.DidNotReceiveWithAnyArgs().RecordFailure(default, default, default!, default!);
+        mockStatusService.DidNotReceiveWithAnyArgs().RecordSuccess(default);
+    }
+
+    [Test]
+    public async Task SearchGet_WhenIndexerSearchTimesOut_RecordsFailureInIndexerStatusService()
+    {
+        var mockStatusService = Substitute.For<IIndexerStatusService>();
+        var customController = new IndexerController(
+            this.indexerRepository,
+            this.torznabClient,
+            this.prowlarrSyncService,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: mockStatusService);
+
+        var indexer = new IndexerDefinition { Id = 6, Name = "SlowTracker", Enable = true, EnableSearch = true, Url = "http://slow" };
+        this.indexerRepository.Get(6).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromException<List<TorznabSearchResult>>(new OperationCanceledException()));
+
+        await customController.SearchGet(new IndexerSearchRequest { Query = "test", IndexerId = 6 });
+
+        mockStatusService.Received(1).RecordFailure(6, null, "Search timed out", Arg.Any<Exception>());
+        mockStatusService.DidNotReceive().RecordSuccess(6);
+    }
+
+    [Test]
     public async Task TestDirect_WhenProbeUrlDiffersFromSaved_DoesNotRecordFailureOnTestFailure()
     {
         var mockStatusService = Substitute.For<IIndexerStatusService>();
@@ -2020,4 +2086,3 @@ public class IndexerControllerTest
         await this.torznabClient.DidNotReceiveWithAnyArgs().SearchAsync(default!, default!, default);
     }
 }
-
