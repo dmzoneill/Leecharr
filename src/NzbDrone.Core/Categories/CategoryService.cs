@@ -216,7 +216,7 @@ public class CategoryService : ICategoryService
             var oldName = existing.Name;
             var newName = updated.Name;
 
-            if (!string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(oldName, newName, StringComparison.Ordinal))
             {
                 if (this.torrentRepository != null)
                 {

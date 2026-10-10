@@ -482,6 +482,35 @@ public class CategoryServiceTest
     }
 
     [Test]
+    public void Update_WhenParentCategoryRenamedCaseOnly_CascadesNewNameToSubcategoriesAndTorrents()
+    {
+        var existingParent = new Category { Id = 1, Name = "Movies", SavePath = "/downloads/movies" };
+        var updatedParent = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+
+        var child = new Category { Id = 2, Name = "Movies/uhd", SavePath = string.Empty };
+
+        this.repository.Get(1).Returns(existingParent);
+        this.repository.Update(updatedParent).Returns(updatedParent);
+        this.repository.All().Returns(new List<Category> { updatedParent, child });
+
+        var torrentParent = new Torrent { Id = 10, Name = "Movie1", Category = "Movies" };
+        var torrentChild = new Torrent { Id = 11, Name = "Movie2", Category = "Movies/uhd" };
+
+        this.torrentRepository.GetByCategory("Movies").Returns(new List<Torrent> { torrentParent });
+        this.torrentRepository.GetByCategory("Movies/uhd").Returns(new List<Torrent> { torrentChild });
+
+        this.service.Update(updatedParent);
+
+        torrentParent.Category.Should().Be("movies");
+        torrentChild.Category.Should().Be("movies/uhd");
+        child.Name.Should().Be("movies/uhd");
+
+        this.torrentRepository.Received(1).Update(torrentParent);
+        this.torrentRepository.Received(1).Update(torrentChild);
+        this.repository.Received(1).Update(child);
+    }
+
+    [Test]
     public void Delete_WhenParentCategoryDeleted_CascadesDeletionToSubcategories()
     {
         var parent = new Category { Id = 1, Name = "movies" };
