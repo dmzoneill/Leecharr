@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
-# Point this clone (and all linked worktrees) at repo .githooks via absolute path.
+# Use system-wide git hooks (Co-authored-by blocked on every repo).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-hooks_dir="${repo_root}/.githooks"
+global_hooks="${HOME}/.git-hooks"
 
-if [[ ! -d "$hooks_dir" ]]; then
-  echo "Missing ${hooks_dir}" >&2
-  exit 1
-fi
+git -C "$repo_root" config --unset core.hooksPath 2>/dev/null || true
 
-chmod +x "${hooks_dir}"/commit-msg "${hooks_dir}"/prepare-commit-msg 2>/dev/null || true
+git config --global core.hooksPath "$global_hooks"
+chmod +x "${global_hooks}"/commit-msg "${global_hooks}"/prepare-commit-msg 2>/dev/null || true
+chmod +x "${HOME}/.local/bin/git-strip-all-coauthored.sh" \
+  "${HOME}/.local/bin/git-reject-coauthored-and-bots.sh" 2>/dev/null || true
 
-git -C "$repo_root" config core.hooksPath "$hooks_dir"
-
-echo "core.hooksPath=${hooks_dir}"
-echo "Hooks active for main repo and all worktrees sharing this .git config."
+echo "global core.hooksPath=${global_hooks}"
+echo "This repo uses global hooks (no per-repo core.hooksPath override)."
