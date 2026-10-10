@@ -69,6 +69,26 @@ public class SynologyDownloadStationController : ControllerBase
         return false;
     }
 
+    private void RevokeSynologySession()
+    {
+        var sid = this.Request.Query["_sid"].ToString();
+        if (!string.IsNullOrWhiteSpace(sid))
+        {
+            AuthenticatedSessions.RemoveSession(sid);
+        }
+
+        sid = this.Request.Query["sid"].ToString();
+        if (!string.IsNullOrWhiteSpace(sid))
+        {
+            AuthenticatedSessions.RemoveSession(sid);
+        }
+
+        if (this.Request.Cookies.TryGetValue("id", out var cookieSid) && !string.IsNullOrWhiteSpace(cookieSid))
+        {
+            AuthenticatedSessions.RemoveSession(cookieSid);
+        }
+    }
+
     [AllowAnonymous]
     [HttpGet]
     [HttpPost]
@@ -100,13 +120,27 @@ public class SynologyDownloadStationController : ControllerBase
     [Route("webapi/auth")]
     public IActionResult Auth([FromQuery] string api, [FromQuery] string method, [FromQuery] string account = null, [FromQuery] string passwd = null)
     {
+        if (string.Equals(method, "logout", StringComparison.OrdinalIgnoreCase))
+        {
+            this.RevokeSynologySession();
+            this.Response.Cookies.Delete("id");
+            return this.Ok(new { success = true });
+        }
+
+        if (!string.IsNullOrWhiteSpace(method) &&
+            !string.Equals(method, "login", StringComparison.OrdinalIgnoreCase))
+        {
+            return this.Ok(new { success = false, error = new { code = 101 } });
+        }
+
         if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
         {
             var masterKey = this.configFileProvider.ApiKey;
             var isAuth = (!string.IsNullOrWhiteSpace(masterKey) &&
                         (RpcAuthenticationHelper.FixedTimeEquals(passwd, masterKey) ||
                             RpcAuthenticationHelper.FixedTimeEquals(account, masterKey))) ||
-                        RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+                        RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider) ||
+                        this.IsSynologyAuthenticated();
 
             if (!isAuth)
             {
