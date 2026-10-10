@@ -138,9 +138,9 @@ public class OsInfoTest
         Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER", "false");
 
         var hasContainerIndicators = File.Exists("/.dockerenv") ||
-                                     File.Exists("/run/.containerenv") ||
-                                     File.Exists("/run/systemd/container") ||
-                                     OsInfo.CheckCgroups();
+                                        File.Exists("/run/.containerenv") ||
+                                        File.Exists("/run/systemd/container") ||
+                                        OsInfo.CheckCgroups();
         OsInfo.IsContainer.Should().Be(hasContainerIndicators);
         OsInfo.IsDocker.Should().Be(hasContainerIndicators);
     }
@@ -151,9 +151,9 @@ public class OsInfoTest
         Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER", null);
 
         var hasContainerIndicators = File.Exists("/.dockerenv") ||
-                                     File.Exists("/run/.containerenv") ||
-                                     File.Exists("/run/systemd/container") ||
-                                     OsInfo.CheckCgroups();
+                                        File.Exists("/run/.containerenv") ||
+                                        File.Exists("/run/systemd/container") ||
+                                        OsInfo.CheckCgroups();
         OsInfo.IsContainer.Should().Be(hasContainerIndicators);
         OsInfo.IsDocker.Should().Be(hasContainerIndicators);
     }

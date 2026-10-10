@@ -599,7 +599,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
             var segments = dir.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
             return segments.Any(s => string.Equals(s, "loaded", StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(s, "failed", StringComparison.OrdinalIgnoreCase));
+                                        string.Equals(s, "failed", StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception ex)
         {

@@ -97,7 +97,7 @@ public class NetworkSecurityService : INetworkSecurityService, IExecute<VpnKillS
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+                                        string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
             if (nic == null || nic.OperationalStatus != OperationalStatus.Up)
             {

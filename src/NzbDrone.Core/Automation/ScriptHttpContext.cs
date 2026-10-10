@@ -210,140 +210,140 @@ public class ScriptHttpContext : IDisposable
         Interlocked.Increment(ref this._pendingOperations);
         try
         {
-        using var request = new HttpRequestMessage(method, url);
+            using var request = new HttpRequestMessage(method, url);
 
-        if (options != null)
-        {
-            if (options.TryGetValue("headers", out var rawHeaders) && rawHeaders is IDictionary<string, object> headersDict)
+            if (options != null)
             {
-                foreach (var kvp in headersDict)
+                if (options.TryGetValue("headers", out var rawHeaders) && rawHeaders is IDictionary<string, object> headersDict)
                 {
-                    request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value?.ToString());
-                }
-            }
-
-            if (options.TryGetValue("cookies", out var rawCookies))
-            {
-                if (rawCookies is IDictionary<string, object> cookiesDict)
-                {
-                    var cookieHeader = new StringBuilder();
-                    foreach (var kvp in cookiesDict)
+                    foreach (var kvp in headersDict)
                     {
-                        if (cookieHeader.Length > 0)
+                        request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value?.ToString());
+                    }
+                }
+
+                if (options.TryGetValue("cookies", out var rawCookies))
+                {
+                    if (rawCookies is IDictionary<string, object> cookiesDict)
+                    {
+                        var cookieHeader = new StringBuilder();
+                        foreach (var kvp in cookiesDict)
                         {
-                            cookieHeader.Append("; ");
+                            if (cookieHeader.Length > 0)
+                            {
+                                cookieHeader.Append("; ");
+                            }
+
+                            cookieHeader.Append($"{kvp.Key}={kvp.Value}");
                         }
 
-                        cookieHeader.Append($"{kvp.Key}={kvp.Value}");
+                        request.Headers.TryAddWithoutValidation("Cookie", cookieHeader.ToString());
                     }
-
-                    request.Headers.TryAddWithoutValidation("Cookie", cookieHeader.ToString());
-                }
-                else if (rawCookies is string cookieStr)
-                {
-                    request.Headers.TryAddWithoutValidation("Cookie", cookieStr);
-                }
-            }
-        }
-
-        if (body != null)
-        {
-            if (body is string strBody)
-            {
-                var contentType = "text/plain";
-                if (options != null && options.TryGetValue("contentType", out var ct) && ct != null)
-                {
-                    contentType = ct.ToString()!;
-                }
-                else if (strBody.TrimStart().StartsWith('{') || strBody.TrimStart().StartsWith('['))
-                {
-                    contentType = "application/json";
-                }
-
-                request.Content = CreateStringContent(strBody, contentType);
-            }
-            else if (body is IDictionary<string, object> formDict)
-            {
-                var isJson = options != null && options.TryGetValue("json", out var jsonOpt) && jsonOpt is true;
-                if (isJson)
-                {
-                    var jsonStr = JsonSerializer.Serialize(formDict);
-                    request.Content = new StringContent(jsonStr, Encoding.UTF8, "application/json");
-                }
-                else
-                {
-                    var formList = new List<KeyValuePair<string, string>>();
-                    foreach (var kvp in formDict)
+                    else if (rawCookies is string cookieStr)
                     {
-                        formList.Add(new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
+                        request.Headers.TryAddWithoutValidation("Cookie", cookieStr);
                     }
-
-                    request.Content = new FormUrlEncodedContent(formList);
                 }
             }
-        }
 
-        var timeoutSeconds = 15;
-        if (options != null && options.TryGetValue("timeout", out var timeoutVal) && timeoutVal != null)
-        {
-            if (int.TryParse(timeoutVal.ToString(), out var parsedTimeout) && parsedTimeout > 0)
+            if (body != null)
             {
-                timeoutSeconds = Math.Min(parsedTimeout, 60);
-            }
-        }
+                if (body is string strBody)
+                {
+                    var contentType = "text/plain";
+                    if (options != null && options.TryGetValue("contentType", out var ct) && ct != null)
+                    {
+                        contentType = ct.ToString()!;
+                    }
+                    else if (strBody.TrimStart().StartsWith('{') || strBody.TrimStart().StartsWith('['))
+                    {
+                        contentType = "application/json";
+                    }
 
-        var timeoutMs = timeoutSeconds * 1000;
-        if (this._executionBudget != null)
-        {
-            timeoutMs = this._executionBudget.CapTimeoutMilliseconds(timeoutSeconds);
-            if (timeoutMs <= 0)
+                    request.Content = CreateStringContent(strBody, contentType);
+                }
+                else if (body is IDictionary<string, object> formDict)
+                {
+                    var isJson = options != null && options.TryGetValue("json", out var jsonOpt) && jsonOpt is true;
+                    if (isJson)
+                    {
+                        var jsonStr = JsonSerializer.Serialize(formDict);
+                        request.Content = new StringContent(jsonStr, Encoding.UTF8, "application/json");
+                    }
+                    else
+                    {
+                        var formList = new List<KeyValuePair<string, string>>();
+                        foreach (var kvp in formDict)
+                        {
+                            formList.Add(new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
+                        }
+
+                        request.Content = new FormUrlEncodedContent(formList);
+                    }
+                }
+            }
+
+            var timeoutSeconds = 15;
+            if (options != null && options.TryGetValue("timeout", out var timeoutVal) && timeoutVal != null)
             {
-                throw new OperationCanceledException("Script execution time budget exhausted before HTTP request could start.");
+                if (int.TryParse(timeoutVal.ToString(), out var parsedTimeout) && parsedTimeout > 0)
+                {
+                    timeoutSeconds = Math.Min(parsedTimeout, 60);
+                }
             }
-        }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+            var timeoutMs = timeoutSeconds * 1000;
+            if (this._executionBudget != null)
+            {
+                timeoutMs = this._executionBudget.CapTimeoutMilliseconds(timeoutSeconds);
+                if (timeoutMs <= 0)
+                {
+                    throw new OperationCanceledException("Script execution time budget exhausted before HTTP request could start.");
+                }
+            }
 
-        var client = this.GetClientForRequest(options);
-        using var response = client.Send(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
 
-        var responseBody = ReadResponseBodyAsString(response.Content, cts.Token);
-        var statusCode = (int)response.StatusCode;
-        var isOk = response.IsSuccessStatusCode;
+            var client = this.GetClientForRequest(options);
+            using var response = client.Send(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
 
-        object? parsedJson = null;
-        try
-        {
-            parsedJson = ScriptJsonElementConverter.TryParse(responseBody);
-        }
-        catch
-        {
-            // not valid JSON
-        }
+            var responseBody = ReadResponseBodyAsString(response.Content, cts.Token);
+            var statusCode = (int)response.StatusCode;
+            var isOk = response.IsSuccessStatusCode;
 
-        var resHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var h in response.Headers)
-        {
-            resHeaders[h.Key] = string.Join(", ", h.Value);
-        }
+            object? parsedJson = null;
+            try
+            {
+                parsedJson = ScriptJsonElementConverter.TryParse(responseBody);
+            }
+            catch
+            {
+                // not valid JSON
+            }
 
-        if (response.Content?.Headers != null)
-        {
-            foreach (var h in response.Content.Headers)
+            var resHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var h in response.Headers)
             {
                 resHeaders[h.Key] = string.Join(", ", h.Value);
             }
-        }
 
-        return new Dictionary<string, object?>
-        {
-            ["status"] = statusCode,
-            ["ok"] = isOk,
-            ["body"] = responseBody,
-            ["json"] = parsedJson,
-            ["headers"] = resHeaders,
-        };
+            if (response.Content?.Headers != null)
+            {
+                foreach (var h in response.Content.Headers)
+                {
+                    resHeaders[h.Key] = string.Join(", ", h.Value);
+                }
+            }
+
+            return new Dictionary<string, object?>
+            {
+                ["status"] = statusCode,
+                ["ok"] = isOk,
+                ["body"] = responseBody,
+                ["json"] = parsedJson,
+                ["headers"] = resHeaders,
+            };
         }
         finally
         {

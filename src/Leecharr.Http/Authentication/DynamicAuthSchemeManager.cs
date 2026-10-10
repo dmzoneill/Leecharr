@@ -94,9 +94,9 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
                 {
                     var claims = context.Principal?.Claims.ToList() ?? new();
                     var sub = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value
-                              ?? Guid.NewGuid().ToString();
+                                ?? Guid.NewGuid().ToString();
                     var username = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "preferred_username" || c.Type == "nickname")?.Value
-                                   ?? sub;
+                                    ?? sub;
                     var email = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == "email")?.Value;
                     var displayName = claims.FirstOrDefault(c => c.Type == "name")?.Value ?? username;
                     var avatarUrl = claims.FirstOrDefault(c => c.Type == "picture" || c.Type == "avatar_url")?.Value;
@@ -162,7 +162,7 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
                     context.Principal = new ClaimsPrincipal(identity);
 
                     var userSessionRepository = context.HttpContext?.RequestServices?.GetService<IUserSessionRepository>() ??
-                                               this.serviceProvider?.GetService<IUserSessionRepository>();
+                                                this.serviceProvider?.GetService<IUserSessionRepository>();
                     if (userSessionRepository != null && user != null)
                     {
                         try

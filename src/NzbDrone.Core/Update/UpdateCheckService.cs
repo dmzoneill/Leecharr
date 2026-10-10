@@ -41,7 +41,7 @@ public class UpdateCheckService : IUpdateCheckService
     public static string GetPackagePlatformIdentifier(bool isWindows, bool isOsx, Architecture architecture)
     {
         var os = isWindows ? "win" :
-                 isOsx ? "osx" : "linux";
+                    isOsx ? "osx" : "linux";
 
         var arch = architecture switch
         {
@@ -179,8 +179,8 @@ public class UpdateCheckService : IUpdateCheckService
                                 matchedPlatformAsset ??= nameStr;
                             }
                             else if (nameStr.EndsWith(packageExtension, StringComparison.OrdinalIgnoreCase) ||
-                                     nameStr.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
-                                     nameStr.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                                        nameStr.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
+                                        nameStr.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                             {
                                 matchedExtensionAsset ??= nameStr;
                             }
@@ -191,7 +191,7 @@ public class UpdateCheckService : IUpdateCheckService
                 }
 
                 var isInstalled = string.Equals(cleanVersion, currentVer, StringComparison.OrdinalIgnoreCase) ||
-                                  cleanVersion.StartsWith(currentVer, StringComparison.OrdinalIgnoreCase);
+                                    cleanVersion.StartsWith(currentVer, StringComparison.OrdinalIgnoreCase);
 
                 result.Add(new UpdatePackage
                 {

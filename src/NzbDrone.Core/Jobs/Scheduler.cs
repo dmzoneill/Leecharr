@@ -233,42 +233,42 @@ public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
             this.commandQueueManager.Push(new WatchFolderScanCommand(), CommandTrigger.Scheduled);
         }
         else if (string.Equals(name, "RssSync", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "RssSyncTask", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(name, "RssSyncTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new RssSyncCommand(), CommandTrigger.Scheduled);
         }
         else if (string.Equals(name, "VpnKillSwitchCheck", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "VpnKillSwitchCheckTask", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(name, "VpnKillSwitchCheckTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new VpnKillSwitchCheckCommand(), CommandTrigger.Scheduled);
         }
         else if (string.Equals(name, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "ProwlarrSyncTask", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(name, "ProwlarrSyncTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new ProwlarrSyncCommand(), CommandTrigger.Scheduled);
         }
         else if (string.Equals(name, "Backup", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "BackupTask", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(name, "BackupTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new BackupCommand(), CommandTrigger.Scheduled);
         }
         else if (string.Equals(name, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "BlocklistUpdateTask", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(name, "BlocklistUpdateTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new BlocklistUpdateCommand(), CommandTrigger.Scheduled);
         }
         else if (string.Equals(name, "SessionCleanup", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "SessionCleanupTask", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(name, "SessionCleanupTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new SessionCleanupCommand(), CommandTrigger.Scheduled);
         }
         else if (string.Equals(name, "GeoIpUpdate", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "GeoIpUpdateTask", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(name, "GeoIpUpdateTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new GeoIpUpdateCommand(), CommandTrigger.Scheduled);
         }
         else if (string.Equals(name, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "DownloadHistoryCleanupTask", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(name, "DownloadHistoryCleanupTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new DownloadHistoryCleanupCommand(), CommandTrigger.Scheduled);
         }

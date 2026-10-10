@@ -182,19 +182,19 @@ if (res.ok) {
             Language = AutomationLanguage.Yaml,
             InputFields = new List<TemplateInputField>(),
             Code = "name: 'Auto Categorize Media'\n" +
-                   "trigger: 'TorrentAdded'\n" +
-                   "steps:\n" +
-                   "  - name: 'Categorize TV (name + resolution)'\n" +
-                   "    condition: \"(contains(${torrent.name}, 'S01E') || contains(${torrent.name}, 'S01.') || contains(${torrent.name}, 'Season')) && (contains(${torrent.name}, '2160p') || contains(${torrent.name}, '1080p') || contains(${torrent.name}, '720p') || contains(${torrent.name}, '480p') || contains(${torrent.name}, '4320p') || contains(${torrent.name}, '4K'))\"\n" +
-                   "    actions:\n" +
-                   "      - setCategory: 'TV'\n" +
-                   "      - addTag: 'Automated'\n" +
-                   "      - stopPipeline: true\n\n" +
-                   "  - name: 'Categorize Movie (resolution in name)'\n" +
-                   "    condition: \"contains(${torrent.name}, '2160p') || contains(${torrent.name}, '1080p') || contains(${torrent.name}, '720p') || contains(${torrent.name}, '480p') || contains(${torrent.name}, '4320p') || contains(${torrent.name}, '4K')\"\n" +
-                   "    actions:\n" +
-                   "      - setCategory: 'Movies'\n" +
-                   "      - addTag: 'Automated'\n",
+                    "trigger: 'TorrentAdded'\n" +
+                    "steps:\n" +
+                    "  - name: 'Categorize TV (name + resolution)'\n" +
+                    "    condition: \"(contains(${torrent.name}, 'S01E') || contains(${torrent.name}, 'S01.') || contains(${torrent.name}, 'Season')) && (contains(${torrent.name}, '2160p') || contains(${torrent.name}, '1080p') || contains(${torrent.name}, '720p') || contains(${torrent.name}, '480p') || contains(${torrent.name}, '4320p') || contains(${torrent.name}, '4K'))\"\n" +
+                    "    actions:\n" +
+                    "      - setCategory: 'TV'\n" +
+                    "      - addTag: 'Automated'\n" +
+                    "      - stopPipeline: true\n\n" +
+                    "  - name: 'Categorize Movie (resolution in name)'\n" +
+                    "    condition: \"contains(${torrent.name}, '2160p') || contains(${torrent.name}, '1080p') || contains(${torrent.name}, '720p') || contains(${torrent.name}, '480p') || contains(${torrent.name}, '4320p') || contains(${torrent.name}, '4K')\"\n" +
+                    "    actions:\n" +
+                    "      - setCategory: 'Movies'\n" +
+                    "      - addTag: 'Automated'\n",
         },
         new AutomationMarketplaceTemplate
         {

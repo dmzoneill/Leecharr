@@ -57,8 +57,8 @@ public class SecurityHeadersMiddleware
         headers[ContentSecurityPolicyHeader] = ContentSecurityPolicyValue;
 
         var isHttps = context.Request.IsHttps ||
-                      string.Equals(context.Request.Scheme, "https", StringComparison.OrdinalIgnoreCase) ||
-                      string.Equals(context.Request.Headers["X-Forwarded-Proto"], "https", StringComparison.OrdinalIgnoreCase);
+                        string.Equals(context.Request.Scheme, "https", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(context.Request.Headers["X-Forwarded-Proto"], "https", StringComparison.OrdinalIgnoreCase);
 
         if (isHttps)
         {

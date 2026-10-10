@@ -37,8 +37,8 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
 
         var desiredProviderId = this.configService?.ActiveMediaMetadataProvider;
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ServarrSync", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault();
+                            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ServarrSync", StringComparison.OrdinalIgnoreCase))
+                            ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {
@@ -286,17 +286,17 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
         }
 
         return !string.IsNullOrEmpty(m.PosterUrl) ||
-               !string.IsNullOrEmpty(m.BackdropUrl) ||
-               !string.IsNullOrEmpty(m.BannerUrl) ||
-               !string.IsNullOrEmpty(m.Overview) ||
-               m.Rating > 0 ||
-               !string.IsNullOrEmpty(m.Genres) ||
-               !string.IsNullOrEmpty(m.ImdbId) ||
-               !string.IsNullOrEmpty(m.TmdbId) ||
-               !string.IsNullOrEmpty(m.TvdbId) ||
-               !string.IsNullOrEmpty(m.MusicBrainzId) ||
-               m.ArrMediaId > 0 ||
-               (m.Cast != null && m.Cast.Count > 0);
+                !string.IsNullOrEmpty(m.BackdropUrl) ||
+                !string.IsNullOrEmpty(m.BannerUrl) ||
+                !string.IsNullOrEmpty(m.Overview) ||
+                m.Rating > 0 ||
+                !string.IsNullOrEmpty(m.Genres) ||
+                !string.IsNullOrEmpty(m.ImdbId) ||
+                !string.IsNullOrEmpty(m.TmdbId) ||
+                !string.IsNullOrEmpty(m.TvdbId) ||
+                !string.IsNullOrEmpty(m.MusicBrainzId) ||
+                m.ArrMediaId > 0 ||
+                (m.Cast != null && m.Cast.Count > 0);
     }
 
     internal static bool IsEmptyPlaceholder(MediaMetadata m)

@@ -75,8 +75,8 @@ public class ClaimsRoleMappingService : IClaimsRoleMappingService
 
         // Direct matching fallback
         if (validGroups.Any(g => g.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
-                                 g.Equals("admins", StringComparison.OrdinalIgnoreCase) ||
-                                 g.Equals("leecharr-admins", StringComparison.OrdinalIgnoreCase)))
+                                    g.Equals("admins", StringComparison.OrdinalIgnoreCase) ||
+                                    g.Equals("leecharr-admins", StringComparison.OrdinalIgnoreCase)))
         {
             return new List<string> { "Admin" };
         }
