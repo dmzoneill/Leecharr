@@ -1,7 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
@@ -86,8 +85,8 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
             return this.BadRequest("Days bitmask must be between 1 and 127 (at least one valid day must be selected).");
         }
 
-        if (!TimeOnly.TryParse(resource.StartTime, CultureInfo.InvariantCulture, out _) ||
-            !TimeOnly.TryParse(resource.EndTime, CultureInfo.InvariantCulture, out _))
+        if (!SpeedScheduleTimeParser.TryParse(resource.StartTime, out _) ||
+            !SpeedScheduleTimeParser.TryParse(resource.EndTime, out _))
         {
             return this.BadRequest("StartTime and EndTime must be valid times.");
         }
@@ -122,8 +121,8 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
             return this.BadRequest("Days bitmask must be between 1 and 127 (at least one valid day must be selected).");
         }
 
-        if (!TimeOnly.TryParse(resource.StartTime, CultureInfo.InvariantCulture, out _) ||
-            !TimeOnly.TryParse(resource.EndTime, CultureInfo.InvariantCulture, out _))
+        if (!SpeedScheduleTimeParser.TryParse(resource.StartTime, out _) ||
+            !SpeedScheduleTimeParser.TryParse(resource.EndTime, out _))
         {
             return this.BadRequest("StartTime and EndTime must be valid times.");
         }
