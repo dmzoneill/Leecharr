@@ -74,10 +74,13 @@ public class UserSessionRepository : BasicRepository<UserSession>, IUserSessionR
 
     public async Task<int> PruneExpiredSessionsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         return await this.ExecuteWithRetryAsync(async connection =>
             await connection.ExecuteAsync(
-                $"DELETE FROM \"{this.table}\" WHERE \"Expiry\" < @Now",
-                new { Now = DateTime.UtcNow }));
+                new CommandDefinition(
+                    $"DELETE FROM \"{this.table}\" WHERE \"Expiry\" < @Now",
+                    new { Now = DateTime.UtcNow },
+                    cancellationToken: cancellationToken)));
     }
 
     public void DeleteByUserId(int userId)
