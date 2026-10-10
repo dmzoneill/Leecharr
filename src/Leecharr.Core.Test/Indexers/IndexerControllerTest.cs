@@ -519,6 +519,31 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task SyncProwlarr_WhenBodyHasApiKeyOnlyAndConfigured_CallsSyncAll()
+    {
+        this.prowlarrSyncService.IsConfigured().Returns(true);
+        this.prowlarrSyncService.SyncAllAsync().Returns(Task.FromResult(4));
+
+        var result = await this.controller.SyncProwlarr(new ProwlarrSyncRequest { ApiKey = "stored-key" });
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        await this.prowlarrSyncService.Received(1).SyncAllAsync();
+        await this.prowlarrSyncService.DidNotReceive().SyncFromProwlarrAsync(Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task SyncProwlarr_WhenQueryUrlAndBodyOmitsUrl_UsesQueryUrl()
+    {
+        var request = new ProwlarrSyncRequest { ApiKey = "valid-key" };
+        this.prowlarrSyncService.SyncFromProwlarrAsync("http://prowlarr.example", "valid-key").Returns(Task.FromResult(2));
+
+        var result = await this.controller.SyncProwlarr(request, url: "http://prowlarr.example", apiKey: null);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        await this.prowlarrSyncService.Received(1).SyncFromProwlarrAsync("http://prowlarr.example", "valid-key");
+    }
+
+    [Test]
     public async Task SyncProwlarr_WhenProwlarrReturns401_ReturnsBadRequest()
     {
         var request = new ProwlarrSyncRequest { Url = "http://localhost:9696", ApiKey = "bad-key" };

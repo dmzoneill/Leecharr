@@ -1542,7 +1542,7 @@ public class IndexerController : Controller
 
 public class ProwlarrSyncRequest
 {
-    public string Url { get; set; } = "http://localhost:9696";
+    public string Url { get; set; }
 
-    public string ApiKey { get; set; } = string.Empty;
+    public string ApiKey { get; set; }
 }
