@@ -35,21 +35,21 @@
     "tip": "70dc843",
     "granted_at": "2026-10-10T22:10Z",
     "status": "running",
-    "nudge_at": "2026-10-10T22:13Z"
+    "nudge_at": "2026-10-10T22:11Z"
   },
   "push_queue": [
     {"agent": "flamingo", "session": "session_flamingo_1791668275820_c6940b7fd011b8d0", "issue": 1705, "tip": "808de33"},
     {"agent": "orangutan", "session": "session_orangutan_1791648509926_3eed22ef250ebcb8", "issue": 1701, "tip": "c331133"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T22:14Z",
-  "next_scheduled_poll": "sched_poll_22_14",
+  "last_poll": "2026-10-10T22:15Z",
+  "next_scheduled_poll": "sched_poll_22_15",
   "ci_last": {
-    "sha": "2bed6dd",
-    "cicd": "pending",
-    "run_id": 38090430413
+    "sha": "828d20d",
+    "cicd": "queued",
+    "run_id": 38090488337
   },
-  "origin_main": "2bed6dd",
+  "origin_main": "828d20d",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
@@ -63,6 +63,6 @@
   },
   "notes": {
     "dolphin_done_1708": "9432f4b closed GitHub 22:10Z",
-    "poll_22_14": "lock raccoon push #1707 active; dolphin START refill; 0 remote issue-*"
+    "poll_22_15": "lock raccoon idle 2m; interrupt push now 22:11Z; dolphin START refill"
   }
 }
