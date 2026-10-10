@@ -543,7 +543,15 @@ public class IndexerController : Controller
 
             var searchTasks = indexers.Select(async idx =>
         {
-            await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+            try
+            {
+                await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             using var perIndexerCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(linkedCts.Token, perIndexerCts.Token);
 
@@ -606,9 +614,13 @@ public class IndexerController : Controller
                     });
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                this.logger.Debug("Search cancelled for indexer {0}", idx.Name);
+            }
             catch (OperationCanceledException ex)
             {
-                this.logger.Warn("Search timed out or cancelled for indexer {0}", idx.Name);
+                this.logger.Warn("Search timed out for indexer {0}", idx.Name);
                 this.indexerStatusService?.RecordFailure(idx.Id, errorMessage: "Search timed out", ex: ex);
                 searchErrors.Add($"{idx.Name}: Search timed out");
             }
