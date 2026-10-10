@@ -74,8 +74,8 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
                     (category ?? string.Empty).Contains("series", StringComparison.OrdinalIgnoreCase) ||
                     (category ?? string.Empty).Contains("sonarr", StringComparison.OrdinalIgnoreCase) ||
                     (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2))))
-                   && !(category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase)
-                   && !(category ?? string.Empty).Contains("radarr", StringComparison.OrdinalIgnoreCase);
+                    && !(category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase)
+                    && !(category ?? string.Empty).Contains("radarr", StringComparison.OrdinalIgnoreCase);
 
         var isMovie = !isTv;
 

@@ -297,8 +297,8 @@ public class TorznabClient : ITorznabClient
         {
             var uriBuilder = new UriBuilder(indexer.Url);
             var isTvCategory = (criteria.Categories != null && criteria.Categories.Any(c => c is >= 5000 and <= 5999)) ||
-                               (criteria.CategoryId.HasValue && criteria.CategoryId.Value is >= 5000 and <= 5999) ||
-                               ((criteria.Categories == null || criteria.Categories.Count == 0) &&
+                                (criteria.CategoryId.HasValue && criteria.CategoryId.Value is >= 5000 and <= 5999) ||
+                                ((criteria.Categories == null || criteria.Categories.Count == 0) &&
                                 !criteria.CategoryId.HasValue &&
                                 indexer.Categories != null &&
                                 indexer.Categories.Count > 0 &&
@@ -1446,8 +1446,8 @@ public class TorznabClient : ITorznabClient
 
         var val = GetAttributeValue(elem, "available");
         return string.Equals(val, "yes", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(val, "1", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
+                string.Equals(val, "1", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<string> ParseSupportedParams(XElement elem)

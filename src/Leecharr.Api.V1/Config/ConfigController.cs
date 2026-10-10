@@ -542,8 +542,8 @@ public class AiConfigController : ConfigController<AiConfigResource>
         var targetProvider = resource.ActiveAiProvider;
 
         var isSwitchingProvider = this.aiManager != null &&
-                                  !string.IsNullOrWhiteSpace(targetProvider) &&
-                                  !string.Equals(currentActiveProvider, targetProvider, StringComparison.OrdinalIgnoreCase);
+                                    !string.IsNullOrWhiteSpace(targetProvider) &&
+                                    !string.Equals(currentActiveProvider, targetProvider, StringComparison.OrdinalIgnoreCase);
 
         if (isSwitchingProvider)
         {

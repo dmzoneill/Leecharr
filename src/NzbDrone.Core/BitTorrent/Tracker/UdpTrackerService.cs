@@ -270,17 +270,17 @@ public class UdpTrackerService : IUdpTrackerService
             }
 
             var isIpv6 = clientIp.AddressFamily == AddressFamily.InterNetworkV6
-                         && !clientIp.IsIPv4MappedToIPv6;
+                            && !clientIp.IsIPv4MappedToIPv6;
 
             var peers = result.Peers ?? Array.Empty<TrackerPeerState>();
 
             var selectedPeers = isIpv6
                 ? peers.Where(p => p.Ip != null
-                                   && p.Ip.AddressFamily == AddressFamily.InterNetworkV6
-                                   && !p.Ip.IsIPv4MappedToIPv6).ToList()
+                                    && p.Ip.AddressFamily == AddressFamily.InterNetworkV6
+                                    && !p.Ip.IsIPv4MappedToIPv6).ToList()
                 : peers.Where(p => p.Ip != null
-                                   && (p.Ip.AddressFamily == AddressFamily.InterNetwork
-                                       || p.Ip.IsIPv4MappedToIPv6)).ToList();
+                                    && (p.Ip.AddressFamily == AddressFamily.InterNetwork
+                                        || p.Ip.IsIPv4MappedToIPv6)).ToList();
 
             var recordSize = isIpv6 ? 18 : 6;
             var ipSize = isIpv6 ? 16 : 4;

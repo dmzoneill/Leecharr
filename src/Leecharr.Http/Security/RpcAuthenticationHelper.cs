@@ -126,7 +126,7 @@ public static class RpcAuthenticationHelper
 
                     if (!string.IsNullOrWhiteSpace(masterApiKey) &&
                         (FixedTimeEquals(password, masterApiKey) ||
-                         FixedTimeEquals(username, masterApiKey)))
+                            FixedTimeEquals(username, masterApiKey)))
                     {
                         return true;
                     }

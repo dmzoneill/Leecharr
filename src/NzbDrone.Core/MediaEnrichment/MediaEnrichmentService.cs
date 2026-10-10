@@ -437,7 +437,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
             // Remote URL
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
                 (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+                    !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
             {
                 this.logger.Warn("Refusing to cache artwork from non-HTTP/HTTPS URL: {0}", url);
                 return null;

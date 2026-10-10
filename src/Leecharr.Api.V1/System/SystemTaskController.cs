@@ -209,14 +209,14 @@ public class SystemTaskController : Controller
             : name;
 
         return string.Equals(clean, "WatchFolderScan", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "RssSync", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "VpnKillSwitchCheck", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "Backup", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "SessionCleanup", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "GeoIpUpdate", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase);
+                string.Equals(clean, "RssSync", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(clean, "VpnKillSwitchCheck", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(clean, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(clean, "Backup", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(clean, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(clean, "SessionCleanup", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(clean, "GeoIpUpdate", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(clean, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase);
     }
 
     private ActionResult DispatchTask(string typeName)
