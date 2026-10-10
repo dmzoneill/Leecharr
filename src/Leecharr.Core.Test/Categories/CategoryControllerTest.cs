@@ -421,8 +421,9 @@ public class CategoryControllerTest
     public void Delete_WhenServiceThrowsInvalidOperationException_ReturnsBadRequest()
     {
         this.categoryService.Get(5).Returns(new Category { Id = 5, Name = "movies", IsDefault = false });
-        this.categoryService.Delete(5).Throws(new InvalidOperationException(
-            "Cannot delete category 'movies' because it has a default subcategory."));
+        this.categoryService.When(x => x.Delete(5))
+            .Do(_ => throw new InvalidOperationException(
+                "Cannot delete category 'movies' because it has a default subcategory."));
 
         var result = this.controller.Delete(5);
 
