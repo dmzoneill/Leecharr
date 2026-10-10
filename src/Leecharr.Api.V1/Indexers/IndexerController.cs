@@ -650,7 +650,7 @@ public class IndexerController : Controller
                     if (request.IndexerId.HasValue && request.IndexerId.Value > 0)
                     {
                         var indexerDef = this.indexerRepository.Get(request.IndexerId.Value);
-                        if (indexerDef != null)
+                        if (indexerDef != null && IsDownloadUrlOnIndexerHost(request.DownloadUrl, indexerDef.Url))
                         {
                             if (!string.IsNullOrWhiteSpace(indexerDef.ApiKey))
                             {
@@ -838,6 +838,27 @@ public class IndexerController : Controller
         }
 
         return url.Trim().TrimEnd('/');
+    }
+
+    private static bool IsDownloadUrlOnIndexerHost(string downloadUrl, string indexerUrl)
+    {
+        if (string.IsNullOrWhiteSpace(downloadUrl) || string.IsNullOrWhiteSpace(indexerUrl))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var downloadUri) ||
+            !Uri.TryCreate(indexerUrl, UriKind.Absolute, out var indexerUri))
+        {
+            return false;
+        }
+
+        if (downloadUri.Scheme != Uri.UriSchemeHttp && downloadUri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        return string.Equals(downloadUri.IdnHost, indexerUri.IdnHost, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<ActionResult<IndexerTestResult>> TestDirectInternal(IndexerDefinition indexer, bool recordIndexerStatus = true)

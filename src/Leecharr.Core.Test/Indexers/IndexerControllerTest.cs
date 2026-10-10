@@ -923,6 +923,7 @@ public class IndexerControllerTest
         {
             Id = 5,
             Name = "PrivateTracker",
+            Url = "https://private.tracker.local/api/v1/indexer",
             ApiKey = "api-token-xyz",
         };
         this.indexerRepository.Get(5).Returns(indexer);
@@ -950,6 +951,49 @@ public class IndexerControllerTest
         var result = await this.controller.DownloadRelease(request);
 
         result.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task DownloadRelease_WhenDownloadUrlHostDiffersFromIndexer_DoesNotSendIndexerSecrets()
+    {
+        var torrentBytes = new byte[] { 0x64, 0x31, 0x30, 0x65 };
+        var parsed = new ParsedTorrent { Name = "External Torrent", InfoHash = "0123456789abcdef0123456789abcdef01234567" };
+        var request = new DownloadReleaseRequest
+        {
+            Title = "External Torrent",
+            DownloadUrl = "https://evil.example/download/123.torrent",
+            IndexerId = 7,
+            Cookie = "uid=123; pass=secret",
+            UserAgent = "MyCustomAgent/1.0",
+        };
+
+        this.indexerRepository.Get(7).Returns(new IndexerDefinition
+        {
+            Id = 7,
+            Name = "TorznabIndexer",
+            Url = "https://indexer.example/api/v1/indexer",
+            ApiKey = "indexer-secret-key",
+            Settings = "{\"cookie\":\"indexer-cookie=abc\",\"userAgent\":\"IndexerAgent/2.0\"}",
+        });
+
+        this.safeHttpClientService.DownloadBytesAsync(
+            request.DownloadUrl,
+            Arg.Is<IDictionary<string, string>>(h =>
+                h.ContainsKey("Cookie") && h["Cookie"] == "uid=123; pass=secret" &&
+                h.ContainsKey("User-Agent") && h["User-Agent"] == "MyCustomAgent/1.0" &&
+                !h.ContainsKey("X-Api-Key")))
+            .Returns(Task.FromResult(torrentBytes));
+
+        this.torrentFileParser.Parse(torrentBytes).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes)
+            .Returns(Task.FromResult(new Torrent { Id = 21, Name = request.Title, InfoHash = parsed.InfoHash }));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        await this.safeHttpClientService.DidNotReceive().DownloadBytesAsync(
+            request.DownloadUrl,
+            Arg.Is<IDictionary<string, string>>(h => h.ContainsKey("X-Api-Key")));
     }
 
     [Test]
@@ -1563,4 +1607,3 @@ public class IndexerControllerTest
         this.indexerRepository.Received(1).Delete(2);
     }
 }
-
