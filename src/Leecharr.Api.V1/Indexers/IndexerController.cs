@@ -750,11 +750,7 @@ public class IndexerController : Controller
         }
 
         Torrent torrent = null;
-        if (!string.IsNullOrWhiteSpace(request.MagnetUrl))
-        {
-            torrent = await this.torrentService.AddFromMagnetAsync(request.MagnetUrl, request.Category, request.SavePath, request.StartPaused);
-        }
-        else if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
+        if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
         {
             if (request.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
             {
@@ -844,6 +840,10 @@ public class IndexerController : Controller
                     this.logger.Warn(ex, "Failed to download or parse .torrent for '{0}' from {1}", request.Title, request.DownloadUrl);
                 }
             }
+        }
+        else if (!string.IsNullOrWhiteSpace(request.MagnetUrl))
+        {
+            torrent = await this.torrentService.AddFromMagnetAsync(request.MagnetUrl, request.Category, request.SavePath, request.StartPaused);
         }
 
         if (torrent == null && !string.IsNullOrWhiteSpace(request.InfoHash))

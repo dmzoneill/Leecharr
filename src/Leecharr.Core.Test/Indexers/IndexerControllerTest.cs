@@ -177,6 +177,60 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task DownloadRelease_WhenDownloadUrlAndMagnetUrlBothPresent_PrefersTorrentDownload()
+    {
+        var torrentBytes = new byte[] { 0x64, 0x31, 0x30, 0x65 };
+        var parsed = new ParsedTorrent { Name = "Private Release", InfoHash = "abcabcabcabcabcabcabcabcabcabcabcabc" };
+        var downloadUrl = "https://tracker.example.com/download/private.torrent";
+        var magnetUrl = "magnet:?xt=urn:btih:abcabcabcabcabcabcabcabcabcabcabcabc";
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Private Release",
+            DownloadUrl = downloadUrl,
+            MagnetUrl = magnetUrl,
+            IndexerId = 5,
+            IndexerName = "PrivateTracker",
+        };
+
+        var createdTorrent = new Torrent
+        {
+            Id = 15,
+            Name = request.Title,
+            InfoHash = parsed.InfoHash,
+        };
+
+        this.indexerRepository.Get(5).Returns(new IndexerDefinition
+        {
+            Id = 5,
+            Name = "PrivateTracker",
+            Url = "https://tracker.example.com",
+            ApiKey = "secret-key",
+        });
+
+        this.safeHttpClientService.DownloadBytesAsync(downloadUrl, Arg.Any<IDictionary<string, string>>())
+            .Returns(Task.FromResult(torrentBytes));
+        this.torrentFileParser.Parse(torrentBytes).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes)
+            .Returns(Task.FromResult(createdTorrent));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(
+            magnetUrl,
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
+        await this.safeHttpClientService.Received(1).DownloadBytesAsync(downloadUrl, Arg.Any<IDictionary<string, string>>());
+        this.downloadHistoryService.Received(1).RecordTorrentAdded(
+            createdTorrent,
+            source: "PrivateTracker",
+            magnetUrl: magnetUrl,
+            downloadUrl: downloadUrl,
+            indexerName: "PrivateTracker");
+    }
+
+    [Test]
     public async Task DownloadRelease_WithDownloadUrlAsMagnet_AddsFromMagnetAndRecordsHistory()
     {
         var magnet = "magnet:?xt=urn:btih:fedcba9876543210fedcba9876543210fedcba98";
