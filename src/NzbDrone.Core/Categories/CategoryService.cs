@@ -499,6 +499,20 @@ public class CategoryService : ICategoryService
         }
     }
 
+    private bool HasDefaultDescendant(Category category)
+    {
+        if (string.IsNullOrWhiteSpace(category?.Name))
+        {
+            return false;
+        }
+
+        var prefix = category.Name + "/";
+        return this.repository.All()
+            .Any(c => c.Id != category.Id &&
+                      c.IsDefault &&
+                      c.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+    }
+
     public void Delete(int id)
     {
         var cat = this.repository.Get(id);
@@ -511,6 +525,12 @@ public class CategoryService : ICategoryService
         {
             this.logger.Warn("Cannot delete default category id: {0} ({1})", id, cat.Name);
             return;
+        }
+
+        if (this.HasDefaultDescendant(cat))
+        {
+            throw new InvalidOperationException(
+                $"Cannot delete category '{cat.Name}' because it has a default subcategory.");
         }
 
         this.logger.Info("Deleting category id: {0} ({1})", id, cat.Name);
