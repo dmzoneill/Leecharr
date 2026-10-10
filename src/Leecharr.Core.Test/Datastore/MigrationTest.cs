@@ -95,7 +95,7 @@ public class MigrationTest
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT count(*) FROM sqlite_master 
+            SELECT count(*) FROM sqlite_master
             WHERE type='index' AND name IN (
                 'IX_TorrentFiles_TorrentId',
                 'IX_TrackerEntries_TorrentId',
@@ -285,7 +285,7 @@ public class MigrationTest
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT count(*) FROM sqlite_master 
+            SELECT count(*) FROM sqlite_master
             WHERE type='index' AND name IN (
                 'IX_DownloadHistory_TorrentId',
                 'IX_Commands_Status_QueuedAt',
@@ -381,7 +381,7 @@ public class MigrationTest
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT count(*) FROM sqlite_master 
+            SELECT count(*) FROM sqlite_master
             WHERE type='index' AND name IN (
                 'IX_UserExternalLogins_UserId',
                 'IX_UserExternalLogins_Provider_Key'
@@ -434,7 +434,7 @@ public class MigrationTest
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT count(*) FROM sqlite_master 
+            SELECT count(*) FROM sqlite_master
             WHERE type='index' AND name IN (
                 'IX_Torrents_QueuePosition',
                 'IX_Torrents_Status_Category',

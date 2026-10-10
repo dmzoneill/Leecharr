@@ -16,10 +16,10 @@ public enum AiCapabilities
     SupportsLocalOfflineInference = 1 << 5,
     SupportsCloudLlm = 1 << 6,
     All = SupportsNaturalLanguageSearch |
-          SupportsReleaseNameParsing |
-          SupportsDiagnosticCopilot |
-          SupportsMalwareAnomalyDetection |
-          SupportsSwarmOptimization |
-          SupportsLocalOfflineInference |
-          SupportsCloudLlm,
+            SupportsReleaseNameParsing |
+            SupportsDiagnosticCopilot |
+            SupportsMalwareAnomalyDetection |
+            SupportsSwarmOptimization |
+            SupportsLocalOfflineInference |
+            SupportsCloudLlm,
 }

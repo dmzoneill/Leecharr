@@ -192,7 +192,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                         {
                             var current = entryDir;
                             while (!string.IsNullOrEmpty(current) &&
-                                   !string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetDir), StringComparison.OrdinalIgnoreCase))
+                                    !string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetDir), StringComparison.OrdinalIgnoreCase))
                             {
                                 if (!this.diskProvider.FolderExists(current))
                                 {

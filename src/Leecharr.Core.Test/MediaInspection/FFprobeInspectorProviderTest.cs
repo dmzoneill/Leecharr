@@ -52,23 +52,23 @@ public class FFprobeInspectorProviderTest
 dd if=/dev/zero bs=1024 count=128 2>/dev/null | tr '\000' 'E' >&2
 cat << 'EOF'
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""120.500""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""hevc"",
-      ""width"": 3840,
-      ""height"": 2160
+        ""codec_type"": ""video"",
+        ""codec_name"": ""hevc"",
+        ""width"": 3840,
+        ""height"": 2160
     },
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""eac3"",
-      ""channels"": 6
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""eac3"",
+        ""channels"": 6
     }
-  ]
+    ]
 }
 EOF
 exit 0
@@ -101,17 +101,17 @@ exit 0
 dd if=/dev/zero bs=1024 count=128 2>/dev/null | tr '\000' 'X' >&2
 cat << 'EOF'
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 1920,
-      ""height"": 1080
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 1920,
+        ""height"": 1080
     }
-  ]
+    ]
 }
 EOF
 exit 0
@@ -237,29 +237,29 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""7200.000000""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""hevc"",
-      ""width"": 3840,
-      ""height"": 2160,
-      ""color_transfer"": ""smpte2084"",
-      ""side_data_list"": [
+        ""codec_type"": ""video"",
+        ""codec_name"": ""hevc"",
+        ""width"": 3840,
+        ""height"": 2160,
+        ""color_transfer"": ""smpte2084"",
+        ""side_data_list"": [
         {
-          ""side_data_type"": ""DOVI configuration record""
+            ""side_data_type"": ""DOVI configuration record""
         }
-      ]
+        ]
     },
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""truehd"",
-      ""channels"": 8
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""truehd"",
+        ""channels"": 8
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "Movie.2160p.UHD.mkv");
 
@@ -280,25 +280,25 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""120.000000""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""pcm_s24le"",
-      ""channels"": 2,
-      ""sample_rate"": ""48000"",
-      ""bits_per_raw_sample"": ""24""
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""pcm_s24le"",
+        ""channels"": 2,
+        ""sample_rate"": ""48000"",
+        ""bits_per_raw_sample"": ""24""
     },
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""aac"",
-      ""channels"": 2,
-      ""sample_rate"": ""48000""
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""aac"",
+        ""channels"": 2,
+        ""sample_rate"": ""48000""
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
 
@@ -314,25 +314,25 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""120.000000""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""aac"",
-      ""channels"": 2,
-      ""sample_rate"": ""44100""
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""aac"",
+        ""channels"": 2,
+        ""sample_rate"": ""44100""
     },
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""aac"",
-      ""channels"": 6,
-      ""sample_rate"": ""48000"",
-      ""bits_per_raw_sample"": ""16""
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""aac"",
+        ""channels"": 6,
+        ""sample_rate"": ""48000"",
+        ""bits_per_raw_sample"": ""16""
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
 
@@ -348,19 +348,19 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""60.000000""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 320,
-      ""height"": 240,
-      ""tags"": { ""ROTATE"": ""90"" }
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 320,
+        ""height"": 240,
+        ""tags"": { ""ROTATE"": ""90"" }
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "phone.mkv");
 
@@ -374,24 +374,24 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""60.000000""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 1920,
-      ""height"": 1080,
-      ""side_data_list"": [
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 1920,
+        ""height"": 1080,
+        ""side_data_list"": [
         {
-          ""side_data_type"": ""Display Matrix"",
-          ""rotation"": -90
+            ""side_data_type"": ""Display Matrix"",
+            ""rotation"": -90
         }
-      ]
+        ]
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "camera.mkv");
 
@@ -406,18 +406,18 @@ sleep 300
     {
         var json = $@"
 {{
-  ""format"": {{
+    ""format"": {{
     ""format_name"": ""matroska,webm"",
     ""duration"": ""3600.000000""
-  }},
-  ""streams"": [
+    }},
+    ""streams"": [
     {{
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": {width},
-      ""height"": {height}
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": {width},
+        ""height"": {height}
     }}
-  ]
+    ]
 }}";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
         info.Should().NotBeNull();
@@ -432,18 +432,18 @@ sleep 300
     {
         var json = $@"
 {{
-  ""format"": {{
+    ""format"": {{
     ""format_name"": ""matroska,webm"",
     ""duration"": ""3600.000000""
-  }},
-  ""streams"": [
+    }},
+    ""streams"": [
     {{
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": {width},
-      ""height"": {height}
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": {width},
+        ""height"": {height}
     }}
-  ]
+    ]
 }}";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
         info.Should().NotBeNull();
@@ -458,19 +458,19 @@ sleep 300
     {
         var json = $@"
 {{
-  ""format"": {{
+    ""format"": {{
     ""format_name"": ""mpegts"",
     ""duration"": ""3600.000000""
-  }},
-  ""streams"": [
+    }},
+    ""streams"": [
     {{
-      ""codec_type"": ""video"",
-      ""codec_name"": ""mpeg2video"",
-      ""width"": 1920,
-      ""height"": 1080,
-      ""field_order"": ""{fieldOrder}""
+        ""codec_type"": ""video"",
+        ""codec_name"": ""mpeg2video"",
+        ""width"": 1920,
+        ""height"": 1080,
+        ""field_order"": ""{fieldOrder}""
     }}
-  ]
+    ]
 }}";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "broadcast.ts");
         info.Should().NotBeNull();
@@ -482,19 +482,19 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""mpegts"",
     ""duration"": ""3600.000000""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""mpeg2video"",
-      ""width"": 720,
-      ""height"": 480,
-      ""field_order"": ""tt""
+        ""codec_type"": ""video"",
+        ""codec_name"": ""mpeg2video"",
+        ""width"": 720,
+        ""height"": 480,
+        ""field_order"": ""tt""
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sd-interlaced.ts");
         info.Should().NotBeNull();
@@ -506,19 +506,19 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""3600.000000""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 1920,
-      ""height"": 1080,
-      ""field_order"": ""progressive""
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 1920,
+        ""height"": 1080,
+        ""field_order"": ""progressive""
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
         info.Should().NotBeNull();
@@ -530,39 +530,39 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""3600.000000""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""hevc"",
-      ""width"": 3840,
-      ""height"": 2160,
-      ""color_transfer"": ""arib-std-b67""
+        ""codec_type"": ""video"",
+        ""codec_name"": ""hevc"",
+        ""width"": 3840,
+        ""height"": 2160,
+        ""color_transfer"": ""arib-std-b67""
     },
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""eac3"",
-      ""channels"": 6,
-      ""sample_rate"": ""48000"",
-      ""bits_per_raw_sample"": ""16""
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""eac3"",
+        ""channels"": 6,
+        ""sample_rate"": ""48000"",
+        ""bits_per_raw_sample"": ""16""
     },
     {
-      ""codec_type"": ""subtitle"",
-      ""codec_name"": ""subrip"",
-      ""tags"": null
+        ""codec_type"": ""subtitle"",
+        ""codec_name"": ""subrip"",
+        ""tags"": null
     },
     {
-      ""codec_type"": ""subtitle"",
-      ""codec_name"": ""hdmv_pgs_subtitle"",
-      ""tags"": {
+        ""codec_type"": ""subtitle"",
+        ""codec_name"": ""hdmv_pgs_subtitle"",
+        ""tags"": {
         ""language"": ""eng"",
         ""title"": ""Full Commentary""
-      }
+        }
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
 
@@ -587,24 +587,24 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""flac"",
     ""duration"": ""240.000000"",
     ""tags"": {
-      ""title"": ""Theme"",
-      ""artist"": ""Artist Name"",
-      ""album"": ""Album Name"",
-      ""track"": ""3/12"",
-      ""disc"": ""1/2""
+        ""title"": ""Theme"",
+        ""artist"": ""Artist Name"",
+        ""album"": ""Album Name"",
+        ""track"": ""3/12"",
+        ""disc"": ""1/2""
     }
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""flac"",
-      ""channels"": 2
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""flac"",
+        ""channels"": 2
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "track.flac");
 
@@ -623,25 +623,25 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""mov,mp4,m4a,3gp,3g2,mj2"",
     ""duration"": 1800.5
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""av1"",
-      ""width"": 1920,
-      ""height"": 1080
+        ""codec_type"": ""video"",
+        ""codec_name"": ""av1"",
+        ""width"": 1920,
+        ""height"": 1080
     },
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""flac"",
-      ""channels"": 2,
-      ""sample_rate"": 96000,
-      ""bits_per_raw_sample"": 24
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""flac"",
+        ""channels"": 2,
+        ""sample_rate"": 96000,
+        ""bits_per_raw_sample"": 24
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mp4");
 
@@ -661,17 +661,17 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""vp9"",
-      ""width"": 1920,
-      ""height"": 1080
+        ""codec_type"": ""video"",
+        ""codec_name"": ""vp9"",
+        ""width"": 1920,
+        ""height"": 1080
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "clip.webm");
 
@@ -684,17 +684,17 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""mov,mp4,m4a,3gp,3g2,mj2""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 640,
-      ""height"": 480
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 640,
+        ""height"": 480
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "phone.3gp");
 
@@ -707,19 +707,19 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""mpegts"",
     ""duration"": ""N/A""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 1920,
-      ""height"": 1080,
-      ""duration"": ""5432.160000""
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 1920,
+        ""height"": 1080,
+        ""duration"": ""5432.160000""
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "capture.ts");
 
@@ -732,25 +732,25 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""mpegts"",
     ""duration"": 0
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 1280,
-      ""height"": 720,
-      ""duration"": ""3600.0""
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 1280,
+        ""height"": 720,
+        ""duration"": ""3600.0""
     },
     {
-      ""codec_type"": ""audio"",
-      ""codec_name"": ""aac"",
-      ""channels"": 2,
-      ""duration"": ""3605.5""
+        ""codec_type"": ""audio"",
+        ""codec_name"": ""aac"",
+        ""channels"": 2,
+        ""duration"": ""3605.5""
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "recording.ts");
 
@@ -763,19 +763,19 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""1800.0""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 1920,
-      ""height"": 1080,
-      ""duration"": ""7200.0""
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 1920,
+        ""height"": 1080,
+        ""duration"": ""7200.0""
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
 
@@ -788,25 +788,25 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""matroska,webm"",
     ""duration"": ""7200.0""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""mjpeg"",
-      ""width"": 800,
-      ""height"": 600,
-      ""disposition"": { ""attached_pic"": 1 }
+        ""codec_type"": ""video"",
+        ""codec_name"": ""mjpeg"",
+        ""width"": 800,
+        ""height"": 600,
+        ""disposition"": { ""attached_pic"": 1 }
     },
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""hevc"",
-      ""width"": 3840,
-      ""height"": 2160
+        ""codec_type"": ""video"",
+        ""codec_name"": ""hevc"",
+        ""width"": 3840,
+        ""height"": 2160
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "Movie.2160p.UHD.mkv");
 
@@ -819,23 +819,23 @@ sleep 300
     {
         var json = @"
 {
-  ""format"": {
+    ""format"": {
     ""format_name"": ""mp4"",
     ""duration"": ""5400.0""
-  },
-  ""streams"": [
+    },
+    ""streams"": [
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""png"",
-      ""disposition"": { ""attached_pic"": 1 }
+        ""codec_type"": ""video"",
+        ""codec_name"": ""png"",
+        ""disposition"": { ""attached_pic"": 1 }
     },
     {
-      ""codec_type"": ""video"",
-      ""codec_name"": ""h264"",
-      ""width"": 1920,
-      ""height"": 1080
+        ""codec_type"": ""video"",
+        ""codec_name"": ""h264"",
+        ""width"": 1920,
+        ""height"": 1080
     }
-  ]
+    ]
 }";
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mp4");
 
@@ -849,8 +849,8 @@ sleep 300
         var mockScript = Path.Combine(this.tempDirectory, "mock_ffprobe_version.sh");
         var scriptContent = @"#!/bin/sh
 if [ ""$1"" = ""-version"" ]; then
-  echo ""ffprobe version 7.0.2-mock""
-  exit 0
+    echo ""ffprobe version 7.0.2-mock""
+    exit 0
 fi
 exit 1
 ";
@@ -875,7 +875,7 @@ exit 1
         var mockScript = Path.Combine(this.tempDirectory, "mock_ffprobe_broken.sh");
         var scriptContent = @"#!/bin/sh
 if [ ""$1"" = ""-version"" ]; then
-  exit 127
+    exit 127
 fi
 exit 0
 ";

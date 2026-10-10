@@ -40,9 +40,9 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSav
 
         var desiredId = this.configService.GetValue("ActiveGeoIpProvider", "MaxMind");
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredId, StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("MaxMind", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("OnlineApi", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault();
+                            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("MaxMind", StringComparison.OrdinalIgnoreCase))
+                            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("OnlineApi", StringComparison.OrdinalIgnoreCase))
+                            ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {

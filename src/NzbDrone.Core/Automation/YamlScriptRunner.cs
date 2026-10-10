@@ -1234,7 +1234,7 @@ public class YamlScriptRunner : IScriptRunner
                     parenDepth--;
                 }
                 else if (parenDepth == 0 && i + delimiter.Length <= expr.Length &&
-                         string.Compare(expr, i, delimiter, 0, delimiter.Length, StringComparison.Ordinal) == 0)
+                            string.Compare(expr, i, delimiter, 0, delimiter.Length, StringComparison.Ordinal) == 0)
                 {
                     parts.Add(current.ToString());
                     current.Clear();

@@ -17,13 +17,13 @@ public static class OsInfo
     public static bool IsDocker => File.Exists("/.dockerenv") || IsContainer;
 
     public static bool IsContainer => File.Exists("/.dockerenv") ||
-                                      File.Exists("/run/.containerenv") ||
-                                      File.Exists("/run/systemd/container") ||
-                                      string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase) ||
-                                      Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "1" ||
-                                      !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("container")) ||
-                                      !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST")) ||
-                                      CheckCgroups();
+                                        File.Exists("/run/.containerenv") ||
+                                        File.Exists("/run/systemd/container") ||
+                                        string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase) ||
+                                        Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "1" ||
+                                        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("container")) ||
+                                        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST")) ||
+                                        CheckCgroups();
 
     public static string Os => RuntimeInformation.OSDescription;
 
@@ -67,10 +67,10 @@ public static class OsInfo
         }
 
         return content.Contains("docker", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("kubepods", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("containerd", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("lxc", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("podman", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("libpod", StringComparison.OrdinalIgnoreCase);
+                content.Contains("kubepods", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("containerd", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("lxc", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("podman", StringComparison.OrdinalIgnoreCase) ||
+                content.Contains("libpod", StringComparison.OrdinalIgnoreCase);
     }
 }

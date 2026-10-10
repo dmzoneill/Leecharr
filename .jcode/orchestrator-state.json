@@ -2,13 +2,20 @@
   "repo": "dmzoneill/Leecharr",
   "base_path": "/home/daoneill/src/usr/leecharr",
   "status": "running_v2",
-  "resumed_at": "2026-10-10T08:35Z",
+  "resumed_at": "2026-10-10T16:10Z",
   "drain_mode": false,
   "refill_on_done": true,
   "target_agents": 5,
   "model": "composer-2.5-fast",
   "state_writer": "coordinator_only",
   "active_workers": 5,
+  "worker_sessions": {
+    "moth-1736": "session_orangutan_1791648509926_3eed22ef250ebcb8",
+    "beetle-1735": "session_camel_1791648510659_1c1687ab4bbd46b0",
+    "ant-1731": "session_elephant_1791648511096_4a041b64bef092e6",
+    "wasp-1730": "session_rhino_1791648512543_a6ddd7dc109bb3a9",
+    "hornet-1729": "session_hippo_1791648512980_982049679e97f5af"
+  },
   "in_progress": {
     "moth-1736": 1736,
     "beetle-1735": 1735,
@@ -17,10 +24,11 @@
     "hornet-1729": 1729
   },
   "issue_queue": [1728, 1727, 1726, 1725, 1724],
-  "push_lock": null,
+  "push_lock": {"agent": "hornet-1729", "issue": 1729, "tip": "b83fa0c", "granted_at": "2026-10-10T16:10Z"},
   "push_queue": [],
-  "last_poll": "2026-10-10T08:34Z",
-  "ci_last": {"sha": "97c22c3", "cicd": "failure", "run_id": 38002248913},
+  "poll_schedule_id": "sched_fc37609c",
+  "last_poll": "2026-10-10T16:10Z",
+  "ci_last": {"sha": "97c22c3", "cicd": "failure", "run_id": 38002248913, "note": "EDITORCONFIG padding; coordinator fixing"},
   "origin_main": "97c22c3",
   "rules": {
     "no_local_test_build": true,

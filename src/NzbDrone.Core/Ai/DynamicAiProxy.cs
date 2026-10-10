@@ -44,9 +44,9 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
 
         var desiredId = this.configService.GetValue("ActiveAiProvider", "RuleHeuristic");
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredId, StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("RuleHeuristic", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("OnnxLocal", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault();
+                            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("RuleHeuristic", StringComparison.OrdinalIgnoreCase))
+                            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("OnnxLocal", StringComparison.OrdinalIgnoreCase))
+                            ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {

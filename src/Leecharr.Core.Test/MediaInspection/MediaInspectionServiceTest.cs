@@ -400,37 +400,37 @@ public class MediaInspectionServiceTest
     public void ParseMediaInfoJson_4kDolbyVisionAtmos_ParsesCompleteStreamDetails()
     {
         var json = @"{
-          ""media"": {
+            ""media"": {
             ""track"": [
-              {
+                {
                 ""@type"": ""General"",
                 ""Format"": ""Matroska"",
                 ""Duration"": ""7200.500""
-              },
-              {
+                },
+                {
                 ""@type"": ""Video"",
                 ""Format"": ""HEVC"",
                 ""Width"": ""3840"",
                 ""Height"": ""2160"",
                 ""HDR_Format_Commercial"": ""Dolby Vision"",
                 ""HDR_Format"": ""SMPTE ST 2086""
-              },
-              {
+                },
+                {
                 ""@type"": ""Audio"",
                 ""Format_Commercial_IfAny"": ""Dolby Atmos"",
                 ""Format"": ""E-AC-3 JOC"",
                 ""Channels"": ""8"",
                 ""SamplingRate"": ""48000"",
                 ""BitDepth"": ""24""
-              },
-              {
+                },
+                {
                 ""@type"": ""Text"",
                 ""Language"": ""en"",
                 ""Title"": ""English SDH"",
                 ""Format"": ""SubRip""
-              }
+                }
             ]
-          }
+            }
         }";
 
         var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
@@ -454,23 +454,23 @@ public class MediaInspectionServiceTest
     public void ParseMediaInfoJson_1080pHdr10Plus_Classifies1080pAndHdr10Plus()
     {
         var json = @"{
-          ""media"": {
+            ""media"": {
             ""track"": [
-              {
+                {
                 ""@type"": ""Video"",
                 ""Format"": ""AVC"",
                 ""Width"": ""1920"",
                 ""Height"": ""1080"",
                 ""HDR_Format"": ""HDR10+""
-              },
-              {
+                },
+                {
                 ""@type"": ""Audio"",
                 ""Format"": ""AC-3"",
                 ""Channels"": ""6"",
                 ""SamplingRate"": ""48000""
-              }
+                }
             ]
-          }
+            }
         }";
 
         var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mp4");
@@ -518,16 +518,16 @@ public class MediaInspectionServiceTest
     public void ParseFFprobeJson_Smpte2084Transfer_DetectsHdr10()
     {
         var json = @"{
-          ""streams"": [
+            ""streams"": [
             {
-              ""codec_type"": ""video"",
-              ""codec_name"": ""hevc"",
-              ""width"": 3840,
-              ""height"": 2160,
-              ""color_transfer"": ""smpte2084""
+                ""codec_type"": ""video"",
+                ""codec_name"": ""hevc"",
+                ""width"": 3840,
+                ""height"": 2160,
+                ""color_transfer"": ""smpte2084""
             }
-          ],
-          ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
+            ],
+            ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
         }";
 
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
@@ -540,16 +540,16 @@ public class MediaInspectionServiceTest
     public void ParseFFprobeJson_AribStdB67Transfer_DetectsHlg()
     {
         var json = @"{
-          ""streams"": [
+            ""streams"": [
             {
-              ""codec_type"": ""video"",
-              ""codec_name"": ""hevc"",
-              ""width"": 3840,
-              ""height"": 2160,
-              ""color_transfer"": ""arib-std-b67""
+                ""codec_type"": ""video"",
+                ""codec_name"": ""hevc"",
+                ""width"": 3840,
+                ""height"": 2160,
+                ""color_transfer"": ""arib-std-b67""
             }
-          ],
-          ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
+            ],
+            ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
         }";
 
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
@@ -561,28 +561,28 @@ public class MediaInspectionServiceTest
     public void ParseFFprobeJson_WhenSecondaryStereoAudioFirst_PrefersPrimaryMultiChannelAudio()
     {
         var json = @"{
-          ""streams"": [
+            ""streams"": [
             {
-              ""codec_type"": ""video"",
-              ""codec_name"": ""hevc"",
-              ""width"": 3840,
-              ""height"": 2160
+                ""codec_type"": ""video"",
+                ""codec_name"": ""hevc"",
+                ""width"": 3840,
+                ""height"": 2160
             },
             {
-              ""codec_type"": ""audio"",
-              ""codec_name"": ""aac"",
-              ""channels"": 2,
-              ""sample_rate"": ""44100""
+                ""codec_type"": ""audio"",
+                ""codec_name"": ""aac"",
+                ""channels"": 2,
+                ""sample_rate"": ""44100""
             },
             {
-              ""codec_type"": ""audio"",
-              ""codec_name"": ""truehd"",
-              ""channels"": 8,
-              ""sample_rate"": ""48000"",
-              ""bits_per_raw_sample"": ""24""
+                ""codec_type"": ""audio"",
+                ""codec_name"": ""truehd"",
+                ""channels"": 8,
+                ""sample_rate"": ""48000"",
+                ""bits_per_raw_sample"": ""24""
             }
-          ],
-          ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
+            ],
+            ""format"": { ""format_name"": ""matroska,webm"", ""duration"": ""120.0"" }
         }";
 
         var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
@@ -597,30 +597,30 @@ public class MediaInspectionServiceTest
     public void ParseMediaInfoJson_WhenSecondaryStereoAudioFirst_PrefersPrimaryMultiChannelAudio()
     {
         var json = @"{
-          ""media"": {
+            ""media"": {
             ""track"": [
-              {
+                {
                 ""@type"": ""Video"",
                 ""Format"": ""HEVC"",
                 ""Width"": ""3840"",
                 ""Height"": ""2160""
-              },
-              {
+                },
+                {
                 ""@type"": ""Audio"",
                 ""Format"": ""AAC"",
                 ""Channels"": ""2"",
                 ""SamplingRate"": ""44100""
-              },
-              {
+                },
+                {
                 ""@type"": ""Audio"",
                 ""Format_Commercial_IfAny"": ""Dolby TrueHD"",
                 ""Format"": ""TrueHD"",
                 ""Channels"": ""8"",
                 ""SamplingRate"": ""48000"",
                 ""BitDepth"": ""24""
-              }
+                }
             ]
-          }
+            }
         }";
 
         var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
