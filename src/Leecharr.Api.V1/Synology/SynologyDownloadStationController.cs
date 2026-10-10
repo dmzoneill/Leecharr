@@ -287,28 +287,8 @@ public class SynologyDownloadStationController : ControllerBase
                         id = t.InfoHash.ToLowerInvariant(),
                         title = t.Name ?? string.Empty,
                         size = t.TotalSize,
-                        status = t.Status switch
-                        {
-                            TorrentStatus.Downloading => 2,
-                            TorrentStatus.Paused => 3,
-                            TorrentStatus.Stopped => isComplete ? 5 : 3,
-                            TorrentStatus.Completed => 5,
-                            TorrentStatus.Seeding => 7,
-                            TorrentStatus.Checking => 1,
-                            TorrentStatus.Error => 9,
-                            _ => 1,
-                        },
-                        status_text = t.Status switch
-                        {
-                            TorrentStatus.Downloading => "downloading",
-                            TorrentStatus.Seeding => "seeding",
-                            TorrentStatus.Paused => "paused",
-                            TorrentStatus.Stopped => isComplete ? "finished" : "paused",
-                            TorrentStatus.Completed => "finished",
-                            TorrentStatus.Checking => "checking",
-                            TorrentStatus.Error => "error",
-                            _ => "waiting",
-                        },
+                        status = MapTaskStatus(t.Status, isComplete),
+                        status_text = MapTaskStatusText(t.Status, isComplete),
                         type = "bt",
                         username = "admin",
                         additional = new
@@ -401,28 +381,8 @@ public class SynologyDownloadStationController : ControllerBase
                         id = t.InfoHash.ToLowerInvariant(),
                         title = t.Name ?? string.Empty,
                         size = t.TotalSize,
-                        status = t.Status switch
-                        {
-                            TorrentStatus.Downloading => 2,
-                            TorrentStatus.Paused => 3,
-                            TorrentStatus.Stopped => isComplete ? 5 : 3,
-                            TorrentStatus.Completed => 5,
-                            TorrentStatus.Seeding => 7,
-                            TorrentStatus.Checking => 1,
-                            TorrentStatus.Error => 9,
-                            _ => 1,
-                        },
-                        status_text = t.Status switch
-                        {
-                            TorrentStatus.Downloading => "downloading",
-                            TorrentStatus.Seeding => "seeding",
-                            TorrentStatus.Paused => "paused",
-                            TorrentStatus.Stopped => isComplete ? "finished" : "paused",
-                            TorrentStatus.Completed => "finished",
-                            TorrentStatus.Checking => "checking",
-                            TorrentStatus.Error => "error",
-                            _ => "waiting",
-                        },
+                        status = MapTaskStatus(t.Status, isComplete),
+                        status_text = MapTaskStatusText(t.Status, isComplete),
                         type = "bt",
                         username = "admin",
                         additional = new
@@ -516,5 +476,39 @@ public class SynologyDownloadStationController : ControllerBase
             default:
                 return this.Ok(new { success = true });
         }
+    }
+
+    private static int MapTaskStatus(TorrentStatus status, bool isComplete)
+    {
+        return status switch
+        {
+            TorrentStatus.Downloading => 2,
+            TorrentStatus.Paused => 3,
+            TorrentStatus.Stopped => isComplete ? 5 : 3,
+            TorrentStatus.Completed => 5,
+            TorrentStatus.Seeding => 7,
+            TorrentStatus.Checking => 1,
+            TorrentStatus.QueuedForChecking => 1,
+            TorrentStatus.Stalled => isComplete ? 7 : 2,
+            TorrentStatus.Error => 9,
+            _ => 1,
+        };
+    }
+
+    private static string MapTaskStatusText(TorrentStatus status, bool isComplete)
+    {
+        return status switch
+        {
+            TorrentStatus.Downloading => "downloading",
+            TorrentStatus.Seeding => "seeding",
+            TorrentStatus.Paused => "paused",
+            TorrentStatus.Stopped => isComplete ? "finished" : "paused",
+            TorrentStatus.Completed => "finished",
+            TorrentStatus.Checking => "checking",
+            TorrentStatus.QueuedForChecking => "checking",
+            TorrentStatus.Stalled => isComplete ? "seeding" : "downloading",
+            TorrentStatus.Error => "error",
+            _ => "waiting",
+        };
     }
 }
