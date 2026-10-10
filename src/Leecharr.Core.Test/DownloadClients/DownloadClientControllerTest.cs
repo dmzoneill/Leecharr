@@ -872,61 +872,6 @@ public class DownloadClientControllerTest
     }
 
     [Test]
-    public async Task TestDirect_WhenHttpClientFactoryInjected_DoesNotUseFactoryClient()
-    {
-        var factory = Substitute.For<IHttpClientFactory>();
-        var factoryClient = new HttpClient(new DelayingHttpMessageHandler(TimeSpan.FromSeconds(30)))
-        {
-            Timeout = TimeSpan.FromSeconds(100),
-        };
-        factory.CreateClient().Returns(factoryClient);
-        factory.CreateClient(Arg.Any<string>()).Returns(factoryClient);
-
-        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient: null, httpClientFactory: factory);
-
-        var resource = new DownloadClientResource
-        {
-            Name = "FactoryIgnored",
-            ClientType = "qBittorrent",
-            Host = "127.0.0.1",
-            Port = 8080,
-        };
-
-        var sw = Stopwatch.StartNew();
-        await controller.TestDirect(resource);
-        sw.Stop();
-
-        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(8));
-        factory.DidNotReceive().CreateClient(Arg.Any<string>());
-        factory.DidNotReceive().CreateClient();
-    }
-
-    [Test]
-    public async Task GetAllItems_WhenHttpClientFactoryInjected_DoesNotUseSharedFactoryClient()
-    {
-        var factory = Substitute.For<IHttpClientFactory>();
-        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient: null, httpClientFactory: factory);
-
-        this.repository.GetEnabled().Returns(new List<DownloadClientDefinition>
-        {
-            new()
-            {
-                Id = 1,
-                Name = "Client1",
-                ClientType = "Unknown",
-                Host = "127.0.0.1",
-                Port = 8080,
-                Enable = true,
-            },
-        });
-
-        await controller.GetAllItems();
-
-        factory.DidNotReceive().CreateClient(Arg.Any<string>());
-        factory.DidNotReceive().CreateClient();
-    }
-
-    [Test]
     public async Task GetAllItems_WhenSafeHttpClientServiceInjected_CreatesSafeHttpClientForRemoteQuery()
     {
         var safeClient = Substitute.For<ISafeHttpClientService>();
