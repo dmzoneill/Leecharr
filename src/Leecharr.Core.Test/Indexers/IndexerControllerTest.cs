@@ -985,6 +985,7 @@ public class IndexerControllerTest
         {
             Id = 5,
             Name = "PrivateTracker",
+            Url = "https://private.tracker.local/api",
             ApiKey = "api-token-xyz",
         };
         this.indexerRepository.Get(5).Returns(indexer);
@@ -1012,6 +1013,66 @@ public class IndexerControllerTest
         var result = await this.controller.DownloadRelease(request);
 
         result.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task DownloadRelease_WhenDownloadHostDiffersFromIndexer_DoesNotSendIndexerApiKey()
+    {
+        var torrentBytes = new byte[] { 0x64, 0x31, 0x30, 0x65 };
+        var parsed = new ParsedTorrent { Name = "External Torrent", InfoHash = "0123456789abcdef0123456789abcdef01234567" };
+        var request = new DownloadReleaseRequest
+        {
+            Title = "External Torrent",
+            DownloadUrl = "https://evil.example.com/download/123.torrent",
+            IndexerId = 5,
+            Cookie = "uid=123; pass=secret",
+            UserAgent = "MyCustomAgent/1.0",
+        };
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 5,
+            Name = "PrivateTracker",
+            Url = "https://private.tracker.local/api",
+            ApiKey = "api-token-xyz",
+            Settings = System.Text.Json.JsonSerializer.Serialize(new IndexerSettings
+            {
+                Cookie = "indexer-cookie=leak",
+                UserAgent = "IndexerAgent/1.0",
+            }),
+        };
+        this.indexerRepository.Get(5).Returns(indexer);
+
+        var createdTorrent = new Torrent
+        {
+            Id = 21,
+            Name = request.Title,
+            InfoHash = parsed.InfoHash,
+        };
+
+        this.safeHttpClientService.DownloadBytesAsync(
+            request.DownloadUrl,
+            Arg.Is<IDictionary<string, string>>(h =>
+                !h.ContainsKey("X-Api-Key") &&
+                h["Cookie"] == "uid=123; pass=secret" &&
+                h["User-Agent"] == "MyCustomAgent/1.0"))
+            .Returns(Task.FromResult(torrentBytes));
+
+        this.torrentFileParser.Parse(torrentBytes).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes)
+            .Returns(Task.FromResult(createdTorrent));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [TestCase("https://private.tracker.local/download/a.torrent", "https://private.tracker.local/api", true)]
+    [TestCase("https://evil.example.com/download/a.torrent", "https://private.tracker.local/api", false)]
+    [TestCase("http://private.tracker.local/download/a.torrent", "https://private.tracker.local/api", false)]
+    public void IsDownloadUrlOnIndexerHost_ComparesSchemeHostAndPort(string downloadUrl, string indexerUrl, bool expected)
+    {
+        IndexerController.IsDownloadUrlOnIndexerHost(downloadUrl, indexerUrl).Should().Be(expected);
     }
 
     [Test]
