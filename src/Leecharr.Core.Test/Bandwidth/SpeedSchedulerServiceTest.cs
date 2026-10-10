@@ -864,6 +864,63 @@ public class SpeedSchedulerServiceTest
     }
 
     [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenResumeRefused_KeepsTorrentInSchedulerSetAndRetriesOnNextApply()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var activeTask = Substitute.For<IDownloadTask>();
+        activeTask.TorrentId.Returns(55);
+        activeTask.Status.Returns(TorrentStatus.Downloading, TorrentStatus.Paused);
+        downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { activeTask });
+        downloadEngine.GetTask(55).Returns(activeTask);
+        var refusedResumeAttempts = 0;
+        downloadEngine
+            .When(x => x.ResumeTorrentAsync(55))
+            .Do(_ =>
+            {
+                refusedResumeAttempts++;
+                if (refusedResumeAttempts == 1)
+                {
+                    activeTask.Status.Returns(TorrentStatus.Paused);
+                }
+            });
+
+        var schedulerService = new SpeedSchedulerService(this.repository, this.configService, downloadEngine);
+
+        var pauseSchedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = -1,
+                MaxUploadSpeed = -1,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(pauseSchedules);
+        await schedulerService.ApplyCurrentLimitsAsync();
+        schedulerService.SchedulerPausedTorrentIds.Should().Contain(55);
+
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        schedulerService.SchedulerPausedTorrentIds.Should().Contain(55);
+        schedulerService.WasPausedByScheduler.Should().BeTrue();
+        await downloadEngine.Received(1).ResumeTorrentAsync(55);
+
+        activeTask.Status.Returns(TorrentStatus.Downloading);
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        await downloadEngine.Received(2).ResumeTorrentAsync(55);
+        schedulerService.SchedulerPausedTorrentIds.Should().BeEmpty();
+        schedulerService.WasPausedByScheduler.Should().BeFalse();
+    }
+
+    [Test]
     public void GetCurrentLimits_WithConfiguredTimeZone_ConvertsUtcTimeToLocalTimeZoneCorrectly()
     {
         // America/New_York is UTC-4 in August (EDT)
