@@ -1338,7 +1338,7 @@ public class IndexerControllerTest
     }
 
     [Test]
-    public async Task SearchGet_MultiIndexer_DeduplicatesByTitleAndSize_WhenOneLacksInfoHash()
+    public async Task SearchGet_MultiIndexer_KeepsSeparateRows_WhenOneLacksInfoHashAndMagnet()
     {
         var idx1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
         var idx2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
@@ -1356,6 +1356,7 @@ public class IndexerControllerTest
                     Size = 4000000000,
                     Seeders = 50,
                     InfoHash = "a1b2c3d4e5f60123456789abcdef0123456789ab",
+                    DownloadUrl = "http://t1/download/hashed",
                 },
             }));
 
@@ -1372,6 +1373,7 @@ public class IndexerControllerTest
                     Seeders = 10,
                     InfoHash = null,
                     MagnetUrl = null,
+                    DownloadUrl = "http://t2/download/hashless",
                 },
             }));
 
@@ -1380,9 +1382,9 @@ public class IndexerControllerTest
         var okResult = (OkObjectResult)actionResult.Result!;
         var envelope = (IndexerSearchEnvelope)okResult.Value!;
 
-        envelope.Results.Should().HaveCount(1);
-        envelope.Results[0].Seeders.Should().Be(50);
-        envelope.Results[0].InfoHash.Should().Be("a1b2c3d4e5f60123456789abcdef0123456789ab");
+        envelope.Results.Should().HaveCount(2);
+        envelope.Results.Should().Contain(r => r.InfoHash == "a1b2c3d4e5f60123456789abcdef0123456789ab" && r.DownloadUrl == "http://t1/download/hashed");
+        envelope.Results.Should().Contain(r => string.IsNullOrEmpty(r.InfoHash) && r.DownloadUrl == "http://t2/download/hashless");
     }
 
     [Test]
@@ -1464,6 +1466,35 @@ public class IndexerControllerTest
         result.Should().HaveCount(1);
         result[0].Seeders.Should().Be(30);
         result[0].IsFreeleech.Should().BeTrue();
+    }
+
+    [Test]
+    public void DeduplicateReleases_DoesNotBorrowInfoHashFromDifferentReleaseWithSameTitleAndSize()
+    {
+        var releases = new List<ReleaseInfoResource>
+        {
+            new()
+            {
+                Title = "Same Name Release",
+                Size = 1000,
+                Seeders = 5,
+                InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                DownloadUrl = "http://tracker/a.torrent",
+            },
+            new()
+            {
+                Title = "same name release",
+                Size = 1000,
+                Seeders = 50,
+                DownloadUrl = "http://tracker/b.torrent",
+            },
+        };
+
+        var result = IndexerController.DeduplicateReleases(releases);
+
+        result.Should().HaveCount(2);
+        result.Should().Contain(r => r.DownloadUrl == "http://tracker/a.torrent" && r.InfoHash == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        result.Should().Contain(r => r.DownloadUrl == "http://tracker/b.torrent" && string.IsNullOrEmpty(r.InfoHash));
     }
 
     [Test]
