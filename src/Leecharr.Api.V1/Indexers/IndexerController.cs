@@ -778,6 +778,10 @@ public class IndexerController : Controller
                     var parsed = this.torrentFileParser.Parse(bytes);
                     torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     this.logger.Warn(ex, "Failed to download or parse .torrent for '{0}' from {1}", request.Title, request.DownloadUrl);
