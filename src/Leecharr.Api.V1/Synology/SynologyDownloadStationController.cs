@@ -55,6 +55,11 @@ public class SynologyDownloadStationController : ControllerBase
             return true;
         }
 
+        if (this.Request == null)
+        {
+            return false;
+        }
+
         var sid = this.Request.Query["_sid"].ToString();
         if (string.IsNullOrEmpty(sid))
         {
@@ -71,6 +76,11 @@ public class SynologyDownloadStationController : ControllerBase
 
     private void RevokeSynologySession()
     {
+        if (this.Request == null)
+        {
+            return;
+        }
+
         var sid = this.Request.Query["_sid"].ToString();
         if (!string.IsNullOrWhiteSpace(sid))
         {
