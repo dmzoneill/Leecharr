@@ -209,6 +209,8 @@ public class CategoryService : ICategoryService
             this.ClearExistingDefaults(category.Id);
         }
 
+        this.ValidateCategoryRename(existing, category.Name);
+
         var updated = this.repository.Update(category);
 
         if (existing != null && !string.IsNullOrWhiteSpace(existing.Name))
@@ -434,6 +436,57 @@ public class CategoryService : ICategoryService
         }
 
         return IsForbiddenSystemDirectory(normalized) || IsForbiddenSystemDirectory(fullPath);
+    }
+
+    private void ValidateCategoryRename(Category existing, string newName)
+    {
+        if (existing == null || string.IsNullOrWhiteSpace(existing.Name))
+        {
+            return;
+        }
+
+        if (string.Equals(existing.Name, newName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var existingWithName = this.repository.GetByName(newName);
+        if (existingWithName != null && existingWithName.Id != existing.Id)
+        {
+            throw new ArgumentException($"A category with name '{newName}' already exists.", nameof(newName));
+        }
+
+        var allCategories = this.repository.All().ToList();
+        var subcategoryRenames = GetSubcategoryRenames(allCategories, existing.Id, existing.Name, newName);
+        var reservedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { newName };
+
+        foreach (var (subCategory, newSubName) in subcategoryRenames)
+        {
+            if (!reservedNames.Add(newSubName))
+            {
+                throw new ArgumentException($"A category with name '{newSubName}' already exists.", nameof(newName));
+            }
+
+            var conflicting = this.repository.GetByName(newSubName);
+            if (conflicting != null && conflicting.Id != subCategory.Id)
+            {
+                throw new ArgumentException($"A category with name '{newSubName}' already exists.", nameof(newName));
+            }
+        }
+    }
+
+    private static List<(Category SubCategory, string NewName)> GetSubcategoryRenames(
+        IEnumerable<Category> allCategories,
+        int updatedCategoryId,
+        string oldName,
+        string newName)
+    {
+        var oldPrefix = oldName + "/";
+        return allCategories
+            .Where(c => c.Id != updatedCategoryId &&
+                        c.Name.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+            .Select(c => (c, newName + c.Name[oldName.Length..]))
+            .ToList();
     }
 
     private void ClearExistingDefaults(int currentCategoryId)
