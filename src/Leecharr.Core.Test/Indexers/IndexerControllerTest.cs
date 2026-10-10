@@ -393,6 +393,52 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task TestDirect_WhenExistingIdAndPartialBody_PreservesSavedFieldsOnUpdate()
+    {
+        var existingIndexer = new IndexerDefinition
+        {
+            Id = 5,
+            Name = "SavedIndexer",
+            Url = "https://live.indexer.local",
+            ApiKey = "stored-key",
+            Categories = new List<int> { 2000, 5000 },
+            Tags = new List<int> { 1, 2 },
+            FreeleechOnly = true,
+            DownloadClientId = 9,
+            IsProwlarrManaged = true,
+            ProwlarrIndexerId = 42,
+        };
+        this.indexerRepository.Get(5).Returns(existingIndexer);
+
+        var resource = new IndexerResource
+        {
+            Id = 5,
+            Url = "https://live.indexer.local",
+            ApiKey = "********",
+            Implementation = "Torznab",
+        };
+
+        var caps = new TorznabCapabilities
+        {
+            Categories = new List<TorznabCategory> { new() { Id = 2000, Name = "Movies" } },
+        };
+        this.torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>())
+            .Returns(Task.FromResult(TorznabTestResult.Ok(caps)));
+
+        await this.controller.TestDirect(resource);
+
+        this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx =>
+            idx.Name == "SavedIndexer" &&
+            idx.Categories.SequenceEqual(new[] { 2000, 5000 }) &&
+            idx.Tags.SequenceEqual(new[] { 1, 2 }) &&
+            idx.FreeleechOnly &&
+            idx.DownloadClientId == 9 &&
+            idx.IsProwlarrManaged &&
+            idx.ProwlarrIndexerId == 42 &&
+            idx.ApiKey == "stored-key"));
+    }
+
+    [Test]
     public async Task SyncProwlarr_WithValidCredentials_ReturnsOkWithCount()
     {
         var request = new ProwlarrSyncRequest { Url = "http://localhost:9696", ApiKey = "valid-key" };

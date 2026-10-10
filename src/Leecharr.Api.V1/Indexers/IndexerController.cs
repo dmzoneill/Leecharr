@@ -244,14 +244,17 @@ public class IndexerController : Controller
             return this.BadRequest();
         }
 
-        var model = ToModel(resource);
-        if (resource.Id > 0 && (resource.ApiKey == "********" || (resource.ApiKey != null && resource.ApiKey.Contains('*')) || string.IsNullOrWhiteSpace(resource.ApiKey)))
+        IndexerDefinition model;
+        if (resource.Id > 0)
         {
             var existing = this.indexerRepository.Get(resource.Id);
-            if (existing != null)
-            {
-                model.ApiKey = existing.ApiKey;
-            }
+            model = existing != null
+                ? MergeExistingForConnectionTest(existing, resource)
+                : ToModel(resource);
+        }
+        else
+        {
+            model = ToModel(resource);
         }
 
         var recordIndexerStatus = this.ShouldRecordIndexerStatus(model);
@@ -1205,6 +1208,40 @@ public class IndexerController : Controller
         }
 
         return res;
+    }
+
+    private static IndexerDefinition MergeExistingForConnectionTest(IndexerDefinition existing, IndexerResource resource)
+    {
+        var model = new IndexerDefinition
+        {
+            Id = existing.Id,
+            Name = string.IsNullOrWhiteSpace(resource.Name) ? existing.Name : resource.Name.Trim(),
+            Implementation = existing.Implementation,
+            ConfigContract = existing.ConfigContract,
+            Settings = existing.Settings,
+            Enable = existing.Enable,
+            Priority = existing.Priority,
+            Url = string.IsNullOrWhiteSpace(resource.Url) ? existing.Url : resource.Url.Trim(),
+            ApiKey = existing.ApiKey,
+            Categories = existing.Categories ?? new List<int>(),
+            EnableRss = existing.EnableRss,
+            EnableSearch = existing.EnableSearch,
+            FreeleechOnly = existing.FreeleechOnly,
+            MinSeeders = existing.MinSeeders,
+            DownloadClientId = existing.DownloadClientId,
+            Tags = existing.Tags ?? new List<int>(),
+            ProwlarrIndexerId = existing.ProwlarrIndexerId,
+            IsProwlarrManaged = existing.IsProwlarrManaged,
+        };
+
+        if (!string.IsNullOrWhiteSpace(resource.ApiKey) &&
+            resource.ApiKey != "********" &&
+            !resource.ApiKey.Contains('*'))
+        {
+            model.ApiKey = resource.ApiKey;
+        }
+
+        return model;
     }
 
     private static IndexerDefinition ToModel(IndexerResource resource)
