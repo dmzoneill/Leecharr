@@ -947,13 +947,13 @@ public class IndexerController : Controller
 
                 if (indexer.Id > 0 && recordIndexerStatus)
                 {
-                    this.indexerStatusService?.RecordFailure(indexer.Id, (int)response.StatusCode, $"Prowlarr returned HTTP {(int)response.StatusCode}");
+                    this.indexerStatusService?.RecordFailure(indexer.Id, (int)statusResp.StatusCode, $"Prowlarr returned HTTP {(int)statusResp.StatusCode}");
                 }
 
                 return this.Ok(new IndexerTestResult
                 {
                     Success = false,
-                    Message = $"Prowlarr returned HTTP {(int)response.StatusCode} {response.StatusCode}.",
+                    Message = $"Prowlarr returned HTTP {(int)statusResp.StatusCode} {statusResp.StatusCode}.",
                     ResponseTimeMs = sw.ElapsedMilliseconds,
                 });
             }
