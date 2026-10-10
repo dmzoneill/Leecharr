@@ -19,12 +19,12 @@
     "kangaroo": "session_kangaroo_1791661462423_77d76bf2ebd0c419"
   },
   "in_progress": {
-    "orangutan": null,
+    "orangutan": 1701,
     "hedgehog": 1700,
     "dolphin": 1708,
     "raccoon": 1707,
     "flamingo": 1705,
-    "elephant": null,
+    "elephant": 1704,
     "kangaroo": null
   },
   "issue_queue": [],
@@ -43,14 +43,14 @@
     {"agent": "flamingo", "session": "session_flamingo_1791668275820_c6940b7fd011b8d0", "issue": 1705, "tip": "808de33"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T22:03Z",
-  "next_scheduled_poll": "sched_poll_22_03",
+  "last_poll": "2026-10-10T22:04Z",
+  "next_scheduled_poll": "sched_poll_22_04",
   "ci_last": {
-    "sha": "e2de8f4",
+    "sha": "74358cf",
     "cicd": "in_progress",
-    "run_id": 38089856961
+    "run_id": 38089899234
   },
-  "origin_main": "e2de8f4",
+  "origin_main": "74358cf",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
@@ -61,5 +61,8 @@
     "strategy_doc": ".jcode/orchestrator-strategy-v2.md",
     "swarm_prompt": ".jcode/swarm-prompt.md",
     "remote_branch_cleanup": "2026-10-10T21:49Z merged+closed issue-* pruned"
+  },
+  "notes": {
+    "elephant_dm_22_02": "dup START #1708 — redirected #1704"
   }
 }
