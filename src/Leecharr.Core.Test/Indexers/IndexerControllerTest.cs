@@ -1123,6 +1123,70 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task SearchGet_MultiIndexer_SumsResponseTotalsInsteadOfUsingMax()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(
+            indexer1,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Release T1", Seeders = 10, DownloadUrl = "http://dl-t1", ResponseTotal = 1000, ResponseOffset = 0 },
+            }));
+
+        this.torznabClient.SearchAsync(
+            indexer2,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Release T2", Seeders = 8, DownloadUrl = "http://dl-t2", ResponseTotal = 1000, ResponseOffset = 0 },
+            }));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test", Limit = 50 });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var envelope = (IndexerSearchEnvelope)((OkObjectResult)actionResult.Result!).Value!;
+        envelope.Total.Should().Be(2000);
+        envelope.Results.Should().HaveCount(2);
+    }
+
+    [Test]
+    public async Task SearchGet_WhenFreeleechOnly_TotalIgnoresIndexerResponseTotal()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Free Release", Seeders = 10, DownloadUrl = "http://dl-fl", DownloadVolumeFactor = 0.0, ResponseTotal = 1000, ResponseOffset = 0 },
+                new() { Title = "Paid Release", Seeders = 20, DownloadUrl = "http://dl-paid", DownloadVolumeFactor = 1.0, ResponseTotal = 1000, ResponseOffset = 0 },
+            }));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest
+        {
+            Query = "test",
+            IndexerId = 1,
+            Limit = 50,
+            FreeleechOnly = true,
+        });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var envelope = (IndexerSearchEnvelope)((OkObjectResult)actionResult.Result!).Value!;
+        envelope.Total.Should().Be(1);
+        envelope.Results.Should().HaveCount(1);
+        envelope.Results[0].Title.Should().Be("Free Release");
+    }
+
+    [Test]
     public async Task DownloadRelease_WithCookiesAndUserAgent_PassesCustomHeadersToSafeHttpClientService()
     {
         var torrentBytes = new byte[] { 0x64, 0x31, 0x30, 0x65 };

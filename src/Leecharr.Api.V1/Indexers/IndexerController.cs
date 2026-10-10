@@ -707,8 +707,14 @@ public class IndexerController : Controller
         }
         else
         {
-            var maxResponseTotal = deduplicatedResults.Select(r => r.ResponseTotal).Where(t => t.HasValue).Max() ?? 0;
-            totalCount = maxResponseTotal > 0 ? Math.Max(filteredResults.Count, maxResponseTotal) : filteredResults.Count;
+            var summedIndexerTotals = allResults
+                .GroupBy(r => r.IndexerId)
+                .Select(g => g.Select(r => r.ResponseTotal).FirstOrDefault(t => t.HasValue))
+                .Where(t => t.HasValue)
+                .Sum(t => t!.Value);
+            totalCount = summedIndexerTotals > 0
+                ? Math.Max(filteredResults.Count, summedIndexerTotals)
+                : filteredResults.Count;
         }
         var currentPage = effectiveLimit > 0 ? (effectiveOffset / effectiveLimit) + 1 : 1;
 
