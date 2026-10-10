@@ -448,10 +448,11 @@ public class IndexerController : Controller
         var effectiveLimit = Math.Clamp(request.Limit <= 0 ? 50 : request.Limit, 1, 250);
 
         var searchEnabled = this.indexerRepository.GetSearchEnabled().ToList();
-        var indexers = request.IndexerId.HasValue
+        var configuredIndexers = request.IndexerId.HasValue
             ? new List<IndexerDefinition> { this.indexerRepository.Get(request.IndexerId.Value) }.Where(i => i != null).ToList()
             : (searchEnabled.Count > 0 ? searchEnabled : this.indexerRepository.GetEnabled().ToList());
 
+        var indexers = configuredIndexers;
         if (this.indexerStatusService != null)
         {
             indexers = indexers.Where(i => !this.indexerStatusService.IsDisabled(i.Id)).ToList();
@@ -459,18 +460,56 @@ public class IndexerController : Controller
 
         if (indexers.Count == 0)
         {
-            this.logger.Warn("Indexer search requested for query '{0}' but no search-enabled or active indexers are configured in repository.", request.Query);
-            if (this.Response?.Headers != null)
-            {
-                this.Response.Headers["X-Leecharr-Indexers-Configured"] = "0";
-            }
-
             var emptyEnvelope = new IndexerSearchEnvelope()
             {
                 Page = effectiveLimit > 0 ? (effectiveOffset / effectiveLimit) + 1 : 1,
                 Limit = effectiveLimit,
                 Total = 0,
             };
+
+            if (configuredIndexers.Count > 0 && this.indexerStatusService != null)
+            {
+                var backoffErrors = new List<string>();
+                foreach (var idx in configuredIndexers)
+                {
+                    if (!this.indexerStatusService.IsDisabled(idx.Id))
+                    {
+                        continue;
+                    }
+
+                    var status = this.indexerStatusService.GetStatus(idx.Id);
+                    var disabledUntil = status.DisabledTill.HasValue
+                        ? status.DisabledTill.Value.ToString("O")
+                        : "unknown";
+                    var detail = string.IsNullOrWhiteSpace(status.LastFailureMessage)
+                        ? "Indexer temporarily disabled"
+                        : status.LastFailureMessage;
+                    backoffErrors.Add($"{idx.Name}: {detail} (disabled until {disabledUntil})");
+                }
+
+                this.logger.Warn(
+                    "Indexer search requested for query '{0}' but all {1} configured indexer(s) are temporarily disabled due to backoff.",
+                    request.Query,
+                    configuredIndexers.Count);
+
+                if (this.Response?.Headers != null)
+                {
+                    this.Response.Headers["X-Leecharr-Indexers-Configured"] = configuredIndexers.Count.ToString();
+                    if (backoffErrors.Count > 0)
+                    {
+                        this.Response.Headers["X-Leecharr-Indexer-Errors"] = string.Join("; ", backoffErrors);
+                    }
+                }
+
+                return this.Ok(emptyEnvelope);
+            }
+
+            this.logger.Warn("Indexer search requested for query '{0}' but no search-enabled or active indexers are configured in repository.", request.Query);
+            if (this.Response?.Headers != null)
+            {
+                this.Response.Headers["X-Leecharr-Indexers-Configured"] = "0";
+            }
+
             return this.Ok(emptyEnvelope);
         }
 
