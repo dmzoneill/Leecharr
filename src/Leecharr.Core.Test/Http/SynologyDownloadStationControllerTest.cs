@@ -179,6 +179,65 @@ public class SynologyDownloadStationControllerTest
     }
 
     [Test]
+    public async Task HandleTask_List_MapsStalledAndQueuedForChecking_OnListAndGetInfo()
+    {
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var stalledHash = "stalled1111111111111111111111111111111111";
+        var queuedCheckHash = "queued1111111111111111111111111111111111";
+        var stalledSeedHash = "stalled2222222222222222222222222222222222";
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 50, InfoHash = stalledHash, Name = "Stalled DL", Status = TorrentStatus.Stalled, Progress = 0.4, TotalSize = 1000, Downloaded = 400 },
+            new() { Id = 51, InfoHash = queuedCheckHash, Name = "Queued Check", Status = TorrentStatus.QueuedForChecking, TotalSize = 2000 },
+            new() { Id = 52, InfoHash = stalledSeedHash, Name = "Stalled Seed", Status = TorrentStatus.Stalled, Progress = 1.0, TotalSize = 3000, Downloaded = 3000 },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var listResult = await this.controller.TaskHandler(
+            api: "SYNO.DownloadStation.Task",
+            method: "list",
+            id: null!,
+            uri: null!,
+            url: null!,
+            destination: null!);
+
+        listResult.Should().BeOfType<OkObjectResult>();
+        var listJson = JsonSerializer.Serialize(((OkObjectResult)listResult).Value);
+        using (var listDoc = JsonDocument.Parse(listJson))
+        {
+            var tasks = listDoc.RootElement.GetProperty("data").GetProperty("task");
+            tasks.GetArrayLength().Should().Be(3);
+
+            tasks[0].GetProperty("status").GetInt32().Should().Be(2);
+            tasks[0].GetProperty("status_text").GetString().Should().Be("downloading");
+
+            tasks[1].GetProperty("status").GetInt32().Should().Be(1);
+            tasks[1].GetProperty("status_text").GetString().Should().Be("checking");
+
+            tasks[2].GetProperty("status").GetInt32().Should().Be(7);
+            tasks[2].GetProperty("status_text").GetString().Should().Be("seeding");
+        }
+
+        var getInfoResult = await this.controller.TaskHandler(
+            api: "SYNO.DownloadStation.Task",
+            method: "getinfo",
+            id: queuedCheckHash,
+            uri: null!,
+            url: null!,
+            destination: null!);
+
+        getInfoResult.Should().BeOfType<OkObjectResult>();
+        var infoJson = JsonSerializer.Serialize(((OkObjectResult)getInfoResult).Value);
+        using var infoDoc = JsonDocument.Parse(infoJson);
+        var infoTask = infoDoc.RootElement.GetProperty("data").GetProperty("task");
+        infoTask.GetArrayLength().Should().Be(1);
+        infoTask[0].GetProperty("status").GetInt32().Should().Be(1);
+        infoTask[0].GetProperty("status_text").GetString().Should().Be("checking");
+    }
+
+    [Test]
     public async Task HandleTask_GetInfo_WithQueryIds_ReturnsFilteredTasks()
     {
         var httpContext = new DefaultHttpContext();
