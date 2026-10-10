@@ -42,14 +42,14 @@
     {"agent": "orangutan", "session": "session_orangutan_1791648509926_3eed22ef250ebcb8", "issue": 1701, "tip": "c331133"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T22:11Z",
-  "next_scheduled_poll": "sched_131b57fa",
+  "last_poll": "2026-10-10T22:12Z",
+  "next_scheduled_poll": "sched_poll_22_12",
   "ci_last": {
-    "sha": "345110f",
-    "cicd": "queued",
-    "run_id": 38090277040
+    "sha": "196972b",
+    "cicd": "pending",
+    "run_id": 38090328590
   },
-  "origin_main": "345110f",
+  "origin_main": "196972b",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
