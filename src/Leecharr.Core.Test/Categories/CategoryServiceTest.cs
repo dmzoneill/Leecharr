@@ -612,6 +612,40 @@ public class CategoryServiceTest
         this.torrentRepository.Received(1).Update(torrentChild);
     }
 
+    [Test]
+    public void Delete_WhenDefaultDescendantExists_ThrowsAndDoesNotDeleteAnything()
+    {
+        var parent = new Category { Id = 1, Name = "movies" };
+        var child = new Category { Id = 2, Name = "movies/uhd" };
+        var defaultGrandchild = new Category { Id = 3, Name = "movies/uhd/remux", IsDefault = true };
+
+        this.repository.Get(1).Returns(parent);
+        this.repository.All().Returns(new List<Category> { parent, child, defaultGrandchild });
+
+        Action act = () => this.service.Delete(1);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*default subcategory*");
+        this.repository.DidNotReceive().Delete(Arg.Any<int>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<CategoryDeletedEvent>());
+    }
+
+    [Test]
+    public void Delete_WhenIntermediateParentHasDefaultChild_ThrowsAndDoesNotDelete()
+    {
+        var parent = new Category { Id = 2, Name = "movies/uhd" };
+        var defaultChild = new Category { Id = 3, Name = "movies/uhd/remux", IsDefault = true };
+
+        this.repository.Get(2).Returns(parent);
+        this.repository.All().Returns(new List<Category> { parent, defaultChild });
+
+        Action act = () => this.service.Delete(2);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*default subcategory*");
+        this.repository.DidNotReceive().Delete(Arg.Any<int>());
+    }
+
     [TestCase("downloads/movies")]
     [TestCase("./downloads")]
     [TestCase("../movies")]

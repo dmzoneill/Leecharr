@@ -169,7 +169,15 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
             return this.BadRequest("Cannot delete the default category.");
         }
 
-        this.categoryService.Delete(id);
+        try
+        {
+            this.categoryService.Delete(id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return this.BadRequest(ex.Message);
+        }
+
         return this.NoContent();
     }
 
