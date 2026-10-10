@@ -428,7 +428,13 @@ public class TorznabClient : ITorznabClient
             }
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
-            return this.ParseTorznabFeedXml(xml, indexer);
+            var parsed = this.ParseTorznabFeedXml(xml, indexer);
+            if (criteria.FreeleechOnly)
+            {
+                return parsed.Where(r => r.IsFreeleech).ToList();
+            }
+
+            return parsed;
         }
         catch (Exception ex) when (ex is not HttpRequestException and not TorznabException and not OperationCanceledException)
         {
