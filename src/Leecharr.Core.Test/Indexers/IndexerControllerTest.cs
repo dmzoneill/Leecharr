@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Indexers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
@@ -1881,6 +1882,53 @@ public class IndexerControllerTest
         result.Should().BeOfType<OkObjectResult>();
         this.indexerRepository.Received(1).Delete(1);
         this.indexerRepository.Received(1).Delete(2);
+    }
+
+    [Test]
+    public async Task SearchGet_WhenAllIndexersInBackoff_ReportsConfiguredCountAndIndexerErrors()
+    {
+        var statusService = new IndexerStatusService();
+        statusService.RecordFailure(1, 429, "HTTP 429 Too Many Requests");
+
+        var customController = new IndexerController(
+            this.indexerRepository,
+            this.torznabClient,
+            this.prowlarrSyncService,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: statusService)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+        };
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "BackoffTracker", Enable = true, EnableSearch = true, Url = "http://backoff" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var actionResult = await customController.SearchGet(new IndexerSearchRequest { Query = "test" });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        customController.Response.Headers["X-Leecharr-Indexers-Configured"].ToString().Should().Be("1");
+        customController.Response.Headers["X-Leecharr-Indexer-Errors"].ToString().Should().Contain("BackoffTracker");
+        customController.Response.Headers["X-Leecharr-Indexer-Errors"].ToString().Should().Contain("429");
+        customController.Response.Headers["X-Leecharr-Indexer-Errors"].ToString().Should().Contain("disabled until");
+        await this.torznabClient.DidNotReceiveWithAnyArgs().SearchAsync(default!, default!, default);
+    }
+
+    [Test]
+    public async Task SearchGet_WhenNoIndexersConfigured_ReportsZeroConfiguredIndexers()
+    {
+        this.controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition>());
+        this.indexerRepository.GetEnabled().Returns(new List<IndexerDefinition>());
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test" });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        this.controller.Response.Headers["X-Leecharr-Indexers-Configured"].ToString().Should().Be("0");
+        this.controller.Response.Headers.ContainsKey("X-Leecharr-Indexer-Errors").Should().BeFalse();
+        await this.torznabClient.DidNotReceiveWithAnyArgs().SearchAsync(default!, default!, default);
     }
 }
 
