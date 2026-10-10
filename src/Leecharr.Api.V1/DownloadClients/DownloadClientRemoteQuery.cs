@@ -27,15 +27,26 @@ public static class DownloadClientRemoteQuery
         ISafeHttpClientService safeHttpClientService = null,
         bool filterByCategory = true)
     {
+        var result = await QueryRemoteClientItemsDetailedAsync(client, httpClient, safeHttpClientService, filterByCategory);
+        return result.Items;
+    }
+
+    public static async Task<DownloadClientRemoteQueryResult> QueryRemoteClientItemsDetailedAsync(
+        DownloadClientDefinition client,
+        HttpClient httpClient = null,
+        ISafeHttpClientService safeHttpClientService = null,
+        bool filterByCategory = true)
+    {
         var items = new List<DownloadClientRemoteItem>();
         if (client == null)
         {
-            return items;
+            return new DownloadClientRemoteQueryResult { Items = items };
         }
 
         var port = client.Port > 0 ? client.Port : 8080;
         var scheme = client.UseSsl ? "https" : "http";
         var baseUrl = $"{scheme}://{client.Host}:{port}";
+        string queryError = null;
 
         if (safeHttpClientService != null)
         {
@@ -46,13 +57,21 @@ public static class DownloadClientRemoteQuery
             catch (Exception ex)
             {
                 Logger.Warn(ex, "SSRF blocked query for {0}", baseUrl);
-                return items;
+                return new DownloadClientRemoteQueryResult
+                {
+                    Items = items,
+                    ErrorMessage = $"SSRF validation blocked query for {baseUrl}: {ex.Message}",
+                };
             }
         }
         else if (client.Host != null && client.Host.Trim().StartsWith("169.254.", StringComparison.Ordinal))
         {
             Logger.Warn("SSRF blocked query for {0}", baseUrl);
-            return items;
+            return new DownloadClientRemoteQueryResult
+            {
+                Items = items,
+                ErrorMessage = $"SSRF validation blocked query for {baseUrl}.",
+            };
         }
 
         var password = DownloadClientPasswordHelper.Unprotect(client.Password);
@@ -71,7 +90,11 @@ public static class DownloadClientRemoteQuery
             {
                 if (!await EnsureQbittorrentLoggedInAsync(http, baseUrl, client, password))
                 {
-                    return items;
+                    return new DownloadClientRemoteQueryResult
+                    {
+                        Items = items,
+                        ErrorMessage = $"Authentication failed for qBittorrent at {baseUrl}.",
+                    };
                 }
 
                 using var resp = await http.GetAsync($"{baseUrl}/api/v2/torrents/info");
@@ -111,6 +134,7 @@ public static class DownloadClientRemoteQuery
                 else
                 {
                     Logger.Warn("qBittorrent query returned status code {0} for {1}", resp.StatusCode, baseUrl);
+                    queryError = $"qBittorrent query returned HTTP {(int)resp.StatusCode} for {baseUrl}.";
                 }
             }
             else if (string.Equals(client.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
@@ -164,10 +188,15 @@ public static class DownloadClientRemoteQuery
                             });
                         }
                     }
+                    else
+                    {
+                        queryError = $"Transmission query failed for {baseUrl}.";
+                    }
                 }
                 else
                 {
                     Logger.Warn("Transmission query returned status code {0} for {1}", resp.StatusCode, baseUrl);
+                    queryError = $"Transmission query returned HTTP {(int)resp.StatusCode} for {baseUrl}.";
                 }
             }
             else if (string.Equals(client.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
@@ -176,7 +205,11 @@ public static class DownloadClientRemoteQuery
                 {
                     if (!await EnsureDelugeLoggedInAsync(http, baseUrl, password))
                     {
-                        return items;
+                        return new DownloadClientRemoteQueryResult
+                        {
+                            Items = items,
+                            ErrorMessage = $"Authentication failed for Deluge at {baseUrl}.",
+                        };
                     }
                 }
 
@@ -193,7 +226,11 @@ public static class DownloadClientRemoteQuery
                     if (doc.RootElement.TryGetProperty("error", out var errElem) && errElem.ValueKind != JsonValueKind.Null)
                     {
                         Logger.Warn("Deluge returned error: {0} for {1}", errElem.ToString(), baseUrl);
-                        return items;
+                        return new DownloadClientRemoteQueryResult
+                        {
+                            Items = items,
+                            ErrorMessage = $"Deluge query failed for {baseUrl}: {errElem}.",
+                        };
                     }
 
                     if (doc.RootElement.TryGetProperty("result", out var res) && res.ValueKind == JsonValueKind.Object)
@@ -228,12 +265,14 @@ public static class DownloadClientRemoteQuery
                 else
                 {
                     Logger.Warn("Deluge query returned status code {0} for {1}", resp.StatusCode, baseUrl);
+                    queryError = $"Deluge query returned HTTP {(int)resp.StatusCode} for {baseUrl}.";
                 }
             }
         }
         catch (Exception ex)
         {
             Logger.Warn(ex, "Failed to query remote download client {0} ({1}:{2})", client.Name, client.Host, port);
+            queryError = ex.Message;
         }
         finally
         {
@@ -245,7 +284,11 @@ public static class DownloadClientRemoteQuery
             items = items.Where(i => MatchesCategory(i, client.Category)).ToList();
         }
 
-        return items;
+        return new DownloadClientRemoteQueryResult
+        {
+            Items = items,
+            ErrorMessage = queryError,
+        };
     }
 
     public static bool MatchesCategory(DownloadClientRemoteItem item, string targetCategory)

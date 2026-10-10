@@ -19,6 +19,8 @@ import type {
   DownloadClientDefinition,
   DownloadClientTestResult,
   DownloadClientRemoteItem,
+  DownloadClientAllItemsResponse,
+  DownloadClientItemsQueryData,
   SyncResult,
   BatchImportResponse,
   IndexerDefinition,
@@ -284,12 +286,25 @@ export function useDownloadClientItems(clientId: number | string) {
     typeof clientId === "number" ? clientId : Number.parseInt(clientId, 10);
   const isValid = isAll || (!Number.isNaN(numId) && numId > 0);
 
-  return useQuery<DownloadClientRemoteItem[]>({
+  return useQuery<DownloadClientItemsQueryData>({
     queryKey: ["downloadclients", isAll ? "all" : numId, "items"],
-    queryFn: () =>
-      isAll
-        ? apiClient.get("/downloadclients/items")
-        : apiClient.get(`/downloadclients/${numId}/items`),
+    queryFn: async () => {
+      if (isAll) {
+        const response = await apiClient.get<DownloadClientAllItemsResponse>(
+          "/downloadclients/items",
+        );
+        return {
+          items: response.items ?? [],
+          queryFailures: response.failures ?? [],
+          querySuccess: response.success,
+        };
+      }
+
+      const items = await apiClient.get<DownloadClientRemoteItem[]>(
+        `/downloadclients/${numId}/items`,
+      );
+      return { items: items ?? [] };
+    },
     enabled: isValid,
     refetchInterval: interval,
   });

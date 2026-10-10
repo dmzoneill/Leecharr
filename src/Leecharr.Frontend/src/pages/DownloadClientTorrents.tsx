@@ -37,13 +37,16 @@ export default function DownloadClientTorrents() {
   );
 
   const {
-    data: items,
+    data: itemsData,
     isLoading: itemsLoading,
     isError,
     error,
     refetch,
     isFetching,
   } = useDownloadClientItems(isAll ? "all" : clientId);
+
+  const items = itemsData?.items;
+  const queryFailures = itemsData?.queryFailures ?? [];
 
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
@@ -768,6 +771,37 @@ export default function DownloadClientTorrents() {
           <Link to="/settings/download-clients" className="btn btn-outline">
             Check Client Configuration
           </Link>
+        </div>
+      )}
+
+      {!itemsLoading && !isError && isAll && queryFailures.length > 0 && (
+        <div
+          className="card"
+          style={{
+            padding: "1rem 1.25rem",
+            marginBottom: "1rem",
+            borderRadius: "8px",
+            borderLeft: "4px solid var(--warning)",
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+            {queryFailures.length} download client
+            {queryFailures.length === 1 ? "" : "s"} could not be queried
+          </div>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: "1.25rem",
+              color: "var(--text-muted)",
+              fontSize: "0.9rem",
+            }}
+          >
+            {queryFailures.map((failure) => (
+              <li key={failure.clientId}>
+                <strong>{failure.clientName}</strong>: {failure.message}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
