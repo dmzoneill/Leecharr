@@ -42,17 +42,15 @@ public class SystemDeveloperTestingController : Controller
     }
 
     [HttpPost("run/{testId}")]
-    public async Task<ActionResult> RunSingleTest(string testId)
+    public async Task<ActionResult<DeveloperTestResult>> RunSingleTest(string testId)
     {
         if (this.testRunner == null)
         {
-            var skippedJson = global::System.Text.Json.JsonSerializer.Serialize(new DeveloperTestResult { TestId = testId, Status = "Skipped" });
-            return this.Content(skippedJson, "application/json");
+            return this.Ok(new DeveloperTestResult { TestId = testId, Status = "Skipped" });
         }
 
         var result = await this.testRunner.RunTestAsync(testId);
-        var json = global::System.Text.Json.JsonSerializer.Serialize(result);
-        return this.Content(json, "application/json");
+        return this.Ok(result);
     }
 
     [HttpGet("history")]
