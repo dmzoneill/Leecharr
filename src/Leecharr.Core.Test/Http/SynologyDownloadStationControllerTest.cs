@@ -368,10 +368,29 @@ public class SynologyDownloadStationControllerTest
         var fsJson = JsonSerializer.Serialize(((OkObjectResult)fileStationResult).Value);
         using var fsDoc = JsonDocument.Parse(fsJson);
         fsDoc.RootElement.GetProperty("data").GetProperty("shares").GetArrayLength().Should().Be(1);
+        var defaultShare = fsDoc.RootElement.GetProperty("data").GetProperty("shares")[0];
+        defaultShare.GetProperty("path").GetString().Should().Be("/downloads");
+        defaultShare.GetProperty("name").GetString().Should().Be("downloads");
 
         // Unknown method
         var unknownResult = await this.controller.TaskHandler("SYNO.DownloadStation.Task", "unknownmethod", null!, null!, null!, null!);
         unknownResult.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task HandleTask_FileStationList_UsesConfiguredDownloadDir()
+    {
+        this.configService.DownloadDir.Returns("/volume1/torrents");
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var fileStationResult = await this.controller.TaskHandler("SYNO.FileStation.List", "list", null!, null!, null!, null!);
+        fileStationResult.Should().BeOfType<OkObjectResult>();
+        var fsJson = JsonSerializer.Serialize(((OkObjectResult)fileStationResult).Value);
+        using var fsDoc = JsonDocument.Parse(fsJson);
+        var share = fsDoc.RootElement.GetProperty("data").GetProperty("shares")[0];
+        share.GetProperty("path").GetString().Should().Be("/volume1/torrents");
+        share.GetProperty("name").GetString().Should().Be("torrents");
     }
 
     [Test]
