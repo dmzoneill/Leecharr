@@ -51,6 +51,22 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task SearchGet_WhenTorznabSearch_DoesNotCreateHttpClientForProwlarrProbe()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Alpha", Enable = true, EnableSearch = true, Url = "http://alpha" };
+        this.indexerRepository.Get(1).Returns(indexer);
+        this.torznabClient.SearchAsync(
+                indexer,
+                Arg.Any<TorznabSearchCriteria>(),
+                Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult> { new() { Title = "Hit" } }));
+
+        await this.controller.SearchGet(new IndexerSearchRequest { Query = "test", IndexerId = 1 });
+
+        this.safeHttpClientService.DidNotReceive().CreateHttpClient(Arg.Any<TimeSpan>(), Arg.Any<bool>());
+    }
+
+    [Test]
     public async Task DownloadRelease_WithMagnetUrlAndIndexerAttribution_RecordsAttribution()
     {
         var request = new DownloadReleaseRequest
