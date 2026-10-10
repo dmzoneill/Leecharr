@@ -43,14 +43,14 @@
     {"agent": "flamingo", "session": "flamingo", "issue": 1705, "tip": "808de33"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T21:54Z",
-  "next_scheduled_poll": "sched_1eeddd20",
+  "last_poll": "2026-10-10T21:55Z",
+  "next_scheduled_poll": "sched_poll_2155",
   "ci_last": {
-    "sha": "ba7c079",
+    "sha": "a3d7932",
     "cicd": "in_progress",
-    "run_id": 38089309542
+    "run_id": 38089343423
   },
-  "origin_main": "ba7c079",
+  "origin_main": "a3d7932",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
