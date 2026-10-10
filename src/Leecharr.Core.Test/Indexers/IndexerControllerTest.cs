@@ -1018,6 +1018,90 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task TestDirect_WhenProbeUrlDiffersFromSaved_DoesNotRecordFailureOnTestFailure()
+    {
+        var mockStatusService = Substitute.For<IIndexerStatusService>();
+        var customController = new IndexerController(
+            this.indexerRepository,
+            this.torznabClient,
+            this.prowlarrSyncService,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: mockStatusService);
+
+        var saved = new IndexerDefinition
+        {
+            Id = 7,
+            Name = "SavedIndexer",
+            Url = "https://saved.indexer.local",
+            ApiKey = "saved-key",
+        };
+        this.indexerRepository.Get(7).Returns(saved);
+
+        var resource = new IndexerResource
+        {
+            Id = 7,
+            Name = "SavedIndexer",
+            Url = "https://unsaved.indexer.local",
+            ApiKey = "********",
+            Implementation = "Torznab",
+        };
+
+        this.torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>())
+            .Returns(Task.FromResult(TorznabTestResult.Fail("HTTP 503 Service Unavailable")));
+
+        var result = await customController.TestDirect(resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var testResult = (IndexerTestResult)((OkObjectResult)result.Result!).Value!;
+        testResult.Success.Should().BeFalse();
+        mockStatusService.DidNotReceiveWithAnyArgs().RecordFailure(default, default, default!, default!);
+        mockStatusService.DidNotReceiveWithAnyArgs().RecordSuccess(default);
+    }
+
+    [Test]
+    public async Task TestDirect_WhenProbeMatchesSaved_RecordsFailureOnTestFailure()
+    {
+        var mockStatusService = Substitute.For<IIndexerStatusService>();
+        var customController = new IndexerController(
+            this.indexerRepository,
+            this.torznabClient,
+            this.prowlarrSyncService,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: mockStatusService);
+
+        var saved = new IndexerDefinition
+        {
+            Id = 8,
+            Name = "SavedIndexer",
+            Url = "https://saved.indexer.local",
+            ApiKey = "saved-key",
+        };
+        this.indexerRepository.Get(8).Returns(saved);
+
+        var resource = new IndexerResource
+        {
+            Id = 8,
+            Name = "SavedIndexer",
+            Url = "https://saved.indexer.local",
+            ApiKey = "********",
+            Implementation = "Torznab",
+        };
+
+        this.torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>())
+            .Returns(Task.FromResult(TorznabTestResult.Fail("HTTP 403 Forbidden")));
+
+        await customController.TestDirect(resource);
+
+        mockStatusService.Received(1).RecordFailure(8, null, "HTTP 403 Forbidden", null);
+    }
+
+    [Test]
     public async Task TestDirect_WhenUrlValidationFails_ReturnsFailureMessageAndDoesNotSendRequest()
     {
         var resource = new IndexerResource
