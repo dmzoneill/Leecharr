@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Strip Co-authored-by lines tools may inject before commit-msg runs.
+set -euo pipefail
+
+msg_file="${1:?}"
+
+if [[ ! -f "$msg_file" ]]; then
+  exit 0
+fi
+
+tmp="$(mktemp)"
+grep -viE '^[[:space:]]*Co-authored-by:' "$msg_file" >"$tmp" || true
+mv "$tmp" "$msg_file"
+
+exit 0
