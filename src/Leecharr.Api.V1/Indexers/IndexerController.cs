@@ -1162,25 +1162,9 @@ public class IndexerController : Controller
             return releasesList;
         }
 
-        var titleSizeToHash = new Dictionary<(string, long), string>();
-        foreach (var r in releasesList)
-        {
-            var hash = NormalizeInfoHash(r.InfoHash, r.MagnetUrl);
-            if (!string.IsNullOrEmpty(hash) && !string.IsNullOrWhiteSpace(r.Title))
-            {
-                var key = (r.Title.Trim().ToLowerInvariant(), r.Size);
-                titleSizeToHash.TryAdd(key, hash);
-            }
-        }
-
         var groups = releasesList.GroupBy(r =>
         {
             var hash = NormalizeInfoHash(r.InfoHash, r.MagnetUrl);
-            if (string.IsNullOrEmpty(hash) && !string.IsNullOrWhiteSpace(r.Title))
-            {
-                titleSizeToHash.TryGetValue((r.Title.Trim().ToLowerInvariant(), r.Size), out hash);
-            }
-
             if (!string.IsNullOrEmpty(hash))
             {
                 return "hash:" + hash;
@@ -1233,11 +1217,6 @@ public class IndexerController : Controller
             if (string.IsNullOrWhiteSpace(primary.InfoHash))
             {
                 var resolvedHash = group.Select(r => NormalizeInfoHash(r.InfoHash, r.MagnetUrl)).FirstOrDefault(h => !string.IsNullOrWhiteSpace(h));
-                if (string.IsNullOrWhiteSpace(resolvedHash) && !string.IsNullOrWhiteSpace(primary.Title))
-                {
-                    titleSizeToHash.TryGetValue((primary.Title.Trim().ToLowerInvariant(), primary.Size), out resolvedHash);
-                }
-
                 if (!string.IsNullOrWhiteSpace(resolvedHash))
                 {
                     primary.InfoHash = resolvedHash;
