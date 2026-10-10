@@ -716,7 +716,7 @@ public class IndexerController : Controller
                     if (request.IndexerId.HasValue && request.IndexerId.Value > 0)
                     {
                         var indexerDef = this.indexerRepository.Get(request.IndexerId.Value);
-                        if (indexerDef != null)
+                        if (indexerDef != null && IsDownloadUrlOnIndexerHost(request.DownloadUrl, indexerDef.Url))
                         {
                             if (!string.IsNullOrWhiteSpace(indexerDef.ApiKey))
                             {
@@ -1252,6 +1252,33 @@ public class IndexerController : Controller
             ProwlarrIndexerId = resource.ProwlarrIndexerId,
             IsProwlarrManaged = resource.IsProwlarrManaged,
         };
+    }
+
+    internal static bool IsDownloadUrlOnIndexerHost(string downloadUrl, string indexerUrl)
+    {
+        if (string.IsNullOrWhiteSpace(downloadUrl) || string.IsNullOrWhiteSpace(indexerUrl))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var downloadUri)
+            || !Uri.TryCreate(indexerUrl, UriKind.Absolute, out var indexerUri))
+        {
+            return false;
+        }
+
+        if (!string.Equals(downloadUri.Scheme, indexerUri.Scheme, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(downloadUri.Host, indexerUri.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (downloadUri.IsDefaultPort && indexerUri.IsDefaultPort)
+        {
+            return true;
+        }
+
+        return downloadUri.Port == indexerUri.Port;
     }
 
     internal static List<ReleaseInfoResource> DeduplicateReleases(IEnumerable<ReleaseInfoResource> releases)
