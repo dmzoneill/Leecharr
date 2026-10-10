@@ -726,6 +726,68 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task SearchGet_WhenFreeleechOnly_FetchesAdditionalIndexerPagesUntilLimitFilled()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Alpha", Enable = true, EnableSearch = true, Url = "http://alpha" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var criteria = callInfo.ArgAt<TorznabSearchCriteria>(1);
+                if (criteria.Offset == 0)
+                {
+                    var list = Enumerable.Range(1, 48)
+                        .Select(i => new TorznabSearchResult
+                        {
+                            Title = $"Normal {i}",
+                            DownloadVolumeFactor = 1.0,
+                            Seeders = 10,
+                            DownloadUrl = $"http://dl/n{i}",
+                        })
+                        .ToList();
+                    list.Add(new TorznabSearchResult { Title = "FL A", DownloadVolumeFactor = 0.0, Seeders = 20, DownloadUrl = "http://dl/fla" });
+                    list.Add(new TorznabSearchResult { Title = "FL B", DownloadVolumeFactor = 0.0, Seeders = 15, DownloadUrl = "http://dl/flb" });
+                    return Task.FromResult(list);
+                }
+
+                if (criteria.Offset == 50)
+                {
+                    return Task.FromResult(new List<TorznabSearchResult>
+                    {
+                        new() { Title = "FL C", DownloadVolumeFactor = 0.0, Seeders = 25, DownloadUrl = "http://dl/flc" },
+                        new() { Title = "FL D", DownloadVolumeFactor = 0.0, Seeders = 22, DownloadUrl = "http://dl/fld" },
+                    });
+                }
+
+                return Task.FromResult(new List<TorznabSearchResult>());
+            });
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest
+        {
+            Query = "test",
+            IndexerId = 1,
+            Limit = 3,
+            FreeleechOnly = true,
+        });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var envelope = (IndexerSearchEnvelope)((OkObjectResult)actionResult.Result!).Value!;
+        envelope.Results.Should().HaveCount(3);
+        envelope.Results.Should().OnlyContain(r => r.IsFreeleech);
+        envelope.Results.Select(r => r.Title).Should().ContainInOrder("FL C", "FL D", "FL A");
+        envelope.Total.Should().Be(4);
+
+        await this.torznabClient.Received(2).SearchAsync(
+            indexer,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
     public async Task SearchGet_WhenLimitExceedsMax_ClampsTo250()
     {
         var indexer = new IndexerDefinition { Id = 1, Name = "Alpha", Enable = true, EnableSearch = true, Url = "http://alpha" };

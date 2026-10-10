@@ -16,6 +16,8 @@ public class TorznabSearchCriteria
 
     public int Offset { get; set; }
 
+    public bool FreeleechOnly { get; set; }
+
     public int? Season { get; set; }
 
     public int? Ep { get; set; }
