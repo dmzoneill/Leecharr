@@ -25,6 +25,10 @@ namespace Leecharr.Api.V1.Indexers;
 [Authorize(Policy = "RequireOperator")]
 public class IndexerController : Controller
 {
+    private const int FreeleechSearchMaxRounds = 10;
+    private const int FreeleechSearchBatchLimitMulti = 100;
+    private const int FreeleechSearchBatchLimitSingle = 250;
+
     private static readonly Regex MagnetBtihRegex = new(@"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -476,13 +480,28 @@ public class IndexerController : Controller
             ? (effectiveOffset > 0 && effectiveOffset < 100 ? Math.Min(effectiveOffset + effectiveLimit, 100) : Math.Min(effectiveLimit, 100))
             : effectiveLimit;
         var fetchOffset = isMulti && effectiveOffset < 100 ? 0 : effectiveOffset;
+        if (request.FreeleechOnly)
+        {
+            fetchOffset = 0;
+        }
+
+        var indexerFetchOffsets = indexers.ToDictionary(i => i.Id, _ => fetchOffset);
+        var requiredFreeleechMatches = request.FreeleechOnly ? effectiveOffset + effectiveLimit : 0;
 
         using var semaphore = new SemaphoreSlim(6);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         var allResults = new ConcurrentBag<ReleaseInfoResource>();
         var searchErrors = new ConcurrentBag<string>();
-        var searchTasks = indexers.Select(async idx =>
+
+        for (var freeleechRound = 0; ; freeleechRound++)
+        {
+            var roundFetchLimit = request.FreeleechOnly
+                ? (isMulti ? FreeleechSearchBatchLimitMulti : FreeleechSearchBatchLimitSingle)
+                : fetchLimit;
+            var roundCounts = new ConcurrentDictionary<int, int>();
+
+            var searchTasks = indexers.Select(async idx =>
         {
             await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
             using var perIndexerCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
@@ -495,8 +514,8 @@ public class IndexerController : Controller
                     Query = request.Query ?? string.Empty,
                     CategoryId = catId,
                     Categories = parsedCategories,
-                    Limit = fetchLimit,
-                    Offset = fetchOffset,
+                    Limit = roundFetchLimit,
+                    Offset = indexerFetchOffsets[idx.Id],
                     Season = request.Season,
                     Ep = request.Ep,
                     ImdbId = request.ImdbId,
@@ -509,6 +528,7 @@ public class IndexerController : Controller
                     Album = request.Album,
                     Author = request.Author,
                     Isbn = request.Isbn,
+                    FreeleechOnly = request.FreeleechOnly,
                 };
 
                 var results = await this.torznabClient.SearchAsync(
@@ -517,6 +537,7 @@ public class IndexerController : Controller
                     combinedCts.Token).ConfigureAwait(false);
 
                 this.indexerStatusService?.RecordSuccess(idx.Id);
+                roundCounts[idx.Id] = results.Count;
 
                 foreach (var r in results)
                 {
@@ -575,7 +596,44 @@ public class IndexerController : Controller
             }
         });
 
-        await Task.WhenAll(searchTasks).ConfigureAwait(false);
+            await Task.WhenAll(searchTasks).ConfigureAwait(false);
+
+            if (!request.FreeleechOnly)
+            {
+                break;
+            }
+
+            var accumulatedFreeleech = DeduplicateReleases(allResults).Count(r => r.IsFreeleech);
+            if (accumulatedFreeleech >= requiredFreeleechMatches)
+            {
+                break;
+            }
+
+            if (freeleechRound + 1 >= FreeleechSearchMaxRounds)
+            {
+                break;
+            }
+
+            var advanced = false;
+            foreach (var idx in indexers)
+            {
+                if (!roundCounts.TryGetValue(idx.Id, out var count) || count <= 0)
+                {
+                    continue;
+                }
+
+                if (count >= roundFetchLimit || accumulatedFreeleech < requiredFreeleechMatches)
+                {
+                    indexerFetchOffsets[idx.Id] += count >= roundFetchLimit ? roundFetchLimit : count;
+                    advanced = true;
+                }
+            }
+
+            if (!advanced)
+            {
+                break;
+            }
+        }
 
         if (this.Response?.Headers != null && !searchErrors.IsEmpty)
         {
@@ -597,12 +655,20 @@ public class IndexerController : Controller
             .ThenBy(r => r.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var paginatedResults = isMulti && fetchOffset == 0
+        var paginatedResults = request.FreeleechOnly || (isMulti && fetchOffset == 0)
             ? sortedResults.Skip(effectiveOffset).Take(effectiveLimit).ToList()
             : sortedResults.Take(effectiveLimit).ToList();
 
-        var maxResponseTotal = deduplicatedResults.Select(r => r.ResponseTotal).Where(t => t.HasValue).Max() ?? 0;
-        var totalCount = maxResponseTotal > 0 ? Math.Max(filteredResults.Count, maxResponseTotal) : filteredResults.Count;
+        int totalCount;
+        if (request.FreeleechOnly)
+        {
+            totalCount = filteredResults.Count;
+        }
+        else
+        {
+            var maxResponseTotal = deduplicatedResults.Select(r => r.ResponseTotal).Where(t => t.HasValue).Max() ?? 0;
+            totalCount = maxResponseTotal > 0 ? Math.Max(filteredResults.Count, maxResponseTotal) : filteredResults.Count;
+        }
         var currentPage = effectiveLimit > 0 ? (effectiveOffset / effectiveLimit) + 1 : 1;
 
         var envelope = new IndexerSearchEnvelope(paginatedResults)
