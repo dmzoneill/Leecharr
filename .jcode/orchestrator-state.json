@@ -44,7 +44,7 @@
   ],
   "poll_interval_seconds": 15,
   "last_poll": "2026-10-10T21:59Z",
-  "next_scheduled_poll": "sched_1c0e25b0",
+  "next_scheduled_poll": "sched_0417cccb",
   "ci_last": {
     "sha": "57b2b28",
     "cicd": "in_progress",
