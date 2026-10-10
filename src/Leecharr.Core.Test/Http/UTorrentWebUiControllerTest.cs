@@ -60,6 +60,7 @@ public class UTorrentWebUiControllerTest
     [TestCase("remove")]
     [TestCase("add-url")]
     [TestCase("start")]
+    [TestCase("forcestart")]
     [TestCase("stop")]
     [TestCase("pause")]
     [TestCase("recheck")]
@@ -134,6 +135,23 @@ public class UTorrentWebUiControllerTest
 
         result.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).DeleteAsync(42, true);
+    }
+    [Test]
+    public async Task HandleWebUi_ForceStart_SetsForceStartBeforeResume()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrent = new Torrent { Id = 42, InfoHash = "abc12345", ForceStart = false };
+        this.torrentService.GetByInfoHash("abc12345").Returns(torrent);
+
+        var result = await this.controller.HandleWebUi(null!, "forcestart", "abc12345", null!, null!, null!, null!, null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        torrent.ForceStart.Should().BeTrue();
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+        await this.torrentService.Received(1).ResumeAsync(42);
     }
 
     [Test]
