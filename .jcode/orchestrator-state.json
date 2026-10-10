@@ -44,13 +44,13 @@
   ],
   "poll_interval_seconds": 15,
   "last_poll": "2026-10-10T22:00Z",
-  "next_scheduled_poll": null,
+  "next_scheduled_poll": "sched_488f4782",
   "ci_last": {
-    "sha": "f748b84",
+    "sha": "95fc7ac",
     "cicd": "in_progress",
     "run_id": 38089691433
   },
-  "origin_main": "f748b84",
+  "origin_main": "95fc7ac",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
