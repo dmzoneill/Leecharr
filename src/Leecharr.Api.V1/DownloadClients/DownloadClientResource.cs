@@ -123,6 +123,35 @@ public class DownloadClientRemoteItem
     public string ClientName { get; set; }
 }
 
+public class DownloadClientRemoteQueryResult
+{
+    public List<DownloadClientRemoteItem> Items { get; set; } = new();
+
+    public string ErrorMessage { get; set; }
+
+    public bool IsSuccess => string.IsNullOrEmpty(this.ErrorMessage);
+}
+
+public class DownloadClientQueryFailureResource
+{
+    public int ClientId { get; set; }
+
+    public string ClientName { get; set; }
+
+    public string Message { get; set; }
+}
+
+public class DownloadClientAllItemsResource
+{
+    public bool Success { get; set; }
+
+    public int Failed { get; set; }
+
+    public List<DownloadClientRemoteItem> Items { get; set; } = new();
+
+    public List<DownloadClientQueryFailureResource> Failures { get; set; } = new();
+}
+
 public class ImportRequest
 {
     [JsonPropertyName("infoHashes")]
