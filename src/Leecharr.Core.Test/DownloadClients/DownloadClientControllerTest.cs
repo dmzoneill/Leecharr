@@ -666,6 +666,72 @@ public class DownloadClientControllerTest
     }
 
     [Test]
+    public void Create_WhenHostIsWhitespace_ReturnsBadRequest()
+    {
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var resource = new DownloadClientResource
+        {
+            Name = "BlankHost",
+            ClientType = "qBittorrent",
+            Host = "   ",
+            Port = 8080,
+        };
+
+        var result = controller.Create(resource);
+
+        var badRequest = result.Result as BadRequestObjectResult;
+        badRequest.Should().NotBeNull();
+        badRequest!.Value.Should().Be("Host is required.");
+    }
+
+    [Test]
+    public void Create_WhenHostIsIpv6_ValidatesBracketedUrl()
+    {
+        this.repository.Insert(Arg.Any<DownloadClientDefinition>())
+            .Returns(callInfo => callInfo.Arg<DownloadClientDefinition>());
+
+        var safeClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new DownloadClientController(
+            this.repository,
+            this.torrentService,
+            safeHttpClientService: safeClient);
+
+        var resource = new DownloadClientResource
+        {
+            Name = "Ipv6Client",
+            ClientType = "qBittorrent",
+            Host = "2001:db8::10",
+            Port = 8080,
+        };
+
+        var result = controller.Create(resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        safeClient.Received(1).ValidateUrl("http://[2001:db8::10]:8080");
+    }
+
+    [Test]
+    public async Task TestDirect_WhenHostIsWhitespace_ReturnsHostRequiredMessage()
+    {
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var resource = new DownloadClientResource
+        {
+            Name = "BlankHost",
+            ClientType = "qBittorrent",
+            Host = "   ",
+            Port = 8080,
+        };
+
+        var result = await controller.TestDirect(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as DownloadClientTestResult;
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Be("Host is required.");
+    }
+
+    [Test]
     public void Update_WhenPasswordIsEmptyString_ClearsPassword()
     {
         var existing = new DownloadClientDefinition
