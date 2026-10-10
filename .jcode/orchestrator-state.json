@@ -12,7 +12,7 @@
   "worker_sessions": {
     "orangutan": "session_orangutan_1791648509926_3eed22ef250ebcb8",
     "hedgehog": "session_hedgehog_1791661527031_8f20d18055ecd5c9",
-    "skunk": "session_dolphin_1791669520820_b5665fc88e58f453",
+    "dolphin": "session_dolphin_1791669520820_b5665fc88e58f453",
     "raccoon": "session_raccoon_1791668274410_c894c57f48f90196",
     "flamingo": "session_flamingo_1791668275820_c6940b7fd011b8d0",
     "elephant": "session_elephant_1791648511096_4a041b64bef092e6",
@@ -21,7 +21,7 @@
   "in_progress": {
     "orangutan": null,
     "hedgehog": 1700,
-    "skunk": 1708,
+    "dolphin": 1708,
     "raccoon": 1707,
     "flamingo": 1705,
     "elephant": null,
@@ -30,7 +30,7 @@
   "issue_queue": [],
   "push_lock": {
     "agent": "hedgehog",
-    "session": "hedgehog",
+    "session": "session_hedgehog_1791661527031_8f20d18055ecd5c9",
     "issue": 1700,
     "tip": "5400394",
     "granted_at": "2026-10-10T21:53Z",
@@ -38,19 +38,19 @@
     "nudged_at": "2026-10-10T21:58Z"
   },
   "push_queue": [
-    {"agent": "skunk", "session": "skunk", "issue": 1708, "tip": "224bbef"},
-    {"agent": "raccoon", "session": "raccoon", "issue": 1707, "tip": "70dc843"},
-    {"agent": "flamingo", "session": "flamingo", "issue": 1705, "tip": "808de33"}
+    {"agent": "dolphin", "session": "session_dolphin_1791669520820_b5665fc88e58f453", "issue": 1708, "tip": "224bbef"},
+    {"agent": "raccoon", "session": "session_raccoon_1791668274410_c894c57f48f90196", "issue": 1707, "tip": "70dc843"},
+    {"agent": "flamingo", "session": "session_flamingo_1791668275820_c6940b7fd011b8d0", "issue": 1705, "tip": "808de33"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T21:59Z",
-  "next_scheduled_poll": "sched_0417cccb",
+  "last_poll": "2026-10-10T22:00Z",
+  "next_scheduled_poll": null,
   "ci_last": {
-    "sha": "57b2b28",
+    "sha": "f748b84",
     "cicd": "in_progress",
-    "run_id": 38089631127
+    "run_id": 38089691433
   },
-  "origin_main": "57b2b28",
+  "origin_main": "f748b84",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
