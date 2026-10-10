@@ -44,7 +44,7 @@
     {"agent": "flamingo", "session": "flamingo", "issue": 1705, "tip": "808de33"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T21:47Z",
+  "last_poll": "2026-10-10T21:49Z",
   "next_scheduled_poll": "sched_poll_v2",
   "ci_last": {
     "sha": "03361c4",
@@ -57,7 +57,10 @@
     "coordinator_only_state_file": true,
     "no_pr": true,
     "push_main_serial_fifo": true,
+    "push_main_only_no_remote_issue_branch": true,
     "workers_forbidden_paths": [".jcode/orchestrator-state.json"],
-    "strategy_doc": ".jcode/orchestrator-strategy-v2.md"
+    "strategy_doc": ".jcode/orchestrator-strategy-v2.md",
+    "swarm_prompt": ".jcode/swarm-prompt.md",
+    "remote_branch_cleanup": "2026-10-10T21:49Z merged+closed issue-* pruned"
   }
 }

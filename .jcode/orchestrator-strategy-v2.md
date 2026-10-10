@@ -12,6 +12,7 @@ Workers were prompted to track progress in `.jcode/orchestrator-state.json`. Fiv
 4. **No `run_plan` while manual spawn** — Pick one: light plan with fixed nodes, or coordinator `spawn` + `assign_task`. Mixing caused double-assign and stale Active nodes.
 5. **Truth from GitHub** — Coordinator reconciles issue `state=open|closed` and last commit on `main` each poll. Local JSON is cache, not authority.
 6. **Push policy** — Parallel push to `main` races. v2 default: one worker pushes at a time (coordinator grants `push_lock` in state), or workers push only after coordinator DM "push now".
+7. **Main-only remote** — Workers must **never** `git push origin issue-{n}` or create/update remote topic branches. Work locally on branch `issue-{n}` in the worktree only. On coordinator **push now**: `git fetch origin`, rebase onto `origin/main`, `git push origin main` (and only `main`), GitHub comment + close issue. After successful push, delete remote `issue-{n}` if it exists: `git push origin :issue-{n}` (coordinator may batch-delete stale branches).
 
 ## Coordinator loop (every 30–60s)
 
@@ -31,8 +32,9 @@ DO NOT edit /home/daoneill/src/usr/leecharr/.jcode/orchestrator-state.json
 DO NOT edit files outside your worktree
 Validate issue + comments; close with reason if invalid
 No local test/build; lint/format OK
-Push to main only when coordinator says push, OR after fix ready if solo mode
-On done: GitHub comment + close issue; swarm report DONE #{n}
+NEVER push origin issue-{n} or any remote branch except main
+Push origin main ONLY on coordinator DM push now (rebase origin/main first)
+On done: GitHub comment + close issue; swarm report DONE #{n}; delete remote issue-{n} if it exists
 ```
 
 ## Resume checklist
