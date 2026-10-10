@@ -25,7 +25,7 @@
     "raccoon": 1707,
     "flamingo": 1705,
     "elephant": 1704,
-    "kangaroo": 1701
+    "kangaroo": 1699
   },
   "issue_queue": [],
   "push_lock": {
@@ -34,22 +34,23 @@
     "issue": 1708,
     "tip": "6995b6f",
     "granted_at": "2026-10-10T22:06Z",
-    "status": "running"
+    "status": "running",
+    "nudge_at": "2026-10-10T22:07Z"
   },
   "push_queue": [
     {"agent": "raccoon", "session": "session_raccoon_1791668274410_c894c57f48f90196", "issue": 1707, "tip": "70dc843"},
     {"agent": "flamingo", "session": "session_flamingo_1791668275820_c6940b7fd011b8d0", "issue": 1705, "tip": "808de33"},
-    {"agent": "kangaroo", "session": "session_kangaroo_1791661462423_77d76bf2ebd0c419", "issue": 1701, "tip": "2d34a9e"}
+    {"agent": "orangutan", "session": "session_orangutan_1791648509926_3eed22ef250ebcb8", "issue": 1701, "tip": "c331133"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T22:06Z",
-  "next_scheduled_poll": "sched_poll_22_06",
+  "last_poll": "2026-10-10T22:07Z",
+  "next_scheduled_poll": "sched_poll_22_07",
   "ci_last": {
-    "sha": "6f1b996",
+    "sha": "ad6daf7",
     "cicd": "queued",
-    "run_id": 38090016327
+    "run_id": 38090067874
   },
-  "origin_main": "6f1b996",
+  "origin_main": "ad6daf7",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
@@ -64,6 +65,6 @@
   "notes": {
     "hedgehog_done_1700": "bc84bbf closed 22:04Z",
     "elephant_dup_1708": "STOP — dolphin FIFO",
-    "poll_22_06": "lock dolphin push #1708 tip 6995b6f"
+    "poll_22_07": "dolphin push #1708 nudge; orangutan owns #1701 queue; kangaroo -> #1699 refill"
   }
 }
