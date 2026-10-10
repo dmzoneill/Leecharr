@@ -28,6 +28,7 @@ public class IndexerController : Controller
     private const int FreeleechSearchMaxRounds = 10;
     private const int FreeleechSearchBatchLimitMulti = 100;
     private const int FreeleechSearchBatchLimitSingle = 250;
+    private static readonly TimeSpan ProwlarrProbeTimeout = TimeSpan.FromSeconds(15);
 
     private static readonly Regex MagnetBtihRegex = new(@"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -38,7 +39,6 @@ public class IndexerController : Controller
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ISafeHttpClientService safeHttpClientService;
-    private readonly HttpClient httpClient;
     private readonly IDownloadHistoryService downloadHistoryService;
     private readonly IIndexerStatusService indexerStatusService;
     private readonly ITorrentRepository torrentRepository;
@@ -52,7 +52,6 @@ public class IndexerController : Controller
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser,
         ISafeHttpClientService safeHttpClientService = null,
-        HttpClient httpClient = null,
         IDownloadHistoryService downloadHistoryService = null,
         IIndexerStatusService indexerStatusService = null,
         ITorrentRepository torrentRepository = null)
@@ -63,7 +62,6 @@ public class IndexerController : Controller
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         this.downloadHistoryService = downloadHistoryService;
         this.indexerStatusService = indexerStatusService ?? new IndexerStatusService();
         this.torrentRepository = torrentRepository;
@@ -951,6 +949,7 @@ public class IndexerController : Controller
 
         if (isProwlarr)
         {
+            using var httpClient = this.safeHttpClientService.CreateHttpClient(ProwlarrProbeTimeout);
             try
             {
                 var baseUri = CleanProwlarrBaseUrl(indexer.Url);
@@ -960,7 +959,7 @@ public class IndexerController : Controller
                     request.Headers.Add("X-Api-Key", indexer.ApiKey);
                 }
 
-                var response = await this.httpClient.SendAsync(request);
+                var response = await httpClient.SendAsync(request);
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
@@ -1002,7 +1001,7 @@ public class IndexerController : Controller
                     statusReq.Headers.Add("X-Api-Key", indexer.ApiKey);
                 }
 
-                var statusResp = await this.httpClient.SendAsync(statusReq);
+                var statusResp = await httpClient.SendAsync(statusReq);
                 if (statusResp.IsSuccessStatusCode)
                 {
                     if (indexer.Id > 0 && recordIndexerStatus)

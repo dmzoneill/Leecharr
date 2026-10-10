@@ -136,7 +136,9 @@ public class IndexerResourceSerializationAndTest
         var torrentParser = Substitute.For<ITorrentFileParser>();
 
         var safeHttpClient = Substitute.For<ISafeHttpClientService>();
-        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient, httpClient: httpClient);
+        safeHttpClient.CreateHttpClient(Arg.Any<TimeSpan>()).Returns(httpClient);
+        safeHttpClient.CreateHttpClient(Arg.Any<TimeSpan>(), Arg.Any<bool>()).Returns(httpClient);
+        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient);
 
         var resource = new IndexerResource
         {
@@ -178,6 +180,14 @@ public class IndexerResourceSerializationAndTest
 
         var httpClient = new HttpClient(mockHandler);
         var repo = Substitute.For<IIndexerRepository>();
+        repo.Get(7).Returns(new IndexerDefinition
+        {
+            Id = 7,
+            Name = "Prowlarr",
+            Url = "http://localhost:9696",
+            ApiKey = "bad-key",
+            Implementation = "Prowlarr",
+        });
         var torznabClient = Substitute.For<ITorznabClient>();
         var prowlarrSync = Substitute.For<IProwlarrSyncService>();
         var torrentService = Substitute.For<ITorrentService>();
@@ -185,6 +195,8 @@ public class IndexerResourceSerializationAndTest
         var indexerStatus = Substitute.For<IIndexerStatusService>();
 
         var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        safeHttpClient.CreateHttpClient(Arg.Any<TimeSpan>()).Returns(httpClient);
+        safeHttpClient.CreateHttpClient(Arg.Any<TimeSpan>(), Arg.Any<bool>()).Returns(httpClient);
         var controller = new IndexerController(
             repo,
             torznabClient,
@@ -192,7 +204,6 @@ public class IndexerResourceSerializationAndTest
             torrentService,
             torrentParser,
             safeHttpClientService: safeHttpClient,
-            httpClient: httpClient,
             indexerStatusService: indexerStatus);
 
         var resource = new IndexerResource
@@ -219,22 +230,6 @@ public class IndexerResourceSerializationAndTest
     [Test]
     public async Task TestDirectInternal_Torznab_CapsVerified()
     {
-        var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?><caps><server version=""1.0""/></caps>";
-
-        var mockHandler = new MockHttpMessageHandler(req =>
-        {
-            if (req.RequestUri!.Query.Contains("t=caps"))
-            {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(capsXml),
-                };
-            }
-
-            return new HttpResponseMessage(HttpStatusCode.NotFound);
-        });
-
-        var httpClient = new HttpClient(mockHandler);
         var repo = Substitute.For<IIndexerRepository>();
         var torznabClient = Substitute.For<ITorznabClient>();
         torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>(), Arg.Any<CancellationToken>())
@@ -244,7 +239,7 @@ public class IndexerResourceSerializationAndTest
         var torrentParser = Substitute.For<ITorrentFileParser>();
 
         var safeHttpClient = Substitute.For<ISafeHttpClientService>();
-        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient, httpClient: httpClient);
+        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient);
 
         var resource = new IndexerResource
         {
@@ -269,9 +264,6 @@ public class IndexerResourceSerializationAndTest
     [Test]
     public async Task TestDirectInternal_Torznab_CapsFails_FallsBackToSearch()
     {
-        var mockHandler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-
-        var httpClient = new HttpClient(mockHandler);
         var repo = Substitute.For<IIndexerRepository>();
         var torznabClient = Substitute.For<ITorznabClient>();
         torznabClient.TestConnectionAsync(Arg.Any<IndexerDefinition>(), Arg.Any<CancellationToken>())
@@ -284,7 +276,7 @@ public class IndexerResourceSerializationAndTest
         var torrentParser = Substitute.For<ITorrentFileParser>();
 
         var safeHttpClient = Substitute.For<ISafeHttpClientService>();
-        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient, httpClient: httpClient);
+        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient);
 
         var resource = new IndexerResource
         {
