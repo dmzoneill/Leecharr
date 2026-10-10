@@ -1,10 +1,12 @@
 {
   "repo": "dmzoneill/Leecharr",
   "base_path": "/home/daoneill/src/usr/leecharr",
-  "status": "running_v2",
+  "status": "halted",
   "resumed_at": "2026-10-10T16:10Z",
-  "drain_mode": false,
-  "refill_on_done": true,
+  "drain_mode": true,
+  "refill_on_done": false,
+  "halted_at": "2026-10-10T22:46Z",
+  "halt_reason": "drain for cursor-agent author rewrite + contributor fix",
   "target_agents": 5,
   "model": "composer-2.5-fast",
   "state_writer": "coordinator_only",
@@ -28,14 +30,7 @@
     "kangaroo": 1699
   },
   "issue_queue": [],
-  "push_lock": {
-    "agent": "flamingo",
-    "session": "session_flamingo_1791668275820_c6940b7fd011b8d0",
-    "issue": 1705,
-    "tip": "808de33",
-    "granted_at": "2026-10-10T22:17Z",
-    "status": "running"
-  },
+  "push_lock": null,
   "push_queue": [
     {
       "agent": "orangutan",
