@@ -1,38 +1,31 @@
 {
   "repo": "dmzoneill/Leecharr",
   "base_path": "/home/daoneill/src/usr/leecharr",
-  "status": "drain_complete_ci_fix",
-  "resumed_v2_at": "2026-10-09T12:28Z",
-  "drain_mode": true,
-  "refill_on_done": false,
+  "status": "running_v2",
+  "resumed_at": "2026-10-10T08:35Z",
+  "drain_mode": false,
+  "refill_on_done": true,
   "target_agents": 5,
   "model": "composer-2.5-fast",
   "state_writer": "coordinator_only",
-  "active_workers": 0,
-  "in_progress": {},
+  "active_workers": 5,
+  "in_progress": {
+    "moth-1736": 1736,
+    "beetle-1735": 1735,
+    "ant-1731": 1731,
+    "wasp-1730": 1730,
+    "hornet-1729": 1729
+  },
+  "issue_queue": [1728, 1727, 1726, 1725, 1724],
   "push_lock": null,
   "push_queue": [],
-  "drain_batch_issues": [1811, 1812, 1813, 1820, 1822],
-  "completed_issues_note": "see GitHub; batch landed through 9dd3f7c",
-  "schedule_poll_id": "sched_49b329bc",
-  "last_poll": "2026-10-09T13:57Z",
-  "last_validation": {
-    "at": "2026-10-09T13:57Z",
-    "checks": [
-      "github #1811 #1813 closed",
-      "origin/main 9dd3f7c",
-      "CICD 37939557038 failed CS0535 DynamicNetworkBindingProxy",
-      "coordinator fixing SwitchProviderAsync interface impl"
-    ]
-  },
-  "ci": {
-    "failed_run_id": 37939557038,
-    "error": "CS0535 INetworkBindingManager.SwitchProviderAsync(string)",
-    "fix": "public SwitchProviderAsync + private SwitchProviderWithGenerationAsync"
-  },
+  "last_poll": "2026-10-10T08:35Z",
+  "origin_main": "97c22c3",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
+    "no_pr": true,
+    "push_main_serial_fifo": true,
     "workers_forbidden_paths": [".jcode/orchestrator-state.json"],
     "strategy_doc": ".jcode/orchestrator-strategy-v2.md"
   }
