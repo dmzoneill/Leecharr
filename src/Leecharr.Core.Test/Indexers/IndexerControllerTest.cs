@@ -1528,8 +1528,8 @@ public class IndexerControllerTest
         var merged = envelope.Results[0];
         merged.Seeders.Should().Be(35);
         merged.Leechers.Should().Be(12);
-        merged.DownloadVolumeFactor.Should().Be(0.0);
-        merged.IsFreeleech.Should().BeTrue();
+        merged.DownloadVolumeFactor.Should().Be(1.0);
+        merged.IsFreeleech.Should().BeFalse();
         merged.DownloadUrl.Should().Be("http://t1/download/1");
         merged.MagnetUrl.Should().Be("magnet:?xt=urn:btih:482e9495c37890123456789abcdef0123456789a&dn=Linux");
         merged.Comments.Should().Be("https://tracker1.org/comments/1");
@@ -1665,6 +1665,43 @@ public class IndexerControllerTest
         result.Should().HaveCount(1);
         result[0].Seeders.Should().Be(30);
         result[0].IsFreeleech.Should().BeTrue();
+    }
+
+    [Test]
+    public void DeduplicateReleases_KeepsDownloadVolumeFactorFromDownloadUrlSource()
+    {
+        const string hash = "482e9495c37890123456789abcdef0123456789a";
+        var releases = new List<ReleaseInfoResource>
+        {
+            new()
+            {
+                Title = "Linux.Distro.2024.1080p",
+                Size = 5000000,
+                Seeders = 100,
+                Leechers = 5,
+                DownloadVolumeFactor = 1.0,
+                DownloadUrl = "http://t1/download/paid",
+                InfoHash = hash,
+            },
+            new()
+            {
+                Title = "Linux Distro 2024",
+                Size = 5000000,
+                Seeders = 10,
+                Leechers = 2,
+                DownloadVolumeFactor = 0.0,
+                DownloadUrl = "http://t2/download/free",
+                InfoHash = hash,
+            },
+        };
+
+        var result = IndexerController.DeduplicateReleases(releases);
+
+        result.Should().HaveCount(1);
+        result[0].Seeders.Should().Be(100);
+        result[0].DownloadUrl.Should().Be("http://t1/download/paid");
+        result[0].DownloadVolumeFactor.Should().Be(1.0);
+        result[0].IsFreeleech.Should().BeFalse();
     }
 
     [Test]

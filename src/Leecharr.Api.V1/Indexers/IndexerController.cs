@@ -1363,11 +1363,15 @@ public class IndexerController : Controller
 
             primary.Seeders = group.Max(r => r.Seeders);
             primary.Leechers = group.Max(r => r.Leechers);
-            primary.DownloadVolumeFactor = group.Min(r => r.DownloadVolumeFactor);
 
             if (string.IsNullOrWhiteSpace(primary.DownloadUrl))
             {
-                primary.DownloadUrl = group.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.DownloadUrl))?.DownloadUrl;
+                var downloadDonor = group.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.DownloadUrl));
+                if (downloadDonor != null)
+                {
+                    primary.DownloadUrl = downloadDonor.DownloadUrl;
+                    primary.DownloadVolumeFactor = downloadDonor.DownloadVolumeFactor;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(primary.MagnetUrl))
