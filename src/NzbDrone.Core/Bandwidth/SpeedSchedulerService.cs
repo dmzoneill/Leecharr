@@ -145,9 +145,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                 {
                     if (this.wasPausedByScheduler)
                     {
-                        this.wasPausedByScheduler = false;
                         var toResume = this.schedulerPausedTorrentIds.ToList();
-                        this.schedulerPausedTorrentIds.Clear();
 
                         foreach (var torrentId in toResume)
                         {
@@ -157,21 +155,24 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                                 if (torrent == null)
                                 {
                                     this.logger.Info("Skipping scheduler resume for torrent {0}: torrent was deleted", torrentId);
+                                    this.schedulerPausedTorrentIds.Remove(torrentId);
                                     continue;
                                 }
 
                                 if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Completed or TorrentStatus.QueuedForChecking)
                                 {
                                     this.logger.Info("Skipping scheduler resume for torrent {0}: database status is {1}", torrentId, torrent.Status);
+                                    this.schedulerPausedTorrentIds.Remove(torrentId);
                                     continue;
                                 }
                             }
                             else
                             {
                                 var taskCheck = this.downloadEngine.GetTask(torrentId);
-                                if (taskCheck != null && taskCheck.Status is TorrentStatus.Paused or TorrentStatus.Queued or TorrentStatus.QueuedForChecking)
+                                if (taskCheck != null && taskCheck.Status is TorrentStatus.Queued or TorrentStatus.QueuedForChecking)
                                 {
                                     this.logger.Info("Skipping scheduler resume for torrent {0}: task status is {1}", torrentId, taskCheck.Status);
+                                    this.schedulerPausedTorrentIds.Remove(torrentId);
                                     continue;
                                 }
                             }
@@ -180,6 +181,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                             if (task != null && task.Status is TorrentStatus.Stopped or TorrentStatus.Completed or TorrentStatus.Queued or TorrentStatus.QueuedForChecking)
                             {
                                 this.logger.Info("Skipping scheduler resume for torrent {0}: task status is {1}", torrentId, task.Status);
+                                this.schedulerPausedTorrentIds.Remove(torrentId);
                                 continue;
                             }
 
@@ -190,7 +192,22 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                             catch (Exception ex)
                             {
                                 this.logger.Warn(ex, "Failed to resume torrent {0} after scheduler pause", torrentId);
+                                continue;
                             }
+
+                            if (this.SchedulerResumeSucceeded(torrentId))
+                            {
+                                this.schedulerPausedTorrentIds.Remove(torrentId);
+                            }
+                            else
+                            {
+                                this.logger.Debug("Scheduler resume for torrent {0} was refused; will retry on next apply", torrentId);
+                            }
+                        }
+
+                        if (this.schedulerPausedTorrentIds.Count == 0)
+                        {
+                            this.wasPausedByScheduler = false;
                         }
 
                         if (this.queueManagerService != null)
@@ -412,6 +429,17 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     public void Dispose()
     {
         this.timer?.Dispose();
+    }
+
+    private bool SchedulerResumeSucceeded(int torrentId)
+    {
+        var task = this.downloadEngine.GetTask(torrentId);
+        if (task == null)
+        {
+            return true;
+        }
+
+        return task.Status is not (TorrentStatus.Paused or TorrentStatus.Queued or TorrentStatus.QueuedForChecking);
     }
 
     private bool IsConfigDayActive(DayOfWeek day)
