@@ -737,6 +737,25 @@ export interface DownloadClientRemoteItem {
   isPrivate?: boolean;
 }
 
+export interface DownloadClientQueryFailure {
+  clientId: number;
+  clientName: string;
+  message: string;
+}
+
+export interface DownloadClientAllItemsResponse {
+  success: boolean;
+  failed: number;
+  items: DownloadClientRemoteItem[];
+  failures: DownloadClientQueryFailure[];
+}
+
+export interface DownloadClientItemsQueryData {
+  items: DownloadClientRemoteItem[];
+  queryFailures?: DownloadClientQueryFailure[];
+  querySuccess?: boolean;
+}
+
 export interface BatchImportItemResult {
   infoHash: string;
   title: string;

@@ -201,18 +201,30 @@ public class DownloadClientController : Controller
     }
 
     [HttpGet("items")]
-    public async Task<ActionResult<List<DownloadClientRemoteItem>>> GetAllItems()
+    public async Task<ActionResult<DownloadClientAllItemsResource>> GetAllItems()
     {
         var clients = this.repository.GetEnabled().ToList();
         var allItems = new List<DownloadClientRemoteItem>();
+        var failures = new List<DownloadClientQueryFailureResource>();
         var http = this.GetHttpClient();
 
         foreach (var client in clients)
         {
             try
             {
-                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService);
-                foreach (var item in items)
+                var queryResult = await DownloadClientRemoteQuery.QueryRemoteClientItemsDetailedAsync(client, http, this.safeHttpClientService);
+                if (!queryResult.IsSuccess)
+                {
+                    failures.Add(new DownloadClientQueryFailureResource
+                    {
+                        ClientId = client.Id,
+                        ClientName = client.Name,
+                        Message = queryResult.ErrorMessage,
+                    });
+                    continue;
+                }
+
+                foreach (var item in queryResult.Items)
                 {
                     item.ClientId = client.Id;
                     item.ClientName = client.Name;
@@ -232,10 +244,22 @@ public class DownloadClientController : Controller
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to query items for client {0}", client.Name);
+                failures.Add(new DownloadClientQueryFailureResource
+                {
+                    ClientId = client.Id,
+                    ClientName = client.Name,
+                    Message = ex.Message,
+                });
             }
         }
 
-        return this.Ok(allItems);
+        return this.Ok(new DownloadClientAllItemsResource
+        {
+            Success = failures.Count == 0,
+            Failed = failures.Count,
+            Items = allItems,
+            Failures = failures,
+        });
     }
 
     [HttpGet("{id:int}/items")]
