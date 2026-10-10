@@ -160,7 +160,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                                     continue;
                                 }
 
-                                if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed)
+                                if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Completed or TorrentStatus.QueuedForChecking)
                                 {
                                     this.logger.Info("Skipping scheduler resume for torrent {0}: database status is {1}", torrentId, torrent.Status);
                                     continue;
@@ -169,15 +169,15 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                             else
                             {
                                 var taskCheck = this.downloadEngine.GetTask(torrentId);
-                                if (taskCheck != null && taskCheck.Status is TorrentStatus.Paused)
+                                if (taskCheck != null && taskCheck.Status is TorrentStatus.Paused or TorrentStatus.Queued or TorrentStatus.QueuedForChecking)
                                 {
-                                    this.logger.Info("Skipping scheduler resume for torrent {0}: task status is Paused", torrentId);
+                                    this.logger.Info("Skipping scheduler resume for torrent {0}: task status is {1}", torrentId, taskCheck.Status);
                                     continue;
                                 }
                             }
 
                             var task = this.downloadEngine.GetTask(torrentId);
-                            if (task != null && task.Status is TorrentStatus.Stopped or TorrentStatus.Completed)
+                            if (task != null && task.Status is TorrentStatus.Stopped or TorrentStatus.Completed or TorrentStatus.Queued or TorrentStatus.QueuedForChecking)
                             {
                                 this.logger.Info("Skipping scheduler resume for torrent {0}: task status is {1}", torrentId, task.Status);
                                 continue;
