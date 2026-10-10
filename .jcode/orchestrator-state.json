@@ -25,7 +25,7 @@
     "raccoon": 1707,
     "flamingo": 1705,
     "elephant": 1704,
-    "kangaroo": null
+    "kangaroo": 1701
   },
   "issue_queue": [],
   "push_lock": {
@@ -40,17 +40,18 @@
   "push_queue": [
     {"agent": "dolphin", "session": "session_dolphin_1791669520820_b5665fc88e58f453", "issue": 1708, "tip": "224bbef"},
     {"agent": "raccoon", "session": "session_raccoon_1791668274410_c894c57f48f90196", "issue": 1707, "tip": "70dc843"},
-    {"agent": "flamingo", "session": "session_flamingo_1791668275820_c6940b7fd011b8d0", "issue": 1705, "tip": "808de33"}
+    {"agent": "flamingo", "session": "session_flamingo_1791668275820_c6940b7fd011b8d0", "issue": 1705, "tip": "808de33"},
+    {"agent": "kangaroo", "session": "session_kangaroo_1791661462423_77d76bf2ebd0c419", "issue": 1701, "tip": "2d34a9e"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T22:04Z",
-  "next_scheduled_poll": "sched_poll_22_04",
+  "last_poll": "2026-10-10T22:05Z",
+  "next_scheduled_poll": "sched_poll_22_05",
   "ci_last": {
-    "sha": "74358cf",
-    "cicd": "in_progress",
-    "run_id": 38089899234
+    "sha": "bc84bbf",
+    "cicd": "queued",
+    "run_id": 38089984788
   },
-  "origin_main": "74358cf",
+  "origin_main": "bc84bbf",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
@@ -63,6 +64,7 @@
     "remote_branch_cleanup": "2026-10-10T21:49Z merged+closed issue-* pruned"
   },
   "notes": {
-    "elephant_dm_22_02": "dup START #1708 — redirected #1704"
+    "elephant_dm_22_02": "dup START #1708 — redirected #1704",
+    "poll_22_05": "kangaroo #1701 queued 4th; elephant #1708 dup standby; deleted origin/issue-1708"
   }
 }
