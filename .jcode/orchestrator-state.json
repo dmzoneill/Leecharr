@@ -35,7 +35,7 @@
     "tip": "6995b6f",
     "granted_at": "2026-10-10T22:06Z",
     "status": "running",
-    "nudge_at": "2026-10-10T22:07Z"
+    "nudge_at": "2026-10-10T22:08Z"
   },
   "push_queue": [
     {"agent": "raccoon", "session": "session_raccoon_1791668274410_c894c57f48f90196", "issue": 1707, "tip": "70dc843"},
@@ -43,14 +43,14 @@
     {"agent": "orangutan", "session": "session_orangutan_1791648509926_3eed22ef250ebcb8", "issue": 1701, "tip": "c331133"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T22:07Z",
-  "next_scheduled_poll": "sched_poll_22_07",
+  "last_poll": "2026-10-10T22:08Z",
+  "next_scheduled_poll": "sched_poll_22_08",
   "ci_last": {
-    "sha": "ad6daf7",
-    "cicd": "queued",
-    "run_id": 38090067874
+    "sha": "f502782",
+    "cicd": "pending",
+    "run_id": 38090121007
   },
-  "origin_main": "ad6daf7",
+  "origin_main": "f502782",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
@@ -65,6 +65,6 @@
   "notes": {
     "hedgehog_done_1700": "bc84bbf closed 22:04Z",
     "elephant_dup_1708": "STOP — dolphin FIFO",
-    "poll_22_07": "dolphin push #1708 nudge; orangutan owns #1701 queue; kangaroo -> #1699 refill"
+    "poll_22_08": "dolphin push #1708 nudge idle; elephant STOP dup; raccoon START #1707"
   }
 }
