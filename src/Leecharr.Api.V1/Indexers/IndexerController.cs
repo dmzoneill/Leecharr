@@ -967,7 +967,12 @@ public class IndexerController : Controller
                     try
                     {
                         var indexers = JsonSerializer.Deserialize<List<JsonElement>>(json);
-                        var count = indexers?.Count ?? 0;
+                        if (indexers == null)
+                        {
+                            throw new JsonException("Expected a JSON array of indexers.");
+                        }
+
+                        var count = indexers.Count;
                         if (indexer.Id > 0 && recordIndexerStatus)
                         {
                             this.indexerStatusService?.RecordSuccess(indexer.Id);
@@ -980,53 +985,33 @@ public class IndexerController : Controller
                             ResponseTimeMs = sw.ElapsedMilliseconds,
                         });
                     }
-                    catch
+                    catch (JsonException)
                     {
+                        const string invalidResponseMessage = "Prowlarr indexer list did not return a valid JSON array.";
                         if (indexer.Id > 0 && recordIndexerStatus)
                         {
-                            this.indexerStatusService?.RecordSuccess(indexer.Id);
+                            this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: invalidResponseMessage);
                         }
 
                         return this.Ok(new IndexerTestResult
                         {
-                            Success = true,
-                            Message = "Connected successfully to Prowlarr.",
+                            Success = false,
+                            Message = invalidResponseMessage,
                             ResponseTimeMs = sw.ElapsedMilliseconds,
                         });
                     }
                 }
 
-                using var statusReq = new HttpRequestMessage(HttpMethod.Get, $"{baseUri}/api/v1/system/status"); // NOSONAR
-                if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
-                {
-                    statusReq.Headers.Add("X-Api-Key", indexer.ApiKey);
-                }
-
-                var statusResp = await this.httpClient.SendAsync(statusReq);
-                if (statusResp.IsSuccessStatusCode)
-                {
-                    if (indexer.Id > 0 && recordIndexerStatus)
-                    {
-                        this.indexerStatusService?.RecordSuccess(indexer.Id);
-                    }
-
-                    return this.Ok(new IndexerTestResult
-                    {
-                        Success = true,
-                        Message = "Connected successfully to Prowlarr.",
-                        ResponseTimeMs = sw.ElapsedMilliseconds,
-                    });
-                }
-
+                var indexerStatusCode = (int)response.StatusCode;
                 if (indexer.Id > 0 && recordIndexerStatus)
                 {
-                    this.indexerStatusService?.RecordFailure(indexer.Id, (int)statusResp.StatusCode, $"Prowlarr returned HTTP {(int)statusResp.StatusCode}");
+                    this.indexerStatusService?.RecordFailure(indexer.Id, indexerStatusCode, $"Prowlarr returned HTTP {indexerStatusCode}");
                 }
 
                 return this.Ok(new IndexerTestResult
                 {
                     Success = false,
-                    Message = $"Prowlarr returned HTTP {(int)statusResp.StatusCode} {statusResp.StatusCode}.",
+                    Message = $"Prowlarr returned HTTP {indexerStatusCode} {response.StatusCode}.",
                     ResponseTimeMs = sw.ElapsedMilliseconds,
                 });
             }

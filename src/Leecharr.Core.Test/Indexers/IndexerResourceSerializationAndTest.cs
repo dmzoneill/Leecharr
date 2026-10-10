@@ -130,6 +130,14 @@ public class IndexerResourceSerializationAndTest
 
         var httpClient = new HttpClient(mockHandler);
         var repo = Substitute.For<IIndexerRepository>();
+        repo.Get(7).Returns(new IndexerDefinition
+        {
+            Id = 7,
+            Name = "Prowlarr",
+            Url = "http://localhost:9696",
+            ApiKey = "bad-key",
+            Implementation = "Prowlarr",
+        });
         var torznabClient = Substitute.For<ITorznabClient>();
         var prowlarrSync = Substitute.For<IProwlarrSyncService>();
         var torrentService = Substitute.For<ITorrentService>();
@@ -159,16 +167,11 @@ public class IndexerResourceSerializationAndTest
     }
 
     [Test]
-    public async Task TestDirectInternal_Prowlarr_WhenBothProbesFail_ReportsSystemStatusCode()
+    public async Task TestDirectInternal_Prowlarr_WhenIndexerProbeFails_ReportsIndexerStatusCode()
     {
         var mockHandler = new MockHttpMessageHandler(req =>
         {
             if (req.RequestUri!.AbsolutePath.Contains("/api/v1/indexer"))
-            {
-                return new HttpResponseMessage(HttpStatusCode.NotFound);
-            }
-
-            if (req.RequestUri!.AbsolutePath.Contains("/api/v1/system/status"))
             {
                 return new HttpResponseMessage(HttpStatusCode.Unauthorized);
             }
@@ -178,6 +181,14 @@ public class IndexerResourceSerializationAndTest
 
         var httpClient = new HttpClient(mockHandler);
         var repo = Substitute.For<IIndexerRepository>();
+        repo.Get(7).Returns(new IndexerDefinition
+        {
+            Id = 7,
+            Name = "Prowlarr",
+            Url = "http://localhost:9696",
+            ApiKey = "bad-key",
+            Implementation = "Prowlarr",
+        });
         var torznabClient = Substitute.For<ITorznabClient>();
         var prowlarrSync = Substitute.For<IProwlarrSyncService>();
         var torrentService = Substitute.For<ITorrentService>();
@@ -212,8 +223,140 @@ public class IndexerResourceSerializationAndTest
         testResult.Should().NotBeNull();
         testResult!.Success.Should().BeFalse();
         testResult.Message.Should().Contain("HTTP 401");
-        testResult.Message.Should().NotContain("HTTP 404");
         indexerStatus.Received(1).RecordFailure(7, 401, Arg.Any<string>(), Arg.Any<Exception>());
+    }
+
+    [Test]
+    public async Task TestDirectInternal_Prowlarr_WhenIndexerListIsNotJsonArray_FailsWithoutRecordingSuccess()
+    {
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v1/indexer"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("<html><body>Login</body></html>"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        var httpClient = new HttpClient(mockHandler);
+        var repo = Substitute.For<IIndexerRepository>();
+        repo.Get(9).Returns(new IndexerDefinition
+        {
+            Id = 9,
+            Name = "Prowlarr",
+            Url = "http://localhost:9696",
+            ApiKey = "test-key",
+            Implementation = "Prowlarr",
+        });
+        var torznabClient = Substitute.For<ITorznabClient>();
+        var prowlarrSync = Substitute.For<IProwlarrSyncService>();
+        var torrentService = Substitute.For<ITorrentService>();
+        var torrentParser = Substitute.For<ITorrentFileParser>();
+        var indexerStatus = Substitute.For<IIndexerStatusService>();
+
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new IndexerController(
+            repo,
+            torznabClient,
+            prowlarrSync,
+            torrentService,
+            torrentParser,
+            safeHttpClientService: safeHttpClient,
+            httpClient: httpClient,
+            indexerStatusService: indexerStatus);
+
+        var resource = new IndexerResource
+        {
+            Id = 9,
+            Name = "Prowlarr",
+            Url = "http://localhost:9696",
+            ApiKey = "test-key",
+            Implementation = "Prowlarr",
+        };
+
+        var actionResult = await controller.TestDirect(resource);
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var testResult = okResult!.Value as IndexerTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("valid JSON array");
+        indexerStatus.Received(1).RecordFailure(9, Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<Exception>());
+        indexerStatus.DidNotReceive().RecordSuccess(9);
+    }
+
+    [Test]
+    public async Task TestDirectInternal_Prowlarr_WhenIndexerProbeFails_DoesNotTreatSystemStatusAsHealthy()
+    {
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v1/indexer"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v1/system/status"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(@"{ ""version"": ""1.0.0"" }"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var httpClient = new HttpClient(mockHandler);
+        var repo = Substitute.For<IIndexerRepository>();
+        repo.Get(10).Returns(new IndexerDefinition
+        {
+            Id = 10,
+            Name = "Prowlarr",
+            Url = "http://localhost:9696",
+            ApiKey = "test-key",
+            Implementation = "Prowlarr",
+        });
+        var torznabClient = Substitute.For<ITorznabClient>();
+        var prowlarrSync = Substitute.For<IProwlarrSyncService>();
+        var torrentService = Substitute.For<ITorrentService>();
+        var torrentParser = Substitute.For<ITorrentFileParser>();
+        var indexerStatus = Substitute.For<IIndexerStatusService>();
+
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new IndexerController(
+            repo,
+            torznabClient,
+            prowlarrSync,
+            torrentService,
+            torrentParser,
+            safeHttpClientService: safeHttpClient,
+            httpClient: httpClient,
+            indexerStatusService: indexerStatus);
+
+        var resource = new IndexerResource
+        {
+            Id = 10,
+            Name = "Prowlarr",
+            Url = "http://localhost:9696",
+            ApiKey = "test-key",
+            Implementation = "Prowlarr",
+        };
+
+        var actionResult = await controller.TestDirect(resource);
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var testResult = okResult!.Value as IndexerTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("HTTP 404");
+        indexerStatus.Received(1).RecordFailure(10, 404, Arg.Any<string>(), Arg.Any<Exception>());
+        indexerStatus.DidNotReceive().RecordSuccess(10);
     }
 
     [Test]
