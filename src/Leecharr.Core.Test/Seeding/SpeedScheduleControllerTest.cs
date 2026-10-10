@@ -184,6 +184,32 @@ public class SpeedScheduleControllerTest
 
         var invalidResult = await this.controller.Create(invalidTimeResource);
         invalidResult.Result.Should().BeOfType<BadRequestObjectResult>();
+
+        var nullStartResource = new SpeedScheduleResource
+        {
+            Name = "Null Start",
+            Days = 127,
+            StartTime = null,
+            EndTime = "23:59:59",
+            MaxDownloadSpeed = 1000,
+            MaxUploadSpeed = 500,
+        };
+
+        var nullStartResult = await this.controller.Create(nullStartResource);
+        nullStartResult.Result.Should().BeOfType<BadRequestObjectResult>();
+
+        var nullEndResource = new SpeedScheduleResource
+        {
+            Name = "Null End",
+            Days = 127,
+            StartTime = "00:00:00",
+            EndTime = null,
+            MaxDownloadSpeed = 1000,
+            MaxUploadSpeed = 500,
+        };
+
+        var nullEndResult = await this.controller.Create(nullEndResource);
+        nullEndResult.Result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Test]

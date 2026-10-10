@@ -286,8 +286,8 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         var activeSchedules = this.repository.GetEnabled()
             .Where(s =>
             {
-                if (!TimeOnly.TryParse(s.StartTime, CultureInfo.InvariantCulture, out var startTime) ||
-                    !TimeOnly.TryParse(s.EndTime, CultureInfo.InvariantCulture, out var endTime))
+                if (!SpeedScheduleTimeParser.TryParse(s.StartTime, out var startTime) ||
+                    !SpeedScheduleTimeParser.TryParse(s.EndTime, out var endTime))
                 {
                     return false;
                 }
