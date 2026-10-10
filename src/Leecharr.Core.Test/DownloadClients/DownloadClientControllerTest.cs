@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -844,6 +845,88 @@ public class DownloadClientControllerTest
     }
 
     [Test]
+    public async Task TestDirect_WhenHttpClientHasLongTimeout_CancelsWithinFiveSeconds()
+    {
+        var handler = new DelayingHttpMessageHandler(TimeSpan.FromSeconds(30));
+        using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(100) };
+        var controller = new DownloadClientController(this.repository, this.torrentService, http);
+
+        var resource = new DownloadClientResource
+        {
+            Name = "SlowHost",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+        };
+
+        var sw = Stopwatch.StartNew();
+        var actionResult = await controller.TestDirect(resource);
+        sw.Stop();
+
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(8));
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as DownloadClientTestResult;
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("Failed to connect");
+    }
+
+    [Test]
+    public async Task TestDirect_WhenHttpClientFactoryInjected_DoesNotUseFactoryClient()
+    {
+        var factory = Substitute.For<IHttpClientFactory>();
+        var factoryClient = new HttpClient(new DelayingHttpMessageHandler(TimeSpan.FromSeconds(30)))
+        {
+            Timeout = TimeSpan.FromSeconds(100),
+        };
+        factory.CreateClient().Returns(factoryClient);
+        factory.CreateClient(Arg.Any<string>()).Returns(factoryClient);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient: null, httpClientFactory: factory);
+
+        var resource = new DownloadClientResource
+        {
+            Name = "FactoryIgnored",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+        };
+
+        var sw = Stopwatch.StartNew();
+        await controller.TestDirect(resource);
+        sw.Stop();
+
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(8));
+        factory.DidNotReceive().CreateClient(Arg.Any<string>());
+        factory.DidNotReceive().CreateClient();
+    }
+
+    [Test]
+    public async Task GetAllItems_WhenHttpClientFactoryInjected_DoesNotUseSharedFactoryClient()
+    {
+        var factory = Substitute.For<IHttpClientFactory>();
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient: null, httpClientFactory: factory);
+
+        this.repository.GetEnabled().Returns(new List<DownloadClientDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Client1",
+                ClientType = "Unknown",
+                Host = "127.0.0.1",
+                Port = 8080,
+                Enable = true,
+            },
+        });
+
+        await controller.GetAllItems();
+
+        factory.DidNotReceive().CreateClient(Arg.Any<string>());
+        factory.DidNotReceive().CreateClient();
+    }
+
+    [Test]
     public async Task GetAllItems_WhenSafeHttpClientServiceInjected_CreatesSafeHttpClientForRemoteQuery()
     {
         var safeClient = Substitute.For<ISafeHttpClientService>();
@@ -900,6 +983,22 @@ public class DownloadClientControllerTest
         var testResult = okResult!.Value as DownloadClientTestResult;
         testResult!.Success.Should().BeTrue();
         safeClient.Received(1).CreateHttpClient(Arg.Any<TimeSpan>(), true);
+    }
+
+    private class DelayingHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly TimeSpan delay;
+
+        public DelayingHttpMessageHandler(TimeSpan delay)
+        {
+            this.delay = delay;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(this.delay, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
