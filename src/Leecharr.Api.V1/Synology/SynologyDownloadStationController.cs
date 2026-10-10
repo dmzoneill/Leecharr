@@ -206,13 +206,22 @@ public class SynologyDownloadStationController : ControllerBase
 
         if (string.Equals(api, "SYNO.FileStation.List", StringComparison.OrdinalIgnoreCase))
         {
+            var downloadPath = string.IsNullOrWhiteSpace(this.configService.DownloadDir)
+                ? "/downloads"
+                : this.configService.DownloadDir;
+            var shareName = Path.GetFileName(downloadPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (string.IsNullOrWhiteSpace(shareName))
+            {
+                shareName = "downloads";
+            }
+
             return this.Ok(new
             {
                 data = new
                 {
                     shares = new[]
                     {
-                        new { name = "downloads", path = "/downloads" }
+                        new { name = shareName, path = downloadPath }
                     },
                 },
                 success = true,
