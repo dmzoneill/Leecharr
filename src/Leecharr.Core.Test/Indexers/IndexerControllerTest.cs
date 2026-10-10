@@ -675,10 +675,47 @@ public class IndexerControllerTest
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)actionResult.Result!;
-        var results = (List<ReleaseInfoResource>)okResult.Value!;
+        var envelope = (IndexerSearchEnvelope)okResult.Value!;
 
-        results.Should().HaveCount(1);
-        results[0].Title.Should().Be("Fast Result");
+        envelope.Should().HaveCount(1);
+        envelope[0].Title.Should().Be("Fast Result");
+        envelope.Errors.Should().ContainSingle(e => e.Contains("FailingTracker") && e.Contains("Indexer connection timeout"));
+    }
+
+    [Test]
+    public async Task ExecuteSearch_IndexerErrorWithNewlines_ReturnsOkAndSanitizesHeaderValue()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "Good", Enable = true, EnableSearch = true, Url = "http://good" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "Bad", Enable = true, EnableSearch = true, Url = "http://bad" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(
+            indexer1,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Result", Seeders = 10, DownloadUrl = "http://dl" },
+            }));
+
+        this.torznabClient.SearchAsync(
+            indexer2,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromException<List<TorznabSearchResult>>(new TorznabException(401, "Denied\nRetry later")));
+
+        this.controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext(),
+        };
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test" });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var envelope = (IndexerSearchEnvelope)((OkObjectResult)actionResult.Result!).Value!;
+        envelope.Should().HaveCount(1);
+        envelope.Errors.Should().ContainSingle(e => e.Contains("Bad:") && e.Contains("Denied\nRetry later"));
+        this.controller.Response.Headers["X-Leecharr-Indexer-Errors"].ToString().Should().NotContain("\n");
     }
 
     [TestCase("movies", 2000)]

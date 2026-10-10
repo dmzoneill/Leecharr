@@ -280,6 +280,9 @@ public class IndexerSearchEnvelope : List<ReleaseInfoResource>
     [JsonPropertyName("total")]
     public int Total { get; set; }
 
+    [JsonPropertyName("errors")]
+    public List<string> Errors { get; set; }
+
     [JsonPropertyName("results")]
     public List<ReleaseInfoResource> Results => this;
 
@@ -336,6 +339,15 @@ public class IndexerSearchEnvelopeConverter : JsonConverter<IndexerSearchEnvelop
             }
         }
 
+        if (root.TryGetProperty("errors", out var errorsProp) && errorsProp.ValueKind == JsonValueKind.Array)
+        {
+            var errors = JsonSerializer.Deserialize<List<string>>(errorsProp.GetRawText(), options);
+            if (errors != null && errors.Count > 0)
+            {
+                envelope.Errors = errors;
+            }
+        }
+
         return envelope;
     }
 
@@ -345,6 +357,12 @@ public class IndexerSearchEnvelopeConverter : JsonConverter<IndexerSearchEnvelop
         writer.WriteNumber("page", value.Page);
         writer.WriteNumber("limit", value.Limit);
         writer.WriteNumber("total", value.Total);
+        if (value.Errors is { Count: > 0 } errors)
+        {
+            writer.WritePropertyName("errors");
+            JsonSerializer.Serialize(writer, errors, options);
+        }
+
         writer.WritePropertyName("results");
         writer.WriteStartArray();
         foreach (var item in value)

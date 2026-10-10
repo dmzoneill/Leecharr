@@ -638,9 +638,10 @@ public class IndexerController : Controller
             }
         }
 
-        if (this.Response?.Headers != null && !searchErrors.IsEmpty)
+        var indexerErrorList = searchErrors.IsEmpty ? null : searchErrors.ToList();
+        if (this.Response?.Headers != null && indexerErrorList is { Count: > 0 })
         {
-            this.Response.Headers["X-Leecharr-Indexer-Errors"] = string.Join("; ", searchErrors);
+            this.Response.Headers["X-Leecharr-Indexer-Errors"] = FormatIndexerSearchErrorsForHeader(indexerErrorList);
         }
 
         var deduplicatedResults = DeduplicateReleases(allResults);
@@ -679,6 +680,7 @@ public class IndexerController : Controller
             Page = currentPage,
             Limit = effectiveLimit,
             Total = totalCount,
+            Errors = indexerErrorList,
         };
 
         return this.Ok(envelope);
@@ -1320,6 +1322,21 @@ public class IndexerController : Controller
         }
 
         return downloadUri.Port == indexerUri.Port;
+    }
+
+    internal static string FormatIndexerSearchErrorsForHeader(IEnumerable<string> errors)
+    {
+        return string.Join("; ", errors.Select(SanitizeIndexerErrorForHeader));
+    }
+
+    internal static string SanitizeIndexerErrorForHeader(string error)
+    {
+        if (string.IsNullOrEmpty(error))
+        {
+            return error;
+        }
+
+        return error.Replace('\r', ' ').Replace('\n', ' ');
     }
 
     internal static List<ReleaseInfoResource> DeduplicateReleases(IEnumerable<ReleaseInfoResource> releases)
