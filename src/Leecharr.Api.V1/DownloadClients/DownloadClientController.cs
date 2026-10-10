@@ -97,6 +97,10 @@ public class DownloadClientController : Controller
         {
             return this.BadRequest($"SSRF blocked: {ex.Message}");
         }
+        catch (ArgumentException ex)
+        {
+            return this.BadRequest(ex.Message);
+        }
 
         var model = this.ToModel(resource);
         var created = this.repository.Insert(model);
@@ -134,6 +138,10 @@ public class DownloadClientController : Controller
         catch (SecurityException ex)
         {
             return this.BadRequest($"SSRF blocked: {ex.Message}");
+        }
+        catch (ArgumentException ex)
+        {
+            return this.BadRequest(ex.Message);
         }
 
         var model = this.ToModel(resource);
@@ -604,15 +612,36 @@ public class DownloadClientController : Controller
         return this.httpClient;
     }
 
+    private static string FormatHostForUriAuthority(string host)
+    {
+        var trimmed = host.Trim();
+        if (trimmed.Length >= 2 && trimmed[0] == '[' && trimmed[^1] == ']')
+        {
+            return trimmed;
+        }
+
+        if (IPAddress.TryParse(trimmed, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return $"[{ip}]";
+        }
+
+        return trimmed;
+    }
+
+    private static string BuildBaseUrl(string host, int port, bool useSsl)
+    {
+        var scheme = useSsl ? "https" : "http";
+        return $"{scheme}://{FormatHostForUriAuthority(host)}:{port}";
+    }
+
     private void ValidateSsrf(string host, int port, bool useSsl = false)
     {
         if (string.IsNullOrWhiteSpace(host))
         {
-            throw new ArgumentException("Host is required.", nameof(host));
+            throw new ArgumentException("Host is required.");
         }
 
-        var scheme = useSsl ? "https" : "http";
-        var baseUrl = $"{scheme}://{host}:{port}";
+        var baseUrl = BuildBaseUrl(host, port, useSsl);
 
         if (this.safeHttpClientService != null)
         {
@@ -664,8 +693,7 @@ public class DownloadClientController : Controller
         }
 
         var port = resource.Port > 0 ? resource.Port : 8080;
-        var scheme = resource.UseSsl ? "https" : "http";
-        var baseUrl = $"{scheme}://{resource.Host}:{port}";
+        var baseUrl = BuildBaseUrl(resource.Host, port, resource.UseSsl);
         var password = passwordOverride ?? resource.Password;
 
         try
@@ -679,6 +707,14 @@ public class DownloadClientController : Controller
             {
                 Success = false,
                 Message = $"Failed to connect to {resource.Host}:{port} - {ex.Message}",
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return this.Ok(new DownloadClientTestResult
+            {
+                Success = false,
+                Message = ex.Message,
             });
         }
 
