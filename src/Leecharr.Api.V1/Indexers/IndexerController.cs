@@ -250,7 +250,8 @@ public class IndexerController : Controller
             }
         }
 
-        return await this.TestDirectInternal(model);
+        var recordIndexerStatus = this.ShouldRecordIndexerStatus(model);
+        return await this.TestDirectInternal(model, recordIndexerStatus);
     }
 
     [HttpPost("testall")]
@@ -801,7 +802,45 @@ public class IndexerController : Controller
         return baseUri;
     }
 
-    private async Task<ActionResult<IndexerTestResult>> TestDirectInternal(IndexerDefinition indexer)
+    private bool ShouldRecordIndexerStatus(IndexerDefinition probe)
+    {
+        if (probe == null || probe.Id <= 0)
+        {
+            return false;
+        }
+
+        var saved = this.indexerRepository.Get(probe.Id);
+        if (saved == null)
+        {
+            return false;
+        }
+
+        if (!IndexerUrlsMatch(saved.Url, probe.Url))
+        {
+            return false;
+        }
+
+        var savedKey = saved.ApiKey ?? string.Empty;
+        var probeKey = probe.ApiKey ?? string.Empty;
+        return string.Equals(savedKey, probeKey, StringComparison.Ordinal);
+    }
+
+    private static bool IndexerUrlsMatch(string savedUrl, string probeUrl)
+    {
+        return string.Equals(NormalizeIndexerUrl(savedUrl), NormalizeIndexerUrl(probeUrl), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeIndexerUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return string.Empty;
+        }
+
+        return url.Trim().TrimEnd('/');
+    }
+
+    private async Task<ActionResult<IndexerTestResult>> TestDirectInternal(IndexerDefinition indexer, bool recordIndexerStatus = true)
     {
         var sw = Stopwatch.StartNew();
         if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
@@ -820,7 +859,7 @@ public class IndexerController : Controller
         }
         catch (Exception ex)
         {
-            if (indexer.Id > 0)
+            if (indexer.Id > 0 && recordIndexerStatus)
             {
                 this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: ex.Message, ex: ex);
             }
@@ -856,7 +895,7 @@ public class IndexerController : Controller
                     {
                         var indexers = JsonSerializer.Deserialize<List<JsonElement>>(json);
                         var count = indexers?.Count ?? 0;
-                        if (indexer.Id > 0)
+                        if (indexer.Id > 0 && recordIndexerStatus)
                         {
                             this.indexerStatusService?.RecordSuccess(indexer.Id);
                         }
@@ -870,7 +909,7 @@ public class IndexerController : Controller
                     }
                     catch
                     {
-                        if (indexer.Id > 0)
+                        if (indexer.Id > 0 && recordIndexerStatus)
                         {
                             this.indexerStatusService?.RecordSuccess(indexer.Id);
                         }
@@ -893,7 +932,7 @@ public class IndexerController : Controller
                 var statusResp = await this.httpClient.SendAsync(statusReq);
                 if (statusResp.IsSuccessStatusCode)
                 {
-                    if (indexer.Id > 0)
+                    if (indexer.Id > 0 && recordIndexerStatus)
                     {
                         this.indexerStatusService?.RecordSuccess(indexer.Id);
                     }
@@ -906,7 +945,7 @@ public class IndexerController : Controller
                     });
                 }
 
-                if (indexer.Id > 0)
+                if (indexer.Id > 0 && recordIndexerStatus)
                 {
                     this.indexerStatusService?.RecordFailure(indexer.Id, (int)response.StatusCode, $"Prowlarr returned HTTP {(int)response.StatusCode}");
                 }
@@ -920,7 +959,7 @@ public class IndexerController : Controller
             }
             catch (Exception ex)
             {
-                if (indexer.Id > 0)
+                if (indexer.Id > 0 && recordIndexerStatus)
                 {
                     this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: ex.Message, ex: ex);
                 }
@@ -940,7 +979,7 @@ public class IndexerController : Controller
             var testResult = await this.torznabClient.TestConnectionAsync(indexer);
             if (testResult.Success)
             {
-                if (indexer.Id > 0)
+                if (indexer.Id > 0 && recordIndexerStatus)
                 {
                     this.indexerStatusService?.RecordSuccess(indexer.Id);
                 }
@@ -1012,7 +1051,7 @@ public class IndexerController : Controller
                 });
             }
 
-            if (indexer.Id > 0)
+            if (indexer.Id > 0 && recordIndexerStatus)
             {
                 this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: testResult.ErrorMessage);
             }
@@ -1026,7 +1065,7 @@ public class IndexerController : Controller
         }
         catch (Exception ex)
         {
-            if (indexer.Id > 0)
+            if (indexer.Id > 0 && recordIndexerStatus)
             {
                 this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: ex.Message, ex: ex);
             }
