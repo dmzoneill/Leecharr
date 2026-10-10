@@ -38,31 +38,44 @@
     "nudge_at": "2026-10-10T22:11Z"
   },
   "push_queue": [
-    {"agent": "flamingo", "session": "session_flamingo_1791668275820_c6940b7fd011b8d0", "issue": 1705, "tip": "808de33"},
-    {"agent": "orangutan", "session": "session_orangutan_1791648509926_3eed22ef250ebcb8", "issue": 1701, "tip": "c331133"}
+    {
+      "agent": "flamingo",
+      "session": "session_flamingo_1791668275820_c6940b7fd011b8d0",
+      "issue": 1705,
+      "tip": "808de33"
+    },
+    {
+      "agent": "orangutan",
+      "session": "session_orangutan_1791648509926_3eed22ef250ebcb8",
+      "issue": 1701,
+      "tip": "c331133"
+    }
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T22:15Z",
-  "next_scheduled_poll": "sched_poll_22_15",
+  "last_poll": "2026-10-10T22:16Z",
+  "next_scheduled_poll": "sched_poll_22_16",
   "ci_last": {
-    "sha": "828d20d",
-    "cicd": "queued",
-    "run_id": 38090488337
+    "sha": "8146dfe",
+    "cicd": "pending",
+    "run_id": 38090533287
   },
-  "origin_main": "828d20d",
+  "origin_main": "8146dfe",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
     "no_pr": true,
     "push_main_serial_fifo": true,
     "push_main_only_no_remote_issue_branch": true,
-    "workers_forbidden_paths": [".jcode/orchestrator-state.json"],
+    "workers_forbidden_paths": [
+      ".jcode/orchestrator-state.json"
+    ],
     "strategy_doc": ".jcode/orchestrator-strategy-v2.md",
     "swarm_prompt": ".jcode/swarm-prompt.md",
     "remote_branch_cleanup": "2026-10-10T21:49Z merged+closed issue-* pruned"
   },
   "notes": {
     "dolphin_done_1708": "9432f4b closed GitHub 22:10Z",
-    "poll_22_15": "lock raccoon idle 2m; interrupt push now 22:11Z; dolphin START refill"
+    "poll_22_15": "lock raccoon idle 2m; interrupt push now 22:11Z; dolphin START refill",
+    "poll_22_16": "lock raccoon idle 3m; interrupt push now 22:16Z; dolphin START refill"
   }
 }
