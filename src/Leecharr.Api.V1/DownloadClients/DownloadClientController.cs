@@ -305,7 +305,7 @@ public class DownloadClientController : Controller
             return this.Ok(TorrentResourceMapper.ToResource(existing));
         }
 
-        if (!TryBuildImportMagnetUri(hash, out var magnetUri, out var hashError))
+        if (!TryBuildImportMagnetUri(hash, null, out _, out var hashError))
         {
             return this.BadRequest(hashError);
         }
@@ -315,6 +315,11 @@ public class DownloadClientController : Controller
         if (remoteItem == null)
         {
             return this.NotFound();
+        }
+
+        if (!TryBuildImportMagnetUri(hash, remoteItem.Name, out var magnetUri, out hashError))
+        {
+            return this.BadRequest(hashError);
         }
 
         var savePath = !string.IsNullOrWhiteSpace(remoteItem.SavePath) ? remoteItem.SavePath : null;
@@ -424,7 +429,12 @@ public class DownloadClientController : Controller
             var client = remoteEntry.Client;
             var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
             var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client?.Category;
-            var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
+            if (!TryBuildImportMagnetUri(hash, remoteItem?.Name, out var magnetUri, out var magnetError))
+            {
+                this.logger.Warn("Failed to build magnet for torrent {0} during import: {1}", hash, magnetError);
+                failedCount++;
+                continue;
+            }
 
             try
             {
@@ -535,7 +545,7 @@ public class DownloadClientController : Controller
         return null;
     }
 
-    private static bool TryBuildImportMagnetUri(string hash, out string magnetUri, out string error)
+    private static bool TryBuildImportMagnetUri(string hash, string displayName, out string magnetUri, out string error)
     {
         magnetUri = null;
         error = null;
@@ -547,7 +557,7 @@ public class DownloadClientController : Controller
 
         try
         {
-            magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
+            magnetUri = MagnetLinkParser.BuildMagnetUri(hash, displayName);
             MagnetLinkParser.Parse(magnetUri);
             return true;
         }
