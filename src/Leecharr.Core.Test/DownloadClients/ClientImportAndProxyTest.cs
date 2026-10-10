@@ -701,13 +701,15 @@ public class ClientImportAndProxyTest
         var okResult = actionResult.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
-        var list = okResult!.Value as List<DownloadClientRemoteItem>;
-        list.Should().NotBeNull();
-        list!.Should().HaveCount(1);
-        list[0].ClientId.Should().Be(5);
-        list[0].ClientName.Should().Be("PrimaryClient");
-        list[0].IsInLibrary.Should().BeTrue();
-        list[0].LibraryTorrentId.Should().Be(42);
+        var resource = okResult!.Value as DownloadClientAllItemsResource;
+        resource.Should().NotBeNull();
+        resource!.Success.Should().BeTrue();
+        resource.Failed.Should().Be(0);
+        resource.Items.Should().HaveCount(1);
+        resource.Items[0].ClientId.Should().Be(5);
+        resource.Items[0].ClientName.Should().Be("PrimaryClient");
+        resource.Items[0].IsInLibrary.Should().BeTrue();
+        resource.Items[0].LibraryTorrentId.Should().Be(42);
     }
 
     [Test]
@@ -738,11 +740,64 @@ public class ClientImportAndProxyTest
         var okResult = actionResult.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
-        var list = okResult!.Value as List<DownloadClientRemoteItem>;
-        list.Should().NotBeNull();
-        list!.Should().HaveCount(1);
-        list[0].IsInLibrary.Should().BeFalse();
-        list[0].LibraryTorrentId.Should().BeNull();
+        var resource = okResult!.Value as DownloadClientAllItemsResource;
+        resource.Should().NotBeNull();
+        resource!.Success.Should().BeTrue();
+        resource.Items.Should().HaveCount(1);
+        resource.Items[0].IsInLibrary.Should().BeFalse();
+        resource.Items[0].LibraryTorrentId.Should().BeNull();
+    }
+
+    [Test]
+    public async Task GetAllItems_WhenOneClientQueryFails_ReportsFailureAndReturnsOtherClientItems()
+    {
+        var goodJson = "[{\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"name\":\"Good Torrent\",\"size\":1000,\"progress\":1.0}]";
+        var handler = new MockHttpMessageHandler(request =>
+        {
+            if (request.RequestUri?.Port == 8080)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(goodJson, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var http = new HttpClient(handler);
+        var goodClient = new DownloadClientDefinition
+        {
+            Id = 10,
+            Name = "HealthyClient",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Enable = true,
+        };
+        var badClient = new DownloadClientDefinition
+        {
+            Id = 11,
+            Name = "BrokenClient",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 9090,
+            Enable = true,
+        };
+
+        this.repository.GetEnabled().Returns(new List<DownloadClientDefinition> { goodClient, badClient });
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, http);
+        var actionResult = await controller.GetAllItems();
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var resource = okResult!.Value as DownloadClientAllItemsResource;
+        resource.Should().NotBeNull();
+        resource!.Success.Should().BeFalse();
+        resource.Failed.Should().Be(1);
+        resource.Failures.Should().ContainSingle(f => f.ClientId == 11 && f.ClientName == "BrokenClient");
+        resource.Items.Should().ContainSingle(i => i.ClientId == 10 && i.InfoHash == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     }
 
     [Test]
