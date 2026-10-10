@@ -269,7 +269,7 @@ public class CategoryService : ICategoryService
     {
         if (string.IsNullOrWhiteSpace(savePath))
         {
-            return savePath?.Trim();
+            return string.Empty;
         }
 
         if (savePath.Contains('\0'))

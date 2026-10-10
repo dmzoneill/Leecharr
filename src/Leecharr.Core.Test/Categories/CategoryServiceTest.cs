@@ -89,6 +89,35 @@ public class CategoryServiceTest
     }
 
     [Test]
+    public void Add_WhenSavePathNull_StoresEmptyString()
+    {
+        var category = new Category { Name = "games", SavePath = null };
+        this.repository.Insert(Arg.Any<Category>()).Returns(callInfo =>
+        {
+            var inserted = callInfo.Arg<Category>();
+            inserted.Id = 11;
+            return inserted;
+        });
+
+        var inserted = this.service.Add(category);
+
+        inserted.SavePath.Should().Be(string.Empty);
+        this.repository.Received(1).Insert(Arg.Is<Category>(c => c.Name == "games" && c.SavePath == string.Empty));
+    }
+
+    [Test]
+    public void Update_WhenSavePathNull_StoresEmptyString()
+    {
+        var category = new Category { Id = 7, Name = "games", SavePath = null };
+        this.repository.Update(Arg.Any<Category>()).Returns(callInfo => callInfo.Arg<Category>());
+
+        var updated = this.service.Update(category);
+
+        updated.SavePath.Should().Be(string.Empty);
+        this.repository.Received(1).Update(Arg.Is<Category>(c => c.Id == 7 && c.SavePath == string.Empty));
+    }
+
+    [Test]
     public void Add_WhenCategoryNull_ThrowsArgumentNullException()
     {
         Action act = () => this.service.Add(null!);
