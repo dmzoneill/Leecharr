@@ -39,8 +39,8 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
 
         var desiredProviderId = this.configService.ActiveMediaInspector;
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("TagLib", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault();
+                            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("TagLib", StringComparison.OrdinalIgnoreCase))
+                            ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {

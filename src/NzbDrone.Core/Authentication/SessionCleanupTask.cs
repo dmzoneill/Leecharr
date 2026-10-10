@@ -109,7 +109,7 @@ public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStarte
             await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
 
             while (!this.cts.Token.IsCancellationRequested &&
-                   await timer.WaitForNextTickAsync(this.cts.Token).ConfigureAwait(false))
+                    await timer.WaitForNextTickAsync(this.cts.Token).ConfigureAwait(false))
             {
                 await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
             }

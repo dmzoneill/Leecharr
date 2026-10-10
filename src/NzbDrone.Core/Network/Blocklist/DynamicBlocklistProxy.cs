@@ -42,9 +42,9 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
 
         var desiredId = this.configService.GetValue("ActiveBlocklistProvider", "RadixTree");
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredId, StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("RadixTree", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("P2PDat", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault();
+                            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("RadixTree", StringComparison.OrdinalIgnoreCase))
+                            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("P2PDat", StringComparison.OrdinalIgnoreCase))
+                            ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {

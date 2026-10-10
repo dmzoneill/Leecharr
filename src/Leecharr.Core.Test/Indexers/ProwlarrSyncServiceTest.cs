@@ -39,22 +39,22 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_ParsesProwlarrJson_InsertsTorrentIndexersAndSkipsUsenet()
     {
         var json = @"[
-          {
+            {
             ""id"": 1,
             ""name"": ""Prowlarr Tracker 1"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          },
-          {
+            },
+            {
             ""id"": 2,
             ""name"": ""Prowlarr Usenet 1"",
             ""implementation"": ""Newznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""usenet""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -88,14 +88,14 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_WhenIndexerAlreadyExists_ReconcilesByProwlarrIndexerIdAndHandlesRenames()
     {
         var json = @"[
-          {
+            {
             ""id"": 5,
             ""name"": ""Renamed Tracker"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 10,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -135,7 +135,7 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_PreservesLocalOverrides_PriorityFreeleechMinSeedersCategories()
     {
         var json = @"[
-          {
+            {
             ""id"": 5,
             ""name"": ""Existing Tracker"",
             ""implementation"": ""Torznab"",
@@ -143,7 +143,7 @@ public class ProwlarrSyncServiceTest
             ""priority"": 10,
             ""protocol"": ""torrent"",
             ""categories"": [2000, 5000]
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -190,7 +190,7 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_WhenSyncCategoriesIsTrue_UpdatesExistingCategories()
     {
         var json = @"[
-          {
+            {
             ""id"": 5,
             ""name"": ""Existing Tracker"",
             ""implementation"": ""Torznab"",
@@ -198,7 +198,7 @@ public class ProwlarrSyncServiceTest
             ""priority"": 10,
             ""protocol"": ""torrent"",
             ""categories"": [2000, 5000]
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -245,14 +245,14 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_PrunesDeletedProwlarrIndexers_AndPreservesManualIndexers()
     {
         var json = @"[
-          {
+            {
             ""id"": 1,
             ""name"": ""Active Prowlarr Tracker"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -302,22 +302,22 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_ConcurrentCapabilityProbing_UsesTorznabClient()
     {
         var json = @"[
-          {
+            {
             ""id"": 101,
             ""name"": ""Probe Tracker 1"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 5,
             ""protocol"": ""torrent""
-          },
-          {
+            },
+            {
             ""id"": 102,
             ""name"": ""Probe Tracker 2"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 5,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -351,7 +351,7 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_ExtractsCategoriesFromFields_AssignsToIndexerDefinition()
     {
         var json = @"[
-          {
+            {
             ""id"": 10,
             ""name"": ""Category Tracker"",
             ""implementation"": ""Torznab"",
@@ -359,12 +359,12 @@ public class ProwlarrSyncServiceTest
             ""priority"": 5,
             ""protocol"": ""torrent"",
             ""fields"": [
-              {
+                {
                 ""name"": ""categories"",
                 ""value"": [2000, 5000, 5040]
-              }
+                }
             ]
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -393,7 +393,7 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_ExtractsCategoriesFromCapabilities_AssignsToIndexerDefinition()
     {
         var json = @"[
-          {
+            {
             ""id"": 11,
             ""name"": ""Capabilities Tracker"",
             ""implementation"": ""Torznab"",
@@ -401,12 +401,12 @@ public class ProwlarrSyncServiceTest
             ""priority"": 5,
             ""protocol"": ""torrent"",
             ""capabilities"": {
-              ""categories"": [
+                ""categories"": [
                 { ""id"": 2000, ""name"": ""Movies"" },
                 { ""id"": 5000, ""name"": ""TV"" }
-              ]
+                ]
             }
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -434,7 +434,7 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_MapsEnableRssAndSearchFlags()
     {
         var json = @"[
-          {
+            {
             ""id"": 12,
             ""name"": ""Search Only Tracker"",
             ""implementation"": ""Torznab"",
@@ -444,7 +444,7 @@ public class ProwlarrSyncServiceTest
             ""enableRss"": false,
             ""enableAutomaticSearch"": true,
             ""enableInteractiveSearch"": false
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -539,14 +539,14 @@ public class ProwlarrSyncServiceTest
     public async Task SyncAllAsync_WhenConfigured_SyncsConfiguredInstances()
     {
         var json = @"[
-          {
+            {
             ""id"": 1,
             ""name"": ""Prowlarr Tracker 1"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -592,14 +592,14 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_WhenManualCustomIndexerHasSameNameAsProwlarrIndexer_DoesNotOverwriteManualIndexer()
     {
         var json = @"[
-          {
+            {
             ""id"": 10,
             ""name"": ""CustomTracker"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -637,14 +637,14 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_ConcurrentCalls_AreSynchronizedSuccessfully()
     {
         var json = @"[
-          {
+            {
             ""id"": 1,
             ""name"": ""Prowlarr Tracker 1"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -669,22 +669,22 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_WhenResponseContainsDuplicateEntries_InsertsOnlyOnceAndUpdatesSecond()
     {
         var json = @"[
-          {
+            {
             ""id"": 1,
             ""name"": ""Prowlarr Tracker 1"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          },
-          {
+            },
+            {
             ""id"": 1,
             ""name"": ""Prowlarr Tracker 1 (Duplicate)"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -708,14 +708,14 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_WhenIndexerMatchedByFeedUrl_UpdatesExistingAndDoesNotCreateDuplicate()
     {
         var json = @"[
-          {
+            {
             ""id"": 42,
             ""name"": ""Tracker New Name"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 10,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -753,25 +753,25 @@ public class ProwlarrSyncServiceTest
     public async Task SyncFromProwlarrAsync_RepeatedSyncsWithRenamedIndexer_UpdatesExistingAndDoesNotDuplicate()
     {
         var json1 = @"[
-          {
+            {
             ""id"": 7,
             ""name"": ""Initial Name"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var json2 = @"[
-          {
+            {
             ""id"": 7,
             ""name"": ""Updated Name"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var currentJson = json1;
@@ -812,14 +812,14 @@ public class ProwlarrSyncServiceTest
     {
         var requestedUrls = new List<string>();
         var json = @"[
-          {
+            {
             ""id"": 10,
             ""name"": ""Proxy Tracker"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(req =>
@@ -861,14 +861,14 @@ public class ProwlarrSyncServiceTest
     {
         var requestedUrls = new List<string>();
         var json = @"[
-          {
+            {
             ""id"": 10,
             ""name"": ""Proxy Tracker"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""priority"": 25,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(req =>
@@ -958,13 +958,13 @@ public class ProwlarrSyncServiceTest
 
         // Instance B returns only usenet indexers (0 supported torrent indexers)
         var json = @"[
-          {
+            {
             ""id"": 1,
             ""name"": ""Usenet Only"",
             ""implementation"": ""Newznab"",
             ""enable"": true,
             ""protocol"": ""usenet""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -1010,13 +1010,13 @@ public class ProwlarrSyncServiceTest
 
         // Instance B returns only indexer 2 (indexer 1 on Instance B was deleted)
         var json = @"[
-          {
+            {
             ""id"": 2,
             ""name"": ""Instance B Tracker 2"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
@@ -1052,13 +1052,13 @@ public class ProwlarrSyncServiceTest
 
         // Instance B also has an indexer with local ID = 1
         var json = @"[
-          {
+            {
             ""id"": 1,
             ""name"": ""Instance B Tracker"",
             ""implementation"": ""Torznab"",
             ""enable"": true,
             ""protocol"": ""torrent""
-          }
+            }
         ]";
 
         var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)

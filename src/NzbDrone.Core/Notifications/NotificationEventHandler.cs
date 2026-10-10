@@ -186,7 +186,7 @@ public class NotificationEventHandler :
             this.Dispatch(n => n.OnManualInteractionRequired, "OnManualInteractionRequired", message.Torrent);
         }
         else if ((message.OldStatus is TorrentStatus.Error or TorrentStatus.Stalled) &&
-                 message.NewStatus != TorrentStatus.Error && message.NewStatus != TorrentStatus.Stalled)
+                    message.NewStatus != TorrentStatus.Error && message.NewStatus != TorrentStatus.Stalled)
         {
             this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", message.Torrent);
         }

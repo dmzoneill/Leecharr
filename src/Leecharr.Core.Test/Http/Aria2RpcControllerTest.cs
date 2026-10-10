@@ -75,10 +75,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 1,
-              "method": "aria2.addTorrent",
-              "params": ["{{b64Torrent}}"]
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "aria2.addTorrent",
+                "params": ["{{b64Torrent}}"]
             }
             """);
 
@@ -101,10 +101,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 2,
-              "method": "aria2.addUri",
-              "params": [["{{magnetUri}}"]]
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "aria2.addUri",
+                "params": [["{{magnetUri}}"]]
             }
             """);
 
@@ -132,10 +132,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 3,
-              "method": "aria2.addUri",
-              "params": [["{{httpUri}}"]]
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "aria2.addUri",
+                "params": [["{{httpUri}}"]]
             }
             """);
 
@@ -237,10 +237,10 @@ public class Aria2RpcControllerTest
         // 1. Add download via JSON-RPC addUri
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 10,
-              "method": "aria2.addUri",
-              "params": [["{{magnetUri}}"]]
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "aria2.addUri",
+                "params": [["{{magnetUri}}"]]
             }
             """);
 
@@ -251,10 +251,10 @@ public class Aria2RpcControllerTest
         // 2. Query aria2.tellActive via JSON-RPC
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 11,
-              "method": "aria2.tellActive",
-              "params": []
+                "jsonrpc": "2.0",
+                "id": 11,
+                "method": "aria2.tellActive",
+                "params": []
             }
             """);
 
@@ -271,10 +271,10 @@ public class Aria2RpcControllerTest
         // 3. Query aria2.tellStatus with the returned GID via JSON-RPC
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 12,
-              "method": "aria2.tellStatus",
-              "params": ["{{returnedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 12,
+                "method": "aria2.tellStatus",
+                "params": ["{{returnedGid}}"]
             }
             """);
 
@@ -301,10 +301,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 20,
-              "method": "aria2.addTorrent",
-              "params": ["{{b64Torrent}}"]
+                "jsonrpc": "2.0",
+                "id": 20,
+                "method": "aria2.addTorrent",
+                "params": ["{{b64Torrent}}"]
             }
             """);
 
@@ -325,10 +325,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 21,
-              "method": "aria2.addUri",
-              "params": [["{{magnetUri}}"]]
+                "jsonrpc": "2.0",
+                "id": 21,
+                "method": "aria2.addUri",
+                "params": [["{{magnetUri}}"]]
             }
             """);
 
@@ -467,10 +467,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 50,
-              "method": "aria2.getFiles",
-              "params": ["{{ExpectedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 50,
+                "method": "aria2.getFiles",
+                "params": ["{{ExpectedGid}}"]
             }
             """);
 
@@ -564,10 +564,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 51,
-              "method": "aria2.getFiles",
-              "params": ["nonexistentgid123"]
+                "jsonrpc": "2.0",
+                "id": 51,
+                "method": "aria2.getFiles",
+                "params": ["nonexistentgid123"]
             }
             """);
 
@@ -603,15 +603,15 @@ public class Aria2RpcControllerTest
     {
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 1,
-              "method": "aria2.changeGlobalOption",
-              "params": [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "aria2.changeGlobalOption",
+                "params": [
                 {
-                  "max-overall-download-limit": "1048576",
-                  "max-overall-upload-limit": "524288"
+                    "max-overall-download-limit": "1048576",
+                    "max-overall-upload-limit": "524288"
                 }
-              ]
+                ]
             }
             """);
 
@@ -628,15 +628,15 @@ public class Aria2RpcControllerTest
     {
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 2,
-              "method": "aria2.changeGlobalOption",
-              "params": [
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "aria2.changeGlobalOption",
+                "params": [
                 {
-                  "max-overall-download-limit": 2097152,
-                  "max-overall-upload-limit": 1048576
+                    "max-overall-download-limit": 2097152,
+                    "max-overall-upload-limit": 1048576
                 }
-              ]
+                ]
             }
             """);
 
@@ -664,16 +664,16 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 3,
-              "method": "aria2.changeOption",
-              "params": [
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "aria2.changeOption",
+                "params": [
                 "{{ExpectedGid}}",
                 {
-                  "max-download-limit": 2097152,
-                  "max-upload-limit": 1048576
+                    "max-download-limit": 2097152,
+                    "max-upload-limit": 1048576
                 }
-              ]
+                ]
             }
             """);
 
@@ -702,16 +702,16 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 4,
-              "method": "aria2.changeOption",
-              "params": [
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "aria2.changeOption",
+                "params": [
                 "{{ExpectedGid}}",
                 {
-                  "max-download-limit": "1048576",
-                  "max-upload-limit": "524288"
+                    "max-download-limit": "1048576",
+                    "max-upload-limit": "524288"
                 }
-              ]
+                ]
             }
             """);
 
@@ -923,10 +923,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 100,
-              "method": "aria2.getOption",
-              "params": ["{{ExpectedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 100,
+                "method": "aria2.getOption",
+                "params": ["{{ExpectedGid}}"]
             }
             """);
 
@@ -987,10 +987,10 @@ public class Aria2RpcControllerTest
         // Positive offset = 2, num = 3 -> items 3, 4, 5
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 1,
-              "method": "aria2.tellWaiting",
-              "params": [2, 3]
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "aria2.tellWaiting",
+                "params": [2, 3]
             }
             """);
 
@@ -1007,10 +1007,10 @@ public class Aria2RpcControllerTest
         // Negative offset = -3, num = 2 -> last 3 items: 8, 9, 10; take 2 -> items 8, 9
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 2,
-              "method": "aria2.tellWaiting",
-              "params": [-3, 2]
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "aria2.tellWaiting",
+                "params": [-3, 2]
             }
             """);
 
@@ -1040,10 +1040,10 @@ public class Aria2RpcControllerTest
         // Offset 1, num 2 -> items 2, 3
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 3,
-              "method": "aria2.tellStopped",
-              "params": [1, 2]
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "aria2.tellStopped",
+                "params": [1, 2]
             }
             """);
 
@@ -1072,10 +1072,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 10,
-              "method": "aria2.tellWaiting",
-              "params": ["2", "3"]
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "aria2.tellWaiting",
+                "params": ["2", "3"]
             }
             """);
 
@@ -1105,10 +1105,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 11,
-              "method": "aria2.tellStopped",
-              "params": ["-2", "2"]
+                "jsonrpc": "2.0",
+                "id": 11,
+                "method": "aria2.tellStopped",
+                "params": ["-2", "2"]
             }
             """);
 
@@ -1189,10 +1189,10 @@ public class Aria2RpcControllerTest
     {
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 101,
-              "method": "aria2.getSessionInfo",
-              "params": []
+                "jsonrpc": "2.0",
+                "id": 101,
+                "method": "aria2.getSessionInfo",
+                "params": []
             }
             """);
 
@@ -1249,10 +1249,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 102,
-              "method": "aria2.getPeers",
-              "params": ["{{ExpectedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 102,
+                "method": "aria2.getPeers",
+                "params": ["{{ExpectedGid}}"]
             }
             """);
 
@@ -1279,10 +1279,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 103,
-              "method": "aria2.getPeers",
-              "params": ["nonexistentgid123"]
+                "jsonrpc": "2.0",
+                "id": 103,
+                "method": "aria2.getPeers",
+                "params": ["nonexistentgid123"]
             }
             """);
 
@@ -1348,10 +1348,10 @@ public class Aria2RpcControllerTest
     {
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 104,
-              "method": "aria2.getServers",
-              "params": ["{{ExpectedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 104,
+                "method": "aria2.getServers",
+                "params": ["{{ExpectedGid}}"]
             }
             """);
 
@@ -1393,10 +1393,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 105,
-              "method": "aria2.getUris",
-              "params": ["{{ExpectedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 105,
+                "method": "aria2.getUris",
+                "params": ["{{ExpectedGid}}"]
             }
             """);
 
@@ -1417,10 +1417,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 106,
-              "method": "aria2.getUris",
-              "params": ["nonexistentgid"]
+                "jsonrpc": "2.0",
+                "id": 106,
+                "method": "aria2.getUris",
+                "params": ["nonexistentgid"]
             }
             """);
 
@@ -1467,10 +1467,10 @@ public class Aria2RpcControllerTest
     {
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 107,
-              "method": "aria2.purgeDownloadResult",
-              "params": []
+                "jsonrpc": "2.0",
+                "id": 107,
+                "method": "aria2.purgeDownloadResult",
+                "params": []
             }
             """);
 
@@ -1503,10 +1503,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 108,
-              "method": "aria2.removeDownloadResult",
-              "params": ["{{ExpectedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 108,
+                "method": "aria2.removeDownloadResult",
+                "params": ["{{ExpectedGid}}"]
             }
             """);
 
@@ -1543,10 +1543,10 @@ public class Aria2RpcControllerTest
     {
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 109,
-              "method": "system.listMethods",
-              "params": []
+                "jsonrpc": "2.0",
+                "id": 109,
+                "method": "system.listMethods",
+                "params": []
             }
             """);
 
@@ -1617,15 +1617,15 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 201,
-              "method": "system.multicall",
-              "params": [
+                "jsonrpc": "2.0",
+                "id": 201,
+                "method": "system.multicall",
+                "params": [
                 [
-                  { "methodName": "aria2.getVersion", "params": ["token:secret-token-123"] },
-                  { "methodName": "aria2.getSessionInfo", "params": ["token:secret-token-123"] }
+                    { "methodName": "aria2.getVersion", "params": ["token:secret-token-123"] },
+                    { "methodName": "aria2.getSessionInfo", "params": ["token:secret-token-123"] }
                 ]
-              ]
+                ]
             }
             """);
 
@@ -1653,15 +1653,15 @@ public class Aria2RpcControllerTest
     {
         this.SetJsonRequestBody("""
             {
-              "jsonrpc": "2.0",
-              "id": 202,
-              "method": "system.multicall",
-              "params": [
+                "jsonrpc": "2.0",
+                "id": 202,
+                "method": "system.multicall",
+                "params": [
                 [
-                  { "methodName": "aria2.nonExistentMethod", "params": [] },
-                  { "methodName": "aria2.getVersion", "params": [] }
+                    { "methodName": "aria2.nonExistentMethod", "params": [] },
+                    { "methodName": "aria2.getVersion", "params": [] }
                 ]
-              ]
+                ]
             }
             """);
 
@@ -1690,41 +1690,41 @@ public class Aria2RpcControllerTest
     {
         var rawXml = """
             <methodCall>
-              <methodName>system.multicall</methodName>
-              <params>
+                <methodName>system.multicall</methodName>
+                <params>
                 <param>
-                  <value>
+                    <value>
                     <array>
-                      <data>
+                        <data>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>aria2.addTorrent</string></value>
+                                <name>methodName</name>
+                                <value><string>aria2.addTorrent</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value><array><data><value><string>invalid-not-base64!!!</string></value></data></array></value>
+                                <name>params</name>
+                                <value><array><data><value><string>invalid-not-base64!!!</string></value></data></array></value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>aria2.getVersion</string></value>
+                                <name>methodName</name>
+                                <value><string>aria2.getVersion</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value><array><data></data></array></value>
+                                <name>params</name>
+                                <value><array><data></data></array></value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
-                      </data>
+                        </data>
                     </array>
-                  </value>
+                    </value>
                 </param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetXmlRequestBody(rawXml);
@@ -1759,35 +1759,35 @@ public class Aria2RpcControllerTest
 
         var rawXml = """
             <methodCall>
-              <methodName>system.multicall</methodName>
-              <params>
+                <methodName>system.multicall</methodName>
+                <params>
                 <param>
-                  <value>
+                    <value>
                     <array>
-                      <data>
+                        <data>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>aria2.getVersion</string></value>
+                                <name>methodName</name>
+                                <value><string>aria2.getVersion</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value>
+                                <name>params</name>
+                                <value>
                                 <array>
-                                  <data>
+                                    <data>
                                     <value><string>token:secret-token-123</string></value>
-                                  </data>
+                                    </data>
                                 </array>
-                              </value>
+                                </value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
-                      </data>
+                        </data>
                     </array>
-                  </value>
+                    </value>
                 </param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetXmlRequestBody(rawXml);
@@ -1817,10 +1817,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 101,
-              "method": "aria2.tellStatus",
-              "params": ["{{ExpectedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 101,
+                "method": "aria2.tellStatus",
+                "params": ["{{ExpectedGid}}"]
             }
             """);
 
@@ -1851,10 +1851,10 @@ public class Aria2RpcControllerTest
 
         this.SetJsonRequestBody($$"""
             {
-              "jsonrpc": "2.0",
-              "id": 102,
-              "method": "aria2.tellStatus",
-              "params": ["{{ExpectedGid}}"]
+                "jsonrpc": "2.0",
+                "id": 102,
+                "method": "aria2.tellStatus",
+                "params": ["{{ExpectedGid}}"]
             }
             """);
 

@@ -52,24 +52,24 @@ public class UpdateCheckServiceTest
     public async Task GetAvailableUpdatesAsync_WhenGitHubReturnsValidReleases_ParsesPackagesCorrectly()
     {
         var jsonResponse = @"[
-  {
+    {
     ""tag_name"": ""v1.4.3"",
     ""published_at"": ""2026-09-10T22:35:18Z"",
     ""html_url"": ""https://github.com/dmzoneill/Leecharr/releases/tag/v1.4.3"",
     ""body"": ""## New Features\n* Added advanced network proxy\n## Bug Fixes\n* Fixed crash in download engine"",
     ""assets"": [
-      {
+        {
         ""name"": ""Leecharr.1.4.3.linux-x64.tar.gz""
-      }
+        }
     ]
-  },
-  {
+    },
+    {
     ""tag_name"": ""v1.4.2"",
     ""published_at"": ""2026-09-08T10:00:00Z"",
     ""html_url"": ""https://github.com/dmzoneill/Leecharr/releases/tag/v1.4.2"",
     ""body"": ""* Minor improvements"",
     ""assets"": []
-  }
+    }
 ]";
 
         var handler = new MockHttpMessageHandler
@@ -138,13 +138,13 @@ public class UpdateCheckServiceTest
     public async Task GetAvailableUpdatesAsync_WhenCalledMultipleTimes_UsesCache()
     {
         var jsonResponse = @"[
-  {
+    {
     ""tag_name"": ""v1.4.3"",
     ""published_at"": ""2026-09-10T22:35:18Z"",
     ""html_url"": ""https://github.com/dmzoneill/Leecharr/releases/tag/v1.4.3"",
     ""body"": ""* Initial release"",
     ""assets"": []
-  }
+    }
 ]";
 
         var handler = new MockHttpMessageHandler
