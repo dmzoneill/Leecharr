@@ -19,7 +19,8 @@
   "issue_queue": [1728, 1727, 1726, 1725, 1724],
   "push_lock": null,
   "push_queue": [],
-  "last_poll": "2026-10-10T08:35Z",
+  "last_poll": "2026-10-10T08:34Z",
+  "ci_last": {"sha": "97c22c3", "cicd": "failure", "run_id": 38002248913},
   "origin_main": "97c22c3",
   "rules": {
     "no_local_test_build": true,
