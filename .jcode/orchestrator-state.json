@@ -35,7 +35,7 @@
     "tip": "5400394",
     "granted_at": "2026-10-10T21:53Z",
     "status": "running",
-    "nudged_at": "2026-10-10T21:58Z"
+    "nudged_at": "2026-10-10T21:56Z"
   },
   "push_queue": [
     {"agent": "skunk", "session": "skunk", "issue": 1708, "tip": "224bbef"},
@@ -43,14 +43,14 @@
     {"agent": "flamingo", "session": "flamingo", "issue": 1705, "tip": "808de33"}
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T21:58Z",
-  "next_scheduled_poll": "sched_poll_2158",
+  "last_poll": "2026-10-10T21:56Z",
+  "next_scheduled_poll": "sched_poll_2156",
   "ci_last": {
-    "sha": "47c243f",
+    "sha": "f220438",
     "cicd": "in_progress",
-    "run_id": 38089446659
+    "run_id": 38089495568
   },
-  "origin_main": "47c243f",
+  "origin_main": "f220438",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
