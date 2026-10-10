@@ -262,6 +262,8 @@ public class IndexerResourceSerializationAndTest
         var indexerStatus = Substitute.For<IIndexerStatusService>();
 
         var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        safeHttpClient.CreateHttpClient(Arg.Any<TimeSpan>()).Returns(httpClient);
+        safeHttpClient.CreateHttpClient(Arg.Any<TimeSpan>(), Arg.Any<bool>()).Returns(httpClient);
         var controller = new IndexerController(
             repo,
             torznabClient,
@@ -269,7 +271,6 @@ public class IndexerResourceSerializationAndTest
             torrentService,
             torrentParser,
             safeHttpClientService: safeHttpClient,
-            httpClient: httpClient,
             indexerStatusService: indexerStatus);
 
         var resource = new IndexerResource
@@ -331,6 +332,8 @@ public class IndexerResourceSerializationAndTest
         var indexerStatus = Substitute.For<IIndexerStatusService>();
 
         var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        safeHttpClient.CreateHttpClient(Arg.Any<TimeSpan>()).Returns(httpClient);
+        safeHttpClient.CreateHttpClient(Arg.Any<TimeSpan>(), Arg.Any<bool>()).Returns(httpClient);
         var controller = new IndexerController(
             repo,
             torznabClient,
@@ -338,7 +341,6 @@ public class IndexerResourceSerializationAndTest
             torrentService,
             torrentParser,
             safeHttpClientService: safeHttpClient,
-            httpClient: httpClient,
             indexerStatusService: indexerStatus);
 
         var resource = new IndexerResource
