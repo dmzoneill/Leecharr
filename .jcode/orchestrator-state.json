@@ -22,28 +22,21 @@
     "orangutan": 1701,
     "hedgehog": null,
     "dolphin": null,
-    "raccoon": 1707,
+    "raccoon": null,
     "flamingo": 1705,
     "elephant": 1704,
     "kangaroo": 1699
   },
   "issue_queue": [],
   "push_lock": {
-    "agent": "raccoon",
-    "session": "session_raccoon_1791668274410_c894c57f48f90196",
-    "issue": 1707,
-    "tip": "70dc843",
-    "granted_at": "2026-10-10T22:10Z",
-    "status": "running",
-    "nudge_at": "2026-10-10T22:11Z"
+    "agent": "flamingo",
+    "session": "session_flamingo_1791668275820_c6940b7fd011b8d0",
+    "issue": 1705,
+    "tip": "808de33",
+    "granted_at": "2026-10-10T22:17Z",
+    "status": "running"
   },
   "push_queue": [
-    {
-      "agent": "flamingo",
-      "session": "session_flamingo_1791668275820_c6940b7fd011b8d0",
-      "issue": 1705,
-      "tip": "808de33"
-    },
     {
       "agent": "orangutan",
       "session": "session_orangutan_1791648509926_3eed22ef250ebcb8",
@@ -52,14 +45,14 @@
     }
   ],
   "poll_interval_seconds": 15,
-  "last_poll": "2026-10-10T22:16Z",
-  "next_scheduled_poll": "sched_poll_22_16",
+  "last_poll": "2026-10-10T22:17Z",
+  "next_scheduled_poll": "sched_poll_22_17",
   "ci_last": {
-    "sha": "8146dfe",
-    "cicd": "pending",
-    "run_id": 38090533287
+    "sha": "73261a3",
+    "cicd": "in_progress",
+    "run_id": 38090616930
   },
-  "origin_main": "8146dfe",
+  "origin_main": "73261a3",
   "rules": {
     "no_local_test_build": true,
     "coordinator_only_state_file": true,
@@ -75,7 +68,6 @@
   },
   "notes": {
     "dolphin_done_1708": "9432f4b closed GitHub 22:10Z",
-    "poll_22_15": "lock raccoon idle 2m; interrupt push now 22:11Z; dolphin START refill",
-    "poll_22_16": "lock raccoon idle 3m; interrupt push now 22:16Z; dolphin START refill"
+    "poll_22_17": "#1707 landed 73261a3; raccoon STOP close-only; push now flamingo #1705; dolphin START refill"
   }
 }
