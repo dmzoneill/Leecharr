@@ -159,6 +159,64 @@ public class IndexerResourceSerializationAndTest
     }
 
     [Test]
+    public async Task TestDirectInternal_Prowlarr_WhenBothProbesFail_ReportsSystemStatusCode()
+    {
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v1/indexer"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v1/system/status"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var httpClient = new HttpClient(mockHandler);
+        var repo = Substitute.For<IIndexerRepository>();
+        var torznabClient = Substitute.For<ITorznabClient>();
+        var prowlarrSync = Substitute.For<IProwlarrSyncService>();
+        var torrentService = Substitute.For<ITorrentService>();
+        var torrentParser = Substitute.For<ITorrentFileParser>();
+        var indexerStatus = Substitute.For<IIndexerStatusService>();
+
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new IndexerController(
+            repo,
+            torznabClient,
+            prowlarrSync,
+            torrentService,
+            torrentParser,
+            safeHttpClientService: safeHttpClient,
+            httpClient: httpClient,
+            indexerStatusService: indexerStatus);
+
+        var resource = new IndexerResource
+        {
+            Id = 7,
+            Name = "Prowlarr",
+            Url = "http://localhost:9696",
+            ApiKey = "bad-key",
+            Implementation = "Prowlarr",
+        };
+
+        var actionResult = await controller.TestDirect(resource);
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var testResult = okResult!.Value as IndexerTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("HTTP 401");
+        testResult.Message.Should().NotContain("HTTP 404");
+        indexerStatus.Received(1).RecordFailure(7, 401, Arg.Any<string>(), Arg.Any<Exception>());
+    }
+
+    [Test]
     public async Task TestDirectInternal_Torznab_CapsVerified()
     {
         var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?><caps><server version=""1.0""/></caps>";
