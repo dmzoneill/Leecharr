@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Reject commit messages and authors that add bot co-authors or wrong identity.
+set -euo pipefail
+
+msg_file="${1:?}"
+msg="$(cat "$msg_file")"
+
+if printf '%s\n' "$msg" | grep -qiE '^[[:space:]]*Co-authored-by:'; then
+  echo "commit-msg hook: Co-authored-by trailers are not allowed in this repository." >&2
+  echo "Remove the trailer and commit again (see README)." >&2
+  exit 1
+fi
+
+author_email="${GIT_AUTHOR_EMAIL:-}"
+author_name="${GIT_AUTHOR_NAME:-}"
+
+if [[ "${author_email,,}" == *"cursoragent@cursor.com"* ]]; then
+  echo "commit-msg hook: forbidden author email ${author_email}." >&2
+  exit 1
+fi
+
+if [[ "${author_name,,}" == *"cursor agent"* ]]; then
+  echo "commit-msg hook: forbidden author name ${author_name}." >&2
+  exit 1
+fi
+
+exit 0
