@@ -224,6 +224,36 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public async Task DownloadRelease_WhenDownloadCancelledAndInfoHashProvided_DoesNotFallbackToMagnet()
+    {
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Cancelled Release",
+            DownloadUrl = "https://tracker.example.com/slow.torrent",
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
+            Category = "linux",
+        };
+
+        this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl)
+            .Returns(Task.FromException<byte[]>(new OperationCanceledException()));
+
+        var act = async () => await this.controller.DownloadRelease(request);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
+        this.downloadHistoryService.DidNotReceive().RecordTorrentAdded(
+            Arg.Any<Torrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
+    }
+
+    [Test]
     public async Task DownloadRelease_WhenDownloadUrlFailsAndInfoHashProvided_FallsBackToMagnetUrl()
     {
         var request = new DownloadReleaseRequest
