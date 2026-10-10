@@ -288,6 +288,42 @@ public class SpeedSchedulerServiceTest
     }
 
     [Test]
+    public void GetCurrentLimits_WithNullTimeString_GracefullyIgnoresSchedule()
+    {
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Null Start Schedule",
+                Days = 127,
+                StartTime = null,
+                EndTime = "23:59:00",
+                MaxDownloadSpeed = 1500,
+                MaxUploadSpeed = 800,
+                IsEnabled = true,
+                Priority = 10,
+            },
+            new()
+            {
+                Name = "Valid Schedule",
+                Days = 127,
+                StartTime = "09:00",
+                EndTime = "23:59",
+                MaxDownloadSpeed = 2500,
+                MaxUploadSpeed = 1200,
+                IsEnabled = true,
+                Priority = 5,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(schedules);
+
+        var limits = this.service.GetCurrentLimits(new DateTime(2026, 8, 31, 12, 0, 0));
+        limits.IsThrottled.Should().BeTrue();
+        limits.MaxDownloadSpeedKbps.Should().Be(2500);
+    }
+
+    [Test]
     public void GetCurrentLimits_WithMinutePrecisionEndTime_RemainsActiveThroughoutEntireMinute()
     {
         var schedules = new List<SpeedSchedule>
