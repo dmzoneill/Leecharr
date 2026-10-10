@@ -467,6 +467,47 @@ public class CategoryServiceTest
     }
 
     [Test]
+    public void Update_WhenParentRenameCollidesWithExistingCascadedName_ThrowsBeforeUpdatingParent()
+    {
+        var existingParent = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+        var updatedParent = new Category { Id = 1, Name = "films", SavePath = "/downloads/movies" };
+        var child = new Category { Id = 2, Name = "movies/uhd", SavePath = string.Empty };
+        var conflicting = new Category { Id = 3, Name = "films/uhd", SavePath = string.Empty };
+
+        this.repository.Get(1).Returns(existingParent);
+        this.repository.All().Returns(new List<Category> { existingParent, child, conflicting });
+        this.repository.GetByName("films").Returns((Category)null!);
+        this.repository.GetByName("films/uhd").Returns(conflicting);
+
+        Action act = () => this.service.Update(updatedParent);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*films/uhd*already exists*");
+        this.repository.DidNotReceive().Update(Arg.Any<Category>());
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public void Update_WhenParentRenameCollidesWithCaseVariantCascadedName_ThrowsBeforeUpdatingParent()
+    {
+        var existingParent = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+        var updatedParent = new Category { Id = 1, Name = "Films", SavePath = "/downloads/movies" };
+        var child = new Category { Id = 2, Name = "movies/uhd", SavePath = string.Empty };
+        var conflicting = new Category { Id = 3, Name = "films/uhd", SavePath = string.Empty };
+
+        this.repository.Get(1).Returns(existingParent);
+        this.repository.All().Returns(new List<Category> { existingParent, child, conflicting });
+        this.repository.GetByName("Films").Returns((Category)null!);
+        this.repository.GetByName("Films/uhd").Returns(conflicting);
+
+        Action act = () => this.service.Update(updatedParent);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*Films/uhd*already exists*");
+        this.repository.DidNotReceive().Update(Arg.Any<Category>());
+    }
+
+    [Test]
     public void Update_WhenParentCategoryRenamed_CascadesNewNameToSubcategoriesAndTorrents()
     {
         var existingParent = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
@@ -479,6 +520,9 @@ public class CategoryServiceTest
         this.repository.Get(1).Returns(existingParent);
         this.repository.Update(updatedParent).Returns(updatedParent);
         this.repository.All().Returns(new List<Category> { updatedParent, child1, child2, other });
+        this.repository.GetByName("films").Returns((Category)null!);
+        this.repository.GetByName("films/uhd").Returns((Category)null!);
+        this.repository.GetByName("films/uhd/remux").Returns((Category)null!);
 
         var torrentParent = new Torrent { Id = 10, Name = "Movie1", Category = "movies" };
         var torrentChild1 = new Torrent { Id = 11, Name = "Movie2", Category = "movies/uhd" };
