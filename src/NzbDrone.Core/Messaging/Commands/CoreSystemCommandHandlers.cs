@@ -165,7 +165,7 @@ public class CoreSystemCommandHandler : ICoreSystemCommandHandler
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
         }
 
-        GC.Collect(command.Generation, GCCollectionMode.Forced, true, true);
+        GC.Collect(command.Generation, GCCollectionMode.Forced, true, command.CompactLargeObjectHeap);
         GC.WaitForPendingFinalizers();
         return Task.CompletedTask;
     }
