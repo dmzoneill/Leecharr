@@ -42,7 +42,6 @@ public class GeoIpProvidersTest
         provider.Capabilities.Should().Be(
             GeoIpCapabilities.Country |
             GeoIpCapabilities.City |
-            GeoIpCapabilities.Asn |
             GeoIpCapabilities.OfflineDatabase);
     }
 
@@ -102,6 +101,27 @@ public class GeoIpProvidersTest
 
         provider.GetDatabasePath().Should().BeNull();
         provider.IsAvailable.Should().BeFalse();
+    }
+
+    [Test]
+    public void MaxMind_GetAsnDatabasePath_WhenAsnFileExistsInConfigGeoIp_ReturnsPath()
+    {
+        this.diskProvider.FileExists("/config/GeoIP/GeoLite2-ASN.mmdb").Returns(true);
+
+        using var provider = new MaxMindGeoIpProvider(this.diskProvider, this.appFolderInfo);
+
+        provider.GetAsnDatabasePath().Should().Be("/config/GeoIP/GeoLite2-ASN.mmdb");
+        provider.Capabilities.Should().HaveFlag(GeoIpCapabilities.Asn);
+    }
+
+    [Test]
+    public void MaxMind_Capabilities_ExcludesAsnWhenAsnDatabaseMissing()
+    {
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(false);
+
+        using var provider = new MaxMindGeoIpProvider(this.diskProvider, this.appFolderInfo);
+
+        provider.Capabilities.Should().NotHaveFlag(GeoIpCapabilities.Asn);
     }
 
     [Test]

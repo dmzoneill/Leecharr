@@ -19,6 +19,7 @@ public class MaxMindGeoIpProviderTest
     private IDiskProvider diskProvider = null!;
     private IAppFolderInfo appFolderInfo = null!;
     private string testDatabasePath = null!;
+    private string asnTestDatabasePath = null!;
 
     [SetUp]
     public void SetUp()
@@ -32,6 +33,10 @@ public class MaxMindGeoIpProviderTest
             TestContext.CurrentContext.TestDirectory,
             "TestData",
             "GeoIP2-Country-Test.mmdb");
+        this.asnTestDatabasePath = Path.Combine(
+            TestContext.CurrentContext.TestDirectory,
+            "TestData",
+            "GeoLite2-ASN-Test.mmdb");
     }
 
     [Test]
@@ -42,7 +47,7 @@ public class MaxMindGeoIpProviderTest
         var diskMock = Substitute.For<IDiskProvider>();
         diskMock.FileExists(this.testDatabasePath).Returns(true);
 
-        using var provider = new TestableMaxMindGeoIpProvider(this.testDatabasePath, diskMock, this.appFolderInfo);
+        using var provider = new TestableMaxMindGeoIpProvider(this.testDatabasePath, null, diskMock, this.appFolderInfo);
 
         var result = await provider.LookupAsync("2.125.160.216");
 
@@ -53,6 +58,40 @@ public class MaxMindGeoIpProviderTest
     }
 
     [Test]
+    public async Task LookupAsync_WithAsnDatabase_SetsAsn()
+    {
+        File.Exists(this.asnTestDatabasePath).Should().BeTrue("MaxMind ASN test database must be copied to output");
+
+        var diskMock = Substitute.For<IDiskProvider>();
+        using var provider = new TestableMaxMindGeoIpProvider(null, this.asnTestDatabasePath, diskMock, this.appFolderInfo);
+
+        var result = await provider.LookupAsync("1.0.0.1");
+
+        result.Should().NotBeNull();
+        result.IpAddress.Should().Be("1.0.0.1");
+        result.Asn.Should().Be("AS15169 Google Inc.");
+    }
+
+    [Test]
+    public async Task LookupAsync_WithCountryAndAsnDatabases_SetsCountryAndAsn()
+    {
+        File.Exists(this.testDatabasePath).Should().BeTrue();
+        File.Exists(this.asnTestDatabasePath).Should().BeTrue();
+
+        var diskMock = Substitute.For<IDiskProvider>();
+        diskMock.FileExists(this.testDatabasePath).Returns(true);
+        diskMock.FileExists(this.asnTestDatabasePath).Returns(true);
+
+        using var provider = new TestableMaxMindGeoIpProvider(this.testDatabasePath, this.asnTestDatabasePath, diskMock, this.appFolderInfo);
+
+        var result = await provider.LookupAsync("2.125.160.216");
+
+        result.Should().NotBeNull();
+        result.CountryCode.Should().Be("GB");
+        result.Asn.Should().BeNullOrEmpty();
+    }
+
+    [Test]
     public async Task Concurrent_LookupAsync_And_Reload_ExecutesSafelyWithoutDisposedReader()
     {
         File.Exists(this.testDatabasePath).Should().BeTrue("MaxMind test database must be copied to output");
@@ -60,7 +99,7 @@ public class MaxMindGeoIpProviderTest
         var diskMock = Substitute.For<IDiskProvider>();
         diskMock.FileExists(this.testDatabasePath).Returns(true);
 
-        using var provider = new TestableMaxMindGeoIpProvider(this.testDatabasePath, diskMock, this.appFolderInfo);
+        using var provider = new TestableMaxMindGeoIpProvider(this.testDatabasePath, null, diskMock, this.appFolderInfo);
 
         var warmup = await provider.LookupAsync("2.125.160.216");
         warmup.CountryCode.Should().Be("GB");
@@ -88,7 +127,7 @@ public class MaxMindGeoIpProviderTest
         var diskMock = Substitute.For<IDiskProvider>();
         diskMock.FileExists(this.testDatabasePath).Returns(true);
 
-        using var provider = new TestableMaxMindGeoIpProvider(this.testDatabasePath, diskMock, this.appFolderInfo);
+        using var provider = new TestableMaxMindGeoIpProvider(this.testDatabasePath, null, diskMock, this.appFolderInfo);
 
         var tasks = new List<Task>();
         for (var i = 0; i < 50; i++)
@@ -113,13 +152,17 @@ public class MaxMindGeoIpProviderTest
     private class TestableMaxMindGeoIpProvider : MaxMindGeoIpProvider
     {
         private readonly string dbPath;
+        private readonly string asnDbPath;
 
-        public TestableMaxMindGeoIpProvider(string dbPath, IDiskProvider diskProvider, IAppFolderInfo appFolderInfo)
+        public TestableMaxMindGeoIpProvider(string dbPath, string asnDbPath, IDiskProvider diskProvider, IAppFolderInfo appFolderInfo)
             : base(diskProvider, appFolderInfo)
         {
             this.dbPath = dbPath;
+            this.asnDbPath = asnDbPath;
         }
 
         public override string GetDatabasePath() => this.dbPath;
+
+        public override string GetAsnDatabasePath() => this.asnDbPath;
     }
 }
