@@ -119,6 +119,32 @@ public class DynamicBlocklistProxyTest
     }
 
     [Test]
+    public async Task SwitchProviderAsync_FromP2PDatToRadixTree_KeepsPeerGuardianRanges()
+    {
+        var providers = new List<IBlocklistProvider>
+        {
+            new RadixTreeBlocklistProvider(),
+            new P2PDatBlocklistProvider(),
+            this.linuxIpSetProvider,
+        };
+
+        this.configService.GetValue("ActiveBlocklistProvider", Arg.Any<string>()).Returns("P2PDat");
+        var p2pProxy = new DynamicBlocklistProxy(providers, this.configService, this.eventAggregator);
+
+        var rules = new List<string> { "US:ISP:1.2.3.4-1.2.3.10:0" };
+        await p2pProxy.LoadRulesAsync(rules);
+        p2pProxy.IsIpBlocked("1.2.3.5").Should().BeTrue();
+
+        var switched = await p2pProxy.SwitchProviderAsync("RadixTree");
+        switched.Should().BeTrue();
+        p2pProxy.ActiveProviderId.Should().Be("RadixTree");
+        p2pProxy.IsIpBlocked("1.2.3.5").Should().BeTrue();
+        p2pProxy.IsIpBlocked("1.2.3.11").Should().BeFalse();
+
+        p2pProxy.Dispose();
+    }
+
+    [Test]
     public async Task SwitchProviderAsync_SwitchesActiveProviderAndMigratesRules()
     {
         var rules = new List<string> { "1.2.3.4", "10.0.0.0/8" };
