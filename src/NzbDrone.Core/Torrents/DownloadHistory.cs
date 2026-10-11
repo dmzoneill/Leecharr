@@ -14,6 +14,8 @@ public class DownloadHistory : ModelBase
 
     public string InfoHash { get; set; }
 
+    public string V2InfoHash { get; set; }
+
     public long TotalSize { get; set; }
 
     public DateTime DateAdded { get; set; }

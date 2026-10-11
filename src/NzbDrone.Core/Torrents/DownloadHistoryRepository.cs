@@ -59,7 +59,7 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
         var normalized = infoHash.Trim().ToLowerInvariant();
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<DownloadHistory>(
-                "SELECT * FROM \"DownloadHistory\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
+                "SELECT * FROM \"DownloadHistory\" WHERE \"InfoHash\" = @InfoHash OR \"V2InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
                 new { InfoHash = normalized }));
     }
 
@@ -84,7 +84,7 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            sql.Append(" AND (LOWER(\"Title\") LIKE @Query OR LOWER(\"InfoHash\") LIKE @Query OR LOWER(\"PrimaryTracker\") LIKE @Query OR LOWER(\"IndexerName\") LIKE @Query OR LOWER(\"Source\") LIKE @Query OR LOWER(\"Trackers\") LIKE @Query OR LOWER(\"DataJson\") LIKE @Query)");
+            sql.Append(" AND (LOWER(\"Title\") LIKE @Query OR LOWER(\"InfoHash\") LIKE @Query OR LOWER(\"V2InfoHash\") LIKE @Query OR LOWER(\"PrimaryTracker\") LIKE @Query OR LOWER(\"IndexerName\") LIKE @Query OR LOWER(\"Source\") LIKE @Query OR LOWER(\"Trackers\") LIKE @Query OR LOWER(\"DataJson\") LIKE @Query)");
             parameters.Add("Query", $"%{query.Trim().ToLowerInvariant()}%");
         }
 
@@ -154,6 +154,11 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
         if (model?.InfoHash != null)
         {
             model.InfoHash = model.InfoHash.Trim().ToLowerInvariant();
+        }
+
+        if (model?.V2InfoHash != null)
+        {
+            model.V2InfoHash = model.V2InfoHash.Trim().ToLowerInvariant();
         }
     }
 }

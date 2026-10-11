@@ -301,6 +301,30 @@ public class DownloadHistoryRepositoryTest
     }
 
     [Test]
+    public void FindByInfoHash_WhenQueriedByV2InfoHash_ReturnsMatchingHybridHistory()
+    {
+        var entry = new DownloadHistory
+        {
+            Title = "Hybrid Release",
+            InfoHash = "1111111111111111111111111111111111111111",
+            V2InfoHash = "2222222222222222222222222222222222222222222222222222222222222222",
+            Status = "Removed",
+            DateAdded = DateTime.UtcNow,
+        };
+
+        this.repository.Insert(entry);
+
+        var byV1 = this.repository.FindByInfoHash("1111111111111111111111111111111111111111");
+        byV1.Should().NotBeNull();
+        byV1.Title.Should().Be("Hybrid Release");
+
+        var byV2 = this.repository.FindByInfoHash("2222222222222222222222222222222222222222222222222222222222222222");
+        byV2.Should().NotBeNull();
+        byV2.Title.Should().Be("Hybrid Release");
+        byV2.InfoHash.Should().Be("1111111111111111111111111111111111111111");
+    }
+
+    [Test]
     public void FindByTorrentId_ReturnsMatchingEntry()
     {
         var entry = new DownloadHistory
