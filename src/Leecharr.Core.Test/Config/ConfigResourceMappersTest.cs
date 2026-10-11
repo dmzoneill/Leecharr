@@ -221,9 +221,19 @@ public class ConfigResourceMappersTest
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
-    public void BitTorrentConfigResourceMapper_WhenDownloadDirNullOrWhitespace_DefaultsToSlashDownloads(string emptyDir)
+    public void BitTorrentConfigResourceMapper_WhenDownloadDirNullOrWhitespace_PreservesUnsetValue(string emptyDir)
     {
         this.configService.DownloadDir.Returns(emptyDir);
+
+        var resource = BitTorrentConfigResourceMapper.ToResource(this.configService);
+
+        resource.DownloadDir.Should().Be(emptyDir);
+    }
+
+    [Test]
+    public void BitTorrentConfigResourceMapper_WhenDownloadDirIsConfigured_ReturnsConfiguredPath()
+    {
+        this.configService.DownloadDir.Returns("/downloads");
 
         var resource = BitTorrentConfigResourceMapper.ToResource(this.configService);
 

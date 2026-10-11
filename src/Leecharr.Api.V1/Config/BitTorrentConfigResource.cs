@@ -181,7 +181,7 @@ public static class BitTorrentConfigResourceMapper
             MinAnnounceIntervalSeconds = model.MinAnnounceIntervalSeconds,
             ScrapeIntervalSeconds = model.ScrapeIntervalSeconds,
 
-            DownloadDir = string.IsNullOrWhiteSpace(model.DownloadDir) ? "/downloads" : model.DownloadDir,
+            DownloadDir = model.DownloadDir,
             IncompleteDownloadDir = model.IncompleteDownloadDir,
             EnableIncompleteDir = model.EnableIncompleteDir,
             AutoRecheckOnCompletion = model.AutoRecheckOnCompletion,
