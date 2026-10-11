@@ -914,13 +914,21 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             await this.blocklistService.AddRulesAsync(new[] { cleanIp });
         }
 
+        var disconnected = false;
         var task = this.torrentService.GetDownloadTask(id);
         if (task != null)
         {
-            await task.DisconnectPeerAsync(cleanIp);
+            disconnected = await task.DisconnectPeerAsync(cleanIp);
         }
 
-        return this.Ok(new { success = true, ip = cleanIp, message = $"Peer {cleanIp} banned and disconnected." });
+        return this.Ok(new
+        {
+            success = disconnected,
+            ip = cleanIp,
+            message = disconnected
+                ? $"Peer {cleanIp} banned and disconnected."
+                : $"Peer {cleanIp} was added to the blocklist but is not connected or could not be disconnected.",
+        });
     }
 
     private async Task<IActionResult> DisconnectPeerInternalAsync(int id, string ip)
@@ -937,13 +945,21 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return this.BadRequest("IP address is invalid.");
         }
 
+        var disconnected = false;
         var task = this.torrentService.GetDownloadTask(id);
         if (task != null)
         {
-            await task.DisconnectPeerAsync(cleanIp);
+            disconnected = await task.DisconnectPeerAsync(cleanIp);
         }
 
-        return this.Ok(new { success = true, ip = cleanIp, message = $"Peer {cleanIp} disconnected." });
+        return this.Ok(new
+        {
+            success = disconnected,
+            ip = cleanIp,
+            message = disconnected
+                ? $"Peer {cleanIp} disconnected."
+                : $"Peer {cleanIp} is not connected or could not be disconnected.",
+        });
     }
 
     private static string CleanIp(string ip)

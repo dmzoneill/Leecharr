@@ -343,7 +343,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
 
         var savePath = this.ResolveSavePath(torrent);
-        var task = new LibTorrentDownloadTask(torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
+        var task = new LibTorrentDownloadTask(this, torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
         this.tasks[torrent.Id] = task;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
         if (!string.IsNullOrWhiteSpace(torrent.V2InfoHash))
@@ -854,6 +854,56 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         return task;
     }
 
+    public async Task<bool> DisconnectPeerAsync(int torrentId, string ip)
+    {
+        if (!this.tasks.TryGetValue(torrentId, out var task))
+        {
+            return false;
+        }
+
+        var cleanIp = TorrentEngineNetworkHelper.NormalizePeerIp(ip);
+        if (string.IsNullOrWhiteSpace(cleanIp))
+        {
+            return false;
+        }
+
+        try
+        {
+            var response = await this.SendRpcRequestAsync("disconnect_peer", new Dictionary<string, object>
+            {
+                ["info_hash"] = task.InfoHash,
+                ["ip"] = cleanIp,
+            });
+
+            if (response.TryGetValue("error", out var errorObj) && errorObj != null && !string.IsNullOrWhiteSpace(errorObj.ToString()))
+            {
+                return false;
+            }
+
+            var disconnected = 0;
+            if (response.TryGetValue("disconnected", out var disconnectedObj) && disconnectedObj != null)
+            {
+                _ = int.TryParse(disconnectedObj.ToString(), out disconnected);
+            }
+
+            if (disconnected <= 0)
+            {
+                return false;
+            }
+
+            var remainingPeers = task.GetPeers()
+                .Where(p => !TorrentEngineNetworkHelper.PeerAddressesMatch(cleanIp, p.Ip))
+                .ToList();
+            task.SetPeers(remainingPeers);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "libtorrent: failed to disconnect peer {0} on torrent {1}", ip, torrentId);
+            return false;
+        }
+    }
+
     public IEnumerable<IDownloadTask> GetAllTasks()
     {
         return this.tasks.Values;
@@ -1347,8 +1397,19 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
 public class LibTorrentDownloadTask : BaseDaemonDownloadTask
 {
-    public LibTorrentDownloadTask(int torrentId, string infoHash, string name, long totalSize, string category = null)
+    private readonly LibTorrentDownloadEngine engine;
+
+    public LibTorrentDownloadTask(
+        LibTorrentDownloadEngine engine,
+        int torrentId,
+        string infoHash,
+        string name,
+        long totalSize,
+        string category = null)
         : base(torrentId, infoHash, name, totalSize, category)
     {
+        this.engine = engine;
     }
+
+    public Task<bool> DisconnectPeerAsync(string ip) => this.engine.DisconnectPeerAsync(this.TorrentId, ip);
 }

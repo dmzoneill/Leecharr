@@ -628,6 +628,48 @@ public class EmbeddedTransmissionEngineTest
         setDoc.RootElement.GetProperty("arguments").GetProperty("trackerRemove")[0].GetInt32().Should().Be(5);
     }
 
+    [Test]
+    public async Task DisconnectPeerAsync_WhenPeerConnected_StopStartsTorrentAndReturnsTrue()
+    {
+        var rpcMethods = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            rpcMethods.Add(method!);
+
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+
+        var task = (TransmissionDownloadTask)engine.GetTask(42)!;
+        task.SetPeers(new List<PeerInfo> { new() { Ip = "10.0.0.5", Port = 6881 } });
+
+        var result = await task.DisconnectPeerAsync("10.0.0.5");
+
+        result.Should().BeTrue();
+        rpcMethods.Should().Contain("torrent-stop");
+        rpcMethods.Should().Contain("torrent-start");
+        task.GetPeers().Should().BeEmpty();
+    }
+
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)
     {
         return new EmbeddedTransmissionEngine(
