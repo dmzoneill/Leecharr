@@ -2049,6 +2049,57 @@ public class IndexerControllerTest
     }
 
     [Test]
+    public void Update_AppliesFlattenedSettings_WhenSettingsDocumentPresent()
+    {
+        var staleSettings = System.Text.Json.JsonSerializer.Serialize(new IndexerSettings
+        {
+            Cookie = "uid=old",
+            UserAgent = "OldAgent",
+            SupportsTvSearch = true,
+            SupportsMovieSearch = true,
+            CapabilitiesVerified = true,
+        });
+
+        var existing = new IndexerDefinition
+        {
+            Id = 7,
+            Name = "Private Tracker",
+            Url = "http://localhost:9117",
+            ApiKey = "key",
+            Settings = staleSettings,
+        };
+
+        this.indexerRepository.Get(7).Returns(existing);
+
+        var resource = new IndexerResource
+        {
+            Id = 7,
+            Name = "Private Tracker",
+            Url = "http://localhost:9117",
+            ApiKey = "key",
+            Settings = staleSettings,
+            Cookie = "uid=new",
+            UserAgent = "NewAgent",
+            SupportsTvSearch = false,
+            SupportsMovieSearch = false,
+        };
+
+        var result = this.controller.Update(7, resource);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx =>
+        {
+            var parsed = System.Text.Json.JsonSerializer.Deserialize<IndexerSettings>(idx.Settings!);
+            return parsed != null &&
+                   parsed.Cookie == "uid=new" &&
+                   parsed.UserAgent == "NewAgent" &&
+                   parsed.SupportsTvSearch == false &&
+                   parsed.SupportsMovieSearch == false &&
+                   parsed.CapabilitiesVerified;
+        }));
+    }
+
+    [Test]
     public void Delete_WhenIndexerExists_InvalidatesCapabilitiesAndDeletes()
     {
         var existing = new IndexerDefinition
