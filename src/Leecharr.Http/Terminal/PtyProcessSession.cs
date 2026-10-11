@@ -108,6 +108,8 @@ else:
             pass
 ";
 
+    private static readonly string[] Python3Candidates = { "/usr/bin/python3", "/bin/python3", "/usr/local/bin/python3" };
+
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly Process process;
     private readonly Stream inputStream;
@@ -141,9 +143,10 @@ else:
         try
         {
             ProcessStartInfo startInfo;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3")))
+            var usePythonPty = (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                && TryResolvePython3(out var pyBinary);
+            if (usePythonPty)
             {
-                var pyBinary = File.Exists("/usr/bin/python3") ? "/usr/bin/python3" : "/bin/python3";
                 var safeTempDir = TerminalEnvironmentSanitizer.GetSafeTempDirectory();
                 controlPipePath = Path.Combine(safeTempDir, $"leecharr_pty_ctrl_{Guid.NewGuid():N}.pipe");
                 CreateFifo(controlPipePath);
@@ -357,6 +360,21 @@ else:
     {
         this.Kill();
         return ValueTask.CompletedTask;
+    }
+
+    internal static bool TryResolvePython3(out string path)
+    {
+        foreach (var candidate in Python3Candidates)
+        {
+            if (File.Exists(candidate))
+            {
+                path = candidate;
+                return true;
+            }
+        }
+
+        path = null;
+        return false;
     }
 
     internal static void CreateFifo(string path)
