@@ -21,6 +21,7 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
         ("BlocklistUpdateTask", 1440),
         ("GeoIpUpdateTask", 43200),
         ("DownloadHistoryCleanupTask", 1440),
+        ("AutomationScheduledTask", 15),
     ];
 
     private readonly IScheduledTaskRepository scheduledTaskRepository;

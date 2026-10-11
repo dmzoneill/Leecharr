@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using NLog;
 using NzbDrone.Core.Authentication;
+using NzbDrone.Core.Automation;
 using NzbDrone.Core.Backup;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Messaging.Commands;
@@ -271,6 +272,11 @@ public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
                     string.Equals(name, "DownloadHistoryCleanupTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager.Push(new DownloadHistoryCleanupCommand(), CommandTrigger.Scheduled);
+        }
+        else if (string.Equals(name, "AutomationScheduled", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(name, "AutomationScheduledTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager.Push(new AutomationScheduledCommand(), CommandTrigger.Scheduled);
         }
         else
         {
