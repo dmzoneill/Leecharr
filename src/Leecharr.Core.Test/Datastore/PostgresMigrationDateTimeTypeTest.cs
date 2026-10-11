@@ -27,6 +27,6 @@ public class PostgresMigrationDateTimeTypeTest
         var typeMap = Activator.CreateInstance(typeMapType)!;
         var getTypeMap = typeMapType.GetMethod("GetTypeMap", BindingFlags.Instance | BindingFlags.Public)!;
 
-        return (string)getTypeMap.Invoke(typeMap, new object?[] { DbType.DateTime, null, null })!;
+        return (string)getTypeMap.Invoke(typeMap, new object[] { DbType.DateTime, null, null })!;
     }
 }

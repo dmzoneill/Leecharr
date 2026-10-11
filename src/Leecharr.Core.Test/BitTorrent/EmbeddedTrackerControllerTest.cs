@@ -482,6 +482,7 @@ public class EmbeddedTrackerControllerTest
         this.trackerService.DidNotReceive().ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>());
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Test helper kept instance for readability.")]
     private void ConfigureHttpTracker(IConfigService configService, int port)
     {
         configService.TrackerServerEnabled.Returns(true);

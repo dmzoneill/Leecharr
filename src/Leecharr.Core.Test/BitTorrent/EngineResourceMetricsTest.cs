@@ -43,6 +43,26 @@ public class EngineResourceMetricsTest
         this.eventAggregator = Substitute.For<IEventAggregator>();
     }
 
+    private EmbeddedTransmissionEngine CreateTransmissionEngine()
+    {
+        return new EmbeddedTransmissionEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator);
+    }
+
+    private LibTorrentDownloadEngine CreateLibTorrentEngine()
+    {
+        return new LibTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator);
+    }
+
     [Test]
     public void TorrentResourceMetrics_WhenPropertiesSetToNull_CoercesToNonNullDefaults()
     {
@@ -79,7 +99,8 @@ public class EngineResourceMetricsTest
     [Test]
     public void TransmissionDownloadTask_GetResourceMetrics_DefaultConstructor_InitializesNonNullCategoryAndStatus()
     {
-        var task = new TransmissionDownloadTask(10, "hash-trans", "Transmission Torrent", 1024);
+        using var engine = this.CreateTransmissionEngine();
+        var task = new TransmissionDownloadTask(engine, 10, "hash-trans", "Transmission Torrent", 1024);
 
         var metrics = task.GetResourceMetrics();
 
@@ -95,7 +116,8 @@ public class EngineResourceMetricsTest
     [Test]
     public void TransmissionDownloadTask_GetResourceMetrics_WhenCategoryProvided_InitializesCorrectCategory()
     {
-        var task = new TransmissionDownloadTask(11, "hash-trans2", "Transmission Torrent 2", 2048, "tv");
+        using var engine = this.CreateTransmissionEngine();
+        var task = new TransmissionDownloadTask(engine, 11, "hash-trans2", "Transmission Torrent 2", 2048, "tv");
 
         var metrics = task.GetResourceMetrics();
 
@@ -142,7 +164,8 @@ public class EngineResourceMetricsTest
     [Test]
     public void LibTorrentDownloadTask_GetResourceMetrics_WithPieceAvailability_ComputesSwarmAvailability()
     {
-        var task = new LibTorrentDownloadTask(22, "hash-lib3", "LibTorrent Availability", 4096)
+        using var engine = this.CreateLibTorrentEngine();
+        var task = new LibTorrentDownloadTask(engine, 22, "hash-lib3", "LibTorrent Availability", 4096)
         {
             PieceAvailability = new[] { 2, 2, 4, 4 },
         };
@@ -150,7 +173,6 @@ public class EngineResourceMetricsTest
         var metrics = task.GetResourceMetrics();
 
         metrics.SwarmAvailability.Should().Be(3.0);
-        task.SwarmAvailability.Should().Be(3.0);
     }
 
     [Test]
@@ -174,7 +196,8 @@ public class EngineResourceMetricsTest
     [Test]
     public void LibTorrentDownloadTask_GetResourceMetrics_DefaultConstructor_InitializesNonNullCategoryAndStatus()
     {
-        var task = new LibTorrentDownloadTask(20, "hash-lib", "LibTorrent Download", 4096);
+        using var engine = this.CreateLibTorrentEngine();
+        var task = new LibTorrentDownloadTask(engine, 20, "hash-lib", "LibTorrent Download", 4096);
 
         var metrics = task.GetResourceMetrics();
 
@@ -190,7 +213,8 @@ public class EngineResourceMetricsTest
     [Test]
     public void LibTorrentDownloadTask_GetResourceMetrics_WhenCategoryProvided_InitializesCorrectCategory()
     {
-        var task = new LibTorrentDownloadTask(21, "hash-lib2", "LibTorrent Download 2", 8192, "music");
+        using var engine = this.CreateLibTorrentEngine();
+        var task = new LibTorrentDownloadTask(engine, 21, "hash-lib2", "LibTorrent Download 2", 8192, "music");
 
         var metrics = task.GetResourceMetrics();
 

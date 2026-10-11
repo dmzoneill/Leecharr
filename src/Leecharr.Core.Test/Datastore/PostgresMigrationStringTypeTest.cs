@@ -39,6 +39,6 @@ public class PostgresMigrationStringTypeTest
         var typeMap = Activator.CreateInstance(typeMapType)!;
         var getTypeMap = typeMapType.GetMethod("GetTypeMap", BindingFlags.Instance | BindingFlags.Public)!;
 
-        return (string)getTypeMap.Invoke(typeMap, new object?[] { DbType.String, size, null })!;
+        return (string)getTypeMap.Invoke(typeMap, new object[] { DbType.String, size, null })!;
     }
 }
