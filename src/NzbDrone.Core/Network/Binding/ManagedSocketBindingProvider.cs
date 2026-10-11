@@ -178,9 +178,54 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
                 !a.Equals(IPAddress.IPv6None));
         }
 
-        return addrList.FirstOrDefault(a =>
-            !IPAddress.IsLoopback(a) &&
-            !a.Equals(IPAddress.Any) &&
-            !a.Equals(IPAddress.None));
+        return addrList.FirstOrDefault(IsUsableIpv4BindAddress);
+    }
+
+    internal static bool IsUsableBindUnicastAddress(IPAddress address)
+    {
+        if (address == null)
+        {
+            return false;
+        }
+
+        if (address.AddressFamily == AddressFamily.InterNetwork)
+        {
+            return IsUsableIpv4BindAddress(address);
+        }
+
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return !address.IsIPv6LinkLocal &&
+                !address.IsIPv6SiteLocal &&
+                !address.IsIPv6Multicast &&
+                !IPAddress.IsLoopback(address) &&
+                !address.Equals(IPAddress.IPv6Any) &&
+                !address.Equals(IPAddress.IPv6None);
+        }
+
+        return false;
+    }
+
+    internal static bool IsUsableIpv4BindAddress(IPAddress address)
+    {
+        if (address == null || address.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
+        if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.None))
+        {
+            return false;
+        }
+
+        var bytes = address.GetAddressBytes();
+
+        // APIPA / link-local IPv4 (169.254.0.0/16)
+        if (bytes[0] == 169 && bytes[1] == 254)
+        {
+            return false;
+        }
+
+        return true;
     }
 }

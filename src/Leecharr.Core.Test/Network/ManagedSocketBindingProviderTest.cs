@@ -164,6 +164,32 @@ public class ManagedSocketBindingProviderTest
     }
 
     [Test]
+    public void SelectIpAddress_WhenOnlyApipaIpv4_ReturnsNull()
+    {
+        var addresses = new[]
+        {
+            IPAddress.Parse("169.254.12.34"),
+            IPAddress.Parse("169.254.200.5"),
+        };
+
+        ManagedSocketBindingProvider.SelectIpAddress(addresses, (int?)null, AddressFamily.InterNetwork).Should().BeNull();
+    }
+
+    [Test]
+    public void SelectIpAddress_WhenApipaAndRoutableIpv4_PrefersRoutable()
+    {
+        var addresses = new[]
+        {
+            IPAddress.Parse("169.254.1.1"),
+            IPAddress.Parse("10.8.0.42"),
+        };
+
+        var selected = ManagedSocketBindingProvider.SelectIpAddress(addresses, (int?)null, AddressFamily.InterNetwork);
+
+        selected.Should().Be(IPAddress.Parse("10.8.0.42"));
+    }
+
+    [Test]
     public void SelectIpAddress_WhenEmptyOrNull_ReturnsNull()
     {
         ManagedSocketBindingProvider.SelectIpAddress(null, 1, AddressFamily.InterNetworkV6).Should().BeNull();

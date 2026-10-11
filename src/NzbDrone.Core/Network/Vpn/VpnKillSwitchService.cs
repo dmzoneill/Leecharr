@@ -238,6 +238,12 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
             }
         }
 
+        if (ip != null && family == AddressFamily.InterNetwork &&
+            !ManagedSocketBindingProvider.IsUsableIpv4BindAddress(ip))
+        {
+            return null;
+        }
+
         return ip;
     }
 
@@ -315,15 +321,7 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
             }
 
             var unicast = nic.GetIPProperties()?.UnicastAddresses;
-            return unicast != null && unicast.Any(a =>
-                !IPAddress.IsLoopback(a.Address) &&
-                !a.Address.Equals(IPAddress.Any) &&
-                !a.Address.Equals(IPAddress.None) &&
-                !a.Address.Equals(IPAddress.IPv6Any) &&
-                !a.Address.Equals(IPAddress.IPv6None) &&
-                !a.Address.IsIPv6LinkLocal &&
-                !a.Address.IsIPv6SiteLocal &&
-                !a.Address.IsIPv6Multicast);
+            return unicast != null && unicast.Any(a => ManagedSocketBindingProvider.IsUsableBindUnicastAddress(a.Address));
         }
         catch (Exception ex)
         {
