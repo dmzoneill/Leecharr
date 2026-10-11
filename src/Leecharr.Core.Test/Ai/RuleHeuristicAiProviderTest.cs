@@ -125,6 +125,31 @@ public class RuleHeuristicAiProviderTest
         var dd51 = await this.provider.ParseReleaseAsync("Show.Name.S01E01.1080p.WEB.DL.DD.5.1.H.264-NTb");
         dd51.AudioCodec.Should().Be("DD5.1");
         dd51.AudioChannels.Should().Be("5.1");
+        dd51.Quality.Should().Be("WEB-DL");
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_DottedSourceTags_NormalizesQuality()
+    {
+        var webDl = await this.provider.ParseReleaseAsync("Show.Name.S01E01.1080p.WEB.DL.DDP5.1.H.264-NTb");
+        webDl.Quality.Should().Be("WEB-DL");
+
+        var webRip = await this.provider.ParseReleaseAsync("Movie.Name.2020.1080p.WEB.Rip.x264-GROUP");
+        webRip.Quality.Should().Be("WEBRip");
+
+        var bluRay = await this.provider.ParseReleaseAsync("Oppenheimer.2023.2160p.UHD.Blu.Ray.x265-GROUP");
+        bluRay.Quality.Should().Be("2160p UHD BluRay");
+        bluRay.Resolution.Should().Be("2160p");
+    }
+
+    [Test]
+    public async Task ProcessNaturalLanguageSearchAsync_DottedWebDl_ParsesQualityAndStripsFromTitle()
+    {
+        var result = await this.provider.ProcessNaturalLanguageSearchAsync("oppenheimer web dl 1080p");
+
+        result.Quality.Should().Be("WEB-DL");
+        result.Resolution.Should().Be("1080p");
+        result.CleanTitle.Should().Be("oppenheimer");
     }
 
     [Test]
