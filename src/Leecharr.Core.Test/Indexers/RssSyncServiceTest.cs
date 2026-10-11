@@ -372,6 +372,26 @@ public class RssSyncServiceTest
         this.service.MatchesRule(release, rule).Should().BeTrue();
     }
 
+    [Test]
+    public void MatchesRule_WhenPublishDateMissingAndMaxAgeDaysSet_ReturnsFalse()
+    {
+        var release = new TorznabSearchResult
+        {
+            Title = "Severance.S02E01.2160p",
+            Seeders = 10,
+            PublishDate = default,
+        };
+
+        var rule = new RssRule
+        {
+            Name = "MaxAge 5 Days",
+            IsEnabled = true,
+            MaxAgeDays = 5,
+        };
+
+        this.service.MatchesRule(release, rule).Should().BeFalse();
+    }
+
     #endregion
 
     #region Duplicate Grab Prevention and Sync Tests
