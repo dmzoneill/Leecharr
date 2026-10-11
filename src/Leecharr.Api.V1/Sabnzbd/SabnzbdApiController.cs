@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
@@ -88,7 +89,7 @@ public class SabnzbdApiController : ControllerBase
             "addurl" => await this.HandleAddUrlModeAsync(name, cat, priority, formName, formCat, formPriority),
             "addlocalfile" => await this.HandleAddLocalFileModeAsync(name, cat, priority, formName, formCat, formPriority),
             "addfile" => await this.HandleAddFileModeAsync(cat, priority, formCat, formPriority),
-            "pause" => await this.HandlePauseModeAsync(value),
+            "pause" => await this.HandlePauseModeAsync(value, formValue),
             "resume" => await this.HandleResumeModeAsync(value),
             "delete" => await this.HandleDeleteModeAsync(value),
             "change_cat" or "set_category" => await this.HandleSetCategoryModeAsync(value, cat),
@@ -603,10 +604,25 @@ public class SabnzbdApiController : ControllerBase
         return this.Ok(new { status = true, nzo_ids = new[] { Guid.NewGuid().ToString("N") } });
     }
 
-    private async Task<IActionResult> HandlePauseModeAsync(string value)
+    private async Task<IActionResult> HandlePauseModeAsync(string value, string formValue)
     {
-        await this.PauseTorrentsAsync(value);
+        var pauseMinutesRaw = !string.IsNullOrWhiteSpace(value) ? value : formValue;
+        await this.PauseQueueAsync();
+
+        if (int.TryParse(pauseMinutesRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minutes) && minutes > 0)
+        {
+            SabnzbdQueuePauseScheduler.ScheduleResume(this.torrentService, TimeSpan.FromMinutes(minutes));
+        }
+
         return this.Ok(new { status = true });
+    }
+
+    private async Task PauseQueueAsync()
+    {
+        foreach (var torrent in this.torrentService.GetAll())
+        {
+            await this.torrentService.PauseAsync(torrent.Id);
+        }
     }
 
     private async Task<IActionResult> HandleResumeModeAsync(string value)

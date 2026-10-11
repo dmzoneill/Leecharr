@@ -902,4 +902,62 @@ public class SabnzbdApiControllerTest
         torrent.Category.Should().Be("tv");
         await this.torrentService.Received(1).UpdateAsync(torrent);
     }
+
+    [Test]
+    public async Task HandleApi_PauseMode_WithMinutes_PausesAllQueueTorrents()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Downloading },
+            new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Downloading },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "pause",
+            name: null,
+            value: "15",
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).PauseAsync(1);
+        await this.torrentService.Received(1).PauseAsync(2);
+        this.torrentService.DidNotReceive().GetByInfoHash(Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task HandleApi_PauseMode_WithFormValue_PausesAllQueueTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            { "mode", "pause" },
+            { "value", "10" },
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 3, InfoHash = "h3", Status = TorrentStatus.Downloading },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: null,
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).PauseAsync(3);
+        this.torrentService.DidNotReceive().GetByInfoHash(Arg.Any<string>());
+    }
 }
