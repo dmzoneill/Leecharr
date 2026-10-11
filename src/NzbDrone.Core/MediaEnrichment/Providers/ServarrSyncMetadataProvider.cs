@@ -243,7 +243,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                 req.Headers.Add("X-Api-Key", conn.ApiKey);
             }
 
-            var resp = await this.httpClient.SendAsync(req);
+            using var resp = await this.httpClient.SendAsync(req);
             if (!resp.IsSuccessStatusCode)
             {
                 return null;
@@ -426,7 +426,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                 req.Headers.Add("X-Api-Key", conn.ApiKey);
             }
 
-            var resp = await this.httpClient.SendAsync(req);
+            using var resp = await this.httpClient.SendAsync(req);
             if (resp.IsSuccessStatusCode)
             {
                 var json = await resp.Content.ReadAsStringAsync();
@@ -701,7 +701,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             req.Headers.Add("X-Api-Key", conn.ApiKey);
         }
 
-        var resp = await this.httpClient.SendAsync(req);
+        using var resp = await this.httpClient.SendAsync(req);
         if (!resp.IsSuccessStatusCode)
         {
             return null;
