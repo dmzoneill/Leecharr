@@ -126,7 +126,31 @@ public class TorrentFileServiceTest
         var result = await this.service.SetPrioritiesAsync(1, priorities);
 
         result.Should().BeFalse();
-        file1.Priority.Should().Be(0);
-        this.repository.Received(1).Update(file1);
+        file1.Priority.Should().Be(3);
+        this.repository.DidNotReceive().Update(Arg.Any<TorrentFile>());
+        await this.downloadEngine.DidNotReceiveWithAnyArgs().SetFilePriorityAsync(default, default!, default);
+    }
+
+    [Test]
+    public async Task SetPrioritiesAsync_WhenFileBelongsToDifferentTorrent_ReturnsFalseWithoutUpdatingOthers()
+    {
+        var file1 = new TorrentFile { Id = 10, TorrentId = 1, Path = "f1.txt", Priority = 3 };
+        var file2 = new TorrentFile { Id = 11, TorrentId = 2, Path = "f2.txt", Priority = 3 };
+        this.repository.Get(10).Returns(file1);
+        this.repository.Get(11).Returns(file2);
+
+        var priorities = new List<(int FileId, int Priority)>
+        {
+            (10, 0),
+            (11, 5),
+        };
+
+        var result = await this.service.SetPrioritiesAsync(1, priorities);
+
+        result.Should().BeFalse();
+        file1.Priority.Should().Be(3);
+        file2.Priority.Should().Be(3);
+        this.repository.DidNotReceive().Update(Arg.Any<TorrentFile>());
+        await this.downloadEngine.DidNotReceiveWithAnyArgs().SetFilePriorityAsync(default, default!, default);
     }
 }

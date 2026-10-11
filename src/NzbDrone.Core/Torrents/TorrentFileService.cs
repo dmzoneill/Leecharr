@@ -95,16 +95,28 @@ public class TorrentFileService : ITorrentFileService
             return false;
         }
 
-        var allOk = true;
+        var updates = new List<(TorrentFile File, int Priority)>();
         foreach (var (fileId, priority) in priorities)
         {
-            var success = await this.SetPriorityAsync(torrentId, fileId, priority);
-            if (!success)
+            var file = this.repository.Get(fileId);
+            if (file == null || file.TorrentId != torrentId)
             {
-                allOk = false;
+                return false;
+            }
+
+            updates.Add((file, Math.Clamp(priority, 0, 7)));
+        }
+
+        foreach (var (file, clampedPriority) in updates)
+        {
+            file.Priority = clampedPriority;
+            this.repository.Update(file);
+            if (this.downloadEngine != null)
+            {
+                await this.downloadEngine.SetFilePriorityAsync(file.TorrentId, file.Path, clampedPriority);
             }
         }
 
-        return allOk;
+        return true;
     }
 }
