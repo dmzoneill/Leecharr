@@ -85,6 +85,64 @@ public class ArchiveTimeoutCalculatorTest
     }
 
     [Test]
+    public void CalculateDynamicTimeout_ForPrimaryRar_SumsRarAndRxxVolumes()
+    {
+        var primaryRar = "/downloads/release.rar";
+        this.diskProvider.FileExists(primaryRar).Returns(true);
+        this.diskProvider.FolderExists("/downloads").Returns(true);
+        this.diskProvider.GetFiles("/downloads", false).Returns(new[]
+        {
+            "/downloads/release.rar",
+            "/downloads/release.r00",
+            "/downloads/release.r01",
+            "/downloads/release.r02",
+        });
+
+        this.diskProvider.GetFileSize(Arg.Any<string>()).Returns(10L * 1024 * 1024 * 1024);
+
+        var timeout = ArchiveTimeoutCalculator.CalculateDynamicTimeout(primaryRar, this.diskProvider);
+
+        timeout.Should().Be(TimeSpan.FromMinutes(70));
+    }
+
+    [Test]
+    public void CalculateDynamicTimeout_ForPrimaryZip_SumsZipAndZxxVolumes()
+    {
+        var primaryZip = "/downloads/release.zip";
+        this.diskProvider.FileExists(primaryZip).Returns(true);
+        this.diskProvider.FolderExists("/downloads").Returns(true);
+        this.diskProvider.GetFiles("/downloads", false).Returns(new[]
+        {
+            "/downloads/release.zip",
+            "/downloads/release.z01",
+            "/downloads/release.z02",
+        });
+
+        this.diskProvider.GetFileSize(Arg.Any<string>()).Returns(15L * 1024 * 1024 * 1024);
+
+        var timeout = ArchiveTimeoutCalculator.CalculateDynamicTimeout(primaryZip, this.diskProvider);
+
+        timeout.Should().Be(TimeSpan.FromMinutes(75));
+    }
+
+    [Test]
+    public void CalculateDynamicTimeout_ForNumericSplitArchive_IgnoresUnrelatedThreeDigitExtensions()
+    {
+        var primaryPart = "/downloads/notes.001";
+        this.diskProvider.FileExists(primaryPart).Returns(true);
+        this.diskProvider.FolderExists("/downloads").Returns(true);
+        this.diskProvider.FileExists("/downloads/notes.001").Returns(true);
+        this.diskProvider.FileExists("/downloads/notes.002").Returns(true);
+        this.diskProvider.FileExists("/downloads/notes.003").Returns(false);
+        this.diskProvider.FileExists("/downloads/notes.720").Returns(true);
+        this.diskProvider.GetFileSize(Arg.Any<string>()).Returns(5L * 1024 * 1024 * 1024);
+
+        var timeout = ArchiveTimeoutCalculator.CalculateDynamicTimeout(primaryPart, this.diskProvider);
+
+        timeout.Should().Be(TimeSpan.FromMinutes(40));
+    }
+
+    [Test]
     public void CalculateDynamicTimeout_ForNumericSplitArchive_SumsAllPartFiles()
     {
         var primaryPart = "/downloads/release.r00";
@@ -162,7 +220,8 @@ public class ArchiveTimeoutCalculatorTest
     {
         var archivePath = "/downloads/test.rar";
         this.diskProvider.FileExists(archivePath).Returns(true);
-        this.diskProvider.FolderExists("/downloads").Returns(false);
+        this.diskProvider.FolderExists("/downloads").Returns(true);
+        this.diskProvider.GetFiles("/downloads", false).Returns(new[] { archivePath });
         this.diskProvider.GetFileSize(archivePath).Returns(25L * 1024 * 1024 * 1024);
 
         var provider = new UnrarExtractorProvider(this.diskProvider);

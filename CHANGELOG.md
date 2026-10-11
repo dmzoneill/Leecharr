@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### 🐛 Bug Fixes
 - fix(config): accept `1` and `0` for boolean environment and config.xml settings (fixes #1412)
+- fix(extraction): sum sibling RAR and ZIP volumes for archive size estimates (fixes #1416)
 - fix(extraction): do not SharpCompress-fallback on extractor timeout or cancellation (fixes #1417)
 - fix(config): fall back to config.xml for CORS and SSRF allowlists in general settings (#1421)
 - fix(indexers): do not cache invalid Torznab capabilities responses (#1460)
