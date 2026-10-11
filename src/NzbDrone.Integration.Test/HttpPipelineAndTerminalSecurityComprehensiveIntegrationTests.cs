@@ -444,6 +444,52 @@ public class HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests : Inte
     }
 
     [Test]
+    public async Task CookieSessionAuthenticationEvents_RedirectToAccessDenied_DifferentiatesApiFromWeb()
+    {
+        var events = new CookieSessionAuthenticationEvents();
+
+        var apiPaths = new[]
+        {
+            "/api/v1/system/status",
+            "/signalr/connect",
+            "/transmission/rpc",
+            "/jsonrpc",
+            "/aria2",
+            "/nzbget",
+            "/hadouken",
+            "/sabnzbd",
+            "/gui",
+        };
+
+        foreach (var path in apiPaths)
+        {
+            var httpContext = new DefaultHttpContext();
+            httpContext.Request.Path = path;
+            var redirectContext = new RedirectContext<CookieAuthenticationOptions>(
+                httpContext,
+                new AuthenticationScheme("Cookies", null, typeof(CookieAuthenticationHandler)),
+                new CookieAuthenticationOptions(),
+                new AuthenticationProperties(),
+                "http://localhost:7889/login?accessDenied=true");
+
+            await events.RedirectToAccessDenied(redirectContext);
+            httpContext.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden, $"path {path} must return 403");
+        }
+
+        var webContext = new DefaultHttpContext();
+        webContext.Request.Path = "/settings/general";
+        var webRedirectContext = new RedirectContext<CookieAuthenticationOptions>(
+            webContext,
+            new AuthenticationScheme("Cookies", null, typeof(CookieAuthenticationHandler)),
+            new CookieAuthenticationOptions(),
+            new AuthenticationProperties(),
+            "http://localhost:7889/login?accessDenied=true");
+
+        await events.RedirectToAccessDenied(webRedirectContext);
+        webContext.Response.Headers.Location.ToString().Should().Be("http://localhost:7889/login?accessDenied=true");
+    }
+
+    [Test]
     public async Task CookieSessionManager_ValidatePrincipalAndSessionLifecycle_TracksAndEvicts()
     {
         var sessionRepo = Substitute.For<IUserSessionRepository>();
