@@ -484,25 +484,8 @@ public class BulkDeleteIndexersRequestConverter : JsonConverter<BulkDeleteIndexe
                     if (string.Equals(propName, "ids", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(propName, "indexerIds", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (reader.TokenType == JsonTokenType.StartArray)
-                        {
-                            while (reader.Read())
-                            {
-                                if (reader.TokenType == JsonTokenType.EndArray)
-                                {
-                                    break;
-                                }
-
-                                if (reader.TokenType == JsonTokenType.Number)
-                                {
-                                    request.Ids.Add(reader.GetInt32());
-                                }
-                                else if (reader.TokenType == JsonTokenType.String && int.TryParse(reader.GetString(), out var val))
-                                {
-                                    request.Ids.Add(val);
-                                }
-                            }
-                        }
+                        var idListConverter = new IntListOrCommaSeparatedConverter();
+                        request.Ids = idListConverter.Read(ref reader, typeof(List<int>), options);
                     }
                     else
                     {
