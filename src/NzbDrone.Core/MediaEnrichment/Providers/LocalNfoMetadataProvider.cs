@@ -209,9 +209,52 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                 }
 
                 var ratingElem = root.Element("rating");
-                if (ratingElem != null && double.TryParse(ratingElem.Value.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var r))
+                if (ratingElem != null)
                 {
-                    meta.Rating = r;
+                    var ratingText = ratingElem.Element("value")?.Value?.Trim();
+                    if (string.IsNullOrWhiteSpace(ratingText))
+                    {
+                        ratingText = ratingElem.Value?.Trim();
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(ratingText) &&
+                        double.TryParse(ratingText, NumberStyles.Any, CultureInfo.InvariantCulture, out var r))
+                    {
+                        meta.Rating = r;
+                    }
+                }
+
+                if (meta.Rating == 0)
+                {
+                    var ratingsContainer = root.Element("ratings");
+                    if (ratingsContainer != null)
+                    {
+                        var ratingEntries = ratingsContainer.Elements("rating").ToList();
+                        var selectedRating = ratingEntries.FirstOrDefault(entry =>
+                                string.Equals(entry.Attribute("default")?.Value, "true", StringComparison.OrdinalIgnoreCase))
+                            ?? ratingEntries.FirstOrDefault();
+
+                        if (selectedRating != null)
+                        {
+                            var nestedRatingText = selectedRating.Element("value")?.Value?.Trim()
+                                ?? selectedRating.Value?.Trim();
+                            if (!string.IsNullOrWhiteSpace(nestedRatingText) &&
+                                double.TryParse(nestedRatingText, NumberStyles.Any, CultureInfo.InvariantCulture, out var nestedRating))
+                            {
+                                meta.Rating = nestedRating;
+                            }
+                        }
+                    }
+                }
+
+                var genreElems = root.Elements("genre")
+                    .Select(genre => genre.Value?.Trim())
+                    .Where(genre => !string.IsNullOrWhiteSpace(genre))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (genreElems.Count > 0)
+                {
+                    meta.Genres = string.Join(", ", genreElems);
                 }
 
                 var imdbElem = root.Element("id") ?? root.Element("imdbid");
@@ -283,10 +326,49 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             meta.Overview = plotMatch.Groups[2].Value.Trim();
         }
 
-        var ratingMatch = Regex.Match(xmlContent, @"<rating>([\d.]+)</rating>", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
-        if (ratingMatch.Success && double.TryParse(ratingMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var ratingVal))
+        if (meta.Rating == 0)
         {
-            meta.Rating = ratingVal;
+            var nestedRatingMatch = Regex.Match(
+                xmlContent,
+                @"<ratings>.*?<rating[^>]*>.*?<value>([\d.]+)</value>",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline,
+                TimeSpan.FromSeconds(2));
+            if (nestedRatingMatch.Success &&
+                double.TryParse(nestedRatingMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var nestedRatingVal))
+            {
+                meta.Rating = nestedRatingVal;
+            }
+            else
+            {
+                var ratingMatch = Regex.Match(xmlContent, @"<rating>([\d.]+)</rating>", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+                if (ratingMatch.Success &&
+                    double.TryParse(ratingMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var ratingVal))
+                {
+                    meta.Rating = ratingVal;
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(meta.Genres))
+        {
+            var genreMatches = Regex.Matches(xmlContent, @"<genre>(.*?)</genre>", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
+            if (genreMatches.Count > 0)
+            {
+                var genreList = new System.Collections.Generic.List<string>();
+                foreach (Match genreMatch in genreMatches)
+                {
+                    var genre = genreMatch.Groups[1].Value.Trim();
+                    if (!string.IsNullOrWhiteSpace(genre) && !genreList.Contains(genre, StringComparer.OrdinalIgnoreCase))
+                    {
+                        genreList.Add(genre);
+                    }
+                }
+
+                if (genreList.Count > 0)
+                {
+                    meta.Genres = string.Join(", ", genreList);
+                }
+            }
         }
 
         var actorMatches = Regex.Matches(xmlContent, @"<actor>(?:(?!</actor>).)*?<name>(.*?)</name>(?:(?:(?!</actor>).)*?<role>(.*?)</role>)?", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));

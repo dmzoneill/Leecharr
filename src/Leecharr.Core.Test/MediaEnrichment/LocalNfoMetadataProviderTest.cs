@@ -112,6 +112,44 @@ public class LocalNfoMetadataProviderTest
     }
 
     [Test]
+    public async Task FetchMetadataAsync_WithKodiStyleMovieNfo_ParsesNestedRatingAndGenres()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_local_nfo_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var nfoPath = Path.Combine(tempDir, "movie.nfo");
+            await File.WriteAllTextAsync(nfoPath, @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
+<movie>
+    <title>The Matrix</title>
+    <ratings>
+        <rating name=""imdb"" max=""10"" default=""true"">
+            <value>8.7</value>
+            <votes>2100000</votes>
+        </rating>
+    </ratings>
+    <genre>Action</genre>
+    <genre>Science Fiction</genre>
+</movie>");
+
+            var metadata = await this.provider.FetchMetadataAsync(tempDir);
+
+            metadata.Should().NotBeNull();
+            metadata!.Title.Should().Be("The Matrix");
+            metadata.MediaType.Should().Be("Movie");
+            metadata.Rating.Should().Be(8.7);
+            metadata.Genres.Should().Be("Action, Science Fiction");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task FetchMetadataAsync_WithNfoFile_ParsesMetadataAndArtwork()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_local_nfo_test_" + Guid.NewGuid().ToString("N"));
