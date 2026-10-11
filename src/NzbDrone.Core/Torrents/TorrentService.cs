@@ -721,6 +721,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error removing torrent {0} from download engine", id);
+                return;
             }
 
             this.eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = deleteFiles });
