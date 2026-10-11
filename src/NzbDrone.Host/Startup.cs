@@ -60,6 +60,8 @@ public class Startup
                 {
                     options.JsonSerializerOptions.Converters.Add(converter);
                 }
+
+                options.JsonSerializerOptions.Converters.Add(new Leecharr.Http.REST.RestResourceJsonConverterFactory());
             });
 
         services.AddSignalR(options =>
