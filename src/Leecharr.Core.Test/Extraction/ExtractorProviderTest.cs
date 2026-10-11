@@ -423,6 +423,78 @@ public class ExtractorProviderTest
     }
 
     [Test]
+    public async Task SevenZipExtractorProvider_ExtractAsync_WhenFileSnapshotFails_SkipsRollbackAndPreservesPreExistingFiles()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "7z_snapshot_fail_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+
+        var existingFile = Path.Combine(outputDir, "pre_existing.txt");
+        await File.WriteAllTextAsync(existingFile, "keep me");
+
+        var archiveFile = Path.Combine(tempDir, "archive.7z");
+        await File.WriteAllTextAsync(archiveFile, "fake archive");
+
+        var scriptPath = Path.Combine(tempDir, "mock_7z.sh");
+        var script = $"#!/bin/sh\necho partial > \"{outputDir}/corrupt.mkv\"\nexit 1\n";
+        await File.WriteAllTextAsync(scriptPath, script);
+        File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var innerDiskProvider = new DiskProvider();
+        var diskProvider = Substitute.For<IDiskProvider>();
+        var snapshotAttempted = false;
+
+        diskProvider.FolderExists(Arg.Any<string>()).Returns(call => innerDiskProvider.FolderExists(call.Arg<string>()));
+        diskProvider.FileExists(Arg.Any<string>()).Returns(call => innerDiskProvider.FileExists(call.Arg<string>()));
+        diskProvider.When(d => d.EnsureFolder(Arg.Any<string>())).Do(call => innerDiskProvider.EnsureFolder(call.Arg<string>()));
+        diskProvider.GetFileSize(Arg.Any<string>()).Returns(call => innerDiskProvider.GetFileSize(call.Arg<string>()));
+        diskProvider.GetDirectories(Arg.Any<string>()).Returns(call => innerDiskProvider.GetDirectories(call.Arg<string>()));
+        diskProvider.GetFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(call =>
+        {
+            var path = call.Arg<string>();
+            var recursive = call.Arg<bool>();
+
+            if (!snapshotAttempted && !recursive && string.Equals(path, outputDir, StringComparison.Ordinal))
+            {
+                snapshotAttempted = true;
+                throw new UnauthorizedAccessException("simulated listing failure");
+            }
+
+            return innerDiskProvider.GetFiles(path, recursive);
+        });
+        diskProvider.When(d => d.DeleteFile(Arg.Any<string>())).Do(call => innerDiskProvider.DeleteFile(call.Arg<string>()));
+        diskProvider.When(d => d.DeleteFolder(Arg.Any<string>(), Arg.Any<bool>())).Do(call => innerDiskProvider.DeleteFolder(call.Arg<string>(), call.Arg<bool>()));
+        diskProvider.FolderEmpty(Arg.Any<string>()).Returns(call => innerDiskProvider.FolderEmpty(call.Arg<string>()));
+
+        var prev7z = Environment.GetEnvironmentVariable("SEVENZIP_PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("SEVENZIP_PATH", scriptPath);
+            var provider = new SevenZipExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(archiveFile, outputDir);
+            success.Should().BeFalse();
+
+            snapshotAttempted.Should().BeTrue("snapshot should have attempted to list the destination");
+            File.Exists(existingFile).Should().BeTrue("pre-existing files must not be deleted when rollback is skipped");
+            diskProvider.DidNotReceive().DeleteFile(existingFile);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("SEVENZIP_PATH", prev7z);
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task UnrarExtractorProvider_ExtractAsync_WhenProcessFails_RollsBackPartialFiles()
     {
         if (OperatingSystem.IsWindows())

@@ -167,8 +167,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             normalizedDest = targetDir;
         }
 
-        var existingFiles = this.GetAllFiles(normalizedDest);
-        var existingDirectories = this.GetAllDirectories(normalizedDest);
+        var destinationSnapshot = this.CaptureDestinationSnapshot(normalizedDest);
         var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
         foreach (var candidatePassword in passwordsToTry)
@@ -211,7 +210,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                         this.logger.Trace(ex, "Failed to kill 7-Zip process on cancellation");
                     }
 
-                    this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
+                    this.RollbackExtractedFiles(normalizedDest, destinationSnapshot);
                     this.logger.Warn("7-Zip extraction of '{0}' was canceled.", archivePath);
                     throw;
                 }
@@ -222,7 +221,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                     return true;
                 }
 
-                this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
+                this.RollbackExtractedFiles(normalizedDest, destinationSnapshot);
 
                 var stderr = await stderrTask;
                 if (passwordsToTry.Count > 1)
@@ -236,12 +235,12 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             }
             catch (OperationCanceledException)
             {
-                this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
+                this.RollbackExtractedFiles(normalizedDest, destinationSnapshot);
                 throw;
             }
             catch (Exception ex)
             {
-                this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
+                this.RollbackExtractedFiles(normalizedDest, destinationSnapshot);
                 this.logger.Error(ex, "7-Zip failed to extract archive: {0}", archivePath);
                 return false;
             }
@@ -269,21 +268,98 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
         return false;
     }
 
-    private HashSet<string> GetAllFiles(string path)
+    private sealed class DestinationSnapshot
+    {
+        public HashSet<string> Files { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public HashSet<string> Directories { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public bool IsReliable { get; init; } = true;
+    }
+
+    private DestinationSnapshot CaptureDestinationSnapshot(string path)
     {
         if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
         {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return new DestinationSnapshot();
+        }
+
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var filesReliable = this.SnapshotFiles(path, files);
+        var directoriesReliable = this.SnapshotDirectories(path, directories);
+        var snapshot = new DestinationSnapshot
+        {
+            Files = files,
+            Directories = directories,
+            IsReliable = filesReliable && directoriesReliable,
+        };
+
+        if (!snapshot.IsReliable)
+        {
+            this.logger.Warn("Pre-extraction snapshot of '{0}' was incomplete; rollback will be skipped if extraction fails.", path);
+        }
+
+        return snapshot;
+    }
+
+    private bool SnapshotFiles(string current, HashSet<string> files)
+    {
+        var reliable = true;
+
+        try
+        {
+            foreach (var file in this.diskProvider.GetFiles(current, recursive: false))
+            {
+                files.Add(file);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Trace(ex, "Failed to list files in '{Directory}' during snapshot", current);
+            reliable = false;
         }
 
         try
         {
-            return new HashSet<string>(this.diskProvider.GetFiles(path, recursive: true), StringComparer.OrdinalIgnoreCase);
+            foreach (var dir in this.diskProvider.GetDirectories(current))
+            {
+                if (!this.SnapshotFiles(dir, files))
+                {
+                    reliable = false;
+                }
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            this.logger.Trace(ex, "Failed to list subdirectories of '{Directory}' during file snapshot", current);
+            reliable = false;
         }
+
+        return reliable;
+    }
+
+    private bool SnapshotDirectories(string current, HashSet<string> directories)
+    {
+        var reliable = true;
+
+        try
+        {
+            foreach (var dir in this.diskProvider.GetDirectories(current))
+            {
+                if (directories.Add(dir) && !this.SnapshotDirectories(dir, directories))
+                {
+                    reliable = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Trace(ex, "Failed to recurse into directory '{Directory}' during snapshot", current);
+            reliable = false;
+        }
+
+        return reliable;
     }
 
     private HashSet<string> GetAllDirectories(string path)
@@ -294,32 +370,20 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             return dirs;
         }
 
-        void Recurse(string current)
-        {
-            try
-            {
-                foreach (var dir in this.diskProvider.GetDirectories(current))
-                {
-                    if (dirs.Add(dir))
-                    {
-                        Recurse(dir);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                this.logger.Trace(ex, "Failed to recurse into directory '{Directory}' during snapshot", current);
-            }
-        }
-
-        Recurse(path);
+        this.SnapshotDirectories(path, dirs);
         return dirs;
     }
 
-    private void RollbackExtractedFiles(string targetDir, HashSet<string> existingFiles, HashSet<string> existingDirectories)
+    private void RollbackExtractedFiles(string targetDir, DestinationSnapshot destinationSnapshot)
     {
-        if (this.diskProvider == null)
+        if (this.diskProvider == null || destinationSnapshot == null)
         {
+            return;
+        }
+
+        if (!destinationSnapshot.IsReliable)
+        {
+            this.logger.Warn("Skipping rollback of extracted files in '{0}' because the pre-extraction snapshot was incomplete.", targetDir);
             return;
         }
 
@@ -333,7 +397,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             var currentFiles = this.diskProvider.GetFiles(targetDir, recursive: true);
             foreach (var file in currentFiles)
             {
-                if (!existingFiles.Contains(file))
+                if (!destinationSnapshot.Files.Contains(file))
                 {
                     try
                     {
@@ -354,7 +418,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
 
             foreach (var dir in currentDirectories)
             {
-                if (!existingDirectories.Contains(dir))
+                if (!destinationSnapshot.Directories.Contains(dir))
                 {
                     try
                     {
