@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.Hosting;
@@ -463,6 +465,33 @@ public class PowerManagementServiceTest
 
         capturedFlags.Should().HaveCount(2);
         capturedFlags[1].Should().Be(0x80000000); // ES_CONTINUOUS alone to reset
+    }
+
+    [Test]
+    public void InhibitSleep_OnWindows_SetThreadExecutionStateUsesDedicatedWorkerThread()
+    {
+        var threadIds = new List<int>();
+        var callerThreadId = Environment.CurrentManagedThreadId;
+
+        var service = new PowerManagementService
+        {
+            TargetPlatformOverride = OSPlatform.Windows,
+            ContainerDetector = () => false,
+            WindowsSetExecutionStateInvoker = flags =>
+            {
+                threadIds.Add(Environment.CurrentManagedThreadId);
+                return 1;
+            },
+        };
+
+        using (service.InhibitSleep("Active torrent"))
+        {
+            threadIds.Should().HaveCount(1);
+        }
+
+        threadIds.Should().HaveCount(2);
+        threadIds.Distinct().Should().ContainSingle();
+        threadIds[0].Should().NotBe(callerThreadId);
     }
 
     [Test]
