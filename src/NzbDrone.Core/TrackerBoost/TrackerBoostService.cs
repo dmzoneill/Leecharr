@@ -1812,7 +1812,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                     { "password", client.Password ?? string.Empty },
                 });
 
-                var loginResp = await clientHttp.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent).ConfigureAwait(false);
+                using var loginResp = await clientHttp.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent).ConfigureAwait(false);
                 if (!loginResp.IsSuccessStatusCode)
                 {
                     this.logger.Warn("qBittorrent login failed with status {0} for {1}", loginResp.StatusCode, baseUrl);
@@ -1833,7 +1833,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 { "urls", string.Join("\n", trackerList) },
             });
 
-            var resp = await clientHttp.PostAsync($"{baseUrl}/api/v2/torrents/addTrackers", formContent).ConfigureAwait(false);
+            using var resp = await clientHttp.PostAsync($"{baseUrl}/api/v2/torrents/addTrackers", formContent).ConfigureAwait(false);
             if (resp.IsSuccessStatusCode)
             {
                 this.logger.Info("Successfully injected {0} tracker(s) into qBittorrent ({1}) for hash {2}", trackerList.Count, client.Name, infoHash);
@@ -1866,7 +1866,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
             }
 
-            var resp = await clientHttp.SendAsync(req).ConfigureAwait(false);
+            using var resp = await clientHttp.SendAsync(req).ConfigureAwait(false);
             if (resp.StatusCode == HttpStatusCode.Conflict && resp.Headers.TryGetValues("X-Transmission-Session-Id", out var sessValues))
             {
                 var sessionId = sessValues.FirstOrDefault();
@@ -1882,7 +1882,15 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 }
 
                 req2.Headers.Add("X-Transmission-Session-Id", sessionId);
-                resp = await clientHttp.SendAsync(req2).ConfigureAwait(false);
+                using var retryResp = await clientHttp.SendAsync(req2).ConfigureAwait(false);
+                if (retryResp.IsSuccessStatusCode)
+                {
+                    this.logger.Info("Successfully injected {0} tracker(s) into Transmission ({1}) for hash {2}", trackerList.Count, client.Name, infoHash);
+                    return true;
+                }
+
+                this.logger.Warn("Transmission addTrackers failed with status {0} for {1}", retryResp.StatusCode, baseUrl);
+                return false;
             }
 
             if (resp.IsSuccessStatusCode)
@@ -1908,7 +1916,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                     Encoding.UTF8,
                     "application/json");
 
-                var loginResp = await clientHttp.PostAsync($"{baseUrl}/json", loginContent).ConfigureAwait(false);
+                using var loginResp = await clientHttp.PostAsync($"{baseUrl}/json", loginContent).ConfigureAwait(false);
                 if (!loginResp.IsSuccessStatusCode)
                 {
                     this.logger.Warn("Deluge login failed with status code {0} for {1}", loginResp.StatusCode, baseUrl);
@@ -1936,7 +1944,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 Encoding.UTF8,
                 "application/json");
 
-            var resp = await clientHttp.PostAsync($"{baseUrl}/json", body).ConfigureAwait(false);
+            using var resp = await clientHttp.PostAsync($"{baseUrl}/json", body).ConfigureAwait(false);
             if (resp.IsSuccessStatusCode)
             {
                 var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
