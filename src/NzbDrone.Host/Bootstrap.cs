@@ -120,11 +120,35 @@ public static class Bootstrap
                         }
                     }
                 }
+                else if (HostBindingAddresses.ShouldUseListenLocalhost(bindAddress))
+                {
+                    serverOptions.ListenLocalhost(configProvider.Port);
+
+                    if (configProvider.EnableSsl)
+                    {
+                        try
+                        {
+                            _ = certManager.GetOrCreateCertificate(configProvider);
+                            serverOptions.ListenLocalhost(configProvider.SslPort, listenOptions =>
+                            {
+                                listenOptions.UseHttps(httpsOptions =>
+                                {
+                                    httpsOptions.ServerCertificateSelector = (connectionContext, name) => certManager.GetOrCreateCertificate(configProvider);
+                                });
+                            });
+                            Logger.Info("Configured SSL on localhost:{0}", configProvider.SslPort);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error(ex, "Failed to initialize SSL listener on port {0}. HTTPS will not be active.", configProvider.SslPort);
+                        }
+                    }
+                }
                 else
                 {
                     var ip = bindAddress switch
                     {
-                        "localhost" or "127.0.0.1" => IPAddress.Loopback,
+                        "127.0.0.1" => IPAddress.Loopback,
                         _ when IPAddress.TryParse(bindAddress, out var parsed) => parsed,
                         _ => IPAddress.Any,
                     };
