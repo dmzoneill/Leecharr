@@ -752,7 +752,7 @@ public class SystemDatabaseController : Controller
             return false;
         }
 
-        return query.IndexOf('=', StringComparison.Ordinal) >= 0;
+        return query.Contains('=');
     }
 
     private static bool ContainsMultipleStatements(string query)

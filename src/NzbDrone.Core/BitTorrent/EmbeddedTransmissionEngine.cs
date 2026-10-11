@@ -902,6 +902,69 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
     }
 
+    public async Task<bool> RenameFileAsync(int torrentId, string oldRelativePath, string newRelativePath)
+    {
+        return await this.RenameTorrentPathAsync(torrentId, oldRelativePath, newRelativePath);
+    }
+
+    public async Task<bool> RenameFolderAsync(int torrentId, string oldRelativeFolder, string newRelativeFolder)
+    {
+        return await this.RenameTorrentPathAsync(torrentId, oldRelativeFolder, newRelativeFolder);
+    }
+
+    private async Task<bool> RenameTorrentPathAsync(int torrentId, string oldRelativePath, string newRelativePath)
+    {
+        if (string.IsNullOrWhiteSpace(oldRelativePath) || string.IsNullOrWhiteSpace(newRelativePath))
+        {
+            return false;
+        }
+
+        if (!this.tasks.TryGetValue(torrentId, out var task))
+        {
+            this.logger.Warn("Cannot rename path: torrent {0} not found in Transmission engine", torrentId);
+            return false;
+        }
+
+        var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+        if (rpcIds.Count == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            var response = await this.SendRpcRequestAsync("torrent-rename-path", new Dictionary<string, object>
+            {
+                ["ids"] = rpcIds,
+                ["path"] = oldRelativePath.Replace('\\', '/').TrimStart('/'),
+                ["name"] = newRelativePath.Replace('\\', '/').TrimStart('/'),
+            });
+
+            return IsTransmissionRpcSuccess(response);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to rename path in torrent {0} from '{1}' to '{2}'", torrentId, oldRelativePath, newRelativePath);
+            return false;
+        }
+    }
+
+    private static bool IsTransmissionRpcSuccess(Dictionary<string, object> response)
+    {
+        if (response == null || !response.TryGetValue("result", out var resultObj) || resultObj == null)
+        {
+            return false;
+        }
+
+        if (resultObj is JsonElement resultElement)
+        {
+            return resultElement.ValueKind == JsonValueKind.String &&
+                   string.Equals(resultElement.GetString(), "success", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(resultObj.ToString(), "success", StringComparison.OrdinalIgnoreCase);
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         this.tasks.TryGetValue(torrentId, out var task);

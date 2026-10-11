@@ -14,10 +14,7 @@ internal static class SabnzbdQueuePauseScheduler
 
     public static void ScheduleResume(ITorrentService torrentService, TimeSpan delay)
     {
-        if (torrentService == null)
-        {
-            throw new ArgumentNullException(nameof(torrentService));
-        }
+        ArgumentNullException.ThrowIfNull(torrentService);
 
         lock (Gate)
         {

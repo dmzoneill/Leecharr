@@ -848,6 +848,84 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
+    public async Task<bool> RenameFileAsync(int torrentId, string oldRelativePath, string newRelativePath)
+    {
+        if (string.IsNullOrWhiteSpace(oldRelativePath) || string.IsNullOrWhiteSpace(newRelativePath))
+        {
+            return false;
+        }
+
+        if (!this.tasks.TryGetValue(torrentId, out var task))
+        {
+            this.logger.Warn("Cannot rename file: torrent {0} not found in libtorrent engine", torrentId);
+            return false;
+        }
+
+        try
+        {
+            var response = await this.SendRpcRequestAsync("rename_file", new Dictionary<string, object>
+            {
+                ["info_hash"] = task.InfoHash,
+                ["old_path"] = oldRelativePath,
+                ["new_path"] = newRelativePath,
+            });
+
+            return IsLibTorrentRenameSuccess(response);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to rename file in torrent {0} from '{1}' to '{2}'", torrentId, oldRelativePath, newRelativePath);
+            return false;
+        }
+    }
+
+    public async Task<bool> RenameFolderAsync(int torrentId, string oldRelativeFolder, string newRelativeFolder)
+    {
+        if (string.IsNullOrWhiteSpace(oldRelativeFolder) || string.IsNullOrWhiteSpace(newRelativeFolder))
+        {
+            return false;
+        }
+
+        if (!this.tasks.TryGetValue(torrentId, out var task))
+        {
+            this.logger.Warn("Cannot rename folder: torrent {0} not found in libtorrent engine", torrentId);
+            return false;
+        }
+
+        try
+        {
+            var response = await this.SendRpcRequestAsync("rename_folder", new Dictionary<string, object>
+            {
+                ["info_hash"] = task.InfoHash,
+                ["old_folder"] = oldRelativeFolder,
+                ["new_folder"] = newRelativeFolder,
+            });
+
+            return IsLibTorrentRenameSuccess(response);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to rename folder in torrent {0} from '{1}' to '{2}'", torrentId, oldRelativeFolder, newRelativeFolder);
+            return false;
+        }
+    }
+
+    private static bool IsLibTorrentRenameSuccess(Dictionary<string, object> response)
+    {
+        if (response == null)
+        {
+            return false;
+        }
+
+        if (response.TryGetValue("error", out var errorObj) && errorObj != null && !string.IsNullOrWhiteSpace(errorObj.ToString()))
+        {
+            return false;
+        }
+
+        return response.TryGetValue("status", out var statusObj) &&
+               string.Equals(statusObj?.ToString(), "renamed", StringComparison.OrdinalIgnoreCase);
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         this.tasks.TryGetValue(torrentId, out var task);

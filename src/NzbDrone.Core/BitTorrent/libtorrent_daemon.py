@@ -45,6 +45,18 @@ def _peer_is_utp(peer_info):
     return bool(_peer_flags_int(peer_info) & _UTP_SOCKET_FLAG)
 
 
+def _normalize_rel_path(path):
+    return (path or "").replace("\\", "/").lstrip("/")
+
+
+def _file_index_for_path(files, rel_path):
+    target = _normalize_rel_path(rel_path).lower()
+    for i in range(files.num_files()):
+        if _normalize_rel_path(files.file_path(i)).lower() == target:
+            return i
+    return -1
+
+
 class LibTorrentManager:
     def __init__(self, listen_interfaces="0.0.0.0:6882", version_target="2.1.1"):
         self.lock = threading.Lock()
@@ -421,6 +433,57 @@ class LibTorrentManager:
             return {"status": "storage_moved"}
         return {"status": "not_found"}
 
+    def rename_file(self, params):
+        h = self.find_handle(params.get("info_hash"))
+        if not h:
+            return {"status": "not_found"}
+
+        old_path = params.get("old_path")
+        new_path = params.get("new_path")
+        if not old_path or not new_path:
+            return {"status": "invalid_arguments"}
+
+        with self.lock:
+            if not h.has_metadata():
+                return {"status": "not_found"}
+            ti = h.torrent_file()
+            files = ti.files()
+            idx = _file_index_for_path(files, old_path)
+            if idx < 0:
+                return {"status": "file_not_found"}
+            h.rename_file(idx, _normalize_rel_path(new_path))
+        return {"status": "renamed"}
+
+    def rename_folder(self, params):
+        h = self.find_handle(params.get("info_hash"))
+        if not h:
+            return {"status": "not_found"}
+
+        old_folder = _normalize_rel_path(params.get("old_folder")).rstrip("/")
+        new_folder = _normalize_rel_path(params.get("new_folder")).rstrip("/")
+        if not old_folder or not new_folder:
+            return {"status": "invalid_arguments"}
+
+        renamed = 0
+        with self.lock:
+            if not h.has_metadata():
+                return {"status": "not_found"}
+            ti = h.torrent_file()
+            files = ti.files()
+            prefix = old_folder.lower() + "/"
+            for i in range(files.num_files()):
+                fp = _normalize_rel_path(files.file_path(i))
+                if not fp.lower().startswith(prefix):
+                    continue
+                sub_path = fp[len(old_folder) + 1 :]
+                new_fp = f"{new_folder}/{sub_path}"
+                h.rename_file(i, new_fp)
+                renamed += 1
+
+        if renamed == 0:
+            return {"status": "file_not_found"}
+        return {"status": "renamed", "renamed": renamed}
+
     def get_torrents_status(self):
         torrents = []
         with self.lock:
@@ -582,6 +645,10 @@ class RpcHandler(BaseHTTPRequestHandler):
                 result = manager.set_torrent_limits(params)
             elif method == "move_storage":
                 result = manager.move_storage(params)
+            elif method == "rename_file":
+                result = manager.rename_file(params)
+            elif method == "rename_folder":
+                result = manager.rename_folder(params)
             elif method == "get_torrents_status":
                 torrents = manager.get_torrents_status()
                 result = {"result": "ok", "torrents": torrents}
