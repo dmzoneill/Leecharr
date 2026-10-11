@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -289,6 +290,136 @@ public class AntiBotAndFlareSolverrFailoverTest
         var content = await resp.Content.ReadAsStringAsync();
         content.Should().Be("<xml>ok</xml>");
         executionCount.Should().Be(2);
+    }
+
+    [Test]
+    public async Task AntiBotChallengeDetector_LargeDeclaredContentLength_DoesNotReadBeyondProbeLimit()
+    {
+        var payload = new string('x', 1024);
+        var countingContent = new ByteCountingHttpContent(payload, 20 * 1024 * 1024);
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = countingContent,
+        };
+
+        var isChallenge = await AntiBotChallengeDetector.IsChallengeAsync(response);
+
+        isChallenge.Should().BeFalse();
+        countingContent.BytesRead.Should().Be(payload.Length);
+        countingContent.BytesRead.Should().BeLessThan(AntiBotChallengeDetector.MaxChallengeProbeBytes);
+    }
+
+    [Test]
+    public async Task AntiBotChallengeDetector_LargeOkResponse_ProbesOnlyPrefixAndPreservesRemainder()
+    {
+        var totalSize = AntiBotChallengeDetector.MaxChallengeProbeBytes + (512 * 1024);
+        var payload = new string('a', totalSize);
+        var countingContent = new ByteCountingHttpContent(payload);
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = countingContent,
+        };
+
+        var isChallenge = await AntiBotChallengeDetector.IsChallengeAsync(response);
+
+        isChallenge.Should().BeFalse();
+        countingContent.BytesRead.Should().BeLessThanOrEqualTo(AntiBotChallengeDetector.MaxChallengeProbeBytes + 1);
+
+        var remainder = await response.Content.ReadAsByteArrayAsync();
+        remainder.Length.Should().Be(totalSize);
+    }
+
+    [Test]
+    public async Task AntiBotChallengeDetector_ChallengeSignatureInProbePrefix_StillDetected()
+    {
+        var body = "<html><title>Just a moment...</title><body>Checking your browser</body></html>" + new string('z', AntiBotChallengeDetector.MaxChallengeProbeBytes);
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body),
+        };
+
+        var isChallenge = await AntiBotChallengeDetector.IsChallengeAsync(response);
+        isChallenge.Should().BeTrue();
+    }
+
+    private sealed class ByteCountingHttpContent : HttpContent
+    {
+        private readonly byte[] payload;
+        private readonly long? declaredLength;
+        public long BytesRead { get; private set; }
+
+        public ByteCountingHttpContent(string payload, long? declaredLength = null)
+        {
+            this.payload = System.Text.Encoding.UTF8.GetBytes(payload);
+            this.declaredLength = declaredLength;
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            if (this.declaredLength.HasValue)
+            {
+                length = this.declaredLength.Value;
+                return true;
+            }
+
+            length = this.payload.Length;
+            return true;
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+        {
+            return stream.WriteAsync(this.payload).AsTask();
+        }
+
+        protected override async Task<Stream> CreateContentReadStreamAsync()
+        {
+            return new CountingReadStream(new MemoryStream(this.payload, writable: false), bytes => this.BytesRead += bytes);
+        }
+    }
+
+    private sealed class CountingReadStream : Stream
+    {
+        private readonly Stream inner;
+        private readonly Action<long> onRead;
+
+        public CountingReadStream(Stream inner, Action<long> onRead)
+        {
+            this.inner = inner;
+            this.onRead = onRead;
+        }
+
+        public override bool CanRead => this.inner.CanRead;
+
+        public override bool CanSeek => this.inner.CanSeek;
+
+        public override bool CanWrite => false;
+
+        public override long Length => this.inner.Length;
+
+        public override long Position
+        {
+            get => this.inner.Position;
+            set => this.inner.Position = value;
+        }
+
+        public override void Flush() => this.inner.Flush();
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = this.inner.Read(buffer, offset, count);
+            if (read > 0)
+            {
+                this.onRead(read);
+            }
+
+            return read;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => this.inner.Seek(offset, origin);
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
