@@ -19,6 +19,31 @@ except ImportError:
     sys.stderr.write("ERROR: python3-libtorrent is not installed.\n")
     sys.exit(1)
 
+# peer_info.choked / interesting / etc. are peer_flags_t bit masks, not live booleans.
+_UTP_SOCKET_FLAG = 1 << 17
+
+
+def _peer_flags_int(peer_info):
+    try:
+        return int(peer_info.flags)
+    except (TypeError, ValueError, AttributeError):
+        return 0
+
+
+def _peer_has_flag(peer_info, flag_attr):
+    mask = getattr(peer_info, flag_attr, 0)
+    try:
+        mask = int(mask)
+    except (TypeError, ValueError):
+        return False
+    if mask <= 0:
+        return False
+    return bool(_peer_flags_int(peer_info) & mask)
+
+
+def _peer_is_utp(peer_info):
+    return bool(_peer_flags_int(peer_info) & _UTP_SOCKET_FLAG)
+
 
 class LibTorrentManager:
     def __init__(self, listen_interfaces="0.0.0.0:6882", version_target="2.1.1"):
@@ -392,13 +417,14 @@ class LibTorrentManager:
                                 "upload_rate": int(getattr(pi, "up_speed", 0)),
                                 "total_download": int(getattr(pi, "total_download", 0)),
                                 "total_upload": int(getattr(pi, "total_upload", 0)),
-                                "is_encrypted": bool(
-                                    getattr(pi, "rc4_encrypted", False) or getattr(pi, "plaintext_encrypted", False)
-                                ),
-                                "is_utp": bool(getattr(pi, "connection_type", 0) == 1),
-                                "is_incoming": bool(not getattr(pi, "local_connection", True)),
-                                "is_choked": bool(getattr(pi, "choked", False)),
-                                "is_interested": bool(getattr(pi, "interesting", False)),
+                                "is_encrypted": _peer_has_flag(pi, "rc4_encrypted")
+                                or _peer_has_flag(pi, "plaintext_encrypted"),
+                                "is_utp": _peer_is_utp(pi),
+                                "is_incoming": not _peer_has_flag(pi, "local_connection"),
+                                "is_choked": _peer_has_flag(pi, "remote_choked"),
+                                "is_interested": _peer_has_flag(pi, "remote_interested"),
+                                "client_is_choked": _peer_has_flag(pi, "choked"),
+                                "client_is_interested": _peer_has_flag(pi, "interesting"),
                             }
                         )
                 except Exception:
