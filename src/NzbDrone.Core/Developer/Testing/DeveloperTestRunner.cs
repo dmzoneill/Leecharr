@@ -20,7 +20,6 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Jobs;
-using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Tags;
@@ -1364,8 +1363,8 @@ public class DeveloperTestRunner : IDeveloperTestRunner
             return "Event aggregator is not registered.";
         }
 
-        this.eventAggregator.PublishEvent(new ApplicationStartedEvent());
-        return "Dispatched ApplicationStartedEvent verification payload successfully.";
+        this.eventAggregator.PublishEvent(new DeveloperEventBusSmokeTestEvent());
+        return "Dispatched DeveloperEventBusSmokeTestEvent verification payload successfully.";
     }
 
     private static string ExecuteEventWiretapCheck()
