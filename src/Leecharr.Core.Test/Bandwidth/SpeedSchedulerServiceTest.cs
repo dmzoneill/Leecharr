@@ -691,6 +691,61 @@ public class SpeedSchedulerServiceTest
     }
 
     [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_SetsRateLimitsBeforeResumingTorrents()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var activeTask = Substitute.For<IDownloadTask>();
+        activeTask.TorrentId.Returns(42);
+        activeTask.Status.Returns(TorrentStatus.Downloading);
+        downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { activeTask });
+        downloadEngine.GetTask(42).Returns(activeTask);
+
+        var schedulerService = new SpeedSchedulerService(this.repository, this.configService, downloadEngine);
+
+        var pauseSchedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = -1,
+                MaxUploadSpeed = -1,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(pauseSchedules);
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        var throttleSchedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Throttle Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = 10000,
+                MaxUploadSpeed = 5000,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(throttleSchedules);
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        Received.InOrder(async () =>
+        {
+            await downloadEngine.SetRateLimitsAsync(10000, 5000);
+            await downloadEngine.ResumeTorrentAsync(42);
+        });
+    }
+
+    [Test]
     public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_DoesNotResumeUserPausedTorrents()
     {
         var downloadEngine = Substitute.For<IDownloadEngine>();

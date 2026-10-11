@@ -143,8 +143,13 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                 }
                 else
                 {
+                    var downloadLimit = limits.IsDownloadPaused ? 1 : limits.MaxDownloadSpeedKbps;
+                    var uploadLimit = limits.IsUploadPaused ? 1 : limits.MaxUploadSpeedKbps;
+
                     if (this.wasPausedByScheduler)
                     {
+                        await this.downloadEngine.SetRateLimitsAsync(downloadLimit, uploadLimit);
+
                         var toResume = this.schedulerPausedTorrentIds.ToList();
 
                         foreach (var torrentId in toResume)
@@ -222,10 +227,10 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                             }
                         }
                     }
-
-                    var downloadLimit = limits.IsDownloadPaused ? 1 : limits.MaxDownloadSpeedKbps;
-                    var uploadLimit = limits.IsUploadPaused ? 1 : limits.MaxUploadSpeedKbps;
-                    await this.downloadEngine.SetRateLimitsAsync(downloadLimit, uploadLimit);
+                    else
+                    {
+                        await this.downloadEngine.SetRateLimitsAsync(downloadLimit, uploadLimit);
+                    }
                 }
 
                 if (this.eventAggregator != null)
