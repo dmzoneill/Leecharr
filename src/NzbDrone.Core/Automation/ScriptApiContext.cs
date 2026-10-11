@@ -174,11 +174,21 @@ public class ScriptApiContext : IDisposable
         }
 
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (opts.TryGetValue("headers", out var existingHeaders) && existingHeaders is IDictionary<string, string> hDict)
+        if (opts.TryGetValue("headers", out var existingHeaders))
         {
-            foreach (var kvp in hDict)
+            if (existingHeaders is IDictionary<string, string> hDict)
             {
-                headers[kvp.Key] = kvp.Value;
+                foreach (var kvp in hDict)
+                {
+                    headers[kvp.Key] = kvp.Value;
+                }
+            }
+            else if (existingHeaders is IDictionary<string, object> hoDict)
+            {
+                foreach (var kvp in hoDict)
+                {
+                    headers[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
+                }
             }
         }
 

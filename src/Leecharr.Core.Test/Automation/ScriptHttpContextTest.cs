@@ -139,6 +139,35 @@ public class ScriptHttpContextTest
     }
 
     [Test]
+    public async Task ScriptHttpContext_GetAsync_SendsStringHeaderDictionary()
+    {
+        string? receivedApiKey = null;
+
+        var testHandler = new TestHttpMessageHandler(req =>
+        {
+            if (req.Headers.TryGetValues("X-Api-Key", out var values))
+            {
+                receivedApiKey = string.Join(", ", values);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"),
+            };
+        });
+
+        using var context = new ScriptHttpContext(testHandler);
+        var options = new Dictionary<string, object>
+        {
+            ["headers"] = new Dictionary<string, string> { ["X-Api-Key"] = "from-script" },
+        };
+
+        await context.GetAsync("https://api.example.com/status", options);
+
+        receivedApiKey.Should().Be("from-script");
+    }
+
+    [Test]
     public async Task ScriptHttpContext_PostAsync_SendsJsonBodyAndCustomHeaders()
     {
         string? receivedContent = null;

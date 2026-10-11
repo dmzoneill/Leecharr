@@ -214,12 +214,9 @@ public class ScriptHttpContext : IDisposable
 
             if (options != null)
             {
-                if (options.TryGetValue("headers", out var rawHeaders) && rawHeaders is IDictionary<string, object> headersDict)
+                if (options.TryGetValue("headers", out var rawHeaders))
                 {
-                    foreach (var kvp in headersDict)
-                    {
-                        request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value?.ToString());
-                    }
+                    ApplyRequestHeaders(request, rawHeaders);
                 }
 
                 if (options.TryGetValue("cookies", out var rawCookies))
@@ -415,6 +412,27 @@ public class ScriptHttpContext : IDisposable
         }
 
         return this._client;
+    }
+
+    private static void ApplyRequestHeaders(HttpRequestMessage request, object rawHeaders)
+    {
+        if (rawHeaders is IDictionary<string, object> objectHeaders)
+        {
+            foreach (var kvp in objectHeaders)
+            {
+                request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value?.ToString());
+            }
+
+            return;
+        }
+
+        if (rawHeaders is IDictionary<string, string> stringHeaders)
+        {
+            foreach (var kvp in stringHeaders)
+            {
+                request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value);
+            }
+        }
     }
 
     private static StringContent CreateStringContent(string body, string contentType)

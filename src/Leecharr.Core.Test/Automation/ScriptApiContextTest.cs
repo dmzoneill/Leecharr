@@ -51,6 +51,27 @@ public class ScriptApiContextTest
     }
 
     [Test]
+    public void Get_AttachesApiKeyHeaderToOutgoingRequest()
+    {
+        var config = CreateConfig(bindAddress: "127.0.0.1", port: 7889, enableSsl: false);
+        config.ApiKey.Returns("test-api-key-123");
+
+        string? apiKeyHeader = null;
+        using var http = new ScriptHttpContext(new CapturingHandler(uri => { }, (req) =>
+        {
+            if (req.Headers.TryGetValues("X-Api-Key", out var values))
+            {
+                apiKeyHeader = string.Join(", ", values);
+            }
+        }));
+        using var api = new ScriptApiContext(config, http);
+
+        api.get("system/status");
+
+        apiKeyHeader.Should().Be("test-api-key-123");
+    }
+
+    [Test]
     public void AttachAuthHeaders_WhenSslEnabled_AllowsInsecureTlsForLocalApiCalls()
     {
         var config = CreateConfig(bindAddress: "*", port: 7889, enableSsl: true, sslPort: 7890);
@@ -82,16 +103,19 @@ public class ScriptApiContextTest
 
     private sealed class CapturingHandler : HttpMessageHandler
     {
-        private readonly Action<Uri?> capture;
+        private readonly Action<Uri?> captureUri;
+        private readonly Action<HttpRequestMessage>? captureRequest;
 
-        public CapturingHandler(Action<Uri?> capture)
+        public CapturingHandler(Action<Uri?> captureUri, Action<HttpRequestMessage>? captureRequest = null)
         {
-            this.capture = capture;
+            this.captureUri = captureUri;
+            this.captureRequest = captureRequest;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            this.capture(request.RequestUri);
+            this.captureUri(request.RequestUri);
+            this.captureRequest?.Invoke(request);
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"),
