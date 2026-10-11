@@ -79,6 +79,49 @@ public class ServarrSyncMetadataProviderTest
     }
 
     [Test]
+    public async Task FetchMetadataAsync_WhenRadarrReturnsNestedMovieRatings_PrefersImdbValue()
+    {
+        var responseJson = @"[
+            {
+                ""title"": ""Inception"",
+                ""year"": 2010,
+                ""overview"": ""A thief who steals corporate secrets"",
+                ""ratings"": {
+                    ""imdb"": { ""votes"": 2100000, ""value"": 8.7, ""type"": ""user"" },
+                    ""tmdb"": { ""votes"": 14000, ""value"": 8.2, ""type"": ""user"" }
+                },
+                ""tmdbId"": 27205
+            }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new ServarrSyncMetadataProvider(this.arrRepository, httpClient);
+
+        var conn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Radarr",
+            ArrType = "Radarr",
+            Url = "http://127.0.0.1:7878",
+            ApiKey = "radarr-key",
+            Enable = true,
+        };
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition> { conn });
+
+        var result = await provider.FetchMetadataAsync("Inception.2010.1080p", "movies", 2010);
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("Inception");
+        result.Rating.Should().Be(8.7);
+        result.TmdbId.Should().Be("27205");
+    }
+
+    [Test]
     public async Task FetchMetadataAsync_WhenArrReturnsValidRating_ParsesRatingCorrectly()
     {
         var responseJson = @"[
