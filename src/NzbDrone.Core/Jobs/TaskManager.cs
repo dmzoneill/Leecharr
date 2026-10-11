@@ -53,7 +53,8 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
             {
                 lock (this.syncRoot)
                 {
-                    task = this.scheduledTaskRepository.GetByTypeName(typeName);
+                    task = this.scheduledTaskRepository.GetByTypeName(typeName)
+                        ?? this.scheduledTaskRepository.GetByTypeName(def.TypeName);
                     if (task == null)
                     {
                         task = this.scheduledTaskRepository.Insert(new ScheduledTask
