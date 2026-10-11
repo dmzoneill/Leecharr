@@ -94,13 +94,16 @@ public class MainDatabase : IMainDatabase
         var backupDbPath = dbPath + ".bak";
         var backupWalPath = dbPath + "-wal.bak";
         var backupShmPath = dbPath + "-shm.bak";
+        var backupJournalPath = dbPath + "-journal.bak";
 
         var walPath = dbPath + "-wal";
         var shmPath = dbPath + "-shm";
+        var journalPath = dbPath + "-journal";
 
         var backedUpDb = false;
         var backedUpWal = false;
         var backedUpShm = false;
+        var backedUpJournal = false;
 
         try
         {
@@ -126,6 +129,12 @@ public class MainDatabase : IMainDatabase
                 backedUpShm = true;
             }
 
+            if (File.Exists(journalPath))
+            {
+                File.Move(journalPath, backupJournalPath, overwrite: true);
+                backedUpJournal = true;
+            }
+
             File.Move(dbRestorePath, dbPath, overwrite: true);
 
             if (backedUpDb && File.Exists(backupDbPath))
@@ -141,6 +150,11 @@ public class MainDatabase : IMainDatabase
             if (backedUpShm && File.Exists(backupShmPath))
             {
                 File.Delete(backupShmPath);
+            }
+
+            if (backedUpJournal && File.Exists(backupJournalPath))
+            {
+                File.Delete(backupJournalPath);
             }
 
             this.logger.Info("Database restore applied successfully from {0}", dbRestorePath);
@@ -164,6 +178,11 @@ public class MainDatabase : IMainDatabase
                 if (backedUpShm && File.Exists(backupShmPath))
                 {
                     File.Move(backupShmPath, shmPath, overwrite: true);
+                }
+
+                if (backedUpJournal && File.Exists(backupJournalPath))
+                {
+                    File.Move(backupJournalPath, journalPath, overwrite: true);
                 }
             }
             catch (Exception rollbackEx)

@@ -57,7 +57,7 @@ public class MainDatabaseTest
     }
 
     [Test]
-    public void ApplyPendingRestore_WhenValidRestoreFileAndStaleWalShmExist_PurgesWalShmAndAppliesRestore()
+    public void ApplyPendingRestore_WhenValidRestoreFileAndStaleWalShmJournalExist_PurgesSidecarsAndAppliesRestore()
     {
         var appFolderInfo = Substitute.For<IAppFolderInfo>();
         appFolderInfo.AppDataFolder.Returns(this.tempFolder);
@@ -74,11 +74,13 @@ public class MainDatabaseTest
         var dbRestorePath = dbPath + ".restore";
         var walPath = dbPath + "-wal";
         var shmPath = dbPath + "-shm";
+        var journalPath = dbPath + "-journal";
 
         CreateValidSqliteDatabase(dbPath, "OriginalTable");
         CreateValidSqliteDatabase(dbRestorePath, "RestoredTable");
         File.WriteAllText(walPath, "stale-wal");
         File.WriteAllText(shmPath, "stale-shm");
+        File.WriteAllText(journalPath, "stale-journal");
 
         var mainDb = new MainDatabase(dbFactory, connStringFactory, appFolderInfo);
 
@@ -86,6 +88,7 @@ public class MainDatabaseTest
         File.Exists(dbRestorePath).Should().BeFalse("Restore file should be moved");
         File.Exists(walPath).Should().BeFalse("Stale WAL file should be deleted on successful restore");
         File.Exists(shmPath).Should().BeFalse("Stale SHM file should be deleted on successful restore");
+        File.Exists(journalPath).Should().BeFalse("Stale rollback journal should be deleted on successful restore");
         File.Exists(dbPath).Should().BeTrue();
 
         using var conn = new SqliteConnection($"Data Source={dbPath};");
@@ -114,10 +117,12 @@ public class MainDatabaseTest
         var dbRestorePath = dbPath + ".restore";
         var walPath = dbPath + "-wal";
         var shmPath = dbPath + "-shm";
+        var journalPath = dbPath + "-journal";
 
         CreateValidSqliteDatabase(dbPath, "OriginalTable");
         File.WriteAllText(walPath, "active-wal-content");
         File.WriteAllText(shmPath, "active-shm-content");
+        File.WriteAllText(journalPath, "active-journal-content");
         File.WriteAllText(dbRestorePath, "corrupt-non-sqlite-content-that-should-fail-header-validation");
 
         var mainDb = new MainDatabase(dbFactory, connStringFactory, appFolderInfo);
@@ -131,6 +136,8 @@ public class MainDatabaseTest
         File.ReadAllText(walPath).Should().Be("active-wal-content");
         File.Exists(shmPath).Should().BeTrue("Active SHM file must be preserved on restore failure");
         File.ReadAllText(shmPath).Should().Be("active-shm-content");
+        File.Exists(journalPath).Should().BeTrue("Active rollback journal must be preserved on restore failure");
+        File.ReadAllText(journalPath).Should().Be("active-journal-content");
 
         using var conn = new SqliteConnection($"Data Source={dbPath};");
         conn.Open();
