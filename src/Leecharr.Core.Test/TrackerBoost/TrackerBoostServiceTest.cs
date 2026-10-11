@@ -2,6 +2,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -135,6 +136,54 @@ public class TrackerBoostServiceTest
         TrackerBoostService.IsValidPublicTrackerUrl("http://localhost:6969/announce").Should().BeFalse();
         TrackerBoostService.IsValidPublicTrackerUrl("http://private.tracker.org/announce?passkey=123456").Should().BeFalse();
         TrackerBoostService.IsValidPublicTrackerUrl("http://tracker.local/announce").Should().BeFalse();
+    }
+
+    [Test]
+    public void LooksLikeAnnounceTrackerUrl_RejectsIndexerSiteAndProwlarrProxyUrls()
+    {
+        TrackerBoostService.LooksLikeAnnounceTrackerUrl("udp://tracker.opentrackr.org:1337/announce").Should().BeTrue();
+        TrackerBoostService.LooksLikeAnnounceTrackerUrl("http://tracker.files.fm:6969/announce").Should().BeTrue();
+        TrackerBoostService.LooksLikeAnnounceTrackerUrl("https://tracker.tamersunion.org:443/announce").Should().BeTrue();
+
+        TrackerBoostService.IsValidPublicTrackerUrl("https://nyaa.si/").Should().BeTrue();
+        TrackerBoostService.LooksLikeAnnounceTrackerUrl("https://nyaa.si/").Should().BeFalse();
+        TrackerBoostService.LooksLikeAnnounceTrackerUrl("http://192.168.1.20:9696/14").Should().BeFalse();
+    }
+
+    [Test]
+    public void ExtractTrackersFromProwlarrJson_IgnoresSiteBaseUrlAndIndexerProxyUrls()
+    {
+        var json = """
+            [
+              {
+                "name": "Nyaa",
+                "privacy": "public",
+                "fields": [
+                  { "name": "baseUrl", "value": "https://nyaa.si/" },
+                  { "name": "apiPath", "value": "/api/v1/indexers/nyaa/results/torznab" }
+                ],
+                "indexerUrls": [ "http://192.168.1.20:9696/14" ]
+              },
+              {
+                "name": "OpenTrackr",
+                "privacy": "public",
+                "fields": [
+                  { "name": "tracker", "value": "udp://tracker.opentrackr.org:1337/announce" }
+                ]
+              }
+            ]
+            """;
+
+        var method = typeof(TrackerBoostService).GetMethod(
+            "ExtractTrackersFromProwlarrJson",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var trackers = (List<(string Url, string SourceName)>)method!.Invoke(null, new object[] { json })!;
+
+        trackers.Should().ContainSingle();
+        trackers[0].Url.Should().Be("udp://tracker.opentrackr.org:1337/announce");
+        trackers[0].SourceName.Should().Be("Prowlarr (OpenTrackr)");
     }
 
     [Test]

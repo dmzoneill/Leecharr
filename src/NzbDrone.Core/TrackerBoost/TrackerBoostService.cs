@@ -421,6 +421,46 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return true;
     }
 
+    internal static bool LooksLikeAnnounceTrackerUrl(string url)
+    {
+        if (!IsValidPublicTrackerUrl(url))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme.Equals("udp", StringComparison.OrdinalIgnoreCase) ||
+            uri.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase) ||
+            uri.Scheme.Equals("ws", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var path = uri.AbsolutePath;
+        if (string.IsNullOrEmpty(path) || path == "/")
+        {
+            return false;
+        }
+
+        var pathBody = path.Trim('/');
+        if (pathBody.Length > 0 && pathBody.All(char.IsDigit))
+        {
+            return false;
+        }
+
+        return path.Contains("/announce", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsHexString(string s)
     {
         foreach (var c in s)
@@ -772,16 +812,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         foreach (var field in fieldsProp.EnumerateArray())
         {
-            if (!field.TryGetProperty("name", out var nameProp) ||
-                !string.Equals(nameProp.GetString(), "baseUrl", StringComparison.OrdinalIgnoreCase) ||
-                !field.TryGetProperty("value", out var valProp) ||
-                valProp.ValueKind != JsonValueKind.String)
+            if (!field.TryGetProperty("value", out var valProp) || valProp.ValueKind != JsonValueKind.String)
             {
                 continue;
             }
 
             var u = valProp.GetString();
-            if (IsValidPublicTrackerUrl(u))
+            if (LooksLikeAnnounceTrackerUrl(u))
             {
                 trackers.Add((u, sourceName));
             }
@@ -798,7 +835,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         foreach (var urlItem in urlsProp.EnumerateArray())
         {
             var u = urlItem.GetString();
-            if (IsValidPublicTrackerUrl(u))
+            if (LooksLikeAnnounceTrackerUrl(u))
             {
                 trackers.Add((u, sourceName));
             }
