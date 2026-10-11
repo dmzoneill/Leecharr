@@ -755,7 +755,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             return false;
         }
 
-        var cleanBase = parsedBase.GetLeftPart(UriPartial.Path).TrimEnd('/');
+        var cleanBase = ArrConnectionUrlNormalizer.StripApiSuffix(parsedBase.GetLeftPart(UriPartial.Path));
         var cleanRelative = relativePath.TrimStart('/');
         return Uri.TryCreate($"{cleanBase}/{cleanRelative}", UriKind.Absolute, out uri);
     }

@@ -52,7 +52,7 @@ public class ArrSyncController : Controller
                         continue;
                     }
 
-                    var baseUrl = conn.Url.TrimEnd('/');
+                    var baseUrl = ArrConnectionUrlNormalizer.StripApiSuffix(conn.Url);
                     var endpoints = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
                                     string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ||
                                     string.Equals(conn.ArrType, "Prowlarr", StringComparison.OrdinalIgnoreCase)

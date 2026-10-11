@@ -77,6 +77,40 @@ public class ArrWebhookRegistrationTest
     }
 
     [Test]
+    public void RegisterWebhook_WhenUrlIncludesApiV3Suffix_UsesNormalizedNotificationPath()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.Created);
+        });
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989/api/v3",
+            ApiKey = "key",
+            Enable = true,
+            WebhookEnabled = true,
+            WebhookHost = "leecharr.local",
+        };
+
+        registration.RegisterWebhook(conn).Should().BeTrue();
+        requests.Should().Contain(r => r.RequestUri!.ToString() == "http://sonarr:8989/api/v3/notification");
+    }
+
+    [Test]
     public void RegisterWebhook_WhenNoExistingWebhook_CreatesViaPost()
     {
         var requests = new List<HttpRequestMessage>();
