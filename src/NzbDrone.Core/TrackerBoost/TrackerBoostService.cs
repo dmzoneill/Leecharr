@@ -1993,13 +1993,15 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
             this.CleanExpiredBoostHistory();
 
-            await this.RecoverMissingTrackersAsync().ConfigureAwait(false);
-            if (this.disposeCts.IsCancellationRequested)
-            {
-                return;
-            }
-
             var settings = this.GetSettings();
+            if (settings.AutoBoostEnabled)
+            {
+                await this.RecoverMissingTrackersAsync().ConfigureAwait(false);
+                if (this.disposeCts.IsCancellationRequested)
+                {
+                    return;
+                }
+            }
             if (settings.AutoHarvestEnabled)
             {
                 await this.HarvestFromActiveDownloadsAsync().ConfigureAwait(false);
