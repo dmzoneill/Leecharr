@@ -498,7 +498,8 @@ public class Aria2RpcController : ControllerBase
             "aria2.addtorrent" => await this.HandleAddTorrentAsync(cleanParams),
             "aria2.adduri" => await this.HandleAddUriAsync(cleanParams),
             "aria2.remove" or "aria2.forceremove" => await this.HandleRemoveAsync(cleanParams),
-            "aria2.purgedownloadresult" or "aria2.removedownloadresult" => await this.HandlePurgeDownloadResultAsync(cleanParams),
+            "aria2.purgedownloadresult" => await this.HandlePurgeDownloadResultAsync(cleanParams),
+            "aria2.removedownloadresult" => await this.HandleRemoveDownloadResultAsync(cleanParams),
             "aria2.pause" or "aria2.forcepause" => await this.HandlePauseAsync(cleanParams),
             "aria2.unpause" or "aria2.forceunpause" => await this.HandleUnpauseAsync(cleanParams),
             "aria2.geturis" => this.HandleGetUris(cleanParams),
@@ -604,8 +605,14 @@ public class Aria2RpcController : ControllerBase
 
     private async Task<object> HandlePurgeDownloadResultAsync(List<JsonElement> cleanParams)
     {
+        await this.PurgeDownloadResultsAsync();
+        return "OK";
+    }
+
+    private async Task<object> HandleRemoveDownloadResultAsync(List<JsonElement> cleanParams)
+    {
         var resGid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-        await this.PurgeOrRemoveDownloadResultAsync(resGid);
+        await this.RemoveDownloadResultByGidAsync(resGid);
         return "OK";
     }
 
@@ -952,9 +959,12 @@ public class Aria2RpcController : ControllerBase
                 return new XElement("string", remResult);
 
             case "aria2.purgedownloadresult":
+                await this.PurgeDownloadResultsAsync();
+                return new XElement("string", "OK");
+
             case "aria2.removedownloadresult":
                 var remXmlGid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
-                await this.PurgeOrRemoveDownloadResultAsync(remXmlGid);
+                await this.RemoveDownloadResultByGidAsync(remXmlGid);
                 return new XElement("string", "OK");
 
             case "aria2.pause":
@@ -1208,17 +1218,35 @@ public class Aria2RpcController : ControllerBase
         return gid ?? "OK";
     }
 
-    private async Task PurgeOrRemoveDownloadResultAsync(string gid)
+    private async Task PurgeDownloadResultsAsync()
     {
-        if (!string.IsNullOrWhiteSpace(gid))
+        var toPurge = this.torrentService.GetAll()
+            .Where(IsAria2DownloadResult)
+            .ToList();
+
+        foreach (var torrent in toPurge)
         {
-            var toRemoveRes = this.FindByGid(gid);
-            if (toRemoveRes != null)
-            {
-                await this.torrentService.DeleteAsync(toRemoveRes.Id, false);
-            }
+            await this.torrentService.DeleteAsync(torrent.Id, false);
         }
     }
+
+    private async Task RemoveDownloadResultByGidAsync(string gid)
+    {
+        if (string.IsNullOrWhiteSpace(gid))
+        {
+            return;
+        }
+
+        var toRemoveRes = this.FindUniqueTorrentByGid(gid);
+        if (toRemoveRes != null && IsAria2DownloadResult(toRemoveRes))
+        {
+            await this.torrentService.DeleteAsync(toRemoveRes.Id, false);
+        }
+    }
+
+    private static bool IsAria2DownloadResult(Torrent torrent) =>
+        torrent.Status is TorrentStatus.Completed or TorrentStatus.Error
+        || (torrent.Status == TorrentStatus.Stopped && (torrent.Progress >= 1.0 || torrent.DateCompleted.HasValue));
 
     private async Task<string> PauseTorrentByGidAsync(string gid)
     {
@@ -1864,16 +1892,35 @@ public class Aria2RpcController : ControllerBase
         return this.Content(doc.ToString(SaveOptions.DisableFormatting), "text/xml", Encoding.UTF8);
     }
 
-    private Torrent FindByGid(string gid)
+    private Torrent FindUniqueTorrentByGid(string gid)
+    {
+        var matches = this.FindAllByGid(gid);
+        if (matches.Count > 1)
+        {
+            throw new InvalidOperationException($"GID {gid.Trim()} is not unique.");
+        }
+
+        return matches.Count == 1 ? matches[0] : null;
+    }
+
+    private List<Torrent> FindAllByGid(string gid)
     {
         if (string.IsNullOrWhiteSpace(gid))
         {
-            return null;
+            return new List<Torrent>();
         }
 
         var clean = gid.Trim();
-        var all = this.torrentService.GetAll().ToList();
-        return all.FirstOrDefault(t => t.InfoHash.StartsWith(clean, StringComparison.OrdinalIgnoreCase) || t.InfoHash.Equals(clean, StringComparison.OrdinalIgnoreCase));
+        return this.torrentService.GetAll()
+            .Where(t => !string.IsNullOrWhiteSpace(t.InfoHash)
+                        && (t.InfoHash.Equals(clean, StringComparison.OrdinalIgnoreCase)
+                            || t.InfoHash.StartsWith(clean, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+    }
+
+    private Torrent FindByGid(string gid)
+    {
+        return this.FindAllByGid(gid).FirstOrDefault();
     }
 
     private static int Aria2BpsToKbps(int bps)
