@@ -1249,7 +1249,7 @@ public class Aria2RpcControllerTest
             Id = i,
             Name = $"Stopped_{i}",
             InfoHash = $"{i:D40}",
-            Status = TorrentStatus.Paused,
+            Status = TorrentStatus.Stopped,
         }).ToList();
 
         this.torrentService.GetAll().Returns(torrents);
@@ -1270,6 +1270,104 @@ public class Aria2RpcControllerTest
         structs!.Count.Should().Be(2);
         GetStructMember(structs[0]!, "gid").Should().Be(torrents[2].InfoHash.Substring(0, 16));
         GetStructMember(structs[1]!, "gid").Should().Be(torrents[3].InfoHash.Substring(0, 16));
+    }
+
+    [Test]
+    public async Task TellMethods_JsonRpc_ClassifyTorrentsByAria2Buckets()
+    {
+        var completedHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var errorHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        var stalledHash = "cccccccccccccccccccccccccccccccccccccccc";
+        var pausedHash = "dddddddddddddddddddddddddddddddddddddddd";
+        var activeHash = FullInfoHash;
+
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 1, Name = "Active", InfoHash = activeHash, Status = TorrentStatus.Downloading },
+            new() { Id = 2, Name = "Paused", InfoHash = pausedHash, Status = TorrentStatus.Paused },
+            new() { Id = 3, Name = "Completed", InfoHash = completedHash, Status = TorrentStatus.Completed, Progress = 1.0 },
+            new() { Id = 4, Name = "Error", InfoHash = errorHash, Status = TorrentStatus.Error },
+            new() { Id = 5, Name = "Stalled", InfoHash = stalledHash, Status = TorrentStatus.Stalled },
+        };
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 200,
+                "method": "aria2.tellActive",
+                "params": []
+            }
+            """);
+
+        var activeResult = await this.controller.HandleRpc();
+        var activeGids = GetJsonRpcResultGids(activeResult);
+        activeGids.Should().ContainSingle().Which.Should().Be(activeHash[..16]);
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 201,
+                "method": "aria2.tellWaiting",
+                "params": [0, 100]
+            }
+            """);
+
+        var waitingResult = await this.controller.HandleRpc();
+        var waitingGids = GetJsonRpcResultGids(waitingResult);
+        waitingGids.Should().ContainSingle().Which.Should().Be(pausedHash[..16]);
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 202,
+                "method": "aria2.tellStopped",
+                "params": [0, 100]
+            }
+            """);
+
+        var stoppedResult = await this.controller.HandleRpc();
+        var stoppedGids = GetJsonRpcResultGids(stoppedResult);
+        stoppedGids.Should().BeEquivalentTo(new[]
+        {
+            completedHash[..16],
+            errorHash[..16],
+            stalledHash[..16],
+        });
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": 203,
+                "method": "aria2.tellStatus",
+                "params": ["{{completedHash[..16]}}"]
+            }
+            """);
+
+        var statusResult = await this.controller.HandleRpc();
+        var statusOk = statusResult.Should().BeOfType<OkObjectResult>().Subject;
+        var statusJson = JsonSerializer.Serialize(statusOk.Value);
+        using var statusDoc = JsonDocument.Parse(statusJson);
+        statusDoc.RootElement.GetProperty("result").GetProperty("status").GetString().Should().Be("complete");
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 204,
+                "method": "aria2.getGlobalStat",
+                "params": []
+            }
+            """);
+
+        var statResult = await this.controller.HandleRpc();
+        var statOk = statResult.Should().BeOfType<OkObjectResult>().Subject;
+        var statJson = JsonSerializer.Serialize(statOk.Value);
+        using var statDoc = JsonDocument.Parse(statJson);
+        var stat = statDoc.RootElement.GetProperty("result");
+        stat.GetProperty("numActive").GetString().Should().Be("1");
+        stat.GetProperty("numWaiting").GetString().Should().Be("1");
+        stat.GetProperty("numStopped").GetString().Should().Be("3");
     }
 
     [Test]
@@ -1992,6 +2090,16 @@ public class Aria2RpcControllerTest
         var json = JsonSerializer.Serialize(okResult.Value);
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("result").GetString();
+    }
+
+    private static List<string> GetJsonRpcResultGids(IActionResult actionResult)
+    {
+        var okResult = actionResult.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("result").EnumerateArray()
+            .Select(e => e.GetProperty("gid").GetString())
+            .ToList();
     }
 
     private static string GetXmlRpcResultString(IActionResult actionResult)
