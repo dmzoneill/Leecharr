@@ -79,6 +79,8 @@ public class TaskManagerTest
 
         var downloadHistory = result.First(t => t.TypeName == "DownloadHistoryCleanupTask");
         downloadHistory.Interval.Should().Be(1440);
+
+        result.Should().OnlyContain(t => t.LastExecution == DateTime.MinValue);
     }
 
     [Test]
@@ -164,7 +166,10 @@ public class TaskManagerTest
         result.Should().NotBeNull();
         result.TypeName.Should().Be("BackupTask");
         result.Interval.Should().Be(1440);
-        this.scheduledTaskRepository.Received(1).Insert(Arg.Is<ScheduledTask>(t => t.TypeName == "BackupTask" && t.Interval == 1440));
+        this.scheduledTaskRepository.Received(1).Insert(Arg.Is<ScheduledTask>(t =>
+            t.TypeName == "BackupTask" &&
+            t.Interval == 1440 &&
+            t.LastExecution == DateTime.MinValue));
     }
 
     [Test]

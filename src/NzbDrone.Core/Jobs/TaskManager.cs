@@ -64,7 +64,7 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
                         {
                             TypeName = def.TypeName,
                             Interval = this.ResolveInterval(def.TypeName, def.Interval),
-                            LastExecution = DateTime.UtcNow,
+                            LastExecution = DateTime.MinValue,
                             LastStartTime = null,
                         });
                     }
@@ -100,7 +100,7 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
                     {
                         TypeName = def.TypeName,
                         Interval = this.ResolveInterval(def.TypeName, def.Interval),
-                        LastExecution = DateTime.UtcNow,
+                        LastExecution = DateTime.MinValue,
                         LastStartTime = null,
                     };
 
