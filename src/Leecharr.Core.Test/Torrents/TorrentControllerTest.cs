@@ -151,6 +151,25 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public async Task DeleteTracker_WhenTrackerBelongsToDifferentTorrent_ReturnsNotFoundAndDoesNotDelete()
+    {
+        var tracker = new TrackerEntry
+        {
+            Id = 5,
+            TorrentId = 99,
+            Url = "http://tracker.example.com/announce",
+        };
+
+        this.trackerEntryRepository.Get(5).Returns(tracker);
+
+        var result = await this.controller.DeleteTracker(42, 5);
+
+        result.Should().BeOfType<NotFoundResult>();
+        await this.downloadEngine.DidNotReceive().RemoveTrackersAsync(Arg.Any<int>(), Arg.Any<string[]>());
+        this.trackerEntryRepository.DidNotReceive().Delete(Arg.Any<int>());
+    }
+
+    [Test]
     public async Task DeleteTracker_WithFallbackTrackerIdZero_RemovesTrackerFromEngineAndClearsTorrentTrackerUrl()
     {
         var torrent = new Torrent

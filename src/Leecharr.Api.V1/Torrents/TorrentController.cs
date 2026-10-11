@@ -1145,11 +1145,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpDelete("{id:int}/trackers/{trackerId:int}")]
     public async Task<ActionResult> DeleteTracker(int id, int trackerId)
     {
-        var tracker = this.trackerEntryRepository?.Get(trackerId);
-        if (tracker != null && this.downloadEngine != null && !string.IsNullOrWhiteSpace(tracker.Url))
-        {
-            await this.downloadEngine.RemoveTrackersAsync(id, new[] { tracker.Url });
-        }
+        var tracker = trackerId != 0 ? this.trackerEntryRepository?.Get(trackerId) : null;
 
         if (trackerId == 0 || (tracker == null && trackerId <= 0))
         {
@@ -1171,6 +1167,18 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                     await this.torrentService.UpdateAsync(torrent);
                 }
             }
+
+            return this.Ok();
+        }
+
+        if (tracker == null || tracker.TorrentId != id)
+        {
+            return this.NotFound();
+        }
+
+        if (this.downloadEngine != null && !string.IsNullOrWhiteSpace(tracker.Url))
+        {
+            await this.downloadEngine.RemoveTrackersAsync(id, new[] { tracker.Url });
         }
 
         this.trackerEntryRepository?.Delete(trackerId);
