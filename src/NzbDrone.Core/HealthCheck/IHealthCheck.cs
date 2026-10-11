@@ -26,9 +26,9 @@ public class HealthCheckResult
 
     public string Message { get; set; }
 
-    public static HealthCheckResult Ok(string source)
+    public static HealthCheckResult Ok(string source, string message = null)
     {
-        return new HealthCheckResult { Type = HealthCheckResultType.Ok, Source = source };
+        return new HealthCheckResult { Type = HealthCheckResultType.Ok, Source = source, Message = message };
     }
 
     public static HealthCheckResult Notice(string source, string message)

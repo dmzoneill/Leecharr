@@ -210,6 +210,46 @@ public class HealthCheckTest
 
         result.Type.Should().Be(HealthCheckResultType.Ok);
         result.Source.Should().Be("MediaMetadataHealth");
+        result.Message.Should().Be("OK");
+    }
+
+    [Test]
+    public async Task MediaMetadataHealthCheck_ReturnsError_WhenProbeUnhealthy()
+    {
+        var manager = Substitute.For<IMediaMetadataManager>();
+        manager.ActiveProviderId.Returns("ServarrSync");
+        manager.ProbeProviderAsync("ServarrSync").Returns(Task.FromResult(new MediaMetadataHealthCheckResult
+        {
+            IsHealthy = false,
+            StatusMessage = "No enabled Sonarr, Radarr, or Lidarr connections are configured for Servarr metadata sync.",
+        }));
+
+        var check = new MediaMetadataHealthCheck(manager);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Source.Should().Be("MediaMetadataHealth");
+        result.Message.Should().Contain("No enabled");
+    }
+
+    [Test]
+    public async Task MediaMetadataHealthCheck_ReturnsWarning_WhenProbeReportsWarnings()
+    {
+        var manager = Substitute.For<IMediaMetadataManager>();
+        manager.ActiveProviderId.Returns("ServarrSync");
+        manager.ProbeProviderAsync("ServarrSync").Returns(Task.FromResult(new MediaMetadataHealthCheckResult
+        {
+            IsHealthy = true,
+            StatusMessage = "Servarr metadata provider ready (1/2 enabled Arr instances reachable).",
+            Warnings = { "Radarr (http://127.0.0.1:7878) is not reachable." },
+        }));
+
+        var check = new MediaMetadataHealthCheck(manager);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Warning);
+        result.Source.Should().Be("MediaMetadataHealth");
+        result.Message.Should().Contain("not reachable");
     }
 
     [Test]

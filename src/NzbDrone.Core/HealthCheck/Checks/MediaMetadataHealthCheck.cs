@@ -37,7 +37,7 @@ public class MediaMetadataHealthCheck : IHealthCheck
                 return HealthCheckResult.Warning("MediaMetadataHealth", string.Join("; ", result.Warnings));
             }
 
-            return HealthCheckResult.Ok("MediaMetadataHealth");
+            return HealthCheckResult.Ok("MediaMetadataHealth", result.StatusMessage);
         }
         catch (Exception ex)
         {

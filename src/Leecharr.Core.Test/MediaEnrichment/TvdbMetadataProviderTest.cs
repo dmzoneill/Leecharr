@@ -33,7 +33,19 @@ public class TvdbMetadataProviderTest
     public async Task ProbeHealthAsync_WhenApiKeyConfigured_ReturnsHealthyStatus()
     {
         this.configService.TvdbApiKey.Returns("valid-tvdb-api-key");
-        var provider = new TvdbMetadataProvider(this.configService, this.arrRepository);
+
+        var loginJson = @"{ ""status"": ""success"", ""data"": { ""token"": ""jwt.fake.token"" } }";
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            req.RequestUri!.AbsolutePath.Should().Be("/v4/login");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(loginJson, Encoding.UTF8, "application/json"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new TvdbMetadataProvider(this.configService, this.arrRepository, httpClient);
 
         var result = await provider.ProbeHealthAsync();
 
@@ -48,16 +60,34 @@ public class TvdbMetadataProviderTest
         this.configService.TvdbApiKey.Returns(string.Empty);
         this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition>
         {
-            new() { Name = "Sonarr", ArrType = "Sonarr", Url = "http://localhost:8989", Enable = true },
+            new() { Name = "Sonarr", ArrType = "Sonarr", Url = "http://localhost:8989", ApiKey = "key", Enable = true },
         });
 
-        var provider = new TvdbMetadataProvider(this.configService, this.arrRepository);
+        var handler = new MockHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new TvdbMetadataProvider(this.configService, this.arrRepository, httpClient);
 
         var result = await provider.ProbeHealthAsync();
 
         result.Should().NotBeNull();
         result.IsHealthy.Should().BeTrue();
         result.StatusMessage.Should().Contain("Servarr fallback");
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenNoApiKeyAndNoArr_ReturnsUnhealthy()
+    {
+        this.configService.TvdbApiKey.Returns(string.Empty);
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition>());
+
+        var provider = new TvdbMetadataProvider(this.configService, this.arrRepository);
+        var result = await provider.ProbeHealthAsync();
+
+        result.IsHealthy.Should().BeFalse();
     }
 
     [Test]
