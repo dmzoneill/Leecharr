@@ -7178,7 +7178,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
         if (freeSpace.Value < thresholdBytes)
         {
-            var isDownloading = this.Manager.State is TorrentState.Downloading or TorrentState.Starting or TorrentState.Metadata or TorrentState.Hashing or TorrentState.Error;
+            // Hashing only reads existing data. Error already has a failure reason, so do not rewrite as StorageFull.
+            var isDownloading = this.Manager.State is TorrentState.Downloading or TorrentState.Starting or TorrentState.Metadata;
             if (isDownloading && this.Progress < 1.0)
             {
                 try
