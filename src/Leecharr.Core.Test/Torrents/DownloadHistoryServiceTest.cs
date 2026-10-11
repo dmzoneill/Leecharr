@@ -1471,6 +1471,53 @@ public class DownloadHistoryServiceTest
     }
 
     [Test]
+    public async Task ReAddAsync_WithDuplicateAnnounceListUrls_InsertsDistinctTrackerEntries()
+    {
+        var history = new DownloadHistory
+        {
+            Id = 779,
+            InfoHash = "dupannouncehash",
+            Title = "Dup Announce Torrent",
+            TotalSize = 10000,
+            DownloadUrl = "https://tracker.example.com/dup.torrent",
+        };
+
+        var fakeBytes = new byte[] { 0x64, 0x38 };
+        var parsed = new ParsedTorrent
+        {
+            Name = "Dup Announce Torrent",
+            InfoHash = "dupannouncehash",
+            TotalSize = 10000,
+            AnnounceList = new List<List<string>>
+            {
+                new List<string> { "udp://tier0.example.com:1337/announce", "udp://tier0.example.com:1337/announce" },
+                new List<string> { "UDP://TIER0.EXAMPLE.COM:1337/announce" },
+            },
+        };
+
+        this.historyRepository.Get(779).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("dupannouncehash").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.safeHttpClientService.DownloadBytesAsync("https://tracker.example.com/dup.torrent")
+            .Returns(Task.FromResult(fakeBytes));
+        this.torrentFileParser.Parse(fakeBytes).Returns(parsed);
+
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 111;
+            return t;
+        });
+
+        await this.service.ReAddAsync(779);
+
+        this.trackerEntryRepository.Received(1).InsertMany(Arg.Is<List<TrackerEntry>>(entries =>
+            entries.Count == 1 &&
+            entries[0].Url == "udp://tier0.example.com:1337/announce" &&
+            entries[0].Tier == 0));
+    }
+
+    [Test]
     public void Update_WhenHistoryIsNull_DoesNothing_WhenNotNull_CallsUpdate()
     {
         this.service.Update(null!);

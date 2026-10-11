@@ -4664,6 +4664,42 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task AddTrackersAsync_WithDuplicateDatabaseUrls_DoesNotThrow()
+    {
+        var mockTrackerRepo = Substitute.For<ITrackerEntryRepository>();
+        mockTrackerRepo.GetByTorrentId(5678).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { TorrentId = 5678, Url = "http://dup-tracker.org/announce", Tier = 0 },
+            new TrackerEntry { TorrentId = 5678, Url = "http://dup-tracker.org/announce", Tier = 1 },
+        });
+
+        using var testEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService,
+            trackerEntryRepository: mockTrackerRepo);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 5678,
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            Name = "DupDbTrackerTorrent",
+            Status = TorrentStatus.Downloading,
+            TrackerUrl = "http://dup-tracker.org/announce",
+        };
+
+        await testEngine.AddTorrentAsync(torrent, magnetUri: "magnet:?xt=urn:btih:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&tr=http%3A%2F%2Fdup-tracker.org%2Fannounce");
+
+        var act = async () => await testEngine.AddTrackersAsync(5678, new[] { "http://extra-tracker.org/announce" });
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Test]
     public void BoundSocketConnector_WhenProxyActive_BlocksDatagramSocketCreation()
     {
         var mockConfig = Substitute.For<IConfigService>();
