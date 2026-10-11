@@ -373,6 +373,39 @@ public class HadoukenRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_WebUiList_SeparatesConnectedAndSwarmPeerCounts()
+    {
+        var hash = "aabbccddeeff00112233445566778899aabbccdd";
+        var torrent = new Torrent
+        {
+            Id = 42,
+            InfoHash = hash,
+            Name = "Peers",
+            Status = TorrentStatus.Downloading,
+            Leechers = 15,
+            Seeders = 8,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.ConnectedLeechers.Returns(3);
+        downloadTask.ConnectedSeeders.Returns(2);
+        this.torrentService.GetDownloadTask(42).Returns(downloadTask);
+
+        var request = new HadoukenRpcRequest { Method = "webui.list", Id = 13 };
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        var row = doc.RootElement.GetProperty("result").GetProperty("torrents")[0];
+        row[12].GetInt32().Should().Be(3, "index 12 is connected leechers");
+        row[13].GetInt32().Should().Be(15, "index 13 is swarm leechers");
+        row[14].GetInt32().Should().Be(2, "index 14 is connected seeders");
+        row[15].GetInt32().Should().Be(8, "index 15 is swarm seeders");
+    }
+
+    [Test]
     public async Task HandleRpc_WebUiAddTorrent_FileType_AddsParsedTorrent()
     {
         var rawBytes = new byte[] { 1, 2, 3, 4 };
