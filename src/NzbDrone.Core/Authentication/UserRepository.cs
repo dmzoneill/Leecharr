@@ -70,8 +70,23 @@ public class UserRepository : BasicRepository<User>, IUserRepository
         var normalized = email.Trim().ToLowerInvariant();
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<User>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"Email\" = @Email",
+                $"SELECT * FROM \"{this.table}\" WHERE \"Email\" = @Email ORDER BY \"Id\"",
                 new { Email = normalized }));
+    }
+
+    public User FindByEmailForProvider(string email, string providerId)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var normalized = email.Trim().ToLowerInvariant();
+        var normalizedProvider = providerId?.Trim() ?? string.Empty;
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<User>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"Email\" = @Email ORDER BY CASE WHEN LOWER(COALESCE(\"ExternalProviderId\", '')) = LOWER(@ProviderId) THEN 0 ELSE 1 END, \"Id\"",
+                new { Email = normalized, ProviderId = normalizedProvider }));
     }
 
     public User FindByIdentifier(Guid identifier)

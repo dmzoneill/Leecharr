@@ -173,6 +173,44 @@ public class JitUserProvisioningServiceTest
     }
 
     [Test]
+    public void ProvisionOrUpdateUser_DuplicateEmailSameProvider_ShouldLinkMatchingProviderAccount()
+    {
+        var wrongProviderUser = new User
+        {
+            Id = 20,
+            Username = "dana_wrong",
+            Email = "dana@example.com",
+            ExternalProviderId = "keycloak",
+            ExternalSubjectId = "kc-old",
+            Roles = "[\"User\"]",
+        };
+        var intendedUser = new User
+        {
+            Id = 21,
+            Username = "dana",
+            Email = "dana@example.com",
+            ExternalProviderId = "authentik",
+            ExternalSubjectId = null,
+            Roles = "[\"User\"]",
+        };
+        this.userRepository.Insert(wrongProviderUser);
+        this.userRepository.Insert(intendedUser);
+
+        var profile = new ExternalUserProfile(
+            "authentik",
+            "sub-dana-new",
+            "dana",
+            "dana@example.com",
+            "Dana",
+            new List<string> { "users" });
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Id, Is.EqualTo(21));
+        Assert.That(result.ExternalSubjectId, Is.EqualTo("sub-dana-new"));
+    }
+
+    [Test]
     public void ProvisionOrUpdateUser_SameProviderMatchingEmailOrUsername_ShouldLinkAccount()
     {
         var unlinkedSameProviderUser = new User
@@ -561,7 +599,23 @@ public class JitUserProvisioningServiceTest
 
         public User FindByEmail(string email)
         {
-            return this.users.FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            return this.users
+                .Where(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(u => u.Id)
+                .FirstOrDefault();
+        }
+
+        public User FindByEmailForProvider(string email, string providerId)
+        {
+            return this.users
+                .Where(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(u =>
+                    !string.IsNullOrEmpty(u.ExternalProviderId) &&
+                    u.ExternalProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase)
+                        ? 0
+                        : 1)
+                .ThenBy(u => u.Id)
+                .FirstOrDefault();
         }
 
         public User FindByIdentifier(Guid identifier)

@@ -113,6 +113,16 @@ public class UserServiceTest
     }
 
     [Test]
+    public void CreateUser_WhenEmailAlreadyExists_ShouldThrow()
+    {
+        this.userService.CreateUser("user1", "Password123!", "shared@example.com", "User One");
+
+        var act = () => this.userService.CreateUser("user2", "Password123!", "shared@example.com", "User Two");
+
+        Assert.That(act, Throws.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
     public void CreateUser_FirstUser_ShouldBeAdmin()
     {
         var user = this.userService.CreateUser("admin", "AdminPassword123!", "admin@example.com", "Admin User");
@@ -289,7 +299,23 @@ public class UserServiceTest
 
         public User FindByEmail(string email)
         {
-            return this.users.FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            return this.users
+                .Where(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(u => u.Id)
+                .FirstOrDefault();
+        }
+
+        public User FindByEmailForProvider(string email, string providerId)
+        {
+            return this.users
+                .Where(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(u =>
+                    !string.IsNullOrEmpty(u.ExternalProviderId) &&
+                    u.ExternalProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase)
+                        ? 0
+                        : 1)
+                .ThenBy(u => u.Id)
+                .FirstOrDefault();
         }
 
         public User FindByIdentifier(Guid identifier)
