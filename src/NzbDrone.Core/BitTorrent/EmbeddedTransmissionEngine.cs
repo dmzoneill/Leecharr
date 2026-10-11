@@ -1225,6 +1225,46 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             ["bind-address-ipv4"] = this.ResolveBoundIpv4Address(),
         };
 
+        var port = this.configService?.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
+        sessionArgs["peer-port"] = port;
+
+        var maxDownloadSpeedKbps = this.configService?.MaxDownloadSpeedKbps ?? 0;
+        if (maxDownloadSpeedKbps > 0)
+        {
+            sessionArgs["speed-limit-down"] = maxDownloadSpeedKbps;
+            sessionArgs["speed-limit-down-enabled"] = true;
+        }
+        else
+        {
+            sessionArgs["speed-limit-down-enabled"] = false;
+        }
+
+        var maxUploadSpeedKbps = this.configService?.MaxUploadSpeedKbps ?? 0;
+        if (maxUploadSpeedKbps > 0)
+        {
+            sessionArgs["speed-limit-up"] = maxUploadSpeedKbps;
+            sessionArgs["speed-limit-up-enabled"] = true;
+        }
+        else
+        {
+            sessionArgs["speed-limit-up-enabled"] = false;
+        }
+
+        var isAltSpeed = this.configService?.AlternativeSpeedEnabled ?? false;
+        sessionArgs["alt-speed-enabled"] = isAltSpeed;
+        sessionArgs["alt-speed-down"] = this.configService?.AltDownloadSpeedKbps < 0
+            ? 1
+            : (this.configService?.AltDownloadSpeedKbps ?? 2000);
+        sessionArgs["alt-speed-up"] = this.configService?.AltUploadSpeedKbps < 0
+            ? 1
+            : (this.configService?.AltUploadSpeedKbps ?? 500);
+
+        var isAnonymous = this.configService?.AnonymousMode ?? false;
+        sessionArgs["dht-enabled"] = (this.configService?.EnableDht ?? true) && !isAnonymous;
+        sessionArgs["pex-enabled"] = (this.configService?.EnablePex ?? true) && !isAnonymous;
+        sessionArgs["lpd-enabled"] = (this.configService?.EnableLpd ?? true) && !isAnonymous;
+        sessionArgs["encryption"] = MapTransmissionEncryptionPreference(this.configService?.EncryptionMode);
+
         var proxyType = this.configService?.ProxyType?.ToLowerInvariant();
         var proxyConfigured = !string.IsNullOrWhiteSpace(proxyType) &&
             !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase);
@@ -1255,10 +1295,15 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         {
             var response = await this.SendRpcRequestAsync("session-set", sessionArgs);
             this.logger.Info(
-                "Transmission: Updated session settings (bind={0}, proxy-enabled={1}, blocklist={2})",
+                "Transmission: Updated session settings (bind={0}, port={1}, proxy-enabled={2}, blocklist={3}, dht={4}, pex={5}, lpd={6}, encryption={7})",
                 sessionArgs["bind-address-ipv4"],
+                sessionArgs["peer-port"],
                 sessionArgs["proxy-enabled"],
-                sessionArgs["blocklist-enabled"]);
+                sessionArgs["blocklist-enabled"],
+                sessionArgs["dht-enabled"],
+                sessionArgs["pex-enabled"],
+                sessionArgs["lpd-enabled"],
+                sessionArgs["encryption"]);
             return response;
         }
         catch (Exception ex)
@@ -1266,6 +1311,17 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             this.logger.Warn(ex, "Error configuring Transmission session settings.");
             return null;
         }
+    }
+
+    internal static string MapTransmissionEncryptionPreference(string encryptionMode)
+    {
+        return encryptionMode?.Trim().ToLowerInvariant() switch
+        {
+            "forceencrypted" or "forced" or "requireencrypted" or "forcedencryption" or "required" => "required",
+            "preferencrypted" or "enabled" or "preferred" => "preferred",
+            "allowplaintext" or "disabled" or "plaintext" or "none" => "allowed",
+            _ => "preferred",
+        };
     }
 
     internal string ResolveBoundIpv4Address()

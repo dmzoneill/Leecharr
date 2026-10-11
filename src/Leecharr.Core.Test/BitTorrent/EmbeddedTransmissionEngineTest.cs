@@ -302,6 +302,91 @@ public class EmbeddedTransmissionEngineTest
     }
 
     [Test]
+    public async Task ConfigureSessionSettingsAsync_DispatchesPortSpeedLimitsAndDiscoverySettings()
+    {
+        this.configService.ListeningPort.Returns(12345);
+        this.configService.MaxDownloadSpeedKbps.Returns(8000);
+        this.configService.MaxUploadSpeedKbps.Returns(4000);
+        this.configService.AlternativeSpeedEnabled.Returns(true);
+        this.configService.AltDownloadSpeedKbps.Returns(512);
+        this.configService.AltUploadSpeedKbps.Returns(256);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnablePex.Returns(false);
+        this.configService.EnableLpd.Returns(true);
+        this.configService.EncryptionMode.Returns("preferEncrypted");
+
+        string capturedBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        await engine.ConfigureSessionSettingsAsync();
+
+        using var doc = JsonDocument.Parse(capturedBody);
+        var args = doc.RootElement.GetProperty("arguments");
+
+        args.GetProperty("peer-port").GetInt32().Should().Be(12345);
+        args.GetProperty("speed-limit-down").GetInt32().Should().Be(8000);
+        args.GetProperty("speed-limit-down-enabled").GetBoolean().Should().BeTrue();
+        args.GetProperty("speed-limit-up").GetInt32().Should().Be(4000);
+        args.GetProperty("speed-limit-up-enabled").GetBoolean().Should().BeTrue();
+        args.GetProperty("alt-speed-enabled").GetBoolean().Should().BeTrue();
+        args.GetProperty("alt-speed-down").GetInt32().Should().Be(512);
+        args.GetProperty("alt-speed-up").GetInt32().Should().Be(256);
+        args.GetProperty("dht-enabled").GetBoolean().Should().BeTrue();
+        args.GetProperty("pex-enabled").GetBoolean().Should().BeFalse();
+        args.GetProperty("lpd-enabled").GetBoolean().Should().BeTrue();
+        args.GetProperty("encryption").GetString().Should().Be("preferred");
+    }
+
+    [Test]
+    public async Task ConfigureSessionSettingsAsync_WhenAnonymousMode_DisablesDhtPexAndLpd()
+    {
+        this.configService.AnonymousMode.Returns(true);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnablePex.Returns(true);
+        this.configService.EnableLpd.Returns(true);
+
+        string capturedBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        await engine.ConfigureSessionSettingsAsync();
+
+        using var doc = JsonDocument.Parse(capturedBody);
+        var args = doc.RootElement.GetProperty("arguments");
+
+        args.GetProperty("dht-enabled").GetBoolean().Should().BeFalse();
+        args.GetProperty("pex-enabled").GetBoolean().Should().BeFalse();
+        args.GetProperty("lpd-enabled").GetBoolean().Should().BeFalse();
+    }
+
+    [Test]
+    public void MapTransmissionEncryptionPreference_MapsLeecharrModesToTransmissionRpc()
+    {
+        EmbeddedTransmissionEngine.MapTransmissionEncryptionPreference("requireEncrypted").Should().Be("required");
+        EmbeddedTransmissionEngine.MapTransmissionEncryptionPreference("preferEncrypted").Should().Be("preferred");
+        EmbeddedTransmissionEngine.MapTransmissionEncryptionPreference("Disabled").Should().Be("allowed");
+    }
+
+    [Test]
     public async Task NetworkBindingProviderSwitchedEvent_DispatchesBoundIpRatherThanZeroZeroZeroZero()
     {
         this.configService.NetworkInterfaceBinding.Returns("wg0");
