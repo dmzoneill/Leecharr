@@ -779,6 +779,12 @@ public class NotificationEventHandlerTest
 
         NotificationEventHandler.ResolveTargetUrl("Apprise", "{\"url\":\"http://apprise-server:8000\"}")
             .Should().Be("http://apprise-server:8000/notify");
+
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "http://apprise-server:8000/notify/mykey")
+            .Should().Be("http://apprise-server:8000/notify/mykey");
+
+        NotificationEventHandler.ResolveTargetUrl("Apprise", "tgram://token/chat")
+            .Should().Be("tgram://token/chat");
     }
 
     [Test]
