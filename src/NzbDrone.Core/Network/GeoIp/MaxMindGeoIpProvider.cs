@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using MaxMind.Db;
 using MaxMind.GeoIP2;
 using MaxMind.GeoIP2.Exceptions;
+using MaxMind.GeoIP2.Responses;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
@@ -16,6 +17,20 @@ namespace NzbDrone.Core.Network.GeoIp;
 
 public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 {
+    private static readonly string[] GeoLocationDatabaseNames =
+    {
+        "GeoLite2-City.mmdb",
+        "GeoLite2-Country.mmdb",
+        "GeoIP2-City.mmdb",
+        "GeoIP2-Country.mmdb",
+    };
+
+    private static readonly string[] AsnDatabaseNames =
+    {
+        "GeoLite2-ASN.mmdb",
+        "GeoIP2-ASN.mmdb",
+    };
+
     private readonly IDiskProvider diskProvider;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
@@ -23,6 +38,8 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
     private DatabaseReader reader;
     private string resolvedDatabasePath;
+    private DatabaseReader asnReader;
+    private string resolvedAsnDatabasePath;
     private bool disposed;
 
     public string ProviderId => "MaxMind";
@@ -33,7 +50,19 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
     public bool IsAvailable => !string.IsNullOrEmpty(this.GetDatabasePath());
 
-    public GeoIpCapabilities Capabilities => GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.Asn | GeoIpCapabilities.OfflineDatabase;
+    public GeoIpCapabilities Capabilities
+    {
+        get
+        {
+            var capabilities = GeoIpCapabilities.Country | GeoIpCapabilities.City | GeoIpCapabilities.OfflineDatabase;
+            if (!string.IsNullOrEmpty(this.GetAsnDatabasePath()))
+            {
+                capabilities |= GeoIpCapabilities.Asn;
+            }
+
+            return capabilities;
+        }
+    }
 
     public MaxMindGeoIpProvider(IDiskProvider diskProvider, IAppFolderInfo appFolderInfo)
     {
@@ -44,14 +73,33 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
     public virtual string GetDatabasePath()
     {
-        var databaseNames = new[]
-        {
-            "GeoLite2-City.mmdb",
-            "GeoLite2-Country.mmdb",
-            "GeoIP2-City.mmdb",
-            "GeoIP2-Country.mmdb",
-        };
+        return this.FindDatabasePath(GeoLocationDatabaseNames);
+    }
 
+    public virtual string GetAsnDatabasePath()
+    {
+        return this.FindDatabasePath(AsnDatabaseNames);
+    }
+
+    private string FindDatabasePath(string[] databaseNames)
+    {
+        foreach (var dir in this.GetSearchDirectories())
+        {
+            foreach (var dbName in databaseNames)
+            {
+                var fullPath = Path.Combine(dir, dbName);
+                if (this.diskProvider.FileExists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private IEnumerable<string> GetSearchDirectories()
+    {
         var searchDirectories = new List<string>
         {
             "/config/GeoIP",
@@ -64,22 +112,11 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
         foreach (var dir in searchDirectories)
         {
-            if (string.IsNullOrWhiteSpace(dir))
+            if (!string.IsNullOrWhiteSpace(dir))
             {
-                continue;
-            }
-
-            foreach (var dbName in databaseNames)
-            {
-                var fullPath = Path.Combine(dir, dbName);
-                if (this.diskProvider.FileExists(fullPath))
-                {
-                    return fullPath;
-                }
+                yield return dir;
             }
         }
-
-        return null;
     }
 
     public Task<GeoIpHealthResult> ProbeHealthAsync()
@@ -145,7 +182,12 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         var dbPath = this.GetDatabasePath();
         if (string.IsNullOrEmpty(dbPath))
         {
-            return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
+            lock (this.@lock)
+            {
+                var missingDbInfo = new GeoLocationInfo { IpAddress = ipAddress };
+                this.ApplyAsnLookup(missingDbInfo, parsedIp);
+                return Task.FromResult(missingDbInfo);
+            }
         }
 
         try
@@ -155,14 +197,16 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
                 this.EnsureReader(dbPath);
                 if (this.reader == null)
                 {
-                    return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
+                    var missingReaderInfo = new GeoLocationInfo { IpAddress = ipAddress };
+                    this.ApplyAsnLookup(missingReaderInfo, parsedIp);
+                    return Task.FromResult(missingReaderInfo);
                 }
 
                 try
                 {
                     if (this.reader.TryCity(parsedIp, out var city))
                     {
-                        return Task.FromResult(new GeoLocationInfo
+                        var cityInfo = new GeoLocationInfo
                         {
                             IpAddress = ipAddress,
                             CountryCode = city.Country?.IsoCode ?? string.Empty,
@@ -172,7 +216,9 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
                             Latitude = city.Location?.Latitude,
                             Longitude = city.Location?.Longitude,
                             TimeZone = city.Location?.TimeZone ?? string.Empty,
-                        });
+                        };
+                        this.ApplyAsnLookup(cityInfo, parsedIp);
+                        return Task.FromResult(cityInfo);
                     }
                 }
                 catch (InvalidOperationException ex)
@@ -182,13 +228,19 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
                 if (this.reader.TryCountry(parsedIp, out var country))
                 {
-                    return Task.FromResult(new GeoLocationInfo
+                    var countryInfo = new GeoLocationInfo
                     {
                         IpAddress = ipAddress,
                         CountryCode = country.Country?.IsoCode ?? string.Empty,
                         CountryName = country.Country?.Name ?? string.Empty,
-                    });
+                    };
+                    this.ApplyAsnLookup(countryInfo, parsedIp);
+                    return Task.FromResult(countryInfo);
                 }
+
+                var notFoundInfo = new GeoLocationInfo { IpAddress = ipAddress };
+                this.ApplyAsnLookup(notFoundInfo, parsedIp);
+                return Task.FromResult(notFoundInfo);
             }
         }
         catch (AddressNotFoundException ex)
@@ -204,7 +256,12 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
             this.logger.Warn(ex, "Unexpected error during MaxMind GeoIP lookup for IP: {0}", ipAddress);
         }
 
-        return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
+        lock (this.@lock)
+        {
+            var errorInfo = new GeoLocationInfo { IpAddress = ipAddress };
+            this.ApplyAsnLookup(errorInfo, parsedIp);
+            return Task.FromResult(errorInfo);
+        }
     }
 
     private static bool IsPrivateOrLoopback(IPAddress ip)
@@ -316,6 +373,57 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         this.resolvedDatabasePath = dbPath;
     }
 
+    private void EnsureAsnReader(string dbPath)
+    {
+        if (this.asnReader != null && this.resolvedAsnDatabasePath == dbPath)
+        {
+            return;
+        }
+
+        this.asnReader?.Dispose();
+        this.asnReader = new DatabaseReader(dbPath, FileAccessMode.MemoryMapped);
+        this.resolvedAsnDatabasePath = dbPath;
+    }
+
+    private void ApplyAsnLookup(GeoLocationInfo info, IPAddress parsedIp)
+    {
+        var asnDbPath = this.GetAsnDatabasePath();
+        if (string.IsNullOrEmpty(asnDbPath))
+        {
+            return;
+        }
+
+        try
+        {
+            this.EnsureAsnReader(asnDbPath);
+            if (this.asnReader != null && this.asnReader.TryAsn(parsedIp, out var asn))
+            {
+                info.Asn = FormatAsn(asn);
+            }
+        }
+        catch (GeoIP2Exception ex)
+        {
+            this.logger.Debug(ex, "MaxMind ASN lookup exception for IP: {0}", info.IpAddress);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Unexpected error during MaxMind ASN lookup for IP: {0}", info.IpAddress);
+        }
+    }
+
+    private static string FormatAsn(AsnResponse asn)
+    {
+        if (asn?.AutonomousSystemNumber == null)
+        {
+            return string.Empty;
+        }
+
+        var prefix = $"AS{asn.AutonomousSystemNumber}";
+        return string.IsNullOrWhiteSpace(asn.AutonomousSystemOrganization)
+            ? prefix
+            : $"{prefix} {asn.AutonomousSystemOrganization}";
+    }
+
     public void Reload()
     {
         lock (this.@lock)
@@ -323,6 +431,9 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
             this.reader?.Dispose();
             this.reader = null;
             this.resolvedDatabasePath = null;
+            this.asnReader?.Dispose();
+            this.asnReader = null;
+            this.resolvedAsnDatabasePath = null;
         }
     }
 
@@ -335,6 +446,8 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
             {
                 this.reader?.Dispose();
                 this.reader = null;
+                this.asnReader?.Dispose();
+                this.asnReader = null;
             }
         }
     }
