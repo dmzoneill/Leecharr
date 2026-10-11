@@ -448,9 +448,18 @@ public class IndexerController : Controller
         var effectiveLimit = Math.Clamp(request.Limit <= 0 ? 50 : request.Limit, 1, 250);
 
         var searchEnabled = this.indexerRepository.GetSearchEnabled().ToList();
-        var configuredIndexers = request.IndexerId.HasValue
-            ? new List<IndexerDefinition> { this.indexerRepository.Get(request.IndexerId.Value) }.Where(i => i != null).ToList()
-            : (searchEnabled.Count > 0 ? searchEnabled : this.indexerRepository.GetEnabled().ToList());
+        List<IndexerDefinition> configuredIndexers;
+        if (request.IndexerId.HasValue)
+        {
+            var requestedIndexer = this.indexerRepository.Get(request.IndexerId.Value);
+            configuredIndexers = requestedIndexer is { Enable: true, EnableSearch: true }
+                ? new List<IndexerDefinition> { requestedIndexer }
+                : new List<IndexerDefinition>();
+        }
+        else
+        {
+            configuredIndexers = searchEnabled;
+        }
 
         var indexers = configuredIndexers;
         if (this.indexerStatusService != null)

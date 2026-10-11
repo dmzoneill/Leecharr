@@ -2139,4 +2139,35 @@ public class IndexerControllerTest
         this.controller.Response.Headers.ContainsKey("X-Leecharr-Indexer-Errors").Should().BeFalse();
         await this.torznabClient.DidNotReceiveWithAnyArgs().SearchAsync(default!, default!, default);
     }
+
+    [Test]
+    public async Task SearchGet_WhenNoSearchEnabledIndexers_DoesNotFallBackToEnabledOnlyIndexers()
+    {
+        this.controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition>());
+        this.indexerRepository.GetEnabled().Returns(new List<IndexerDefinition>
+        {
+            new() { Id = 1, Name = "RssOnly", Enable = true, EnableSearch = false, Url = "http://rss" },
+        });
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test" });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        this.controller.Response.Headers["X-Leecharr-Indexers-Configured"].ToString().Should().Be("0");
+        await this.torznabClient.DidNotReceiveWithAnyArgs().SearchAsync(default!, default!, default);
+    }
+
+    [Test]
+    public async Task SearchGet_WhenIndexerIdIsSearchDisabled_DoesNotQueryIndexer()
+    {
+        this.controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        var indexer = new IndexerDefinition { Id = 1, Name = "RssOnly", Enable = true, EnableSearch = false, Url = "http://rss" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test", IndexerId = 1 });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        this.controller.Response.Headers["X-Leecharr-Indexers-Configured"].ToString().Should().Be("0");
+        await this.torznabClient.DidNotReceiveWithAnyArgs().SearchAsync(default!, default!, default);
+    }
 }
