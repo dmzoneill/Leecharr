@@ -47,6 +47,10 @@ public interface ISpeedSchedulerService
     int ResolveEffectiveUploadLimit(int torrentLimit, int categoryLimit, DateTime? currentTime = null);
 
     Task ApplyCurrentLimitsAsync();
+
+    bool ShouldSuppressEnginePausedStatus(int torrentId);
+
+    void RevokeSchedulerResume(int torrentId);
 }
 
 public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSavedEvent>, IDisposable
@@ -150,7 +154,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                                         continue;
                                     }
 
-                                    if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Completed or TorrentStatus.QueuedForChecking)
+                                    if (torrent.Status is TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Completed or TorrentStatus.QueuedForChecking)
                                     {
                                         this.logger.Info("Skipping scheduler resume for torrent {0}: database status is {1}", torrentId, torrent.Status);
                                         this.schedulerPausedTorrentIds.Remove(torrentId);
@@ -418,6 +422,16 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     public void Dispose()
     {
         this.timer?.Dispose();
+    }
+
+    public bool ShouldSuppressEnginePausedStatus(int torrentId)
+    {
+        return this.wasPausedByScheduler && this.schedulerPausedTorrentIds.Contains(torrentId);
+    }
+
+    public void RevokeSchedulerResume(int torrentId)
+    {
+        this.schedulerPausedTorrentIds.Remove(torrentId);
     }
 
     private bool SchedulerResumeSucceeded(int torrentId)

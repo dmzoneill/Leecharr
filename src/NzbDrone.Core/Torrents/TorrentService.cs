@@ -1157,6 +1157,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
     public async Task PauseAsync(int id, string reason)
     {
+        this.speedSchedulerService?.RevokeSchedulerResume(id);
+
         var torrent = this.torrentRepository.Get(id);
         if (torrent != null && torrent.Status != TorrentStatus.Paused)
         {
@@ -1500,7 +1502,14 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             var oldRatio = torrent.Ratio;
             var oldProgress = torrent.Progress;
 
-            torrent.Status = task.Status;
+            var suppressSchedulerPausedStatus = task.Status == TorrentStatus.Paused
+                && this.speedSchedulerService?.ShouldSuppressEnginePausedStatus(torrent.Id) == true;
+
+            if (!suppressSchedulerPausedStatus)
+            {
+                torrent.Status = task.Status;
+            }
+
             torrent.ErrorMessage = task.ErrorMessage;
             torrent.Progress = task.Progress;
 
@@ -1555,7 +1564,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 }
             }
 
-            var isInactive = torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+            var statusForActivity = suppressSchedulerPausedStatus ? task.Status : torrent.Status;
+            var isInactive = statusForActivity is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
             torrent.DownloadSpeed = isInactive ? 0 : task.DownloadSpeed;
             torrent.UploadSpeed = isInactive ? 0 : task.UploadSpeed;
             torrent.Seeders = isInactive ? 0 : task.ConnectedSeeders;
