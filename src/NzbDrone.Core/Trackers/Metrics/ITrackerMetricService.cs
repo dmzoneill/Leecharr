@@ -75,7 +75,7 @@ public class TrackerMetricsSummary
 
     public long FailedAnnounces { get; set; }
 
-    public double AnnounceSuccessRate => this.TotalAnnounces > 0 ? Math.Round((double)this.SuccessfulAnnounces / this.TotalAnnounces * 100.0, 1) : 100.0;
+    public double AnnounceSuccessRate => this.TotalAnnounces > 0 ? Math.Round((double)this.SuccessfulAnnounces / this.TotalAnnounces * 100.0, 1) : 0.0;
 
     public long TotalScrapes { get; set; }
 

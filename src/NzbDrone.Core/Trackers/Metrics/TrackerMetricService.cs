@@ -503,7 +503,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                 TotalDownloaded = m.TotalDownloaded,
                 TotalPeersDiscovered = m.TotalPeersDiscovered,
                 AvgResponseTimeMs = m.AvgResponseTimeMs,
-                SuccessRate = m.TotalAnnounces > 0 ? Math.Round((double)m.SuccessfulAnnounces / m.TotalAnnounces * 100.0, 1) : 100.0,
+                SuccessRate = m.TotalAnnounces > 0 ? Math.Round((double)m.SuccessfulAnnounces / m.TotalAnnounces * 100.0, 1) : 0.0,
             })
             .ToList();
 
@@ -521,7 +521,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                 TotalDownloaded = m.TotalDownloaded,
                 TotalPeersDiscovered = m.TotalPeersDiscovered,
                 AvgResponseTimeMs = m.AvgResponseTimeMs,
-                SuccessRate = m.TotalAnnounces > 0 ? Math.Round((double)m.SuccessfulAnnounces / m.TotalAnnounces * 100.0, 1) : 100.0,
+                SuccessRate = m.TotalAnnounces > 0 ? Math.Round((double)m.SuccessfulAnnounces / m.TotalAnnounces * 100.0, 1) : 0.0,
             })
             .ToList();
 

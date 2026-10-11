@@ -547,6 +547,25 @@ public class TrackerMetricsAndOptimizationTest
     }
 
     [Test]
+    public void GetSummary_WhenNoAnnouncesRecorded_ReturnsZeroAnnounceSuccessRate()
+    {
+        this.storedMetrics.Add(new TrackerMetric
+        {
+            Id = 1,
+            TrackerUrl = "udp://never-announced.tracker.org:1337/announce",
+            Protocol = "udp",
+            Status = "Working",
+            TotalAnnounces = 0,
+            SuccessfulAnnounces = 0,
+            FailedAnnounces = 0,
+        });
+
+        var summary = this.metricService.GetSummary();
+
+        summary.AnnounceSuccessRate.Should().Be(0.0);
+    }
+
+    [Test]
     public void SeedFromExistingTrackers_PopulatesMetricsFromTorrentsAndEntries()
     {
         this.storedTorrents.Add(new Torrent
@@ -770,6 +789,25 @@ public class TrackerMetricsAndOptimizationTest
 
         var act2 = () => task.Execute();
         act2.Should().NotThrow();
+    }
+
+    [Test]
+    public void TrackerMetricResourceMapper_ToResource_ZeroAnnounces_ReturnsZeroSuccessRate()
+    {
+        var metric = new TrackerMetric
+        {
+            Id = 1,
+            TrackerUrl = "http://seed-only.tracker.example/announce",
+            Status = "Working",
+            TotalAnnounces = 0,
+            SuccessfulAnnounces = 0,
+            FailedAnnounces = 0,
+        };
+
+        var resource = TrackerMetricResourceMapper.ToResource(metric);
+
+        resource.Should().NotBeNull();
+        resource!.AnnounceSuccessRate.Should().Be(0.0);
     }
 
     [Test]
