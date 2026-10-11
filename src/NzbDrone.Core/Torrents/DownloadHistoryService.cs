@@ -234,9 +234,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
         var tracker = dbTrackers.FirstOrDefault() ?? torrent.TrackerUrl;
 
-        var existing = !string.IsNullOrEmpty(torrent.InfoHash)
-            ? this.historyRepository.FindByInfoHash(torrent.InfoHash)
-            : null;
+        var existing = this.FindHistoryForTorrent(torrent);
 
         if (existing != null)
         {
@@ -248,6 +246,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             TorrentId = torrent.Id,
             Title = torrent.Name ?? "Unknown Release",
             InfoHash = torrent.InfoHash ?? string.Empty,
+            V2InfoHash = torrent.V2InfoHash?.ToLowerInvariant(),
             TotalSize = torrent.TotalSize,
             DateAdded = torrent.DateAdded != default ? torrent.DateAdded : DateTime.UtcNow,
             DateCompleted = torrent.Progress >= 1.0 ? DateTime.UtcNow : null,
@@ -289,9 +288,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         List<string> dbTrackers,
         string tracker)
     {
-        var existing = !string.IsNullOrEmpty(torrent.InfoHash)
-            ? this.historyRepository.FindByInfoHash(torrent.InfoHash)
-            : null;
+        var existing = this.FindHistoryForTorrent(torrent);
 
         if (existing == null)
         {
@@ -304,6 +301,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         existing.Status = "Active";
         existing.DateRemoved = null;
         existing.IsPrivate = torrent.IsPrivate;
+        ApplyTorrentHashesToHistory(existing, torrent);
 
         if (dbTrackers.Count > 0)
         {
@@ -352,7 +350,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         }
 
         var entry = this.historyRepository.FindByTorrentId(torrent.Id)
-            ?? (!string.IsNullOrEmpty(torrent.InfoHash) ? this.historyRepository.FindByInfoHash(torrent.InfoHash) : null);
+            ?? this.FindHistoryForTorrent(torrent);
 
         if (entry == null)
         {
@@ -418,7 +416,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         var tracker = dbTrackers.FirstOrDefault() ?? torrent.TrackerUrl;
 
         var existing = this.historyRepository.FindByTorrentId(torrent.Id)
-            ?? (!string.IsNullOrEmpty(torrent.InfoHash) ? this.historyRepository.FindByInfoHash(torrent.InfoHash) : null);
+            ?? this.FindHistoryForTorrent(torrent);
 
         if (existing == null)
         {
@@ -426,6 +424,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             {
                 Title = torrent.Name ?? "Unknown Release",
                 InfoHash = torrent.InfoHash ?? string.Empty,
+                V2InfoHash = torrent.V2InfoHash?.ToLowerInvariant(),
                 TotalSize = torrent.TotalSize,
                 DateAdded = torrent.DateAdded != default ? torrent.DateAdded : DateTime.UtcNow,
                 DateCompleted = torrent.Progress >= 1.0 ? DateTime.UtcNow : null,
@@ -475,6 +474,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         existing.Status = "Removed";
         existing.RemovalReason = reason;
         existing.IsPrivate = torrent.IsPrivate;
+        ApplyTorrentHashesToHistory(existing, torrent);
 
         if (dbTrackers.Count > 0)
         {
@@ -1031,7 +1031,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
             var tracker = dbTrackers.FirstOrDefault() ?? torrent.TrackerUrl;
 
-            var existing = this.historyRepository.FindByInfoHash(torrent.InfoHash);
+            var existing = this.FindHistoryForTorrent(torrent);
             if (existing == null)
             {
                 var entry = new DownloadHistory
@@ -1039,6 +1039,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     TorrentId = torrent.Id,
                     Title = torrent.Name ?? torrent.InfoHash,
                     InfoHash = torrent.InfoHash.ToLowerInvariant(),
+                    V2InfoHash = torrent.V2InfoHash?.ToLowerInvariant(),
                     TotalSize = torrent.TotalSize,
                     DateAdded = torrent.DateAdded != default ? torrent.DateAdded : DateTime.UtcNow,
                     Uploaded = torrent.Uploaded,
@@ -1084,6 +1085,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 {
                     this.historyRepository.Update(existing);
                 }
+                else if (string.IsNullOrWhiteSpace(existing.V2InfoHash) && !string.IsNullOrWhiteSpace(torrent.V2InfoHash))
+                {
+                    existing.V2InfoHash = torrent.V2InfoHash.ToLowerInvariant();
+                    this.historyRepository.Update(existing);
+                }
             }
         }
 
@@ -1121,7 +1127,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             return;
         }
 
-        var history = this.historyRepository.FindByInfoHash(message.Torrent.InfoHash);
+        var history = this.FindHistoryForTorrent(message.Torrent);
         if (history != null)
         {
             history.Status = "Completed";
@@ -1141,7 +1147,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             return;
         }
 
-        var history = this.historyRepository.FindByInfoHash(message.Torrent.InfoHash);
+        var history = this.FindHistoryForTorrent(message.Torrent);
         if (history != null)
         {
             if (message.NewStatus == TorrentStatus.Error || message.NewStatus == TorrentStatus.Paused || message.NewStatus == TorrentStatus.Seeding)
@@ -1162,6 +1168,48 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 history.SeedingTime = message.Torrent.CumulativeSeedingTimeSeconds;
                 this.historyRepository.Update(history);
             }
+        }
+    }
+
+    private DownloadHistory FindHistoryForTorrent(Torrent torrent)
+    {
+        if (torrent == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrEmpty(torrent.InfoHash))
+        {
+            var found = this.historyRepository.FindByInfoHash(torrent.InfoHash);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(torrent.V2InfoHash))
+        {
+            return this.historyRepository.FindByInfoHash(torrent.V2InfoHash);
+        }
+
+        return null;
+    }
+
+    private static void ApplyTorrentHashesToHistory(DownloadHistory entry, Torrent torrent)
+    {
+        if (entry == null || torrent == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+        {
+            entry.InfoHash = torrent.InfoHash.Trim().ToLowerInvariant();
+        }
+
+        if (!string.IsNullOrWhiteSpace(torrent.V2InfoHash))
+        {
+            entry.V2InfoHash = torrent.V2InfoHash.Trim().ToLowerInvariant();
         }
     }
 }
