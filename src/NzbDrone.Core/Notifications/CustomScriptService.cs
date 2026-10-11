@@ -108,6 +108,77 @@ public class CustomScriptService : ICustomScriptService
         return result;
     }
 
+    internal static (string FileName, List<string> PrefixArguments) ParseShebangLine(string shebangLine)
+    {
+        if (string.IsNullOrWhiteSpace(shebangLine) || !shebangLine.StartsWith("#!", StringComparison.Ordinal))
+        {
+            return (null, null);
+        }
+
+        var payload = shebangLine.Substring(2).Trim();
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return (null, null);
+        }
+
+        var parts = payload.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return (null, null);
+        }
+
+        var interpreter = parts[0];
+        var prefixArgs = parts.Length > 1 ? parts.Skip(1).ToList() : new List<string>();
+
+        if (interpreter.EndsWith("env", StringComparison.Ordinal) && prefixArgs.Count > 0)
+        {
+            interpreter = prefixArgs[0];
+            prefixArgs = prefixArgs.Skip(1).ToList();
+        }
+
+        return (interpreter, prefixArgs);
+    }
+
+    internal static (string FileName, List<string> PrefixArguments) ReadShebang(string scriptPath)
+    {
+        if (string.IsNullOrWhiteSpace(scriptPath) || !File.Exists(scriptPath))
+        {
+            return (null, null);
+        }
+
+        try
+        {
+            using var reader = new StreamReader(scriptPath);
+            var firstLine = reader.ReadLine();
+            return ParseShebangLine(firstLine);
+        }
+        catch (Exception ex)
+        {
+            StaticLogger.Trace(ex, "Failed to read shebang from script: {0}", scriptPath);
+            return (null, null);
+        }
+    }
+
+    internal static (string FileName, List<string> Arguments) ResolveUnixShellScript(string scriptPath, List<string> argsList)
+    {
+        var cleanPath = scriptPath?.Trim()?.Trim('"', '\'') ?? string.Empty;
+        var (interpreter, prefixArgs) = ReadShebang(cleanPath);
+        if (string.IsNullOrWhiteSpace(interpreter))
+        {
+            interpreter = "/bin/sh";
+            prefixArgs = new List<string>();
+        }
+        else if (prefixArgs == null)
+        {
+            prefixArgs = new List<string>();
+        }
+
+        var shArgs = new List<string>(prefixArgs);
+        shArgs.Add(cleanPath);
+        shArgs.AddRange(argsList);
+        return (interpreter, shArgs);
+    }
+
     internal static (string FileName, List<string> Arguments) ResolveInterpreter(string scriptPath, IEnumerable<string> arguments)
     {
         var cleanPath = scriptPath?.Trim()?.Trim('"', '\'') ?? string.Empty;
@@ -164,9 +235,7 @@ public class CustomScriptService : ICustomScriptService
             switch (ext)
             {
                 case ".sh":
-                    var shArgs = new List<string> { cleanPath };
-                    shArgs.AddRange(argsList);
-                    return ("/bin/sh", shArgs);
+                    return ResolveUnixShellScript(cleanPath, argsList);
 
                 case ".bash":
                     var bashArgs = new List<string> { cleanPath };
@@ -245,7 +314,12 @@ public class CustomScriptService : ICustomScriptService
             switch (ext)
             {
                 case ".sh":
-                    return ("/bin/sh", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                {
+                    var (shFile, shArgList) = ResolveUnixShellScript(cleanPath, TokenizeArguments(args));
+                    var shArgsString = string.Join(" ", shArgList.Select(a => a.Contains(' ') ? $"\"{a}\"" : a));
+                    return (shFile, shArgsString.TrimEnd());
+                }
+
                 case ".bash":
                     return ("/bin/bash", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
                 case ".py":
