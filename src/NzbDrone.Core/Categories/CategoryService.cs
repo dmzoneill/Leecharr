@@ -43,6 +43,8 @@ public interface ICategoryService
 
 public class CategoryService : ICategoryService
 {
+    private static readonly object DefaultCategoryLock = new();
+
     private static readonly string[] ForbiddenUnixSystemPrefixes =
     [
         "/etc",
@@ -217,12 +219,18 @@ public class CategoryService : ICategoryService
         }
 
         this.logger.Info("Adding category: {0}", category.Name);
+        Category inserted;
         if (category.IsDefault)
         {
-            this.ClearExistingDefaults(0);
+            lock (DefaultCategoryLock)
+            {
+                inserted = this.repository.InsertAsDefault(category);
+            }
         }
-
-        var inserted = this.repository.Insert(category);
+        else
+        {
+            inserted = this.repository.Insert(category);
+        }
         this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = inserted });
         return inserted;
     }
@@ -271,14 +279,20 @@ public class CategoryService : ICategoryService
             }
         }
 
-        if (category.IsDefault)
-        {
-            this.ClearExistingDefaults(category.Id);
-        }
-
         this.ValidateCategoryRename(existing, category.Name);
 
-        var updated = this.repository.Update(category);
+        Category updated;
+        if (category.IsDefault)
+        {
+            lock (DefaultCategoryLock)
+            {
+                updated = this.repository.SetAsDefault(category);
+            }
+        }
+        else
+        {
+            updated = this.repository.Update(category);
+        }
 
         if (existing != null && !string.IsNullOrWhiteSpace(existing.Name))
         {
@@ -554,16 +568,6 @@ public class CategoryService : ICategoryService
                         c.Name.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
             .Select(c => (c, newName + c.Name[oldName.Length..]))
             .ToList();
-    }
-
-    private void ClearExistingDefaults(int currentCategoryId)
-    {
-        var existingDefaults = this.repository.All().Where(c => c.IsDefault && c.Id != currentCategoryId);
-        foreach (var existing in existingDefaults)
-        {
-            existing.IsDefault = false;
-            this.repository.Update(existing);
-        }
     }
 
     private bool HasDefaultDescendant(Category category)
