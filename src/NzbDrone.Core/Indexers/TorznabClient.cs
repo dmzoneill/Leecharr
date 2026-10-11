@@ -18,6 +18,7 @@ using System.Xml.Linq;
 using NLog;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Torrents;
 
@@ -231,6 +232,15 @@ public class TorznabClient : ITorznabClient
         {
             this.logger.Trace(ex, "Failed to deserialize indexer settings for Torznab auth headers");
         }
+    }
+
+    private static IndexerHttpException CreateIndexerHttpException(string operation, string indexerName, HttpResponseMessage response)
+    {
+        var retryAfter = HttpRetryAfterParser.FromResponse(response);
+        return new IndexerHttpException(
+            $"{operation} for {indexerName}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}",
+            response.StatusCode,
+            retryAfter);
     }
 
     internal int ResolveEffectiveLimit(IndexerDefinition indexer, int requestedLimit, bool isRss = false)
@@ -461,10 +471,10 @@ public class TorznabClient : ITorznabClient
             if (!response.IsSuccessStatusCode)
             {
                 this.logger.Warn("Torznab query failed for {0}: HTTP {1}", indexer.Name, response.StatusCode);
-                throw new HttpRequestException(
-                    $"Torznab query failed for {indexer.Name}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}",
-                    null,
-                    response.StatusCode);
+                throw CreateIndexerHttpException(
+                    "Torznab query failed",
+                    indexer.Name,
+                    response);
             }
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -517,10 +527,10 @@ public class TorznabClient : ITorznabClient
             if (!response.IsSuccessStatusCode)
             {
                 this.logger.Warn("Failed to fetch RSS from Torznab indexer: {0}: HTTP {1}", indexer.Name, response.StatusCode);
-                throw new HttpRequestException(
-                    $"Torznab RSS fetch failed for {indexer.Name}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}",
-                    null,
-                    response.StatusCode);
+                throw CreateIndexerHttpException(
+                    "Torznab RSS fetch failed",
+                    indexer.Name,
+                    response);
             }
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);

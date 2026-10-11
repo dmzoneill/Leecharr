@@ -63,4 +63,27 @@ public class IndexerStatusServiceTest
         this.service.CalculateBackoff(8).Should().Be(TimeSpan.FromHours(24));
         this.service.CalculateBackoff(10).Should().Be(TimeSpan.FromHours(24));
     }
+
+    [Test]
+    public void CalculateBackoff_When429WithRetryAfter_UsesRetryAfterDuration()
+    {
+        var retryAfter = TimeSpan.FromHours(1);
+        this.service.CalculateBackoff(1, (int)HttpStatusCode.TooManyRequests, retryAfter)
+            .Should().Be(retryAfter);
+    }
+
+    [Test]
+    public void RecordFailure_WhenIndexerHttpException429WithRetryAfter_DisablesForRetryAfterWindow()
+    {
+        var retryAfter = TimeSpan.FromHours(1);
+        var ex = new IndexerHttpException("Rate limited", HttpStatusCode.TooManyRequests, retryAfter);
+
+        var before = DateTime.UtcNow;
+        this.service.RecordFailure(1, (int)HttpStatusCode.TooManyRequests, ex.Message, ex);
+        var status = this.service.GetStatus(1);
+
+        status.DisabledTill.Should().NotBeNull();
+        status.DisabledTill!.Value.Should().BeCloseTo(before.Add(retryAfter), TimeSpan.FromSeconds(2));
+        this.service.IsDisabled(1).Should().BeTrue();
+    }
 }

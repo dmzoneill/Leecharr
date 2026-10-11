@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net;
 using NLog;
 
 namespace NzbDrone.Core.Indexers;
@@ -48,7 +49,13 @@ public class IndexerStatusService : IIndexerStatusService
             status.LastStatusCode = statusCode;
             status.LastFailureMessage = errorMessage ?? ex?.Message ?? "Indexer operation failed without error details";
 
-            var backoff = this.CalculateBackoff(status.ConsecutiveFailures, statusCode);
+            TimeSpan? retryAfter = null;
+            if (ex is IndexerHttpException indexerHttpException)
+            {
+                retryAfter = indexerHttpException.RetryAfter;
+            }
+
+            var backoff = this.CalculateBackoff(status.ConsecutiveFailures, statusCode, retryAfter);
             status.DisabledTill = now.Add(backoff);
             this.logger.Warn(
                 "Indexer {0} failed ({1}). Consecutive failures: {2}. Disabled until {3}",
@@ -147,11 +154,18 @@ public class IndexerStatusService : IIndexerStatusService
         this.statuses.Clear();
     }
 
-    public TimeSpan CalculateBackoff(int consecutiveFailures, int? statusCode = null)
+    public TimeSpan CalculateBackoff(int consecutiveFailures, int? statusCode = null, TimeSpan? retryAfter = null)
     {
         if (consecutiveFailures <= 0)
         {
             return TimeSpan.Zero;
+        }
+
+        if (statusCode == (int)HttpStatusCode.TooManyRequests &&
+            retryAfter.HasValue &&
+            retryAfter.Value > TimeSpan.Zero)
+        {
+            return retryAfter.Value;
         }
 
         return consecutiveFailures switch
