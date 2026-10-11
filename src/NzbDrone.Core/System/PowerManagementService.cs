@@ -51,6 +51,8 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
     internal Func<string, string[], Process> LinuxProcessStarter { get; set; }
 
+    internal Func<string, string[], Process> LinuxInhibitProcessLauncher { get; set; }
+
     internal Func<bool> ContainerDetector { get; set; }
 
     internal OSPlatform? TargetPlatformOverride { get; set; }
@@ -515,23 +517,15 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
         try
         {
-            var proc = new Process
+            var inhibitExecutable = File.Exists("/bin/systemd-inhibit") ? "/bin/systemd-inhibit" : "/usr/bin/systemd-inhibit";
+            if (!File.Exists(inhibitExecutable))
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = File.Exists("/bin/systemd-inhibit") ? "/bin/systemd-inhibit" : "/usr/bin/systemd-inhibit",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
-            };
-
-            foreach (var arg in args)
-            {
-                proc.StartInfo.ArgumentList.Add(arg);
+                this.logger.Debug("systemd-inhibit was not found at {0}", inhibitExecutable);
+                return null;
             }
 
-            proc.Start();
-            return proc;
+            var launcher = this.LinuxInhibitProcessLauncher ?? LinuxSleepInhibitionProcess.Start;
+            return launcher(inhibitExecutable, args);
         }
         catch (Exception ex)
         {
@@ -551,7 +545,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         {
             if (!process.HasExited)
             {
-                process.Kill();
+                process.Kill(entireProcessTree: true);
             }
         }
         catch (Exception ex)
