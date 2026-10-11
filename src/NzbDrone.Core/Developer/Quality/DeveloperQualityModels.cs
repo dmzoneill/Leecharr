@@ -86,4 +86,8 @@ public class DeveloperQualityReport
     public string GitHubRepoUrl { get; set; }
 
     public string Message { get; set; }
+
+    public bool UsedFallbackQualityGate { get; set; }
+
+    public bool UsedFallbackPipelines { get; set; }
 }
