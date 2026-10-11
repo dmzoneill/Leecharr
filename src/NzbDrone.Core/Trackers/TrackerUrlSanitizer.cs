@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 
 namespace NzbDrone.Core.Trackers;
@@ -158,19 +160,29 @@ public static class TrackerUrlSanitizer
         }
 
         // Reconstruct Authority
-        var authority = host;
+        var authority = FormatHost(host);
         if (!string.IsNullOrEmpty(sanitizedUserInfo))
         {
             authority = $"{sanitizedUserInfo}@{authority}";
         }
 
-        if (port > 0 && (trimmed.Contains($":{port}") || !uri.IsDefaultPort))
+        if (port > 0 && !uri.IsDefaultPort)
         {
             authority = $"{authority}:{port}";
         }
 
         var fragment = uri.Fragment;
         return $"{scheme}://{authority}{sanitizedPath}{sanitizedQuery}{fragment}";
+    }
+
+    private static string FormatHost(string host)
+    {
+        if (IPAddress.TryParse(host, out var address) && address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return $"[{address}]";
+        }
+
+        return host;
     }
 
     private static bool IsHexString(string s)
