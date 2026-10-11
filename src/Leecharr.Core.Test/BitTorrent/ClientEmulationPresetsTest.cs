@@ -69,6 +69,7 @@ public class ClientEmulationPresetsTest
     }
 
     [TestCase("-qB4650-", "qBittorrent/4.6.5")]
+    [TestCase("-qB4420-", "qBittorrent/4.4.2")]
     [TestCase("-DE2110-", "Deluge/2.1.1")]
     [TestCase("-TR4050-", "Transmission/4.0.5")]
     [TestCase("-UT3550-", "uTorrent/3550")]
