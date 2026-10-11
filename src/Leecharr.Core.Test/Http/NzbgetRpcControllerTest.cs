@@ -33,6 +33,7 @@ public class NzbgetRpcControllerTest
     private IDiskProvider diskProvider = null!;
     private ISafeHttpClientService safeHttpClientService = null!;
     private ITorrentFileService torrentFileService = null!;
+    private INzbgetDownloadQueueState downloadQueueState = null!;
     private NzbgetRpcController controller = null!;
 
     [SetUp]
@@ -46,6 +47,7 @@ public class NzbgetRpcControllerTest
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
         this.torrentFileService = Substitute.For<ITorrentFileService>();
+        this.downloadQueueState = new NzbgetDownloadQueueState();
 
         this.configFileProvider.AuthenticationEnabled.Returns(false);
 
@@ -57,7 +59,8 @@ public class NzbgetRpcControllerTest
             this.configFileProvider,
             this.diskProvider,
             this.safeHttpClientService,
-            this.torrentFileService);
+            this.torrentFileService,
+            this.downloadQueueState);
     }
 
     [Test]
@@ -938,8 +941,9 @@ public class NzbgetRpcControllerTest
 
         var torrents = new List<Torrent>
         {
-            new() { Id = 101 },
-            new() { Id = 102 },
+            new() { Id = 101, Status = TorrentStatus.Downloading },
+            new() { Id = 102, Status = TorrentStatus.Downloading },
+            new() { Id = 103, Status = TorrentStatus.Paused },
         };
         this.torrentService.GetAll().Returns(torrents);
 
@@ -948,12 +952,39 @@ public class NzbgetRpcControllerTest
         pauseResult.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).PauseAsync(101);
         await this.torrentService.Received(1).PauseAsync(102);
+        await this.torrentService.DidNotReceive().PauseAsync(103);
 
         var resumeReq = new NzbgetRequest { Method = "resumedownload", Id = 16 };
         var resumeResult = await this.controller.HandleRpc(resumeReq);
         resumeResult.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).ResumeAsync(101);
         await this.torrentService.Received(1).ResumeAsync(102);
+        await this.torrentService.DidNotReceive().ResumeAsync(103);
+    }
+
+    [Test]
+    public async Task HandleRpc_Status_ReportsDownloadPausedAfterPauseDownload()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        this.torrentService.GetAll().Returns(new List<Torrent> { new() { Id = 1, Status = TorrentStatus.Downloading } });
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(1024L * 1024 * 1024);
+
+        var pauseReq = new NzbgetRequest { Method = "pausedownload", Id = 40 };
+        await this.controller.HandleRpc(pauseReq);
+
+        var statusReq = new NzbgetRequest { Method = "status", Id = 41 };
+        var result = await this.controller.HandleRpc(statusReq);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var resObj = doc.RootElement.GetProperty("result");
+        resObj.GetProperty("DownloadPaused").GetBoolean().Should().BeTrue();
+        resObj.GetProperty("ServerPaused").GetBoolean().Should().BeTrue();
     }
 
     [Test]
