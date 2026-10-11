@@ -42,7 +42,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
-    public string GetDatabasePath()
+    public virtual string GetDatabasePath()
     {
         var databaseNames = new[]
         {
@@ -97,7 +97,11 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
         try
         {
-            this.EnsureReader(dbPath);
+            lock (this.@lock)
+            {
+                this.EnsureReader(dbPath);
+            }
+
             return Task.FromResult(new GeoIpHealthResult
             {
                 IsHealthy = true,
@@ -146,42 +150,45 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
         try
         {
-            var reader = this.EnsureReader(dbPath);
-            if (reader == null)
+            lock (this.@lock)
             {
-                return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
-            }
+                this.EnsureReader(dbPath);
+                if (this.reader == null)
+                {
+                    return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
+                }
 
-            try
-            {
-                if (reader.TryCity(parsedIp, out var city))
+                try
+                {
+                    if (this.reader.TryCity(parsedIp, out var city))
+                    {
+                        return Task.FromResult(new GeoLocationInfo
+                        {
+                            IpAddress = ipAddress,
+                            CountryCode = city.Country?.IsoCode ?? string.Empty,
+                            CountryName = city.Country?.Name ?? string.Empty,
+                            City = city.City?.Name ?? string.Empty,
+                            Region = city.MostSpecificSubdivision?.Name ?? string.Empty,
+                            Latitude = city.Location?.Latitude,
+                            Longitude = city.Location?.Longitude,
+                            TimeZone = city.Location?.TimeZone ?? string.Empty,
+                        });
+                    }
+                }
+                catch (InvalidOperationException ex)
+                {
+                    this.logger.Trace(ex, "MMDB database is Country-level rather than City for {0}", ipAddress);
+                }
+
+                if (this.reader.TryCountry(parsedIp, out var country))
                 {
                     return Task.FromResult(new GeoLocationInfo
                     {
                         IpAddress = ipAddress,
-                        CountryCode = city.Country?.IsoCode ?? string.Empty,
-                        CountryName = city.Country?.Name ?? string.Empty,
-                        City = city.City?.Name ?? string.Empty,
-                        Region = city.MostSpecificSubdivision?.Name ?? string.Empty,
-                        Latitude = city.Location?.Latitude,
-                        Longitude = city.Location?.Longitude,
-                        TimeZone = city.Location?.TimeZone ?? string.Empty,
+                        CountryCode = country.Country?.IsoCode ?? string.Empty,
+                        CountryName = country.Country?.Name ?? string.Empty,
                     });
                 }
-            }
-            catch (InvalidOperationException ex)
-            {
-                this.logger.Trace(ex, "MMDB database is Country-level rather than City for {0}", ipAddress);
-            }
-
-            if (reader.TryCountry(parsedIp, out var country))
-            {
-                return Task.FromResult(new GeoLocationInfo
-                {
-                    IpAddress = ipAddress,
-                    CountryCode = country.Country?.IsoCode ?? string.Empty,
-                    CountryName = country.Country?.Name ?? string.Empty,
-                });
             }
         }
         catch (AddressNotFoundException ex)
@@ -296,25 +303,17 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         return false;
     }
 
-    private DatabaseReader EnsureReader(string dbPath)
+    // Note: Mutates shared DatabaseReader state; caller must hold this.@lock.
+    private void EnsureReader(string dbPath)
     {
         if (this.reader != null && this.resolvedDatabasePath == dbPath)
         {
-            return this.reader;
+            return;
         }
 
-        lock (this.@lock)
-        {
-            if (this.reader != null && this.resolvedDatabasePath == dbPath)
-            {
-                return this.reader;
-            }
-
-            this.reader?.Dispose();
-            this.reader = new DatabaseReader(dbPath, FileAccessMode.MemoryMapped);
-            this.resolvedDatabasePath = dbPath;
-            return this.reader;
-        }
+        this.reader?.Dispose();
+        this.reader = new DatabaseReader(dbPath, FileAccessMode.MemoryMapped);
+        this.resolvedDatabasePath = dbPath;
     }
 
     public void Reload()
