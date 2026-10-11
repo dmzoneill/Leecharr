@@ -367,6 +367,28 @@ public class DynamicArchiveExtractorProxyTest
     }
 
     [Test]
+    public async Task ExtractArchiveAsync_WhenDiskSpaceBecomesInsufficientAfterAcquiringSemaphore_AbortsWithoutExtracting()
+    {
+        var archivePath = "/downloads/movie.zip";
+        var destDir = "/downloads/extracted";
+
+        this.diskProvider.FileExists(archivePath).Returns(true);
+        this.diskProvider.GetFileSize(archivePath).Returns(100_000_000L);
+
+        var callCount = 0;
+        this.diskProvider.GetAvailableSpace(destDir).Returns(_ =>
+        {
+            callCount++;
+            return callCount == 1 ? 200_000_000L : 50_000_000L;
+        });
+
+        var result = await this.proxy.ExtractArchiveAsync(archivePath, destDir);
+
+        result.Should().BeFalse();
+        await this.sharpCompressProvider.DidNotReceive().ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task ExtractArchiveAsync_MultiPartArchive_ValidatesAgainstTotalVolumeSize()
     {
         var archivePath = "/downloads/movie.part01.rar";
