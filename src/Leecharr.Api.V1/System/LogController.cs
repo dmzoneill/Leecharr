@@ -41,7 +41,13 @@ public class LogController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(level) && !string.Equals(level, "all", StringComparison.OrdinalIgnoreCase))
         {
-            minimumLevel = ParseLogLevel(level) ?? minimumLevel;
+            var parsedLevel = ParseLogLevel(level);
+            if (parsedLevel == null)
+            {
+                return this.BadRequest($"Unrecognized log level '{level.Trim()}'.");
+            }
+
+            minimumLevel = parsedLevel;
         }
 
         var target = RingBufferTarget.Instance;
