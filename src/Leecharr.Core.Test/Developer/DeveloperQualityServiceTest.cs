@@ -48,7 +48,14 @@ public class DeveloperQualityServiceTest
             }
         }";
 
-        var workflowsJson = @"{
+        var workflowsListJson = @"{
+            ""workflows"": [
+                { ""id"": 101, ""name"": ""SonarCloud Analysis"" },
+                { ""id"": 999, ""name"": ""AI Issue and PR Responder"" }
+            ]
+        }";
+
+        var sonarRunJson = @"{
             ""workflow_runs"": [
                 {
                     ""name"": ""SonarCloud Analysis"",
@@ -64,7 +71,8 @@ public class DeveloperQualityServiceTest
         var handler = new MockHttpMessageHandler();
         handler.Enqueue(HttpStatusCode.OK, qualityGateJson);
         handler.Enqueue(HttpStatusCode.OK, measuresJson);
-        handler.Enqueue(HttpStatusCode.OK, workflowsJson);
+        handler.Enqueue(HttpStatusCode.OK, workflowsListJson);
+        handler.Enqueue(HttpStatusCode.OK, sonarRunJson);
 
         var client = new HttpClient(handler);
         var service = new DeveloperQualityService(client);
@@ -80,6 +88,61 @@ public class DeveloperQualityServiceTest
         Assert.That(report.Metrics.ReliabilityRating, Is.EqualTo("A"));
         Assert.That(report.RecentPipelines, Has.Count.EqualTo(1));
         Assert.That(report.RecentPipelines[0].Name, Is.EqualTo("SonarCloud Analysis"));
+    }
+
+    [Test]
+    public async Task GetQualityReportAsync_uses_per_workflow_latest_runs_not_global_feed()
+    {
+        var qualityGateJson = @"{ ""projectStatus"": { ""status"": ""OK"", ""conditions"": [] } }";
+        var measuresJson = @"{ ""component"": { ""measures"": [] } }";
+        var workflowsListJson = @"{
+            ""workflows"": [
+                { ""id"": 101, ""name"": ""SonarCloud Analysis"" },
+                { ""id"": 202, ""name"": ""CICD"" },
+                { ""id"": 999, ""name"": ""AI Issue and PR Responder"" }
+            ]
+        }";
+        var sonarRunJson = @"{
+            ""workflow_runs"": [
+                {
+                    ""name"": ""SonarCloud Analysis"",
+                    ""status"": ""completed"",
+                    ""conclusion"": ""success"",
+                    ""run_number"": 10,
+                    ""html_url"": ""https://github.com/dmzoneill/Leecharr/actions/runs/1"",
+                    ""created_at"": ""2026-10-04T08:00:00Z""
+                }
+            ]
+        }";
+        var cicdRunJson = @"{
+            ""workflow_runs"": [
+                {
+                    ""name"": ""CICD"",
+                    ""status"": ""completed"",
+                    ""conclusion"": ""failure"",
+                    ""run_number"": 1100,
+                    ""html_url"": ""https://github.com/dmzoneill/Leecharr/actions/runs/2"",
+                    ""created_at"": ""2026-10-04T09:00:00Z""
+                }
+            ]
+        }";
+
+        var handler = new MockHttpMessageHandler();
+        handler.Enqueue(HttpStatusCode.OK, qualityGateJson);
+        handler.Enqueue(HttpStatusCode.OK, measuresJson);
+        handler.Enqueue(HttpStatusCode.OK, workflowsListJson);
+        handler.Enqueue(HttpStatusCode.OK, sonarRunJson);
+        handler.Enqueue(HttpStatusCode.OK, cicdRunJson);
+
+        var client = new HttpClient(handler);
+        var service = new DeveloperQualityService(client);
+
+        var report = await service.GetQualityReportAsync(CancellationToken.None);
+
+        Assert.That(report.RecentPipelines, Has.Count.EqualTo(2));
+        Assert.That(report.RecentPipelines[0].Name, Is.EqualTo("SonarCloud Analysis"));
+        Assert.That(report.RecentPipelines[1].Name, Is.EqualTo("CICD"));
+        Assert.That(report.RecentPipelines[1].Conclusion, Is.EqualTo("failure"));
     }
 
     [Test]

@@ -18,6 +18,13 @@ public class DeveloperQualityService : IDeveloperQualityService
     private const string RepoOwner = "dmzoneill";
     private const string RepoName = "Leecharr";
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
+    private static readonly string[] QualityWorkflowNames =
+    {
+        "SonarCloud Analysis",
+        "Codacy Security Scan",
+        "CodeQL Analysis",
+        "CICD"
+    };
     private static readonly object CacheLock = new();
     private static DeveloperQualityReport _cachedReport;
     private static DateTime _cacheExpiry = DateTime.MinValue;
@@ -193,40 +200,30 @@ public class DeveloperQualityService : IDeveloperQualityService
     {
         try
         {
-            var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/actions/runs?per_page=8";
-            using var req = new HttpRequestMessage(HttpMethod.Get, url);
-            req.Headers.UserAgent.Add(new ProductInfoHeaderValue("Leecharr-Quality-Scanner", "2.0.31"));
-            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
-
-            using var resp = await _httpClient.SendAsync(req, cancellationToken);
-            if (resp.IsSuccessStatusCode)
+            var workflowIds = await GetQualityWorkflowIdsAsync(cancellationToken);
+            if (workflowIds.Count == 0)
             {
-                var json = await resp.Content.ReadAsStringAsync(cancellationToken);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("workflow_runs", out var runs) && runs.ValueKind == JsonValueKind.Array)
+                SetFallbackPipelines(report);
+                return;
+            }
+
+            foreach (var workflowName in QualityWorkflowNames)
+            {
+                if (!workflowIds.TryGetValue(workflowName, out var workflowId))
                 {
-                    foreach (var r in runs.EnumerateArray())
-                    {
-                        var name = r.TryGetProperty("name", out var n) ? n.GetString() ?? "Workflow" : "Workflow";
-                        var status = r.TryGetProperty("status", out var st) ? st.GetString() ?? "completed" : "completed";
-                        var conclusion = r.TryGetProperty("conclusion", out var conc) ? conc.GetString() ?? "success" : "success";
-                        var number = r.TryGetProperty("run_number", out var num) ? num.GetInt32() : 0;
-                        var htmlUrl = r.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? string.Empty : string.Empty;
-                        var createdAt = r.TryGetProperty("created_at", out var ca) ? ca.GetDateTime() : DateTime.UtcNow;
-
-                        report.RecentPipelines.Add(new QualityPipelineRun
-                        {
-                            Name = name,
-                            Status = status,
-                            Conclusion = conclusion,
-                            RunNumber = number,
-                            HtmlUrl = htmlUrl,
-                            CreatedAt = createdAt
-                        });
-                    }
-
-                    return;
+                    continue;
                 }
+
+                var run = await GetLatestWorkflowRunAsync(workflowId, cancellationToken);
+                if (run != null)
+                {
+                    report.RecentPipelines.Add(run);
+                }
+            }
+
+            if (report.RecentPipelines.Count > 0)
+            {
+                return;
             }
         }
         catch (Exception ex)
@@ -235,6 +232,91 @@ public class DeveloperQualityService : IDeveloperQualityService
         }
 
         SetFallbackPipelines(report);
+    }
+
+    private async Task<Dictionary<string, long>> GetQualityWorkflowIdsAsync(CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<string, long>(StringComparer.Ordinal);
+        var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/actions/workflows?per_page=100";
+        using var req = CreateGitHubApiRequest(url);
+        using var resp = await _httpClient.SendAsync(req, cancellationToken);
+        if (!resp.IsSuccessStatusCode)
+        {
+            return result;
+        }
+
+        var json = await resp.Content.ReadAsStringAsync(cancellationToken);
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("workflows", out var workflows) || workflows.ValueKind != JsonValueKind.Array)
+        {
+            return result;
+        }
+
+        foreach (var workflow in workflows.EnumerateArray())
+        {
+            var name = workflow.TryGetProperty("name", out var n) ? n.GetString() : null;
+            if (string.IsNullOrEmpty(name) || !workflow.TryGetProperty("id", out var idElement))
+            {
+                continue;
+            }
+
+            result[name] = idElement.GetInt64();
+        }
+
+        return result;
+    }
+
+    private async Task<QualityPipelineRun> GetLatestWorkflowRunAsync(long workflowId, CancellationToken cancellationToken)
+    {
+        var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/actions/workflows/{workflowId}/runs?per_page=1";
+        using var req = CreateGitHubApiRequest(url);
+        using var resp = await _httpClient.SendAsync(req, cancellationToken);
+        if (!resp.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var json = await resp.Content.ReadAsStringAsync(cancellationToken);
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("workflow_runs", out var runs) || runs.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        foreach (var r in runs.EnumerateArray())
+        {
+            return ParseWorkflowRun(r);
+        }
+
+        return null;
+    }
+
+    private static HttpRequestMessage CreateGitHubApiRequest(string url)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.UserAgent.Add(new ProductInfoHeaderValue("Leecharr-Quality-Scanner", "2.0.31"));
+        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+        return req;
+    }
+
+    private static QualityPipelineRun ParseWorkflowRun(JsonElement r)
+    {
+        var name = r.TryGetProperty("name", out var n) ? n.GetString() ?? "Workflow" : "Workflow";
+        var status = r.TryGetProperty("status", out var st) ? st.GetString() ?? "completed" : "completed";
+        var conclusion = r.TryGetProperty("conclusion", out var conc) ? conc.GetString() ?? "success" : "success";
+        var number = r.TryGetProperty("run_number", out var num) ? num.GetInt32() : 0;
+        var htmlUrl = r.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? string.Empty : string.Empty;
+        var createdAt = r.TryGetProperty("created_at", out var ca) ? ca.GetDateTime() : DateTime.UtcNow;
+
+        return new QualityPipelineRun
+        {
+            Name = name,
+            Status = status,
+            Conclusion = conclusion,
+            RunNumber = number,
+            HtmlUrl = htmlUrl,
+            CreatedAt = createdAt
+        };
     }
 
     private static HttpClient CreateDefaultHttpClient()
