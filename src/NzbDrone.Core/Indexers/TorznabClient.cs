@@ -1435,46 +1435,48 @@ public class TorznabClient : ITorznabClient
         try
         {
             // 1. First attempt: t=caps
-            var capsUriBuilder = new UriBuilder(indexer.Url);
-            var capsQuery = "t=caps";
-            if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
             {
-                capsQuery += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
-            }
-
-            MergeQueryParams(capsUriBuilder, capsQuery);
-
-            using var capsReq = new HttpRequestMessage(HttpMethod.Get, capsUriBuilder.Uri);
-            this.ApplyIndexerAuthHeaders(capsReq, indexer);
-            var capsResp = await this.httpClient.SendAsync(capsReq, cancellationToken).ConfigureAwait(false);
-            var capsContent = await capsResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            if (AntiBotChallengeDetector.IsChallenge(capsResp.StatusCode, capsContent, capsResp))
-            {
-                return TorznabTestResult.Fail("Cloudflare / AntiBot challenge detected. FlareSolverr may be required.");
-            }
-
-            if (capsResp.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(capsContent))
-            {
-                if (capsContent.Contains("<error", StringComparison.OrdinalIgnoreCase))
+                var capsUriBuilder = new UriBuilder(indexer.Url);
+                var capsQuery = "t=caps";
+                if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
                 {
-                    var doc = SafeParseXml(capsContent);
-                    var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
-                    var code = GetAttributeValue(errorElem, "code") ?? "unknown";
-                    var desc = WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? "Torznab error");
-                    return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
+                    capsQuery += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
                 }
 
-                if (this.TryParseCacheableCapabilities(capsContent, out var caps))
+                MergeQueryParams(capsUriBuilder, capsQuery);
+
+                using var capsReq = new HttpRequestMessage(HttpMethod.Get, capsUriBuilder.Uri);
+                this.ApplyIndexerAuthHeaders(capsReq, indexer);
+                using var capsResp = await this.httpClient.SendAsync(capsReq, cancellationToken).ConfigureAwait(false);
+                var capsContent = await capsResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+                if (AntiBotChallengeDetector.IsChallenge(capsResp.StatusCode, capsContent, capsResp))
                 {
-                    var cacheKey = GetCapabilitiesCacheKey(indexer.Url, indexer.ApiKey);
-                    CapabilitiesCache[cacheKey] = (caps, DateTime.UtcNow.Add(CapabilitiesTtl));
-                    return TorznabTestResult.Ok(caps);
+                    return TorznabTestResult.Fail("Cloudflare / AntiBot challenge detected. FlareSolverr may be required.");
                 }
 
-                if (capsContent.Contains("<caps", StringComparison.OrdinalIgnoreCase))
+                if (capsResp.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(capsContent))
                 {
-                    return TorznabTestResult.Fail("Torznab capabilities document could not be parsed.");
+                    if (capsContent.Contains("<error", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var doc = SafeParseXml(capsContent);
+                        var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
+                        var code = GetAttributeValue(errorElem, "code") ?? "unknown";
+                        var desc = WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? "Torznab error");
+                        return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
+                    }
+
+                    if (this.TryParseCacheableCapabilities(capsContent, out var caps))
+                    {
+                        var cacheKey = GetCapabilitiesCacheKey(indexer.Url, indexer.ApiKey);
+                        CapabilitiesCache[cacheKey] = (caps, DateTime.UtcNow.Add(CapabilitiesTtl));
+                        return TorznabTestResult.Ok(caps);
+                    }
+
+                    if (capsContent.Contains("<caps", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return TorznabTestResult.Fail("Torznab capabilities document could not be parsed.");
+                    }
                 }
             }
 
@@ -1490,7 +1492,7 @@ public class TorznabClient : ITorznabClient
 
             using var searchReq = new HttpRequestMessage(HttpMethod.Get, searchUriBuilder.Uri);
             this.ApplyIndexerAuthHeaders(searchReq, indexer);
-            var searchResp = await this.httpClient.SendAsync(searchReq, cancellationToken).ConfigureAwait(false);
+            using var searchResp = await this.httpClient.SendAsync(searchReq, cancellationToken).ConfigureAwait(false);
 
             var searchContent = await searchResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (AntiBotChallengeDetector.IsChallenge(searchResp.StatusCode, searchContent, searchResp))
