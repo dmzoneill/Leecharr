@@ -1539,5 +1539,163 @@ public class RssSyncServiceTest
         await this.torrentService.Received(1).UpdateAsync(createdTorrent);
     }
 
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenCancellationRequestedDuringFetch_DoesNotRecordIndexerFailure()
+    {
+        var indexerStatusService = Substitute.For<IIndexerStatusService>();
+        var syncService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: indexerStatusService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 } });
+
+        using var cts = new System.Threading.CancellationTokenSource();
+        cts.Cancel();
+
+        this.torznabClient
+            .FetchRssAsync(Arg.Any<IndexerDefinition>(), Arg.Any<int>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(_ => Task.FromException<List<TorznabSearchResult>>(new System.OperationCanceledException(cts.Token)));
+
+        var act = async () => await syncService.SyncRssFeedsAsync(cts.Token);
+        await act.Should().ThrowAsync<System.OperationCanceledException>();
+
+        indexerStatusService.DidNotReceive().RecordFailure(Arg.Any<int>(), Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<Exception>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenCancellationRequestedDuringFetch_DoesNotDisableRemainingIndexers()
+    {
+        var indexerStatusService = Substitute.For<IIndexerStatusService>();
+        var syncService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: indexerStatusService);
+
+        var firstIndexer = new IndexerDefinition { Id = 1, Name = "First", EnableRss = true };
+        var secondIndexer = new IndexerDefinition { Id = 2, Name = "Second", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { firstIndexer, secondIndexer });
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 } });
+
+        using var cts = new System.Threading.CancellationTokenSource();
+
+        this.torznabClient
+            .FetchRssAsync(firstIndexer, Arg.Any<int>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>()));
+        this.torznabClient
+            .FetchRssAsync(secondIndexer, Arg.Any<int>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(_ =>
+            {
+                cts.Cancel();
+                return Task.FromException<List<TorznabSearchResult>>(new System.OperationCanceledException(cts.Token));
+            });
+
+        var act = async () => await syncService.SyncRssFeedsAsync(cts.Token);
+        await act.Should().ThrowAsync<System.OperationCanceledException>();
+
+        indexerStatusService.Received(1).RecordSuccess(1);
+        indexerStatusService.DidNotReceive().RecordFailure(Arg.Any<int>(), Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<Exception>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenPostGrabFinalizeFails_DoesNotRecordIndexerFailure_AndContinuesFeed()
+    {
+        var indexerStatusService = Substitute.For<IIndexerStatusService>();
+        var torrentRepository = Substitute.For<ITorrentRepository>();
+        torrentRepository.When(x => x.Update(Arg.Any<Torrent>())).Do(_ => throw new InvalidOperationException("persist failed"));
+
+        var syncService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: indexerStatusService,
+            torrentRepository: torrentRepository);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 } });
+
+        var firstRelease = new TorznabSearchResult
+        {
+            Guid = "urn:guid:post-grab-fail",
+            Title = "First.Release",
+            MagnetUrl = "magnet:?xt=urn:btih:1111111111111111111111111111111111111111",
+            Seeders = 10,
+            MinimumRatio = 2.0,
+        };
+        var secondRelease = new TorznabSearchResult
+        {
+            Guid = "urn:guid:post-grab-ok",
+            Title = "Second.Release",
+            MagnetUrl = "magnet:?xt=urn:btih:2222222222222222222222222222222222222222",
+            Seeders = 10,
+        };
+
+        this.torrentService.AddFromMagnetAsync(Arg.Is<string>(m => m.Contains("1111")), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult(new Torrent { Id = 1, Name = "First", InfoHash = "1111111111111111111111111111111111111111" }));
+        this.torrentService.AddFromMagnetAsync(Arg.Is<string>(m => m.Contains("2222")), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult(new Torrent { Id = 2, Name = "Second", InfoHash = "2222222222222222222222222222222222222222" }));
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { firstRelease, secondRelease }));
+
+        var grabbedCount = await syncService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(1);
+
+        indexerStatusService.Received(1).RecordSuccess(1);
+        indexerStatusService.DidNotReceive().RecordFailure(Arg.Any<int>(), Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<Exception>());
+        await this.torrentService.Received(1).AddFromMagnetAsync(Arg.Is<string>(m => m.Contains("2222")), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenTorrentDownloadCancelled_DoesNotContinueWithFallbackMagnet()
+    {
+        var safeHttpClientService = Substitute.For<ISafeHttpClientService>();
+        using var cts = new System.Threading.CancellationTokenSource();
+        cts.Cancel();
+
+        safeHttpClientService
+            .DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(_ => Task.FromException<byte[]>(new System.OperationCanceledException(cts.Token)));
+
+        var syncService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            safeHttpClientService: safeHttpClientService,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 } });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:torrent-download-cancel",
+            Title = "Torrent.Cancel.Test",
+            DownloadUrl = "https://tracker.example/file.torrent",
+            MagnetUrl = "magnet:?xt=urn:btih:3333333333333333333333333333333333333333",
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer, Arg.Any<int>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var act = async () => await syncService.SyncRssFeedsAsync(cts.Token);
+        await act.Should().ThrowAsync<System.OperationCanceledException>();
+
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
     #endregion
 }

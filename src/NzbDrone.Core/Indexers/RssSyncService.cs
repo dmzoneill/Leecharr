@@ -307,6 +307,10 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                             {
                                                 torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024, cancellationToken: cancellationToken);
                                             }
+                                            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                                            {
+                                                throw;
+                                            }
                                             catch (Exception dlEx)
                                             {
                                                 this.logger.Warn(dlEx, "Failed to download .torrent payload for '{0}' from {1}", release.Title, release.DownloadUrl);
@@ -395,6 +399,10 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                         }
                                     }
                                 }
+                                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                                {
+                                    throw;
+                                }
                                 catch (Exception ex)
                                 {
                                     this.logger.Error(ex, "Failed to grab release {0}", release.Title);
@@ -402,6 +410,8 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
 
                                 if (grabbed && addedTorrent != null)
                                 {
+                                    try
+                                    {
                                     var torrentUpdated = false;
                                     if (!usedExternalClient && release.MinimumRatio.HasValue && release.MinimumRatio.Value > 0)
                                     {
@@ -455,6 +465,15 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
 
                                     grabbedCount++;
                                     break;
+                                    }
+                                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                                    {
+                                        throw;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        this.logger.Error(ex, "Failed to finalize RSS grab for release '{0}' on indexer {1}", release.Title, indexer.Name);
+                                    }
                                 }
 
                                 // A matching rule owns this release for this sync pass, even when the grab fails.
@@ -462,6 +481,10 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                             }
                         }
                     }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (HttpRequestException ex)
                 {
