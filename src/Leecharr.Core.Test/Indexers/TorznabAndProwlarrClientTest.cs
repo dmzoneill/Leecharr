@@ -8,6 +8,9 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
@@ -916,6 +919,103 @@ public class TorznabAndProwlarrClientTest
             i.Enable == true &&
             i.Categories.Contains(2000) &&
             i.Categories.Contains(5000)));
+    }
+
+    [Test]
+    public void RedactUriForLog_StripsApiKeyQueryParameter()
+    {
+        var redacted = TorznabClient.RedactUriForLog(new Uri("https://indexer.local/api?t=search&apikey=super-secret&q=test"));
+
+        redacted.Should().NotContain("super-secret");
+        redacted.Should().Contain("t=search");
+        redacted.Should().Contain("q=test");
+    }
+
+    [Test]
+    public async Task SearchAsync_DebugLog_DoesNotContainApiKey()
+    {
+        var memoryTarget = new MemoryTarget("torznab-search-log")
+        {
+            Layout = "${message}",
+        };
+        var configuration = new LoggingConfiguration();
+        configuration.AddRule(LogLevel.Debug, LogLevel.Debug, memoryTarget, typeof(TorznabClient).FullName);
+        LogManager.Configuration = configuration;
+
+        try
+        {
+            var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(@"<rss version=""2.0""><channel></channel></rss>"),
+            });
+
+            using var httpClient = new HttpClient(handler);
+            var client = new TorznabClient(httpClient);
+
+            var indexer = new IndexerDefinition
+            {
+                Id = 1,
+                Name = "SecretTracker",
+                Url = "https://indexer.local/api",
+                ApiKey = "must-not-appear-in-logs",
+            };
+
+            await client.SearchAsync(indexer, "test query");
+
+            memoryTarget.Logs.Should().Contain(log => log.Contains("Torznab querying:", StringComparison.Ordinal));
+            memoryTarget.Logs.Should().OnlyContain(log => !log.Contains("must-not-appear-in-logs", StringComparison.Ordinal));
+        }
+        finally
+        {
+            LogManager.Configuration = null;
+            memoryTarget.Dispose();
+        }
+    }
+
+    [Test]
+    public async Task FetchCapabilitiesAsync_DebugLog_DoesNotContainApiKey()
+    {
+        var memoryTarget = new MemoryTarget("torznab-caps-log")
+        {
+            Layout = "${message}",
+        };
+        var configuration = new LoggingConfiguration();
+        configuration.AddRule(LogLevel.Debug, LogLevel.Debug, memoryTarget, typeof(TorznabClient).FullName);
+        LogManager.Configuration = configuration;
+
+        try
+        {
+            var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+    <limits default=""40"" max=""120""/>
+</caps>";
+
+            var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(capsXml),
+            });
+
+            using var httpClient = new HttpClient(handler);
+            var client = new TorznabClient(httpClient);
+
+            var indexer = new IndexerDefinition
+            {
+                Id = 2,
+                Name = "CapsTracker",
+                Url = "https://indexer.local/api",
+                ApiKey = "caps-log-secret-key",
+            };
+
+            await client.FetchCapabilitiesAsync(indexer);
+
+            memoryTarget.Logs.Should().Contain(log => log.Contains("Fetching Torznab capabilities:", StringComparison.Ordinal));
+            memoryTarget.Logs.Should().OnlyContain(log => !log.Contains("caps-log-secret-key", StringComparison.Ordinal));
+        }
+        finally
+        {
+            LogManager.Configuration = null;
+            memoryTarget.Dispose();
+        }
     }
 
     #endregion
