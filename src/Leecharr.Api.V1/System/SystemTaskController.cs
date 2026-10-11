@@ -123,7 +123,7 @@ public class SystemTaskController : Controller
 
                 if (diff.HasValue)
                 {
-                    lastDuration = diff.Value.ToString(@"hh\:mm\:ss");
+                    lastDuration = SystemRunDurationFormatter.Format(diff.Value);
                 }
             }
             var nextExecution = !hasRun
@@ -304,8 +304,7 @@ public class SystemCommandController : Controller
         }
 
         var end = endedAt ?? DateTime.UtcNow;
-        var duration = end >= startedAt.Value ? end - startedAt.Value : TimeSpan.Zero;
-        return duration.ToString(@"hh\:mm\:ss");
+        return SystemRunDurationFormatter.Format(startedAt.Value, end);
     }
 
     [HttpGet]
