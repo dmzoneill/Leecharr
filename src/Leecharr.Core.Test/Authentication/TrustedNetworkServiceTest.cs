@@ -68,6 +68,10 @@ public class TrustedNetworkServiceTest
     [TestCase("2001:db8::1", "::ffff:10.0.0.0/104", false)]
     [TestCase("192.168.1.50", "::ffff:192.168.1.0/130", false)]
     [TestCase("192.168.1.50", "::ffff:192.168.1.0/-1", false)]
+    [TestCase("8.8.8.8", "::ffff:10.0.0.0/8", false)]
+    [TestCase("10.0.5.1", "::ffff:10.0.0.0/8", false)]
+    [TestCase("192.168.1.50", "::ffff:192.168.1.1/32", false)]
+    [TestCase("1.1.1.1", "::ffff:192.168.1.1/32", false)]
     [TestCase("2001:db8::1", "2001:db8::/32", true)]
     [TestCase("2001:db9::1", "2001:db8::/32", false)]
     public void IsTrustedProxy_WithCidrs_ShouldMatchCorrectly(string ipStr, string cidrs, bool expected)

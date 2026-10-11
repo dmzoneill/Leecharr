@@ -159,8 +159,13 @@ public class TrustedNetworkService : ITrustedNetworkService
 
                 if (baseIp.IsIPv4MappedToIPv6)
                 {
+                    if (prefixLength < 96)
+                    {
+                        return false;
+                    }
+
                     baseIp = baseIp.MapToIPv4();
-                    prefixLength = Math.Max(0, prefixLength - 96);
+                    prefixLength -= 96;
                 }
 
                 if (ip.AddressFamily != baseIp.AddressFamily)
