@@ -132,6 +132,14 @@ public class IntListOrCommaSeparatedConverter : JsonConverter<List<int>>
                         list.Add(val);
                     }
                 }
+                else if (reader.TokenType == JsonTokenType.StartArray)
+                {
+                    list.AddRange(Read(ref reader, typeToConvert, options));
+                }
+                else
+                {
+                    reader.Skip();
+                }
             }
 
             return list;
