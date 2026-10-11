@@ -281,7 +281,7 @@ public class CustomScriptServiceTest
         var scriptPath = Path.Combine(this.tempDirectory, "bash_syntax.sh");
         File.WriteAllText(scriptPath, "#!/usr/bin/env bash\nexit 0\n");
 
-        var (file, args) = CustomScriptService.ResolveInterpreter(scriptPath, "-v");
+        var (file, args) = CustomScriptService.ResolveInterpreter(scriptPath, new[] { "-v" });
         file.Should().Be("bash");
         args.Should().ContainInOrder(scriptPath, "-v");
     }
