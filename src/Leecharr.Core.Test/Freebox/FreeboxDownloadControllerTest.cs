@@ -493,6 +493,21 @@ public class FreeboxDownloadControllerTest
     }
 
     [Test]
+    public async Task UpdateDownload_ViaForm_ConvertsNumericQueuePosFromOneBasedToZeroBased()
+    {
+        this.httpContext.Request.ContentType = "application/x-www-form-urlencoded";
+        this.httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            { "queue_pos", "1" },
+        });
+
+        var result = await this.controller.UpdateDownload(42);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).MoveQueueAsync(42, "0");
+    }
+
+    [Test]
     public async Task UpdateDownload_ViaForm_HandlesDownloadingStatus()
     {
         this.httpContext.Request.ContentType = "application/x-www-form-urlencoded";
@@ -530,6 +545,23 @@ public class FreeboxDownloadControllerTest
         await this.torrentService.Received(1).MoveQueueAsync(42, "bottom");
         torrent.TargetRatio.Should().Be(1.8);
         await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task UpdateDownload_ViaJsonBody_ConvertsNumericQueuePosFromOneBasedToZeroBased()
+    {
+        var jsonBody = JsonSerializer.Serialize(new
+        {
+            queue_pos = "3",
+        });
+        var bodyBytes = Encoding.UTF8.GetBytes(jsonBody);
+        this.httpContext.Request.Body = new MemoryStream(bodyBytes);
+        this.httpContext.Request.ContentType = "application/json";
+
+        var result = await this.controller.UpdateDownload(42);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).MoveQueueAsync(42, "2");
     }
 
     [Test]
