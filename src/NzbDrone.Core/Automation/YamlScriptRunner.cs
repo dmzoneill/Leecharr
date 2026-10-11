@@ -738,7 +738,9 @@ public class YamlScriptRunner : IScriptRunner
                                     {
                                         var fExt = Path.GetExtension(f);
                                         var fi = new FileInfo(f);
-                                        if (Array.Exists(exts, e => string.Equals(e, fExt, StringComparison.OrdinalIgnoreCase) || string.Equals("." + e, fExt, StringComparison.OrdinalIgnoreCase)) || (maxSize > 0 && fi.Length <= maxSize))
+                                        var extensionMatches = exts.Length > 0 && Array.Exists(exts, e => string.Equals(e, fExt, StringComparison.OrdinalIgnoreCase) || string.Equals("." + e, fExt, StringComparison.OrdinalIgnoreCase));
+                                        var sizeMatches = maxSize <= 0 || fi.Length <= maxSize;
+                                        if (extensionMatches && sizeMatches)
                                         {
                                             File.Delete(f);
                                             count++;
