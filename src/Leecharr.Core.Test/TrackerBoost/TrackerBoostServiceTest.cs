@@ -78,6 +78,12 @@ public class TrackerBoostServiceTest
             return this.storedTorrents.FirstOrDefault(t => t.Id == id);
         });
 
+        this.torrentService.GetByInfoHash(Arg.Any<string>()).Returns(ci =>
+        {
+            var hash = ci.Arg<string>();
+            return this.storedTorrents.FirstOrDefault(t => string.Equals(t.InfoHash, hash, StringComparison.OrdinalIgnoreCase));
+        });
+
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
         this.trackerEntryRepository.All().Returns(_ => this.storedEntries);
         this.trackerEntryRepository.GetByTorrentId(Arg.Any<int>()).Returns(ci =>
@@ -665,6 +671,23 @@ public class TrackerBoostServiceTest
                 TrackerBoostService.CalculateDynamicTier(status, latency).Should().BeGreaterThanOrEqualTo(1);
             }
         }
+    }
+
+    [Test]
+    public void BuildDelugeTrackerObjects_UsesResolvedTiersAndNeverTierZero()
+    {
+        var objects = TrackerBoostService.BuildDelugeTrackerObjects(new[]
+        {
+            ("udp://fast.tracker.org:1337/announce", 1),
+            ("udp://slow.tracker.org:1337/announce", 2),
+            ("udp://stale.tracker.org:1337/announce", 0),
+        });
+
+        objects.Should().HaveCount(3);
+        var json = System.Text.Json.JsonSerializer.Serialize(objects);
+        json.Should().Contain("\"tier\":1");
+        json.Should().Contain("\"tier\":2");
+        json.Should().NotContain("\"tier\":0");
     }
 
     [Test]
