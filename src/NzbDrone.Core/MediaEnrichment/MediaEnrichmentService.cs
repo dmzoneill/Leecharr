@@ -571,9 +571,9 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
     private static string GuessArrType(string category, string name)
     {
         var cat = (category ?? string.Empty).ToLowerInvariant();
-        if (cat.Contains("tv") || cat.Contains("sonarr") || cat.Contains("show") || cat.Contains("season") || cat.Contains("series") || cat.Contains("episode") || cat.Contains("anime"))
+        if (cat.Contains("book") || cat.Contains("readarr") || cat.Contains("ebook") || cat.Contains("audiobook"))
         {
-            return "Sonarr";
+            return "Readarr";
         }
 
         if (cat.Contains("movie") || cat.Contains("radarr") || cat.Contains("film") || cat.Contains("cinema"))
@@ -581,14 +581,14 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
             return "Radarr";
         }
 
-        if (cat.Contains("music") || cat.Contains("lidarr") || cat.Contains("album") || cat.Contains("audio") || cat.Contains("flac"))
+        if (cat.Contains("tv") || cat.Contains("sonarr") || cat.Contains("show") || cat.Contains("season") || cat.Contains("series") || cat.Contains("episode") || cat.Contains("anime"))
         {
-            return "Lidarr";
+            return "Sonarr";
         }
 
-        if (cat.Contains("book") || cat.Contains("readarr") || cat.Contains("ebook") || cat.Contains("audiobook"))
+        if (cat.Contains("music") || cat.Contains("lidarr") || cat.Contains("album") || cat.Contains("flac") || cat.Contains("audio"))
         {
-            return "Readarr";
+            return "Lidarr";
         }
 
         return "Unknown";

@@ -94,6 +94,8 @@ public class MediaEnrichmentServiceTest
     [TestCase("albums", "Radiohead-OK.Computer.1997.MP3", "Lidarr")]
     [TestCase("books", "Stephen.King-The.Shining.EPUB", "Readarr")]
     [TestCase("readarr-ebooks", "Frank.Herbert-Dune.MOBI", "Readarr")]
+    [TestCase("audiobook", "Stephen.King-The.Shining.M4B", "Readarr")]
+    [TestCase("tv-movies", "Oppenheimer.2023.2160p.UHD.BluRay", "Radarr")]
     [TestCase("other", "Random.Archive.Release.zip", "Unknown")]
     [TestCase("", "NonDescriptFile.iso", "Unknown")]
     public async Task EnrichTorrentAsync_ArrTypeClassification_CorrectlyMapsToServarrApp(
