@@ -30,6 +30,9 @@ public class EpisodicParserTest
         title.Should().BeNull();
     }
 
+    [TestCase("Show.S01E01-E02-E03.1080p", 1, 1, new[] { 1, 2, 3 }, "S01E01-E03")]
+    [TestCase("Show.S01E01-E03-E05.1080p", 1, 1, new[] { 1, 3, 5 }, "S01E01E03E05")]
+    [TestCase("The.Show.1x01-1x03-1x05.720p", 1, 1, new[] { 1, 3, 5 }, "S01E01E03E05")]
     [TestCase("The.Show.S01E01-E04.1080p.WEB-DL", 1, 1, new[] { 1, 2, 3, 4 }, "S01E01-E04")]
     [TestCase("The.Show.S02E05-08.720p.HDTV", 2, 5, new[] { 5, 6, 7, 8 }, "S02E05-E08")]
     [TestCase("The.Show.S01E01E02.1080p", 1, 1, new[] { 1, 2 }, "S01E01-E02")]

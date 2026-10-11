@@ -12,12 +12,22 @@ namespace NzbDrone.Core.Notifications;
 public class EpisodicParser : IEpisodicParser
 {
     private static readonly Regex SeasonEpisodeRangeRegex = new(
-        @"(?i)\bS(?<season>\d{1,2})E(?<epStart>\d{1,3})(?:-(?:(?:E|EP)(?<epEnd>\d{1,3})|(?<epEndCompact>\d{1,2}))|(?<extraEps>(?:[-._,]?[eE]\d{1,3})+))?\b",
+        @"(?i)\bS(?<season>\d{1,2})E(?<epStart>\d{1,3})(?:-(?:(?<epTail>(?:E|EP)\d{1,3}(?:-(?:E|EP)\d{1,3})*)|(?<epEndCompact>\d{1,2}))|(?<extraEps>(?:[-._,]?[eE]\d{1,3})+))?\b",
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
 
     private static readonly Regex SeasonEpisodeAltRangeRegex = new(
-        @"(?i)\b(?<season>\d{1,2})x(?<epStart>\d{1,3})(?:-(?:(?:\d{1,2})x(?<epEnd>\d{1,3})|(?<epEndCompact>\d{1,2}))|(?<extraEps>(?:x\d{1,3})+))?\b",
+        @"(?i)\b(?<season>\d{1,2})x(?<epStart>\d{1,3})(?:-(?:(?<epTail>(?:\d{1,2})x\d{1,3}(?:-(?:\d{1,2})x\d{1,3})*)|(?<epEndCompact>\d{1,2}))|(?<extraEps>(?:x\d{1,3})+))?\b",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex EpTailEpisodeRegex = new(
+        @"(?i)(?:E|EP)(\d{1,3})",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex EpTailAltEpisodeRegex = new(
+        @"(?i)x(\d{1,3})",
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
 
@@ -141,10 +151,18 @@ public class EpisodicParser : IEpisodicParser
     private static List<int> BuildEpisodeListFromMatch(Match match, int epStart)
     {
         var eps = new List<int> { epStart };
-        var epEndGroup = match.Groups["epEnd"];
+        var epTailGroup = match.Groups["epTail"];
         var extraEpsGroup = match.Groups["extraEps"];
 
-        if (TryApplyEpisodeEnd(epEndGroup, match.Groups["epEndCompact"], epStart, eps, out var expandedEps))
+        if (epTailGroup.Success)
+        {
+            var tailExtractor = Regex.IsMatch(epTailGroup.Value, @"(?i)^(?:E|EP)\d")
+                ? EpTailEpisodeRegex
+                : EpTailAltEpisodeRegex;
+            return BuildEpisodeListFromEpTail(epStart, epTailGroup.Value, tailExtractor);
+        }
+
+        if (TryApplyEpisodeEnd(match.Groups["epEndCompact"], epStart, eps, out var expandedEps))
         {
             return expandedEps;
         }
@@ -164,20 +182,39 @@ public class EpisodicParser : IEpisodicParser
         return eps;
     }
 
+    private static List<int> BuildEpisodeListFromEpTail(int epStart, string epTail, Regex tailEpisodeRegex)
+    {
+        var tailEpisodes = new List<int>();
+        foreach (Match m in tailEpisodeRegex.Matches(epTail))
+        {
+            if (int.TryParse(m.Groups[1].Value, out var ep))
+            {
+                tailEpisodes.Add(ep);
+            }
+        }
+
+        if (tailEpisodes.Count >= 2)
+        {
+            var listed = new List<int> { epStart };
+            listed.AddRange(tailEpisodes);
+            return listed;
+        }
+
+        if (tailEpisodes.Count == 1)
+        {
+            return ExpandEpisodeEnd(epStart, tailEpisodes[0], new List<int> { epStart }, allowNonContiguousEnd: true);
+        }
+
+        return new List<int> { epStart };
+    }
+
     private static bool TryApplyEpisodeEnd(
-        Group epEndGroup,
         Group epEndCompactGroup,
         int epStart,
         List<int> eps,
         out List<int> expandedEps)
     {
         expandedEps = null;
-        if (epEndGroup.Success && int.TryParse(epEndGroup.Value, out var epEnd))
-        {
-            expandedEps = ExpandEpisodeEnd(epStart, epEnd, eps, allowNonContiguousEnd: true);
-            return true;
-        }
-
         if (epEndCompactGroup.Success && int.TryParse(epEndCompactGroup.Value, out var epEndCompact))
         {
             expandedEps = ExpandEpisodeEnd(epStart, epEndCompact, eps, allowNonContiguousEnd: true);
