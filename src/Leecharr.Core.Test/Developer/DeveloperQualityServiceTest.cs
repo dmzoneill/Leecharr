@@ -203,6 +203,45 @@ public class DeveloperQualityServiceTest
     }
 
     [Test]
+    public async Task GetQualityReportAsync_preserves_null_conclusion_for_in_progress_workflow_runs()
+    {
+        var qualityGateJson = @"{ ""projectStatus"": { ""status"": ""OK"", ""conditions"": [] } }";
+        var measuresJson = @"{ ""component"": { ""measures"": [] } }";
+        var workflowsListJson = @"{
+            ""workflows"": [
+                { ""id"": 101, ""name"": ""SonarCloud Analysis"" }
+            ]
+        }";
+        var inProgressRunJson = @"{
+            ""workflow_runs"": [
+                {
+                    ""name"": ""SonarCloud Analysis"",
+                    ""status"": ""in_progress"",
+                    ""conclusion"": null,
+                    ""run_number"": 106,
+                    ""html_url"": ""https://github.com/dmzoneill/Leecharr/actions/runs/124"",
+                    ""created_at"": ""2026-10-04T08:00:00Z""
+                }
+            ]
+        }";
+
+        var handler = new MockHttpMessageHandler();
+        handler.Enqueue(HttpStatusCode.OK, qualityGateJson);
+        handler.Enqueue(HttpStatusCode.OK, measuresJson);
+        handler.Enqueue(HttpStatusCode.OK, workflowsListJson);
+        handler.Enqueue(HttpStatusCode.OK, inProgressRunJson);
+
+        var client = new HttpClient(handler);
+        var service = new DeveloperQualityService(client);
+
+        var report = await service.GetQualityReportAsync(CancellationToken.None);
+
+        Assert.That(report.RecentPipelines, Has.Count.EqualTo(1));
+        Assert.That(report.RecentPipelines[0].Status, Is.EqualTo("in_progress"));
+        Assert.That(report.RecentPipelines[0].Conclusion, Is.Null);
+    }
+
+    [Test]
     public async Task GetQualityReportAsync_slower_fallback_does_not_overwrite_live_cached_report()
     {
         var liveGateJson = @"{ ""projectStatus"": { ""status"": ""ERROR"", ""conditions"": [ { ""metricKey"": ""new_coverage"", ""status"": ""ERROR"", ""actualValue"": ""50.0"", ""errorThreshold"": ""80"" } ] } }";

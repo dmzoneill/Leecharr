@@ -349,7 +349,11 @@ public class DeveloperQualityService : IDeveloperQualityService
     {
         var name = r.TryGetProperty("name", out var n) ? n.GetString() ?? "Workflow" : "Workflow";
         var status = r.TryGetProperty("status", out var st) ? st.GetString() ?? "completed" : "completed";
-        var conclusion = r.TryGetProperty("conclusion", out var conc) ? conc.GetString() ?? "success" : "success";
+        string conclusion = null;
+        if (r.TryGetProperty("conclusion", out var conc) && conc.ValueKind != JsonValueKind.Null)
+        {
+            conclusion = conc.GetString();
+        }
         var number = r.TryGetProperty("run_number", out var num) ? num.GetInt32() : 0;
         var htmlUrl = r.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? string.Empty : string.Empty;
         var createdAt = r.TryGetProperty("created_at", out var ca) ? ca.GetDateTime() : DateTime.UtcNow;
