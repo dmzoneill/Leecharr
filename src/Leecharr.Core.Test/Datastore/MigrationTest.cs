@@ -695,4 +695,64 @@ public class MigrationTest
         Convert.ToInt32(result.GetValue(0)).Should().Be(0);
         Convert.ToInt32(result.GetValue(1)).Should().Be(0);
     }
+
+    [Test]
+    public void Migration048_BackfillsDownloadHistoryIsPrivateFromTorrents()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(30);
+        }
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            connection.Open();
+            using var seed = connection.CreateCommand();
+            seed.CommandText = @"
+                INSERT INTO Torrents (Name, InfoHash, DateAdded, IsPrivate)
+                VALUES ('private-torrent', 'dddddddddddddddddddddddddddddddddddddddd', datetime('now'), 1);
+                INSERT INTO DownloadHistory (TorrentId, Title, InfoHash, DateAdded, Status, Source)
+                VALUES (1, 'private-torrent', 'dddddddddddddddddddddddddddddddddddddddd', datetime('now'), 'Active', 'Indexer');";
+            seed.ExecuteNonQuery();
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(31);
+        }
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            connection.Open();
+            using var simulateBadRewrite = connection.CreateCommand();
+            simulateBadRewrite.CommandText = @"UPDATE DownloadHistory SET IsPrivate = 0 WHERE InfoHash = 'dddddddddddddddddddddddddddddddddddddddd';";
+            simulateBadRewrite.ExecuteNonQuery();
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(48);
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT IsPrivate FROM DownloadHistory WHERE InfoHash = 'dddddddddddddddddddddddddddddddddddddddd';";
+        Convert.ToInt32(command.ExecuteScalar()).Should().Be(1);
+    }
 }
