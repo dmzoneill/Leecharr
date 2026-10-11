@@ -62,6 +62,44 @@ public class OllamaAiProviderTest
     }
 
     [Test]
+    public async Task ProbeHealthAsync_WhenOllamaHostEnvIsSchemeless_UsesHttpBaseUrl()
+    {
+        Environment.SetEnvironmentVariable("OLLAMA_HOST", "127.0.0.1:11434");
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            req.RequestUri.Should().NotBeNull();
+            req.RequestUri!.Scheme.Should().Be("http");
+            req.RequestUri.Host.Should().Be("127.0.0.1");
+            req.RequestUri.Port.Should().Be(11434);
+
+            if (req.RequestUri.AbsolutePath == "/api/version")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"version\": \"0.3.12\"}"),
+                });
+            }
+
+            if (req.RequestUri.AbsolutePath == "/api/tags")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"models\":[{\"name\":\"llama3.2:latest\"}]}"),
+                });
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var health = await provider.ProbeHealthAsync();
+        health.IsHealthy.Should().BeTrue();
+    }
+
+    [Test]
     public async Task ProbeHealthAsync_WhenReachable_ReturnsHealthy()
     {
         var handler = new MockHttpMessageHandler((req, ct) =>
