@@ -168,7 +168,7 @@ public class RssRuleController : Controller
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to run RSS sync");
-            return this.BadRequest(new { success = false, message = ex.Message });
+            return this.StatusCode(500, new { success = false, message = "Failed to run RSS sync." });
         }
     }
 
