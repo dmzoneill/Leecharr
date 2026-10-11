@@ -163,6 +163,7 @@ public class SabnzbdApiController : ControllerBase
             catNames.Add(c.Name);
         }
 
+        var downloadDir = this.configService.DownloadDir ?? "/downloads";
         return this.Ok(new
         {
             config = new
@@ -170,10 +171,10 @@ public class SabnzbdApiController : ControllerBase
                 version = "4.3.2",
                 misc = new
                 {
-                    complete_dir = this.configService.DownloadDir ?? "/downloads",
+                    complete_dir = downloadDir,
                     download_dir = this.configService.IncompleteDownloadDir ?? "/downloads/incomplete"
                 },
-                categories = catNames.Select(name => new { name, dir = this.configService.DownloadDir ?? "/downloads", order = 0 }).ToList()
+                categories = catNames.Select(name => new { name, dir = this.categoryService.GetSavePathForCategory(name, downloadDir), order = 0 }).ToList()
             },
         });
     }
