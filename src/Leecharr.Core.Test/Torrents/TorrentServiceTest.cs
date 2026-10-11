@@ -1865,6 +1865,39 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task AddFromParsedTorrentAsync_WithDuplicateAnnounceListUrls_InsertsDistinctTrackerEntries()
+    {
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "abcdef1234567890abcdef1234567890abcdef13",
+            Name = "DupAnnounceTorrent",
+            PieceLength = 16384,
+            TotalSize = 16384,
+            AnnounceList = new List<List<string>>
+            {
+                new List<string> { "http://tracker.example.com/announce", "http://tracker.example.com/announce" },
+                new List<string> { "HTTP://TRACKER.EXAMPLE.COM/announce" },
+            },
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            var t = callInfo.Arg<Torrent>();
+            t.Id = 100;
+            t.DateAdded = DateTime.UtcNow;
+            return t;
+        });
+
+        await this.service.AddFromParsedTorrentAsync(parsed);
+
+        this.trackerEntryRepository.Received(1).InsertMany(Arg.Is<List<TrackerEntry>>(entries =>
+            entries.Count == 1 &&
+            entries[0].Url == "http://tracker.example.com/announce" &&
+            entries[0].Tier == 0));
+    }
+
+    [Test]
     public async Task AddFromParsedTorrentAsync_UsesStoragePathServiceForEffectiveSavePath()
     {
         this.storagePathService.GetCompletedDirectory("movies").Returns("/storage/pool/movies");

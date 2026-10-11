@@ -2405,7 +2405,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     var dbTiers = this.trackerEntryRepository.GetByTorrentId(torrentId)
                         .Where(e => !string.IsNullOrWhiteSpace(e.Url))
-                        .ToDictionary(e => e.Url.Trim(), e => e.Tier, StringComparer.OrdinalIgnoreCase);
+                        .GroupBy(e => e.Url.Trim(), StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.Min(e => e.Tier), StringComparer.OrdinalIgnoreCase);
 
                     trackerList = trackerList
                         .OrderBy(t => dbTiers.TryGetValue(t, out var tier) ? tier : 1)
