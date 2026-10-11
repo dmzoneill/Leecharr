@@ -12,6 +12,8 @@ public class BlocklistResource
 
     public bool AutoUpdateEnabled { get; set; }
 
+    public int AutoUpdateIntervalHours { get; set; }
+
     public int AutoUpdateIntervalDays { get; set; }
 
     public int Ipv4RuleCount { get; set; }
@@ -38,6 +40,8 @@ public class BlocklistConfigRequest
     public string Url { get; set; }
 
     public bool? AutoUpdateEnabled { get; set; }
+
+    public int? AutoUpdateIntervalHours { get; set; }
 
     public int? AutoUpdateIntervalDays { get; set; }
 }

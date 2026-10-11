@@ -66,7 +66,11 @@ public class BlocklistController : Controller
             updates["BlocklistAutoUpdateEnabled"] = request.AutoUpdateEnabled.Value;
         }
 
-        if (request.AutoUpdateIntervalDays.HasValue && request.AutoUpdateIntervalDays.Value > 0)
+        if (request.AutoUpdateIntervalHours.HasValue && request.AutoUpdateIntervalHours.Value > 0)
+        {
+            updates["BlocklistUpdateIntervalHours"] = request.AutoUpdateIntervalHours.Value;
+        }
+        else if (request.AutoUpdateIntervalDays.HasValue && request.AutoUpdateIntervalDays.Value > 0)
         {
             updates["BlocklistUpdateIntervalHours"] = request.AutoUpdateIntervalDays.Value * 24;
         }
@@ -160,14 +164,17 @@ public class BlocklistController : Controller
         var totalRules = this.blocklistService.TotalRulesLoaded;
         var ipv4Rules = this.blocklistService.Ipv4RulesLoaded;
         var ipv6Rules = this.blocklistService.Ipv6RulesLoaded;
-        var intervalHours = this.configService.BlocklistUpdateIntervalHours;
-        var intervalDays = Math.Max(1, intervalHours / 24);
+        var intervalHours = Math.Max(1, this.configService.BlocklistUpdateIntervalHours);
+        var intervalDays = intervalHours % 24 == 0
+            ? intervalHours / 24
+            : Math.Max(1, intervalHours / 24);
 
         return new BlocklistResource
         {
             Enabled = this.configService.BlocklistEnabled,
             Url = this.configService.BlocklistUrl,
             AutoUpdateEnabled = this.configService.BlocklistAutoUpdateEnabled,
+            AutoUpdateIntervalHours = intervalHours,
             AutoUpdateIntervalDays = intervalDays,
             Ipv4RuleCount = ipv4Rules,
             Ipv6RuleCount = ipv6Rules,

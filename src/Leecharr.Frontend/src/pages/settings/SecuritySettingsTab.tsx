@@ -186,10 +186,13 @@ export function SecuritySettingsTab() {
   const updateBlocklistMutation = useUpdateBlocklistConfig();
   const syncBlocklistMutation = useSyncBlocklist();
 
+  const blocklistIntervalPresetHours = [24, 72, 168, 336, 720];
+
   const [blocklistForm, setBlocklistForm] = useState({
     enabled: false,
     url: "",
     autoUpdateEnabled: true,
+    autoUpdateIntervalHours: 24,
     autoUpdateIntervalDays: 1,
   });
   const [blocklistDirty, setBlocklistDirty] = useState(false);
@@ -206,15 +209,15 @@ export function SecuritySettingsTab() {
 
   useEffect(() => {
     if (blocklistData) {
+      const intervalHours = blocklistData.autoUpdateIntervalHours ?? 24;
       setBlocklistForm({
         enabled: blocklistData.enabled ?? false,
         url: blocklistData.url ?? "",
         autoUpdateEnabled: blocklistData.autoUpdateEnabled ?? true,
+        autoUpdateIntervalHours: intervalHours,
         autoUpdateIntervalDays: blocklistData.autoUpdateIntervalDays ?? 1,
       });
-      const isPreset = [1, 3, 7, 14, 30].includes(
-        blocklistData.autoUpdateIntervalDays ?? 1,
-      );
+      const isPreset = blocklistIntervalPresetHours.includes(intervalHours);
       setCustomInterval(!isPreset);
       setBlocklistDirty(false);
     }
@@ -1126,7 +1129,13 @@ export function SecuritySettingsTab() {
                       setCustomInterval(true);
                     } else {
                       setCustomInterval(false);
-                      updateBlocklist("autoUpdateIntervalDays", Number(v));
+                      const days = Number(v);
+                      setBlocklistForm((prev) => ({
+                        ...prev,
+                        autoUpdateIntervalDays: days,
+                        autoUpdateIntervalHours: days * 24,
+                      }));
+                      setBlocklistDirty(true);
                     }
                   }}
                   hint="Frequency at which upstream blocklist changes are checked"
@@ -1140,9 +1149,14 @@ export function SecuritySettingsTab() {
                     value={blocklistForm.autoUpdateIntervalDays}
                     min={1}
                     max={365}
-                    onChange={(v) =>
-                      updateBlocklist("autoUpdateIntervalDays", v)
-                    }
+                    onChange={(v) => {
+                      setBlocklistForm((prev) => ({
+                        ...prev,
+                        autoUpdateIntervalDays: v,
+                        autoUpdateIntervalHours: v * 24,
+                      }));
+                      setBlocklistDirty(true);
+                    }}
                     suffix="days"
                   />
                 </div>
