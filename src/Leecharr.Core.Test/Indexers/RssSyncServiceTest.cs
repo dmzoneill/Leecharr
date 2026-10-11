@@ -459,6 +459,72 @@ public class RssSyncServiceTest
     }
 
     [Test]
+    public async Task SyncRssFeedsAsync_WhenFirstMatchingRuleGrabFails_DoesNotFallThroughToLaterRules()
+    {
+        var categoryService = Substitute.For<ICategoryService>();
+        categoryService.Get(1).Returns(new Category { Id = 1, Name = "TV-4K", SavePath = "/downloads/tv-4k" });
+        categoryService.Get(2).Returns(new Category { Id = 2, Name = "CatchAll", SavePath = "/downloads/all" });
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            downloadHistoryService: this.downloadHistoryService,
+            categoryService: categoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var specificRule = new RssRule
+        {
+            Id = 1,
+            Name = "4K Rule",
+            IsEnabled = true,
+            MinSeeders = 1,
+            MustContain = "2160p",
+            CategoryId = 1,
+        };
+        var catchAllRule = new RssRule
+        {
+            Id = 2,
+            Name = "Catch All",
+            IsEnabled = true,
+            MinSeeders = 1,
+            CategoryId = 2,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { specificRule, catchAllRule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:failed-grab-fallthrough",
+            Title = "Show.S01E01.2160p.WEB-DL",
+            MagnetUrl = "magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        this.torrentService
+            .AddFromMagnetAsync(release.MagnetUrl, "TV-4K", "/downloads/tv-4k", Arg.Any<bool>())
+            .Returns<Task<Torrent>>(_ => throw new InvalidOperationException("simulated grab failure"));
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(0);
+
+        await this.torrentService.Received(1).AddFromMagnetAsync(
+            release.MagnetUrl,
+            "TV-4K",
+            "/downloads/tv-4k",
+            Arg.Any<bool>());
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(
+            release.MagnetUrl,
+            "CatchAll",
+            "/downloads/all",
+            Arg.Any<bool>());
+    }
+
+    [Test]
     public async Task SyncRssFeedsAsync_WhenNoActiveIndexersOrRules_ReturnsZero()
     {
         this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition>());
