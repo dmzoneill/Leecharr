@@ -679,10 +679,39 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             return false;
         }
 
-        return url.Contains("://localhost", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("://127.0.0.1", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("://[::1]", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("://0.0.0.0", StringComparison.OrdinalIgnoreCase);
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return false;
+        }
+
+        var host = uri.Host;
+        if (string.IsNullOrEmpty(host))
+        {
+            return false;
+        }
+
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!IPAddress.TryParse(host, out var address))
+        {
+            return false;
+        }
+
+        if (IPAddress.IsLoopback(address))
+        {
+            return true;
+        }
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            return address.GetAddressBytes()[0] == 0;
+        }
+
+        return false;
     }
 
     private static bool IsHexContainerId(string s)
