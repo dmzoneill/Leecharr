@@ -3,6 +3,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
 using NzbDrone.Core.Authentication;
@@ -46,30 +47,46 @@ public class CookieSessionAuthenticationEvents : CookieAuthenticationEvents
 
     public override Task RedirectToLogin(RedirectContext<CookieAuthenticationOptions> ctx)
     {
-        var path = ctx.Request.Path;
-        if (path.StartsWithSegments("/api") ||
-            path.StartsWithSegments("/signalr") ||
-            path.StartsWithSegments("/transmission") ||
-            path.StartsWithSegments("/json") ||
-            path.StartsWithSegments("/gui") ||
-            path.StartsWithSegments("/rpc") ||
-            path.StartsWithSegments("/RPC2") ||
-            path.StartsWithSegments("/RPC1") ||
-            path.StartsWithSegments("/rutorrent") ||
-            path.StartsWithSegments("/plugins") ||
-            path.StartsWithSegments("/webapi") ||
-            path.StartsWithSegments("/jsonrpc") ||
-            path.StartsWithSegments("/nzbget") ||
-            path.StartsWithSegments("/hadouken") ||
-            path.StartsWithSegments("/sabnzbd") ||
-            path.StartsWithSegments("/aria2") ||
-            path.StartsWithSegments("/nzbvortex"))
+        if (IsMachineFacingPath(ctx.Request.Path))
         {
-            ctx.Response.StatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized;
+            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
         }
 
         ctx.Response.Redirect(ctx.RedirectUri);
         return Task.CompletedTask;
+    }
+
+    public override Task RedirectToAccessDenied(RedirectContext<CookieAuthenticationOptions> ctx)
+    {
+        if (IsMachineFacingPath(ctx.Request.Path))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        ctx.Response.Redirect(ctx.RedirectUri);
+        return Task.CompletedTask;
+    }
+
+    private static bool IsMachineFacingPath(PathString path)
+    {
+        return path.StartsWithSegments("/api") ||
+               path.StartsWithSegments("/signalr") ||
+               path.StartsWithSegments("/transmission") ||
+               path.StartsWithSegments("/json") ||
+               path.StartsWithSegments("/gui") ||
+               path.StartsWithSegments("/rpc") ||
+               path.StartsWithSegments("/RPC2") ||
+               path.StartsWithSegments("/RPC1") ||
+               path.StartsWithSegments("/rutorrent") ||
+               path.StartsWithSegments("/plugins") ||
+               path.StartsWithSegments("/webapi") ||
+               path.StartsWithSegments("/jsonrpc") ||
+               path.StartsWithSegments("/nzbget") ||
+               path.StartsWithSegments("/hadouken") ||
+               path.StartsWithSegments("/sabnzbd") ||
+               path.StartsWithSegments("/aria2") ||
+               path.StartsWithSegments("/nzbvortex");
     }
 }
