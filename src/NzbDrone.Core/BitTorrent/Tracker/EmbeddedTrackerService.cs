@@ -824,9 +824,9 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
         if (hasBytes)
         {
-            if (infoHashBytes.Length != 20)
+            if (!IsSupportedInfoHashByteLength(infoHashBytes.Length))
             {
-                failureReason = "Invalid info_hash: must be exactly 20 bytes.";
+                failureReason = "Invalid info_hash: must be exactly 20 or 32 bytes.";
                 return false;
             }
 
@@ -837,11 +837,12 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             }
 
             var derivedHex = ConvertBytesToHex(infoHashBytes);
+            var expectedHexLength = infoHashBytes.Length * 2;
 
             if (hasHex)
             {
                 var trimmedHex = infoHashHex.Trim();
-                if (trimmedHex.Length != 40 || !IsValidHex(trimmedHex))
+                if (trimmedHex.Length != expectedHexLength || !IsValidHex(trimmedHex))
                 {
                     failureReason = "Invalid info_hash: malformed hex string.";
                     return false;
@@ -860,9 +861,9 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         }
 
         var cleanHex = infoHashHex.Trim();
-        if (cleanHex.Length != 40)
+        if (!IsSupportedInfoHashHexLength(cleanHex.Length))
         {
-            failureReason = "Invalid info_hash: hex string must be exactly 40 characters.";
+            failureReason = "Invalid info_hash: hex string must be exactly 40 or 64 characters.";
             return false;
         }
 
@@ -883,7 +884,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             return false;
         }
 
-        if (bytes.Length != 20 || IsAllZeros(bytes))
+        if (!IsSupportedInfoHashByteLength(bytes.Length) || IsAllZeros(bytes))
         {
             failureReason = "Invalid info_hash: null hash (all zero bytes) is not allowed.";
             return false;
@@ -902,6 +903,10 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
     {
         return TryValidateInfoHash(null, infoHashHex, out normalizedHex, out normalizedBytes, out failureReason);
     }
+
+    private static bool IsSupportedInfoHashByteLength(int length) => length == 20 || length == 32;
+
+    private static bool IsSupportedInfoHashHexLength(int length) => length == 40 || length == 64;
 
     private static bool IsAllZeros(byte[] bytes)
     {
