@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -875,7 +876,137 @@ public class AutomationServiceTest
         service.ExecuteScript(script, torrent);
 
         Thread.Sleep(100);
-        _webhookDispatcher.Received(1).DispatchAsync("https://example.com/webhook", Arg.Any<object>(), Arg.Any<string>());
+        _webhookDispatcher.Received(1).DispatchAsync(
+            "https://example.com/webhook",
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
+    }
+
+    [Test]
+    public void ExecuteScript_DispatchesWebhookNotification_WithConfiguredHttpMethod()
+    {
+        var torrent = new Torrent { Id = 481, Name = "WebhookPutTorrent" };
+        var script = new AutomationScript
+        {
+            Id = 504,
+            Language = AutomationLanguage.JavaScript,
+            Code = "system.sendNotification('AlertTitle', 'AlertMessage', 'Webhook');",
+        };
+
+        var activeNotifications = new List<NotificationDefinition>
+        {
+            new NotificationDefinition
+            {
+                Name = "PutWebhook",
+                Implementation = "Webhook",
+                Settings = "{\"url\":\"https://example.com/webhook\",\"method\":\"PUT\"}",
+            },
+        };
+        _notificationRepository.GetEnabled().Returns(activeNotifications);
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            notificationRepository: _notificationRepository,
+            webhookDispatcher: _webhookDispatcher);
+
+        service.ExecuteScript(script, torrent);
+
+        Thread.Sleep(100);
+        _webhookDispatcher.Received(1).DispatchAsync(
+            "https://example.com/webhook",
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            HttpMethod.Put);
+    }
+
+    [Test]
+    public void ExecuteScript_ExecutesCustomScriptNotification_WhenProviderIsCustomScript()
+    {
+        var torrent = new Torrent { Id = 482, Name = "CustomScriptNotifyTorrent" };
+        var script = new AutomationScript
+        {
+            Id = 505,
+            Language = AutomationLanguage.JavaScript,
+            Code = "system.sendNotification('AlertTitle', 'AlertMessage', 'CustomScript');",
+        };
+
+        var activeNotifications = new List<NotificationDefinition>
+        {
+            new NotificationDefinition
+            {
+                Name = "NotifyScript",
+                Implementation = "CustomScript",
+                Settings = "{\"path\":\"/opt/scripts/notify.sh\",\"arguments\":\"--automation\"}",
+            },
+        };
+        _notificationRepository.GetEnabled().Returns(activeNotifications);
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            customScriptService: _customScriptService,
+            notificationRepository: _notificationRepository,
+            webhookDispatcher: _webhookDispatcher);
+
+        service.ExecuteScript(script, torrent);
+
+        Thread.Sleep(100);
+        _customScriptService.Received(1).ExecuteScriptAsync(
+            "/opt/scripts/notify.sh",
+            torrent,
+            "Automation",
+            "--automation");
+        _webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
+            default!,
+            default!,
+            default!,
+            default!);
+    }
+
+    [Test]
+    public void ExecuteScript_DoesNotDispatchWebhook_WhenProviderIsEmail()
+    {
+        var torrent = new Torrent { Id = 483, Name = "EmailNotifyTorrent" };
+        var script = new AutomationScript
+        {
+            Id = 506,
+            Language = AutomationLanguage.JavaScript,
+            Code = "system.sendNotification('AlertTitle', 'AlertMessage', 'Email');",
+        };
+
+        var activeNotifications = new List<NotificationDefinition>
+        {
+            new NotificationDefinition
+            {
+                Name = "Mail",
+                Implementation = "Email",
+                Settings = "server=smtp.example.com&port=587&ssl=false",
+            },
+        };
+        _notificationRepository.GetEnabled().Returns(activeNotifications);
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            notificationRepository: _notificationRepository,
+            webhookDispatcher: _webhookDispatcher);
+
+        service.ExecuteScript(script, torrent);
+
+        Thread.Sleep(200);
+        _webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
+            default!,
+            default!,
+            default!,
+            default!);
     }
 
     [Test]

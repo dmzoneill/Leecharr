@@ -219,7 +219,7 @@ public class AutomationService : IAutomationService
         }
 
         // Side-effects: Notifications to send
-        if (result.Success && result.NotificationsToSend.Count > 0 && _notificationRepository != null && _webhookDispatcher != null)
+        if (result.Success && result.NotificationsToSend.Count > 0 && _notificationRepository != null)
         {
             var activeNotifications = _notificationRepository.GetEnabled();
             foreach (var notif in result.NotificationsToSend)
@@ -230,23 +230,63 @@ public class AutomationService : IAutomationService
                         string.Equals(n.Implementation, notif.Provider, StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(n.Name, notif.Provider, StringComparison.OrdinalIgnoreCase)).ToList();
 
+                var genericPayload = new { title = notif.Title, message = notif.Message };
+
                 foreach (var n in matching)
                 {
-                    var targetUrl = NotificationPayloadBuilder.ResolveTargetUrl(n.Implementation, n.Settings);
-                    var customHeaders = NotificationPayloadBuilder.ResolveCustomHeaders(n.Implementation, n.Settings);
-                    var payload = NotificationPayloadBuilder.BuildProviderPayload(n.Implementation, "Automation", torrent, null, new { title = notif.Title, message = notif.Message }, n.Settings);
-
-                    Task.Run(async () =>
+                    if (string.Equals(n.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
                     {
-                        try
+                        if (_customScriptService == null)
                         {
-                            await _webhookDispatcher.DispatchAsync(targetUrl, payload, customHeaders).ConfigureAwait(false);
+                            continue;
                         }
-                        catch (Exception ex)
+
+                        var (scriptPath, scriptArgs) = CustomScriptService.ParseSettings(n.Settings);
+                        Task.Run(async () =>
                         {
-                            _logger.Error(ex, "Failed to dispatch automation notification via {0}", n.Implementation);
-                        }
-                    });
+                            try
+                            {
+                                await _customScriptService.ExecuteScriptAsync(scriptPath, torrent, "Automation", scriptArgs).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Error(ex, "Failed to execute custom script notification from automation");
+                            }
+                        });
+                    }
+                    else if (string.Equals(n.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await EmailNotificationSender.SendEmailNotificationAsync(n.Settings, "Automation", torrent, null, genericPayload).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Error(ex, "Failed to send email notification from automation");
+                            }
+                        });
+                    }
+                    else if (_webhookDispatcher != null)
+                    {
+                        var targetUrl = NotificationPayloadBuilder.ResolveTargetUrl(n.Implementation, n.Settings);
+                        var customHeaders = NotificationPayloadBuilder.ResolveCustomHeaders(n.Implementation, n.Settings);
+                        var httpMethod = NotificationPayloadBuilder.ResolveHttpMethod(n.Implementation, n.Settings);
+                        var payload = NotificationPayloadBuilder.BuildProviderPayload(n.Implementation, "Automation", torrent, null, genericPayload, n.Settings);
+
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await _webhookDispatcher.DispatchAsync(targetUrl, payload, customHeaders, httpMethod).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Error(ex, "Failed to dispatch automation notification via {0}", n.Implementation);
+                            }
+                        });
+                    }
                 }
             }
         }
