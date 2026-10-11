@@ -204,4 +204,32 @@ public class LocalNfoMetadataProviderTest
             }
         }
     }
+
+    [Test]
+    public async Task FetchMetadataAsync_WithoutNfo_StillLoadsLocalArtwork()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_local_nfo_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var posterPath = Path.Combine(tempDir, "poster.jpg");
+            await File.WriteAllTextAsync(posterPath, "fake image content");
+
+            var fanartPath = Path.Combine(tempDir, "fanart.jpg");
+            await File.WriteAllTextAsync(fanartPath, "fake backdrop content");
+
+            var metadata = await this.provider.FetchMetadataAsync(tempDir);
+
+            metadata.Should().NotBeNull();
+            metadata!.PosterUrl.Should().Be(posterPath);
+            metadata.BackdropUrl.Should().Be(fanartPath);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
 }

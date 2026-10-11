@@ -79,6 +79,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             Overview = string.Empty,
         };
 
+        var mediaDirectory = this.LocateMediaDirectory(title);
         var nfoFilePath = this.LocateNfoFile(title);
         if (!string.IsNullOrWhiteSpace(nfoFilePath) && File.Exists(nfoFilePath))
         {
@@ -88,16 +89,21 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                 ParseNfoContent(nfoContent, meta);
                 this.logger.Debug("Successfully parsed NFO file: {0}", nfoFilePath);
 
-                var dir = Path.GetDirectoryName(nfoFilePath);
-                if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                var nfoDirectory = Path.GetDirectoryName(nfoFilePath);
+                if (!string.IsNullOrWhiteSpace(nfoDirectory) && Directory.Exists(nfoDirectory))
                 {
-                    InspectLocalArtwork(dir, meta);
+                    mediaDirectory = nfoDirectory;
                 }
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to read or parse NFO file at '{0}'", nfoFilePath);
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(mediaDirectory) && Directory.Exists(mediaDirectory))
+        {
+            InspectLocalArtwork(mediaDirectory, meta);
         }
 
         return meta;
@@ -145,6 +151,59 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                     if (candidate.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase))
                     {
                         return candidate;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private string LocateMediaDirectory(string inputPath)
+    {
+        if (string.IsNullOrWhiteSpace(inputPath))
+        {
+            return null;
+        }
+
+        if (File.Exists(inputPath))
+        {
+            if (inputPath.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.GetDirectoryName(inputPath);
+            }
+
+            var parentDir = Path.GetDirectoryName(inputPath);
+            if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+            {
+                return parentDir;
+            }
+        }
+
+        if (Directory.Exists(inputPath))
+        {
+            return inputPath;
+        }
+
+        if (this.configService != null)
+        {
+            var searchDirs = new[] { this.configService.DownloadDir, this.configService.IncompleteDownloadDir }
+                .Where(d => !string.IsNullOrWhiteSpace(d) && Directory.Exists(d));
+
+            foreach (var dir in searchDirs)
+            {
+                var candidate = Path.Combine(dir, inputPath);
+                if (Directory.Exists(candidate))
+                {
+                    return candidate;
+                }
+
+                if (File.Exists(candidate))
+                {
+                    var parent = Path.GetDirectoryName(candidate);
+                    if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
+                    {
+                        return parent;
                     }
                 }
             }
