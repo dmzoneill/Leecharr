@@ -106,6 +106,38 @@ public class RingBufferTargetTest
     }
 
     [Test]
+    public void ConcurrentWrites_AssignIdsInStorageOrderSoPollersNeverSkipLines()
+    {
+        const int capacity = 50;
+        const int threadCount = 16;
+        const int writesPerThread = 100;
+
+        var target = new TestableRingBufferTarget(capacity);
+        var startGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var tasks = Enumerable.Range(0, threadCount).Select(threadIndex => Task.Run(async () =>
+        {
+            await startGate.Task;
+            for (var i = 0; i < writesPerThread; i++)
+            {
+                target.WriteLog(LogLevel.Info, $"Worker-{threadIndex}", $"Log-{threadIndex}-{i}");
+            }
+        })).ToArray();
+
+        startGate.SetResult(true);
+        Task.WaitAll(tasks);
+
+        var entries = target.GetEntries(capacity, LogLevel.Trace);
+        entries.Should().HaveCount(capacity);
+
+        for (var i = 1; i < entries.Count; i++)
+        {
+            entries[i].Id.Should().BeGreaterThan(entries[i - 1].Id,
+                "ids must increase in slot order so last_known_id polling cannot skip lines");
+        }
+    }
+
+    [Test]
     public void LogLevelFiltering_ReturnsOnlyEntriesMeetingOrExceedingThreshold()
     {
         var target = new TestableRingBufferTarget(50);

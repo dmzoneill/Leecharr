@@ -29,7 +29,6 @@ public class RingBufferTarget : TargetWithLayout
     {
         var entry = new LogEntryRecord
         {
-            Id = Interlocked.Increment(ref this.sequenceNumber),
             Time = logEvent.TimeStamp.ToUniversalTime(),
             Level = logEvent.Level.Name,
             Logger = logEvent.LoggerName,
@@ -39,6 +38,7 @@ public class RingBufferTarget : TargetWithLayout
 
         lock (this.@lock)
         {
+            entry.Id = Interlocked.Increment(ref this.sequenceNumber);
             this.buffer[this.position] = entry;
             this.position = (this.position + 1) % this.Capacity;
 
