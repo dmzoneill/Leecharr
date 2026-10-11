@@ -254,6 +254,24 @@ public class DynamicNetworkBindingProxyTest
     }
 
     [Test]
+    public async Task SwitchProviderAsync_WhenConfigSaveFails_KeepsPreviousActiveProvider()
+    {
+        this.configService
+            .When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(_ => throw new InvalidOperationException("database locked"));
+
+        var result = await this.proxy.SwitchProviderAsync("LinuxBindToDevice");
+
+        result.Success.Should().BeFalse();
+        result.PreviousProvider.Should().Be("ManagedSocket");
+        result.ActiveProvider.Should().Be("ManagedSocket");
+        result.Error.Should().Contain("database locked");
+        this.proxy.ActiveProviderId.Should().Be("ManagedSocket");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.managedSocketProvider);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<NetworkBindingProviderSwitchedEvent>());
+    }
+
+    [Test]
     public void Delegation_ForwardsBindSocketAndIsInterfaceUpToActiveProvider()
     {
         using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

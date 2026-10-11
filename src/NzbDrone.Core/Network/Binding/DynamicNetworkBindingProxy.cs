@@ -120,6 +120,7 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
 
         NetworkBindingProviderSwitchedEvent switchedEvent = null;
         NetworkBindingSwitchResult result;
+        INetworkBindingProvider previousProvider = null;
 
         await this.switchLock.WaitAsync();
         try
@@ -157,13 +158,14 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
                 return this.CreateSupersededSwitchResult(targetProviderId);
             }
 
-            var previousProvider = Volatile.Read(ref this.activeProvider);
-            Volatile.Write(ref this.activeProvider, targetProvider);
+            previousProvider = Volatile.Read(ref this.activeProvider);
 
             this.configService?.SaveConfigDictionary(new Dictionary<string, object>
             {
                 { "ActiveNetworkBindingProvider", targetProvider.ProviderId },
             });
+
+            Volatile.Write(ref this.activeProvider, targetProvider);
 
             this.logger.Info("Network binding provider switched: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
             switchedEvent = new NetworkBindingProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
@@ -179,11 +181,18 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         catch (Exception ex)
         {
             this.logger.Error(ex, "Error switching network binding provider to {0}", targetProviderId);
+
+            if (previousProvider != null)
+            {
+                Volatile.Write(ref this.activeProvider, previousProvider);
+            }
+
+            var activeProviderId = previousProvider?.ProviderId ?? Volatile.Read(ref this.activeProvider)?.ProviderId;
             return new NetworkBindingSwitchResult
             {
                 Success = false,
-                PreviousProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
-                ActiveProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
+                PreviousProvider = activeProviderId,
+                ActiveProvider = activeProviderId,
                 Error = $"Hot-swap failed: {ex.Message}",
             };
         }
