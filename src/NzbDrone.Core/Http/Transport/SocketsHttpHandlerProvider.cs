@@ -166,6 +166,15 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
 
     public Task<HttpTransportHealthCheckResult> ProbeHealthAsync()
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            return Task.FromResult(new HttpTransportHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "VPN kill switch is active. Outbound HTTP transport is fail-closed until the VPN interface is restored.",
+            });
+        }
+
         var proxyType = this.configService?.ProxyType?.ToLowerInvariant() ?? "none";
         var result = new HttpTransportHealthCheckResult
         {

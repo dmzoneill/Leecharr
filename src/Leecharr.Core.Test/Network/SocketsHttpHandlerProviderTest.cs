@@ -35,6 +35,18 @@ public class SocketsHttpHandlerProviderTest
     }
 
     [Test]
+    public async Task ProbeHealthAsync_WhenKillSwitchFailClosedActive_ReturnsUnhealthy()
+    {
+        this.vpnKillSwitchService.IsFailClosedActive.Returns(true);
+        var provider = new SocketsHttpHandlerProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
+
+        var health = await provider.ProbeHealthAsync();
+
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("kill switch");
+    }
+
+    [Test]
     public async Task ConnectCallback_WhenKillSwitchFailClosedActive_ThrowsNetworkUnreachable()
     {
         this.vpnKillSwitchService.IsFailClosedActive.Returns(true);
