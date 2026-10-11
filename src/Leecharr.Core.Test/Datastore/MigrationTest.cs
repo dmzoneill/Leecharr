@@ -539,10 +539,10 @@ public class MigrationTest
             runner.MigrateUp(44);
         }
 
-        using (var connection = new SqliteConnection(connectionString))
+        using (var seedConnection = new SqliteConnection(connectionString))
         {
-            connection.Open();
-            using var seed = connection.CreateCommand();
+            seedConnection.Open();
+            using var seed = seedConnection.CreateCommand();
             seed.CommandText = @"
                 INSERT INTO Torrents (Name, InfoHash, DateAdded, ShareLimitAction)
                 VALUES ('pause-torrent', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', datetime('now'), 'Pause'),
@@ -556,10 +556,10 @@ public class MigrationTest
             runner.MigrateUp(45);
         }
 
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+        using var verifyConnection = new SqliteConnection(connectionString);
+        verifyConnection.Open();
 
-        using var command = connection.CreateCommand();
+        using var command = verifyConnection.CreateCommand();
         command.CommandText = "SELECT ShareLimitAction FROM Torrents WHERE InfoHash = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';";
         command.ExecuteScalar().Should().Be("Default");
 
@@ -587,10 +587,10 @@ public class MigrationTest
             runner.MigrateUp(23);
         }
 
-        using (var connection = new SqliteConnection(connectionString))
+        using (var seedConnection = new SqliteConnection(connectionString))
         {
-            connection.Open();
-            using var seed = connection.CreateCommand();
+            seedConnection.Open();
+            using var seed = seedConnection.CreateCommand();
             seed.CommandText = @"
                 INSERT INTO Torrents (Name, InfoHash, DateAdded)
                 VALUES ('legacy-torrent', 'cccccccccccccccccccccccccccccccccccccccc', datetime('now'));";
@@ -603,10 +603,10 @@ public class MigrationTest
             runner.MigrateUp(24);
         }
 
-        using (var connection = new SqliteConnection(connectionString))
+        using (var checkConnection = new SqliteConnection(connectionString))
         {
-            connection.Open();
-            using var check = connection.CreateCommand();
+            checkConnection.Open();
+            using var check = checkConnection.CreateCommand();
             check.CommandText = "SELECT IsImported FROM Torrents WHERE InfoHash = 'cccccccccccccccccccccccccccccccccccccccc';";
             Convert.ToInt32(check.ExecuteScalar()).Should().Be(0);
         }
@@ -617,10 +617,10 @@ public class MigrationTest
             runner.MigrateUp(46);
         }
 
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+        using var verifyConnection = new SqliteConnection(connectionString);
+        verifyConnection.Open();
 
-        using var command = connection.CreateCommand();
+        using var command = verifyConnection.CreateCommand();
         command.CommandText = "SELECT IsImported FROM Torrents WHERE InfoHash = 'cccccccccccccccccccccccccccccccccccccccc';";
         Convert.ToInt32(command.ExecuteScalar()).Should().Be(1);
     }
@@ -645,10 +645,10 @@ public class MigrationTest
             runner.MigrateUp(37);
         }
 
-        using (var connection = new SqliteConnection(connectionString))
+        using (var seedConnection = new SqliteConnection(connectionString))
         {
-            connection.Open();
-            using var seed = connection.CreateCommand();
+            seedConnection.Open();
+            using var seed = seedConnection.CreateCommand();
             seed.CommandText = @"
                 INSERT INTO ArrConnectionDefinitions (Name, Implementation, Url, ApiKey, ArrType)
                 VALUES ('legacy-sonarr', 'Sonarr', 'http://localhost:8989', 'test-key', 'sonarr');";
@@ -661,17 +661,17 @@ public class MigrationTest
             runner.MigrateUp(38);
         }
 
-        using (var connection = new SqliteConnection(connectionString))
+        using (var checkConnection = new SqliteConnection(connectionString))
         {
-            connection.Open();
-            using var check = connection.CreateCommand();
+            checkConnection.Open();
+            using var check = checkConnection.CreateCommand();
             check.CommandText = "SELECT EnableAutomaticAdd, WebhookEnabled FROM ArrConnectionDefinitions WHERE Name = 'legacy-sonarr';";
             using var reader = check.ExecuteReader();
             reader.Read().Should().BeTrue();
             Convert.ToInt32(reader.GetValue(0)).Should().Be(0);
             Convert.ToInt32(reader.GetValue(1)).Should().Be(0);
 
-            using var simulateOldMigration = connection.CreateCommand();
+            using var simulateOldMigration = checkConnection.CreateCommand();
             simulateOldMigration.CommandText = @"
                 UPDATE ArrConnectionDefinitions
                 SET EnableAutomaticAdd = 1, WebhookEnabled = 1
@@ -685,10 +685,10 @@ public class MigrationTest
             runner.MigrateUp(47);
         }
 
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+        using var verifyConnection = new SqliteConnection(connectionString);
+        verifyConnection.Open();
 
-        using var command = connection.CreateCommand();
+        using var command = verifyConnection.CreateCommand();
         command.CommandText = "SELECT EnableAutomaticAdd, WebhookEnabled FROM ArrConnectionDefinitions WHERE Name = 'legacy-sonarr';";
         using var result = command.ExecuteReader();
         result.Read().Should().BeTrue();
@@ -716,10 +716,10 @@ public class MigrationTest
             runner.MigrateUp(30);
         }
 
-        using (var connection = new SqliteConnection(connectionString))
+        using (var seedConnection = new SqliteConnection(connectionString))
         {
-            connection.Open();
-            using var seed = connection.CreateCommand();
+            seedConnection.Open();
+            using var seed = seedConnection.CreateCommand();
             seed.CommandText = @"
                 INSERT INTO Torrents (Name, InfoHash, DateAdded, IsPrivate)
                 VALUES ('private-torrent', 'dddddddddddddddddddddddddddddddddddddddd', datetime('now'), 1);
@@ -734,10 +734,10 @@ public class MigrationTest
             runner.MigrateUp(31);
         }
 
-        using (var connection = new SqliteConnection(connectionString))
+        using (var rewriteConnection = new SqliteConnection(connectionString))
         {
-            connection.Open();
-            using var simulateBadRewrite = connection.CreateCommand();
+            rewriteConnection.Open();
+            using var simulateBadRewrite = rewriteConnection.CreateCommand();
             simulateBadRewrite.CommandText = @"UPDATE DownloadHistory SET IsPrivate = 0 WHERE InfoHash = 'dddddddddddddddddddddddddddddddddddddddd';";
             simulateBadRewrite.ExecuteNonQuery();
         }
@@ -748,10 +748,10 @@ public class MigrationTest
             runner.MigrateUp(48);
         }
 
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+        using var verifyConnection = new SqliteConnection(connectionString);
+        verifyConnection.Open();
 
-        using var command = connection.CreateCommand();
+        using var command = verifyConnection.CreateCommand();
         command.CommandText = "SELECT IsPrivate FROM DownloadHistory WHERE InfoHash = 'dddddddddddddddddddddddddddddddddddddddd';";
         Convert.ToInt32(command.ExecuteScalar()).Should().Be(1);
     }

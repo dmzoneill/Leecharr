@@ -113,12 +113,20 @@ jobs:
         run: |
           dotnet restore src/Leecharr.sln
           dotnet build src/Leecharr.sln --configuration Release --no-restore
+          set +e
           dotnet test src/Leecharr.Core.Test/Leecharr.Core.Test.csproj \
             --configuration Release \
             --no-build \
             --settings .runsettings \
             --results-directory "${{ github.workspace }}/TestResults" \
-            --collect:"XPlat Code Coverage;Format=opencover" || true
+            --collect:"XPlat Code Coverage;Format=opencover"
+          CORE_TEST_RC=$?
+          set -e
+          if [ "$CORE_TEST_RC" -ne 0 ]; then
+            echo "::warning::Leecharr.Core.Test failed (exit=$CORE_TEST_RC); continuing Sonar upload for partial coverage."
+          fi
+
+          find "${{ github.workspace }}/TestResults" -name 'coverage.opencover.xml' -print || true
 
           # Run frontend unit tests and generate LCOV code coverage
           cd src/Leecharr.Frontend
@@ -127,11 +135,8 @@ jobs:
           cd ../..
 
       - name: End SonarCloud Scanner
-        if: always()
+        if: steps.check_token.outputs.has_token == 'true'
         continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          if [ -n "$SONAR_TOKEN" ]; then
-            dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
-          fi
+        run: dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"

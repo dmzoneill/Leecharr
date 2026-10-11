@@ -2087,16 +2087,16 @@ public class IndexerControllerTest
         var result = this.controller.Update(7, resource);
         result.Result.Should().BeOfType<OkObjectResult>();
 
-        this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx =>
-        {
-            var parsed = System.Text.Json.JsonSerializer.Deserialize<IndexerSettings>(idx.Settings!);
-            return parsed != null &&
-                   parsed.Cookie == "uid=new" &&
-                   parsed.UserAgent == "NewAgent" &&
-                   parsed.SupportsTvSearch == false &&
-                   parsed.SupportsMovieSearch == false &&
-                   parsed.CapabilitiesVerified;
-        }));
+        IndexerDefinition updated = null!;
+        this.indexerRepository.Received(1).Update(Arg.Do<IndexerDefinition>(idx => updated = idx));
+
+        var parsed = System.Text.Json.JsonSerializer.Deserialize<IndexerSettings>(updated.Settings!);
+        parsed.Should().NotBeNull();
+        parsed!.Cookie.Should().Be("uid=new");
+        parsed.UserAgent.Should().Be("NewAgent");
+        parsed.SupportsTvSearch.Should().BeFalse();
+        parsed.SupportsMovieSearch.Should().BeFalse();
+        parsed.CapabilitiesVerified.Should().BeTrue();
     }
 
     [Test]

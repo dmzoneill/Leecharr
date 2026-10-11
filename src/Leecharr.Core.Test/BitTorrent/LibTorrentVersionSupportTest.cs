@@ -181,7 +181,8 @@ public class LibTorrentVersionSupportTest
     [Test]
     public void LibTorrentDownloadTask_StoresAndReportsLiveTelemetry()
     {
-        var task = new LibTorrentDownloadTask(42, "aabbccddeeff00112233445566778899aabbccdd", "Test Torrent", 1000000000L, "movies")
+        using var engine = this.CreateEngine();
+        var task = new LibTorrentDownloadTask(engine, 42, "aabbccddeeff00112233445566778899aabbccdd", "Test Torrent", 1000000000L, "movies")
         {
             Progress = 0.75,
             DownloadedBytes = 750000000L,
@@ -217,7 +218,8 @@ public class LibTorrentVersionSupportTest
     [Test]
     public void LibTorrentDownloadTask_WhenPaused_ReportsZeroSpeedsAndPeers()
     {
-        var task = new LibTorrentDownloadTask(43, "aabbccddeeff00112233445566778899aabbccde", "Paused Torrent", 500000000L)
+        using var engine = this.CreateEngine();
+        var task = new LibTorrentDownloadTask(engine, 43, "aabbccddeeff00112233445566778899aabbccde", "Paused Torrent", 500000000L)
         {
             DownloadSpeed = 10000000L,
             UploadSpeed = 200000L,
@@ -235,7 +237,8 @@ public class LibTorrentVersionSupportTest
     [Test]
     public void LibTorrentDownloadTask_SetPeers_UpdatesPeerList()
     {
-        var task = new LibTorrentDownloadTask(44, "aabbccddeeff00112233445566778899aabbccdf", "Peer List Torrent", 200000000L);
+        using var engine = this.CreateEngine();
+        var task = new LibTorrentDownloadTask(engine, 44, "aabbccddeeff00112233445566778899aabbccdf", "Peer List Torrent", 200000000L);
         task.GetPeers().Should().BeEmpty();
 
         var peers = new List<PeerInfo>

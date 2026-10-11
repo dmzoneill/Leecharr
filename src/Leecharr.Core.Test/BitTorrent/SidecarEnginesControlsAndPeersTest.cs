@@ -39,10 +39,31 @@ public class SidecarEnginesControlsAndPeersTest
         this.eventAggregator = Substitute.For<IEventAggregator>();
     }
 
+    private EmbeddedTransmissionEngine CreateTransmissionEngine()
+    {
+        return new EmbeddedTransmissionEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator);
+    }
+
+    private LibTorrentDownloadEngine CreateLibTorrentEngine()
+    {
+        return new LibTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator);
+    }
+
     [Test]
     public void TransmissionDownloadTask_InitializesConnectedPeersToZeroAndSupportsPeerTracking()
     {
-        var task = new TransmissionDownloadTask(1, "hash1", "Torrent 1", 1024, "movies");
+        using var engine = this.CreateTransmissionEngine();
+        var task = new TransmissionDownloadTask(engine, 1, "hash1", "Torrent 1", 1024, "movies");
 
         task.ConnectedSeeders.Should().Be(0);
         task.ConnectedLeechers.Should().Be(0);
@@ -80,7 +101,8 @@ public class SidecarEnginesControlsAndPeersTest
     [Test]
     public void LibTorrentDownloadTask_InitializesConnectedPeersToZeroAndSupportsPeerTracking()
     {
-        var task = new LibTorrentDownloadTask(2, "hash2", "Torrent 2", 2048, "tv");
+        using var engine = this.CreateLibTorrentEngine();
+        var task = new LibTorrentDownloadTask(engine, 2, "hash2", "Torrent 2", 2048, "tv");
 
         task.ConnectedSeeders.Should().Be(0);
         task.ConnectedLeechers.Should().Be(0);
