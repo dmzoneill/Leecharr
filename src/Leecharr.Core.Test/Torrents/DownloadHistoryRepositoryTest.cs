@@ -440,6 +440,34 @@ public class DownloadHistoryRepositoryTest
     }
 
     [Test]
+    public void GetOlderThan_ReturnsSameRowsAsDeleteOlderThanWouldRemove()
+    {
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Expired orphan",
+            InfoHash = "ffffffffffffffffffffffffffffffffffffffff",
+            TorrentId = null,
+            Status = "Completed",
+            DateAdded = DateTime.UtcNow.AddDays(-90),
+            DateCompleted = DateTime.UtcNow.AddDays(-60),
+        });
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Still seeding",
+            InfoHash = "gggggggggggggggggggggggggggggggggggggggg",
+            TorrentId = 7,
+            Status = "Active",
+            DateAdded = DateTime.UtcNow.AddDays(-90),
+        });
+
+        var cutoff = DateTime.UtcNow.AddDays(-30);
+        var expired = this.repository.GetOlderThan(cutoff);
+
+        expired.Should().ContainSingle(e => e.InfoHash == "ffffffffffffffffffffffffffffffffffffffff");
+        expired.Should().NotContain(e => e.InfoHash == "gggggggggggggggggggggggggggggggggggggggg");
+    }
+
+    [Test]
     public void GetHistory_OnPostgreSql_WithOffsetAndNoLimit_DoesNotEmitLimitMinusOne()
     {
         var database = Substitute.For<IDatabase>();

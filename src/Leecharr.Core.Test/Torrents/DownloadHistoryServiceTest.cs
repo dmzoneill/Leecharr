@@ -1164,11 +1164,62 @@ public class DownloadHistoryServiceTest
             new DownloadHistory { Id = 1, InfoHash = "hash1" },
             new DownloadHistory { Id = 2, InfoHash = string.Empty },
         };
-        this.historyRepository.GetHistory(limit: 10000).Returns(entries);
+        this.historyRepository.GetHistory(limit: 0).Returns(entries);
 
         this.service.ClearAll();
 
+        this.historyRepository.Received(1).GetHistory(limit: 0);
         this.historyRepository.Received(1).DeleteAll();
+    }
+
+    [Test]
+    public void PruneHistory_WhenExpiredEntryHasCachedTorrent_DeletesCachedFile()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_prune_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var torrentsDir = Path.Combine(tempDir, "Torrents");
+            Directory.CreateDirectory(torrentsDir);
+            var hash = "prunehash123";
+            var torrentFile = Path.Combine(torrentsDir, $"{hash}.torrent");
+            File.WriteAllText(torrentFile, "fake torrent content");
+
+            var appFolderInfo = Substitute.For<IAppFolderInfo>();
+            appFolderInfo.AppDataFolder.Returns(tempDir);
+
+            var customService = new DownloadHistoryService(
+                this.historyRepository,
+                this.torrentRepository,
+                this.trackerEntryRepository,
+                this.downloadEngine,
+                this.eventAggregator,
+                this.safeHttpClientService,
+                this.categoryService,
+                this.storagePathService,
+                this.torrentFileParser,
+                this.fileRepository,
+                this.configService,
+                appFolderInfo: appFolderInfo);
+
+            var expired = new List<DownloadHistory>
+            {
+                new DownloadHistory { Id = 99, InfoHash = hash, Status = "Removed", DateRemoved = DateTime.UtcNow.AddDays(-120) },
+            };
+            this.historyRepository.GetOlderThan(Arg.Any<DateTime>()).Returns(expired);
+            this.torrentRepository.ExistsByInfoHash(hash).Returns(false);
+
+            customService.PruneHistory(30);
+
+            File.Exists(torrentFile).Should().BeFalse();
+            this.historyRepository.Received(1).DeleteOlderThan(Arg.Any<DateTime>());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 
     [Test]
@@ -1183,8 +1234,12 @@ public class DownloadHistoryServiceTest
     [Test]
     public void PruneHistory_WhenRetentionDaysPositive_CallsDeleteOlderThanCutoff()
     {
+        this.historyRepository.GetOlderThan(Arg.Any<DateTime>()).Returns(new List<DownloadHistory>());
+
         this.service.PruneHistory(60);
 
+        this.historyRepository.Received(1).GetOlderThan(Arg.Is<DateTime>(d =>
+            d <= DateTime.UtcNow.AddDays(-59) && d >= DateTime.UtcNow.AddDays(-61)));
         this.historyRepository.Received(1).DeleteOlderThan(Arg.Is<DateTime>(d =>
             d <= DateTime.UtcNow.AddDays(-59) && d >= DateTime.UtcNow.AddDays(-61)));
     }
