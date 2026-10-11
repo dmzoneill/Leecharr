@@ -1144,6 +1144,127 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task FetchCapabilitiesAsync_WhenInvalidResponse_DoesNotCacheSoNextCallRetries()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+
+        var requestCount = 0;
+        var validCapsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+<limits default=""25"" max=""75"" />
+</caps>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("<html><body>not caps</body></html>"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(validCapsXml),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "RetryCapsTracker",
+            Url = "https://retry-caps.indexer.local/api",
+            ApiKey = "key",
+        };
+
+        var caps1 = await customClient.FetchCapabilitiesAsync(indexer);
+        caps1.MaxPageSize.Should().Be(100);
+        requestCount.Should().Be(1);
+
+        var caps2 = await customClient.FetchCapabilitiesAsync(indexer);
+        caps2.MaxPageSize.Should().Be(75);
+        requestCount.Should().Be(2);
+    }
+
+    [Test]
+    public async Task FetchCapabilitiesAsync_WhenValidCached_DoesNotRefetchChallengePage()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+
+        var requestCount = 0;
+        var validCapsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+<limits default=""25"" max=""40"" />
+</caps>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(validCapsXml),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<html>Just a moment...</html>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "StickyCapsTracker",
+            Url = "https://sticky-caps.indexer.local/api",
+            ApiKey = "key",
+        };
+
+        var caps1 = await customClient.FetchCapabilitiesAsync(indexer);
+        caps1.MaxPageSize.Should().Be(40);
+        requestCount.Should().Be(1);
+
+        var caps2 = await customClient.FetchCapabilitiesAsync(indexer);
+        caps2.MaxPageSize.Should().Be(40);
+        requestCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task FetchCapabilitiesAsync_WhenTorznabErrorResponse_DoesNotCache()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+
+        var requestCount = 0;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            requestCount++;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(@"<error code=""100"" description=""Invalid API key"" />"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "ErrorCapsTracker",
+            Url = "https://error-caps.indexer.local/api",
+            ApiKey = "key",
+        };
+
+        await customClient.FetchCapabilitiesAsync(indexer);
+        await customClient.FetchCapabilitiesAsync(indexer);
+        requestCount.Should().Be(2);
+    }
+
+    [Test]
     public async Task ResolveEffectiveLimit_WhenCachedCapabilitiesExpired_IgnoresExpiredMaxPageSize()
     {
         TorznabClient.ClearCapabilitiesCache();
