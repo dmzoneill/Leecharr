@@ -158,9 +158,9 @@ public class DeveloperQualityService : IDeveloperQualityService
                             {
                                 report.Metrics.NewCodeCoverage = newCov;
                             }
-                            else if (metricKey == "new_duplicated_lines_density" && double.TryParse(actual, NumberStyles.Float, CultureInfo.InvariantCulture, out var dup))
+                            else if (metricKey == "new_duplicated_lines_density" && double.TryParse(actual, NumberStyles.Float, CultureInfo.InvariantCulture, out var newDup))
                             {
-                                report.Metrics.DuplicationDensity = dup;
+                                report.Metrics.NewCodeDuplicationDensity = newDup;
                             }
                         }
                     }
@@ -203,6 +203,9 @@ public class DeveloperQualityService : IDeveloperQualityService
                                 break;
                             case "coverage" when double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out var c):
                                 report.Metrics.Coverage = c;
+                                break;
+                            case "duplicated_lines_density" when double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out var dup):
+                                report.Metrics.DuplicationDensity = dup;
                                 break;
                             case "bugs" when int.TryParse(val, out var b):
                                 report.Metrics.Bugs = b;

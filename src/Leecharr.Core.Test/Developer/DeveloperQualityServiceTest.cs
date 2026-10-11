@@ -37,6 +37,7 @@ public class DeveloperQualityServiceTest
             ""component"": {
                 ""measures"": [
                     { ""metric"": ""coverage"", ""value"": ""75.5"" },
+                    { ""metric"": ""duplicated_lines_density"", ""value"": ""14.2"" },
                     { ""metric"": ""bugs"", ""value"": ""0"" },
                     { ""metric"": ""vulnerabilities"", ""value"": ""0"" },
                     { ""metric"": ""code_smells"", ""value"": ""0"" },
@@ -82,12 +83,40 @@ public class DeveloperQualityServiceTest
         Assert.That(report, Is.Not.Null);
         Assert.That(report.QualityGate.Status, Is.EqualTo("OK"));
         Assert.That(report.Metrics.NewCodeCoverage, Is.EqualTo(83.2));
-        Assert.That(report.Metrics.DuplicationDensity, Is.EqualTo(2.0));
+        Assert.That(report.Metrics.NewCodeDuplicationDensity, Is.EqualTo(2.0));
+        Assert.That(report.Metrics.DuplicationDensity, Is.EqualTo(14.2));
         Assert.That(report.Metrics.Coverage, Is.EqualTo(75.5));
         Assert.That(report.Metrics.Bugs, Is.EqualTo(0));
         Assert.That(report.Metrics.ReliabilityRating, Is.EqualTo("A"));
         Assert.That(report.RecentPipelines, Has.Count.EqualTo(1));
         Assert.That(report.RecentPipelines[0].Name, Is.EqualTo("SonarCloud Analysis"));
+    }
+
+    [Test]
+    public async Task GetQualityReportAsync_populates_project_duplication_from_measures_without_gate_condition()
+    {
+        var qualityGateJson = @"{ ""projectStatus"": { ""status"": ""OK"", ""conditions"": [] } }";
+        var measuresJson = @"{
+            ""component"": {
+                ""measures"": [
+                    { ""metric"": ""duplicated_lines_density"", ""value"": ""14.2"" }
+                ]
+            }
+        }";
+        var workflowsListJson = @"{ ""workflows"": [] }";
+
+        var handler = new MockHttpMessageHandler();
+        handler.Enqueue(HttpStatusCode.OK, qualityGateJson);
+        handler.Enqueue(HttpStatusCode.OK, measuresJson);
+        handler.Enqueue(HttpStatusCode.OK, workflowsListJson);
+
+        var client = new HttpClient(handler);
+        var service = new DeveloperQualityService(client);
+
+        var report = await service.GetQualityReportAsync(CancellationToken.None);
+
+        Assert.That(report.Metrics.DuplicationDensity, Is.EqualTo(14.2));
+        Assert.That(report.Metrics.NewCodeDuplicationDensity, Is.EqualTo(0));
     }
 
     [Test]

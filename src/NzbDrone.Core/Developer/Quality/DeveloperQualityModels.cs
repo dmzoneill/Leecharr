@@ -32,6 +32,8 @@ public class QualityOverviewMetrics
 
     public double NewCodeCoverage { get; set; }
 
+    public double NewCodeDuplicationDensity { get; set; }
+
     public double DuplicationDensity { get; set; }
 
     public int Bugs { get; set; }
