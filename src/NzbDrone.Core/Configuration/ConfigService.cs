@@ -302,9 +302,15 @@ public interface IConfigService
     // Transmission Specific
     string ScriptTorrentDoneFilename { get; }
 
+    bool ScriptTorrentDoneEnabled { get; }
+
     string ScriptTorrentAddedFilename { get; }
 
+    bool ScriptTorrentAddedEnabled { get; }
+
     string ScriptTorrentDoneSeedingFilename { get; }
+
+    bool ScriptTorrentDoneSeedingEnabled { get; }
 
     bool PrefetchEnabled { get; }
 
@@ -748,6 +754,36 @@ public class ConfigService : IConfigService
         return defaultValue;
     }
 
+    private bool ConfigKeyExists(string key)
+    {
+        var snapshot = this.cache;
+        if (snapshot == null)
+        {
+            lock (this.cacheLock)
+            {
+                snapshot = this.cache;
+                if (snapshot == null)
+                {
+                    snapshot = this.repository.All()
+                        .ToDictionary(c => c.Key, c => c.Value, StringComparer.OrdinalIgnoreCase);
+                    this.cache = snapshot;
+                }
+            }
+        }
+
+        return snapshot.ContainsKey(key);
+    }
+
+    private bool GetTransmissionScriptEnabled(string enabledKey, string filenameKey)
+    {
+        if (this.ConfigKeyExists(enabledKey))
+        {
+            return this.GetValueBoolean(enabledKey, false);
+        }
+
+        return !string.IsNullOrWhiteSpace(this.GetValue(filenameKey, string.Empty));
+    }
+
     // Instance Identity
     public string InstanceUuid
     {
@@ -1097,9 +1133,15 @@ public class ConfigService : IConfigService
     // Transmission Specific
     public string ScriptTorrentDoneFilename => this.GetValue("ScriptTorrentDoneFilename", string.Empty);
 
+    public bool ScriptTorrentDoneEnabled => this.GetTransmissionScriptEnabled("ScriptTorrentDoneEnabled", "ScriptTorrentDoneFilename");
+
     public string ScriptTorrentAddedFilename => this.GetValue("ScriptTorrentAddedFilename", string.Empty);
 
+    public bool ScriptTorrentAddedEnabled => this.GetTransmissionScriptEnabled("ScriptTorrentAddedEnabled", "ScriptTorrentAddedFilename");
+
     public string ScriptTorrentDoneSeedingFilename => this.GetValue("ScriptTorrentDoneSeedingFilename", string.Empty);
+
+    public bool ScriptTorrentDoneSeedingEnabled => this.GetTransmissionScriptEnabled("ScriptTorrentDoneSeedingEnabled", "ScriptTorrentDoneSeedingFilename");
 
     public bool PrefetchEnabled => this.GetValueBoolean("PrefetchEnabled", true);
 

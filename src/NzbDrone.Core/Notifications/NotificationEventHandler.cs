@@ -72,7 +72,8 @@ public class NotificationEventHandler :
 
         this.Dispatch(n => n.OnGrab, "OnGrab", message.Torrent);
 
-        if (!string.IsNullOrWhiteSpace(this.configService?.ScriptTorrentAddedFilename))
+        if (this.configService?.ScriptTorrentAddedEnabled == true &&
+            !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentAddedFilename))
         {
             Task.Run(async () =>
             {
@@ -112,7 +113,8 @@ public class NotificationEventHandler :
             });
         }
 
-        if (!string.IsNullOrWhiteSpace(this.configService?.ScriptTorrentDoneFilename))
+        if (this.configService?.ScriptTorrentDoneEnabled == true &&
+            !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneFilename))
         {
             Task.Run(async () =>
             {
@@ -216,7 +218,8 @@ public class NotificationEventHandler :
             });
         }
 
-        if (!string.IsNullOrWhiteSpace(this.configService?.ScriptTorrentDoneSeedingFilename))
+        if (this.configService?.ScriptTorrentDoneSeedingEnabled == true &&
+            !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneSeedingFilename))
         {
             Task.Run(async () =>
             {
