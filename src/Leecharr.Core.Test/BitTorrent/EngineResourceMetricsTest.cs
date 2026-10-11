@@ -154,6 +154,24 @@ public class EngineResourceMetricsTest
     }
 
     [Test]
+    public void MapDaemonTorrentState_Finished_MapsToCompletedNotSeeding()
+    {
+        LibTorrentDownloadEngine.MapDaemonTorrentState("finished", 1.0).Should().Be(TorrentStatus.Completed);
+    }
+
+    [Test]
+    public void MapDaemonTorrentState_Seeding_MapsToSeeding()
+    {
+        LibTorrentDownloadEngine.MapDaemonTorrentState("seeding", 1.0).Should().Be(TorrentStatus.Seeding);
+    }
+
+    [Test]
+    public void MapDaemonTorrentState_UnknownState_MapsToError()
+    {
+        LibTorrentDownloadEngine.MapDaemonTorrentState("torrent_status::error", 1.0).Should().Be(TorrentStatus.Error);
+    }
+
+    [Test]
     public void LibTorrentDownloadTask_GetResourceMetrics_DefaultConstructor_InitializesNonNullCategoryAndStatus()
     {
         var task = new LibTorrentDownloadTask(20, "hash-lib", "LibTorrent Download", 4096);

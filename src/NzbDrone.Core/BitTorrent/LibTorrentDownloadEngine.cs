@@ -935,18 +935,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                             }
 
                             var state = item.TryGetProperty("state", out var s) ? s.GetString() : string.Empty;
-                            task.Status = state.ToLowerInvariant() switch
-                            {
-                                "paused" => TorrentStatus.Paused,
-                                "checking_files" => TorrentStatus.Checking,
-                                "downloading_metadata" => TorrentStatus.Downloading,
-                                "downloading" => TorrentStatus.Downloading,
-                                "finished" => TorrentStatus.Seeding,
-                                "seeding" => TorrentStatus.Seeding,
-                                "allocating" => TorrentStatus.Downloading,
-                                "checking_resume_data" => TorrentStatus.Checking,
-                                _ => task.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading,
-                            };
+                            task.Status = MapDaemonTorrentState(state, task.Progress);
 
                             if (item.TryGetProperty("num_seeds", out var seeds))
                             {
@@ -1335,6 +1324,24 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     {
         var defaultCompletedDir = this.storagePathService.GetCompletedDirectory(torrent.Category);
         return this.categoryService.GetSavePathForCategory(torrent.Category, defaultCompletedDir);
+    }
+
+    internal static TorrentStatus MapDaemonTorrentState(string state, double progress)
+    {
+        var normalized = state?.ToLowerInvariant() ?? string.Empty;
+        return normalized switch
+        {
+            "paused" => TorrentStatus.Paused,
+            "checking_files" => TorrentStatus.Checking,
+            "downloading_metadata" => TorrentStatus.Downloading,
+            "downloading" => TorrentStatus.Downloading,
+            "finished" => TorrentStatus.Completed,
+            "seeding" => TorrentStatus.Seeding,
+            "allocating" => TorrentStatus.Downloading,
+            "checking_resume_data" => TorrentStatus.Checking,
+            "" => progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading,
+            _ => TorrentStatus.Error,
+        };
     }
 }
 
