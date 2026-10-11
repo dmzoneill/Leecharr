@@ -138,6 +138,31 @@ public class BlocklistProvidersTest
     }
 
     [Test]
+    public async Task RadixTreeBlocklistProvider_WithColonsInDescriptionHeaders_ParsesRulesCorrectly()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+        var rules = new List<string>
+        {
+            "US:ISP:1.2.3.4-1.2.3.10:0",
+            "Bad:Org:ISP:10.0.0.1-10.0.0.100:0",
+            "US:ISP:172.16.0.5:0",
+            "US:ISP:192.168.1.0/24:0",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+
+        count.Should().Be(4);
+        provider.IsIpBlocked("1.2.3.5").Should().BeTrue();
+        provider.IsIpBlocked("1.2.3.10").Should().BeTrue();
+        provider.IsIpBlocked("1.2.3.11").Should().BeFalse();
+        provider.IsIpBlocked("10.0.0.50").Should().BeTrue();
+        provider.IsIpBlocked("172.16.0.5").Should().BeTrue();
+        provider.IsIpBlocked("172.16.0.6").Should().BeFalse();
+        provider.IsIpBlocked("192.168.1.100").Should().BeTrue();
+        provider.IsIpBlocked("192.168.2.1").Should().BeFalse();
+    }
+
+    [Test]
     public async Task P2PDatBlocklistProvider_WithColonsInDescriptionHeaders_ParsesRulesCorrectly()
     {
         var provider = new P2PDatBlocklistProvider();

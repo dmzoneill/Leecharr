@@ -1,9 +1,11 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -100,7 +102,13 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
                 continue;
             }
 
-            if (!TryExtractRule(line, out var token) || !TryParseCidr(token, out var ip, out var prefixLength))
+            if (TryParseRangeLine(line, newIpv4Root, newIpv6Root))
+            {
+                added++;
+                continue;
+            }
+
+            if (!TryExtractCidrRule(line, out var ip, out var prefixLength))
             {
                 continue;
             }
@@ -173,27 +181,50 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         return line.Trim();
     }
 
-    private static bool TryExtractRule(string line, out string rule)
+    private static bool TryExtractCidrRule(string line, out IPAddress ip, out int prefixLength)
     {
+        ip = null;
+        prefixLength = 0;
         line = line.Trim();
-        if (TryParseCidr(line, out _, out _))
+        if (string.IsNullOrEmpty(line))
         {
-            rule = line;
-            return true;
+            return false;
         }
 
-        var colon = line.IndexOf(':');
-        if (colon >= 0)
+        var lastColon = line.LastIndexOf(':');
+        if (lastColon >= 0 && lastColon < line.Length - 1)
         {
-            var candidate = line[(colon + 1)..].Trim();
-            if (TryParseCidr(candidate, out _, out _))
+            var levelStr = line[(lastColon + 1)..].Trim();
+            if (int.TryParse(levelStr, out _) && !levelStr.Contains('.') && !line[..lastColon].EndsWith(':'))
             {
-                rule = candidate;
-                return true;
+                line = line[..lastColon].Trim();
             }
         }
 
-        rule = line;
+        if (TryParseCidr(line, out ip, out prefixLength))
+        {
+            return true;
+        }
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            if (line[i] == ':')
+            {
+                var candidate = line[(i + 1)..].Trim();
+                if (TryParseCidr(candidate, out ip, out prefixLength))
+                {
+                    if (ip.AddressFamily == AddressFamily.InterNetworkV6 && prefixLength == 128 && !candidate.Contains('/') && !line.StartsWith('['))
+                    {
+                        ip = null;
+                        prefixLength = 0;
+                        continue;
+                    }
+
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
@@ -392,6 +423,262 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
             prefixLength = ip.AddressFamily == AddressFamily.InterNetwork ? 32 : 128;
             return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseRangeLine(string line, RadixNode ipv4Root, RadixNode ipv6Root)
+    {
+        var hyphenIdx = line.IndexOf('-');
+        if (hyphenIdx < 0)
+        {
+            return false;
+        }
+
+        var leftCandidate = line[..hyphenIdx].Trim();
+        var rightCandidate = line[(hyphenIdx + 1)..].Trim();
+
+        if (!TryExtractStartIp(leftCandidate, out var startIp, out _) ||
+            !TryExtractEndIp(rightCandidate, startIp, out var endIp))
+        {
+            return false;
+        }
+
+        if (startIp.IsIPv4MappedToIPv6)
+        {
+            startIp = startIp.MapToIPv4();
+        }
+
+        if (endIp.IsIPv4MappedToIPv6)
+        {
+            endIp = endIp.MapToIPv4();
+        }
+
+        if (startIp.AddressFamily == AddressFamily.InterNetwork && endIp.AddressFamily == AddressFamily.InterNetwork)
+        {
+            Span<byte> sBytes = stackalloc byte[4];
+            Span<byte> eBytes = stackalloc byte[4];
+            if (!startIp.TryWriteBytes(sBytes, out _) || !endIp.TryWriteBytes(eBytes, out _))
+            {
+                return false;
+            }
+
+            var startNum = ((uint)sBytes[0] << 24) | ((uint)sBytes[1] << 16) | ((uint)sBytes[2] << 8) | sBytes[3];
+            var endNum = ((uint)eBytes[0] << 24) | ((uint)eBytes[1] << 16) | ((uint)eBytes[2] << 8) | eBytes[3];
+
+            if (startNum > endNum)
+            {
+                return false;
+            }
+
+            InsertIpv4Range(ipv4Root, startNum, endNum);
+            return true;
+        }
+
+        if (startIp.AddressFamily == AddressFamily.InterNetworkV6 && endIp.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            Span<byte> sBytes = stackalloc byte[16];
+            Span<byte> eBytes = stackalloc byte[16];
+            if (!startIp.TryWriteBytes(sBytes, out _) || !endIp.TryWriteBytes(eBytes, out _))
+            {
+                return false;
+            }
+
+            var startNum = BinaryPrimitives.ReadUInt128BigEndian(sBytes);
+            var endNum = BinaryPrimitives.ReadUInt128BigEndian(eBytes);
+
+            if (startNum > endNum)
+            {
+                return false;
+            }
+
+            InsertIpv6Range(ipv6Root, startNum, endNum);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void InsertIpv4Range(RadixNode root, uint start, uint end)
+    {
+        while (start <= end)
+        {
+            var maxSize = LargestAlignedCidrSize(start);
+            var remaining = end - start + 1;
+            while (maxSize > remaining)
+            {
+                maxSize >>= 1;
+            }
+
+            var prefixLength = 32 - BitOperations.Log2(maxSize);
+            var ip = new IPAddress(new byte[] { (byte)(start >> 24), (byte)(start >> 16), (byte)(start >> 8), (byte)start });
+            InsertIpv4(root, ip, prefixLength);
+            start += maxSize;
+        }
+    }
+
+    private static void InsertIpv6Range(RadixNode root, UInt128 start, UInt128 end)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        while (start <= end)
+        {
+            var maxSize = LargestAlignedCidrSizeV6(start);
+            var remaining = end - start + 1;
+            while (maxSize > remaining)
+            {
+                maxSize >>= 1;
+            }
+
+            var prefixLength = 128 - BitOperations.Log2(maxSize);
+            BinaryPrimitives.WriteUInt128BigEndian(bytes, start);
+            InsertIpv6(root, new IPAddress(bytes), prefixLength);
+            start += maxSize;
+        }
+    }
+
+    private static uint LargestAlignedCidrSize(uint baseAddress)
+    {
+        if (baseAddress == 0)
+        {
+            return 1u << 31;
+        }
+
+        return baseAddress & (uint)-(int)baseAddress;
+    }
+
+    private static UInt128 LargestAlignedCidrSizeV6(UInt128 baseAddress)
+    {
+        if (baseAddress == UInt128.Zero)
+        {
+            return (UInt128)1 << 127;
+        }
+
+        return baseAddress & (UInt128.Zero - baseAddress);
+    }
+
+    private static bool TryExtractStartIp(string candidate, out IPAddress startIp, out string name)
+    {
+        startIp = null;
+        name = string.Empty;
+
+        candidate = candidate.Trim();
+        if (string.IsNullOrEmpty(candidate))
+        {
+            return false;
+        }
+
+        if (TryParseStrictIp(candidate, out startIp))
+        {
+            return true;
+        }
+
+        for (var i = 0; i < candidate.Length; i++)
+        {
+            if (candidate[i] == ':')
+            {
+                var subCandidate = candidate[(i + 1)..].Trim();
+                if (TryParseStrictIp(subCandidate, out startIp))
+                {
+                    name = candidate[..i].Trim();
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryExtractEndIp(string candidate, IPAddress startIp, out IPAddress endIp)
+    {
+        endIp = null;
+
+        candidate = candidate.Trim();
+        if (string.IsNullOrEmpty(candidate))
+        {
+            return false;
+        }
+
+        var lastColon = candidate.LastIndexOf(':');
+        if (lastColon >= 0 && lastColon < candidate.Length - 1)
+        {
+            var levelStr = candidate[(lastColon + 1)..].Trim();
+            if (int.TryParse(levelStr, out _) && !levelStr.Contains('.') && !candidate[..lastColon].EndsWith(':'))
+            {
+                var withoutLevel = candidate[..lastColon].Trim();
+                if (TryParseStrictIp(withoutLevel, out var parsedWithoutLevel))
+                {
+                    if (parsedWithoutLevel.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        endIp = parsedWithoutLevel;
+                        return true;
+                    }
+
+                    if (parsedWithoutLevel.AddressFamily == AddressFamily.InterNetworkV6)
+                    {
+                        if (candidate.StartsWith('['))
+                        {
+                            endIp = parsedWithoutLevel;
+                            return true;
+                        }
+
+                        if (TryParseStrictIp(candidate, out var parsedCandidate))
+                        {
+                            if (startIp != null && startIp.AddressFamily == AddressFamily.InterNetworkV6 && CompareIpv6(startIp, parsedWithoutLevel) > 0)
+                            {
+                                endIp = parsedCandidate;
+                                return true;
+                            }
+                        }
+
+                        endIp = parsedWithoutLevel;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (TryParseStrictIp(candidate, out endIp))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static int CompareIpv6(IPAddress ip1, IPAddress ip2)
+    {
+        Span<byte> b1 = stackalloc byte[16];
+        Span<byte> b2 = stackalloc byte[16];
+        if (ip1.TryWriteBytes(b1, out _) && ip2.TryWriteBytes(b2, out _))
+        {
+            var u1 = BinaryPrimitives.ReadUInt128BigEndian(b1);
+            var u2 = BinaryPrimitives.ReadUInt128BigEndian(b2);
+            return u1.CompareTo(u2);
+        }
+
+        return 0;
+    }
+
+    private static bool TryParseStrictIp(string str, out IPAddress ip)
+    {
+        ip = null;
+        if (string.IsNullOrWhiteSpace(str))
+        {
+            return false;
+        }
+
+        if (IPAddress.TryParse(str, out ip))
+        {
+            if (ip.AddressFamily == AddressFamily.InterNetwork && str.Contains('.'))
+            {
+                return true;
+            }
+
+            if (ip.AddressFamily == AddressFamily.InterNetworkV6 && str.Contains(':'))
+            {
+                return true;
+            }
         }
 
         return false;
