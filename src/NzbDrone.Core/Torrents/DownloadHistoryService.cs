@@ -613,8 +613,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         var isCompleted = filesExistOnDisk && (
             string.Equals(entry.Status, "Completed", StringComparison.OrdinalIgnoreCase)
             || entry.DateCompleted.HasValue
-            || (entry.TotalSize > 0 && entry.Downloaded >= entry.TotalSize)
-            || filesExistOnDisk);
+            || (entry.TotalSize > 0 && entry.Downloaded >= entry.TotalSize));
 
         var name = parsed?.Name ?? entry.Title ?? "Unknown Release";
         var infoHash = (parsed?.InfoHash ?? entry.InfoHash ?? string.Empty).ToLowerInvariant();
