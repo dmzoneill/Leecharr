@@ -4,6 +4,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -14,23 +15,30 @@ namespace Leecharr.Http.Terminal;
 public sealed class FallbackProcessSession : ITerminalSession, IDisposable
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private const int SigWinch = 28;
     private readonly Process process;
     private readonly Stream inputStream;
     private readonly Channel<byte[]> outputChannel;
     private readonly CancellationTokenSource sessionCts = new();
+    private readonly bool isWindowsShell;
     private int activePumps = 2;
     private byte[] pendingChunk;
     private int pendingOffset;
     private int disposed;
+    private int cols;
+    private int rows;
 
     public int ProcessId => this.process.Id;
 
     public bool IsActive => this.disposed == 0 && !this.process.HasExited;
 
-    private FallbackProcessSession(Process process)
+    private FallbackProcessSession(Process process, int cols, int rows, bool isWindowsShell)
     {
         this.process = process;
         this.inputStream = process.StandardInput.BaseStream;
+        this.cols = cols;
+        this.rows = rows;
+        this.isWindowsShell = isWindowsShell;
         this.outputChannel = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(500)
         {
             FullMode = BoundedChannelFullMode.Wait,
@@ -45,6 +53,8 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
     public static FallbackProcessSession Start(string cwd, int cols, int rows)
     {
         var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var clampedCols = Math.Clamp(cols, 10, 500);
+        var clampedRows = Math.Clamp(rows, 5, 200);
         var shell = isWindows ? "powershell.exe" : (File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh");
         var args = isWindows ? "-NoLogo" : (File.Exists("/bin/bash") ? "--noprofile --norc -i" : "-i");
 
@@ -65,11 +75,12 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
         }
 
         TerminalEnvironmentSanitizer.Sanitize(startInfo);
+        ApplyTerminalDimensions(startInfo, clampedCols, clampedRows);
 
         var proc = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Failed to launch fallback terminal process");
 
-        return new FallbackProcessSession(proc);
+        return new FallbackProcessSession(proc, clampedCols, clampedRows, isWindows);
     }
 
     public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
@@ -127,7 +138,21 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
 
     public void Resize(int cols, int rows)
     {
-        // Standard process streams do not support TIOCSWINSZ
+        if (this.disposed != 0 || this.process.HasExited)
+        {
+            return;
+        }
+
+        var clampedCols = Math.Clamp(cols, 10, 500);
+        var clampedRows = Math.Clamp(rows, 5, 200);
+        if (clampedCols == this.cols && clampedRows == this.rows)
+        {
+            return;
+        }
+
+        this.cols = clampedCols;
+        this.rows = clampedRows;
+        this.PushTerminalDimensionsToShell();
     }
 
     public void Kill()
@@ -197,4 +222,60 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
             }
         }
     }
+
+    private static void ApplyTerminalDimensions(ProcessStartInfo startInfo, int cols, int rows)
+    {
+        startInfo.Environment["COLUMNS"] = cols.ToString();
+        startInfo.Environment["LINES"] = rows.ToString();
+    }
+
+    private void PushTerminalDimensionsToShell()
+    {
+        try
+        {
+            string cmd;
+            if (this.isWindowsShell)
+            {
+                cmd = $"$env:COLUMNS={this.cols}; $env:LINES={this.rows}\r\n";
+            }
+            else
+            {
+                cmd = $"export COLUMNS={this.cols} LINES={this.rows}\n";
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(cmd);
+            this.inputStream.Write(bytes, 0, bytes.Length);
+            this.inputStream.Flush();
+
+            var resizeSeq = $"\x1b[8;{this.rows};{this.cols}t";
+            var resizeBytes = Encoding.UTF8.GetBytes(resizeSeq);
+            this.inputStream.Write(resizeBytes, 0, resizeBytes.Length);
+            this.inputStream.Flush();
+
+            if (!this.isWindowsShell)
+            {
+                this.TrySignalWindowChange();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Trace(ex, "Failed to push terminal dimensions to fallback shell");
+        }
+    }
+
+    private void TrySignalWindowChange()
+    {
+        try
+        {
+            _ = kill(this.process.Id, SigWinch);
+        }
+        catch (Exception ex)
+        {
+            Logger.Trace(ex, "Failed to send SIGWINCH to fallback shell process");
+        }
+    }
+
+    [DllImport("libc", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    private static extern int kill(int pid, int sig);
 }
