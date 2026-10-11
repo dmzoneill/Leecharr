@@ -1265,6 +1265,11 @@ public class SystemDeveloperController : Controller
                 {
                     var k = reader.GetString(0);
                     var v = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+                    if (string.IsNullOrWhiteSpace(v))
+                    {
+                        continue;
+                    }
+
                     var isSecret = IsSensitiveKey(k);
                     entries.Add(new DeveloperConfigEntry
                     {
