@@ -101,8 +101,11 @@ public class SystemControllerTest
 
     [Test]
     [TestCase("/home/johndoe/.config/Leecharr", "~/.config/Leecharr")]
+    [TestCase("/home/bobby/app", "~/app")]
+    [TestCase("/home/bobby", "~/")]
     [TestCase("/Users/johndoe/Library/Application Support/Leecharr", "~/Library/Application Support/Leecharr")]
     [TestCase(@"C:\Users\johndoe\AppData\Roaming\Leecharr", @"~\AppData\Roaming\Leecharr")]
+    [TestCase(@"C:\Users\bobby\AppData", @"~\AppData")]
     public void SanitizeHostPath_RedactsUserHomeDirectories(string input, string expected)
     {
         SystemController.SanitizeHostPath(input).Should().Be(expected);

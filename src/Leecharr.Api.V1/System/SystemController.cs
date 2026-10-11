@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -189,7 +190,7 @@ public class SystemController : ControllerBase
         try
         {
             var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (!string.IsNullOrWhiteSpace(userProfile) && path.StartsWith(userProfile, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(userProfile) && IsPathUnderDirectory(path, userProfile))
             {
                 var remainder = path.Substring(userProfile.Length);
                 return remainder.StartsWith('/') || remainder.StartsWith('\\') ? "~" + remainder : "~/" + remainder;
@@ -209,5 +210,21 @@ public class SystemController : ControllerBase
         }
 
         return path;
+    }
+
+    private static bool IsPathUnderDirectory(string path, string directory)
+    {
+        if (!path.StartsWith(directory, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (path.Length == directory.Length)
+        {
+            return true;
+        }
+
+        var next = path[directory.Length];
+        return next == Path.DirectorySeparatorChar || next == Path.AltDirectorySeparatorChar;
     }
 }
