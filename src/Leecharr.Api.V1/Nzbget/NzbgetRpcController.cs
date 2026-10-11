@@ -47,6 +47,7 @@ public class NzbgetRpcController : ControllerBase
     private readonly IDiskProvider diskProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly ITorrentFileService torrentFileService;
+    private readonly INzbgetDownloadQueueState downloadQueueState;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public NzbgetRpcController(
@@ -57,7 +58,8 @@ public class NzbgetRpcController : ControllerBase
         IConfigFileProvider configFileProvider = null,
         IDiskProvider diskProvider = null,
         ISafeHttpClientService safeHttpClientService = null,
-        ITorrentFileService torrentFileService = null)
+        ITorrentFileService torrentFileService = null,
+        INzbgetDownloadQueueState downloadQueueState = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
@@ -67,6 +69,7 @@ public class NzbgetRpcController : ControllerBase
         this.diskProvider = diskProvider;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.torrentFileService = torrentFileService;
+        this.downloadQueueState = downloadQueueState ?? NzbgetDownloadQueueState.Default;
     }
 
     [HttpGet]
@@ -208,11 +211,7 @@ public class NzbgetRpcController : ControllerBase
                 case "pauseall":
                 case "pausedownload":
                 case "pause-download":
-                    foreach (var t in this.torrentService.GetAll())
-                    {
-                        await this.torrentService.PauseAsync(t.Id);
-                    }
-
+                    await this.downloadQueueState.PauseDownloadAsync(this.torrentService);
                     return this.Ok(new { version = "1.1", result = true, id });
 
                 case "resume":
@@ -221,11 +220,7 @@ public class NzbgetRpcController : ControllerBase
                 case "resumedownload":
                 case "unpausedownload":
                 case "unpause-download":
-                    foreach (var t in this.torrentService.GetAll())
-                    {
-                        await this.torrentService.ResumeAsync(t.Id);
-                    }
-
+                    await this.downloadQueueState.ResumeDownloadAsync(this.torrentService);
                     return this.Ok(new { version = "1.1", result = true, id });
 
                 case "pausepost":
@@ -519,11 +514,7 @@ public class NzbgetRpcController : ControllerBase
             case "pauseall":
             case "pausedownload":
             case "pause-download":
-                foreach (var t in this.torrentService.GetAll())
-                {
-                    await this.torrentService.PauseAsync(t.Id);
-                }
-
+                await this.downloadQueueState.PauseDownloadAsync(this.torrentService);
                 return ToXmlRpcValue(true);
 
             case "resume":
@@ -532,11 +523,7 @@ public class NzbgetRpcController : ControllerBase
             case "resumedownload":
             case "unpausedownload":
             case "unpause-download":
-                foreach (var t in this.torrentService.GetAll())
-                {
-                    await this.torrentService.ResumeAsync(t.Id);
-                }
-
+                await this.downloadQueueState.ResumeDownloadAsync(this.torrentService);
                 return ToXmlRpcValue(true);
 
             case "pausepost":
@@ -816,8 +803,8 @@ public class NzbgetRpcController : ControllerBase
             DownloadLimit = this.configService.MaxDownloadSpeedKbps * 1024,
             SpeedLimit = this.configService.MaxDownloadSpeedKbps * 1024,
             FreeDiskSpaceMB = freeMb,
-            DownloadPaused = false,
-            ServerPaused = false,
+            DownloadPaused = this.downloadQueueState.DownloadPaused,
+            ServerPaused = this.downloadQueueState.DownloadPaused,
             ServerStandBy = false,
             PostJobCount = 0,
             ParJobCount = 0,
