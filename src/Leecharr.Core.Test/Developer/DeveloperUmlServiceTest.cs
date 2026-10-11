@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using NUnit.Framework;
 using NzbDrone.Core.Developer.Uml;
 
@@ -46,7 +47,9 @@ public class DeveloperUmlServiceTest
     [TestCase("di", "torrents")]
     [TestCase("state", "torrents")]
     [TestCase("state", "trackers")]
+    [TestCase("state", "authentication")]
     [TestCase("api", "all")]
+    [TestCase("api", "authentication")]
     [TestCase("frontend", "all")]
     public void GenerateDiagram_produces_valid_mermaid_markup(string diagramType, string subsystem)
     {
@@ -84,5 +87,41 @@ public class DeveloperUmlServiceTest
         {
             Assert.That(result.MermaidCode, Does.StartWith("graph TD"));
         }
+    }
+
+    [Test]
+    public void GenerateStateDiagram_uses_subsystem_specific_states()
+    {
+        var torrent = _service.GenerateDiagram(new DeveloperUmlOptions { DiagramType = "state", Subsystem = "torrents" });
+        var auth = _service.GenerateDiagram(new DeveloperUmlOptions { DiagramType = "state", Subsystem = "authentication" });
+
+        Assert.That(torrent.MermaidCode, Does.Contain("Queued"));
+        Assert.That(auth.MermaidCode, Does.Contain("Authenticating"));
+        Assert.That(auth.MermaidCode, Does.Not.Contain("Queued --> Downloading"));
+        Assert.That(torrent.EdgeCount, Is.EqualTo(10));
+        Assert.That(torrent.NodeCount, Is.EqualTo(7));
+        Assert.That(auth.NodeCount, Is.EqualTo(6));
+        Assert.That(auth.EdgeCount, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void GenerateApiTopologyDiagram_filters_controllers_by_subsystem()
+    {
+        var all = _service.GenerateDiagram(new DeveloperUmlOptions { DiagramType = "api", Subsystem = "all" });
+        var auth = _service.GenerateDiagram(new DeveloperUmlOptions { DiagramType = "api", Subsystem = "authentication" });
+
+        Assert.That(auth.MermaidCode, Does.Contain("AuthController"));
+        Assert.That(auth.MermaidCode, Does.Not.Contain("TorrentEngineController"));
+        Assert.That(auth.NodeCount, Is.LessThan(all.NodeCount));
+    }
+
+    [Test]
+    public void GenerateDiagram_rejects_unknown_subsystem()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => _service.GenerateDiagram(new DeveloperUmlOptions
+        {
+            DiagramType = "class",
+            Subsystem = "torrent"
+        }));
     }
 }
