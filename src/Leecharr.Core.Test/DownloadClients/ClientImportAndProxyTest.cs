@@ -107,6 +107,7 @@ public class ClientImportAndProxyTest
         items.Should().HaveCount(1);
         items[0].InfoHash.Should().Be("2222222222222222222222222222222222222222");
         items[0].SavePath.Should().Be("/media");
+        items[0].State.Should().Be("uploading");
         requestedUrls.Should().ContainSingle(u => u.Contains("/transmission/rpc"));
     }
 
