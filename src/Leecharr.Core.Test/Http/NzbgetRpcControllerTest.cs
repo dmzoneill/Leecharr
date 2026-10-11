@@ -593,6 +593,7 @@ public class NzbgetRpcControllerTest
         };
 
         this.torrentFileService.GetFiles(101).Returns(files);
+        this.torrentService.Get(101).Returns(new Torrent { Id = 101, Status = TorrentStatus.Downloading });
 
         using var doc = JsonDocument.Parse("[101]");
         var request = new NzbgetRequest
@@ -625,6 +626,7 @@ public class NzbgetRpcControllerTest
         secondFile.GetProperty("NZBID").GetInt32().Should().Be(101);
         secondFile.GetProperty("FileName").GetString().Should().Be("sample.mkv");
         secondFile.GetProperty("Progress").GetInt32().Should().Be(500);
+        secondFile.GetProperty("Status").GetString().Should().Be("DOWNLOADING");
     }
 
     [Test]
@@ -646,6 +648,7 @@ public class NzbgetRpcControllerTest
         };
 
         this.torrentFileService.GetFiles(102).Returns(files);
+        this.torrentService.Get(102).Returns(new Torrent { Id = 102, Status = TorrentStatus.Completed });
 
         using var doc = JsonDocument.Parse("{\"NZBID\": 102}");
         var request = new NzbgetRequest
@@ -709,6 +712,7 @@ public class NzbgetRpcControllerTest
         };
 
         this.torrentFileService.GetFiles(301).Returns(files);
+        this.torrentService.Get(301).Returns(new Torrent { Id = 301, Status = TorrentStatus.Seeding });
 
         var xml = "<?xml version=\"1.0\"?><methodCall><methodName>listfiles</methodName><params><param><value><int>301</int></value></param></params></methodCall>";
         var context = new DefaultHttpContext();
@@ -822,10 +826,58 @@ public class NzbgetRpcControllerTest
         g0.GetProperty("NZBName").GetString().Should().Be("Torrent.Active.1");
         g0.GetProperty("Category").GetString().Should().Be("tv");
         g0.GetProperty("Status").GetString().Should().Be("DOWNLOADING");
+        g0.GetProperty("ActiveDownloads").GetInt32().Should().Be(1);
 
         var g1 = resArray[1];
         g1.GetProperty("NZBID").GetInt32().Should().Be(2);
         g1.GetProperty("Status").GetString().Should().Be("PAUSED");
+        g1.GetProperty("ActiveDownloads").GetInt32().Should().Be(0);
+    }
+
+    [Test]
+    public async Task HandleRpc_ListGroups_WithTorrentFiles_ReportsFileCountsAndQueuedStatus()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 10, Name = "Queued.Release", Status = TorrentStatus.Queued, TotalSize = 1000, Downloaded = 0 },
+            new() { Id = 11, Name = "Active.Release", Status = TorrentStatus.Downloading, TotalSize = 3000, Downloaded = 1000 },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+        this.torrentFileService.GetFiles(10).Returns(new List<TorrentFile>
+        {
+            new() { Id = 1, Size = 500, BytesCompleted = 0, Progress = 0 },
+            new() { Id = 2, Size = 500, BytesCompleted = 0, Progress = 0 },
+        });
+        this.torrentFileService.GetFiles(11).Returns(new List<TorrentFile>
+        {
+            new() { Id = 3, Size = 1000, BytesCompleted = 1000, Progress = 1.0 },
+            new() { Id = 4, Size = 1000, BytesCompleted = 0, Progress = 0 },
+            new() { Id = 5, Size = 1000, BytesCompleted = 0, Progress = 0, Priority = 0 },
+        });
+
+        var result = await this.controller.HandleRpc(new NzbgetRequest { Method = "listgroups", Id = 11 });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        var groups = doc.RootElement.GetProperty("result");
+        groups.GetArrayLength().Should().Be(2);
+
+        var queued = groups[0];
+        queued.GetProperty("NZBID").GetInt32().Should().Be(10);
+        queued.GetProperty("Status").GetString().Should().Be("QUEUED");
+        queued.GetProperty("FileCount").GetInt32().Should().Be(2);
+        queued.GetProperty("RemainingFileCount").GetInt32().Should().Be(2);
+        queued.GetProperty("ActiveDownloads").GetInt32().Should().Be(0);
+
+        var active = groups[1];
+        active.GetProperty("FileCount").GetInt32().Should().Be(3);
+        active.GetProperty("RemainingFileCount").GetInt32().Should().Be(2);
+        active.GetProperty("PausedFileCount").GetInt32().Should().Be(1);
+        active.GetProperty("ActiveDownloads").GetInt32().Should().Be(1);
     }
 
     [Test]
