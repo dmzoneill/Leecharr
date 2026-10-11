@@ -53,6 +53,7 @@ public class TorrentLogService : ITorrentLogService,
             try
             {
                 this.repository.Insert(entry);
+                this.repository.TrimToMaxPerTorrent(torrentId, MaxLogsPerTorrent);
             }
             catch (Exception ex)
             {

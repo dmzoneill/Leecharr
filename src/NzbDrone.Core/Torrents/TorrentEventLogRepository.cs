@@ -40,6 +40,25 @@ public class TorrentEventLogRepository : BasicRepository<TorrentEventLog>, ITorr
                 new { TorrentId = torrentId }));
     }
 
+    public void TrimToMaxPerTorrent(int torrentId, int maxRows)
+    {
+        if (torrentId <= 0 || maxRows <= 0)
+        {
+            return;
+        }
+
+        this.ExecuteWithRetry(connection =>
+            connection.Execute(
+                @"DELETE FROM ""TorrentEventLogs""
+                  WHERE ""TorrentId"" = @TorrentId
+                    AND ""Id"" NOT IN (
+                      SELECT ""Id"" FROM ""TorrentEventLogs""
+                      WHERE ""TorrentId"" = @TorrentId
+                      ORDER BY ""Timestamp"" DESC, ""Id"" DESC
+                      LIMIT @MaxRows)",
+                new { TorrentId = torrentId, MaxRows = maxRows }));
+    }
+
     public void DeleteAll()
     {
         this.ExecuteWithRetry(connection =>

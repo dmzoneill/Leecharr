@@ -122,6 +122,66 @@ public class TorrentLogServiceTest
     }
 
     [Test]
+    public void Log_TrimsRepositoryRowsToMaximumPerTorrent()
+    {
+        var persisted = new List<TorrentEventLog>();
+        var nextId = 0;
+        var repo = Substitute.For<ITorrentEventLogRepository>();
+        repo.Insert(Arg.Do<TorrentEventLog>(entry =>
+        {
+            entry.Id = ++nextId;
+            persisted.Add(new TorrentEventLog
+            {
+                Id = entry.Id,
+                TorrentId = entry.TorrentId,
+                Level = entry.Level,
+                Source = entry.Source,
+                Message = entry.Message,
+                Timestamp = entry.Timestamp,
+            });
+        }));
+        repo.When(r => r.TrimToMaxPerTorrent(Arg.Any<int>(), Arg.Any<int>()))
+            .Do(callInfo =>
+            {
+                var torrentId = callInfo.Arg<int>();
+                var maxRows = callInfo.ArgAt<int>(1);
+                var keepIds = persisted
+                    .Where(e => e.TorrentId == torrentId)
+                    .OrderByDescending(e => e.Timestamp)
+                    .ThenByDescending(e => e.Id)
+                    .Take(maxRows)
+                    .Select(e => e.Id)
+                    .ToHashSet();
+                persisted.RemoveAll(e => e.TorrentId == torrentId && !keepIds.Contains(e.Id));
+            });
+        repo.GetLogsForTorrent(1, Arg.Any<int>())
+            .Returns(callInfo =>
+            {
+                var limit = callInfo.ArgAt<int>(1);
+                return persisted
+                    .Where(e => e.TorrentId == 1)
+                    .OrderByDescending(e => e.Timestamp)
+                    .ThenByDescending(e => e.Id)
+                    .Take(limit)
+                    .ToList();
+            });
+
+        var serviceWithRepo = new TorrentLogService(repo);
+        serviceWithRepo.ClearAll();
+
+        for (var i = 1; i <= 300; i++)
+        {
+            serviceWithRepo.Log(1, "DEBUG", "Tracker", $"Event {i}");
+        }
+
+        repo.Received(300).Insert(Arg.Any<TorrentEventLog>());
+        repo.Received(300).TrimToMaxPerTorrent(1, 250);
+        persisted.Should().HaveCount(250);
+        persisted.Select(e => e.Message).Should().Contain("Event 300");
+        persisted.Select(e => e.Message).Should().NotContain("Event 50");
+    }
+
+    [Test]
     public void Log_PersistsToRepository_WhenRepositoryProvided()
     {
         var repo = Substitute.For<ITorrentEventLogRepository>();
