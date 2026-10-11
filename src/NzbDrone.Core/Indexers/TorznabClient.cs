@@ -1312,7 +1312,9 @@ public class TorznabClient : ITorznabClient
                         Name = name,
                     };
 
-                    var subcats = FindElements(catElem, "subcat").Concat(FindElements(catElem, "subcategory"));
+                    var subcats = FindElements(catElem, "subcat")
+                        .Concat(FindElements(catElem, "subcategory"))
+                        .Concat(FindElements(catElem, "category"));
                     foreach (var subcatElem in subcats)
                     {
                         var subIdStr = GetAttributeValue(subcatElem, "id") ?? FindElement(subcatElem, "id")?.Value;

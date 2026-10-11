@@ -95,6 +95,31 @@ public class TorznabAndProwlarrClientTest
     }
 
     [Test]
+    public void ParseCapabilitiesXml_NestedCategoryElements_ParsedAsSubcategories()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+    <categories>
+        <category id=""7000"" name=""Books">
+            <category id=""7010"" name=""Books/Ebook"/>
+            <category id=""7020"" name=""Books/Audiobook"/>
+        </category>
+    </categories>
+</caps>";
+
+        var client = new TorznabClient(this.configService);
+        var caps = client.ParseCapabilitiesXml(xml);
+
+        caps.Categories.Should().HaveCount(1);
+        var books = caps.Categories[0];
+        books.Id.Should().Be(7000);
+        books.Name.Should().Be("Books");
+        books.SubCategories.Should().HaveCount(2);
+        books.SubCategories.Select(s => s.Id).Should().Contain(new[] { 7010, 7020 });
+        books.SubCategories.Select(s => s.Name).Should().Contain(new[] { "Books/Ebook", "Books/Audiobook" });
+    }
+
+    [Test]
     public void ParseCapabilitiesXml_WhenXmlEmptyOrMalformed_ReturnsDefaultCapabilitiesGracefully()
     {
         var client = new TorznabClient(this.configService);
