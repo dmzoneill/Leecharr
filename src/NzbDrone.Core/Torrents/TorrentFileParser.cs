@@ -262,7 +262,7 @@ public class TorrentFileParser : ITorrentFileParser
 
                         var part = pathPartStr.ToString();
                         ValidateAndSanitizePathPart(part);
-                        pathParts.Add(part.Trim());
+                        pathParts.Add(part);
                     }
 
                     var relativeFilePath = string.Join("/", pathParts);

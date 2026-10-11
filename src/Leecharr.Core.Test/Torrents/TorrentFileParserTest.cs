@@ -716,6 +716,23 @@ public class TorrentFileParserTest
             .WithMessage("*invalid path characters*");
     }
 
+    [Test]
+    public void Parse_WhenMultiFilePathComponentsDifferOnlyByLeadingOrTrailingSpaces_PreservesDistinctPaths()
+    {
+        var bytes = CreateMultiFileTorrentBytes(
+            "MyTorrent",
+            (1024, new[] { "movie.mkv" }),
+            (2048, new[] { " movie.mkv" }),
+            (4096, new[] { "movie.mkv " }));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.Files.Should().HaveCount(3);
+        parsed.Files[0].Path.Should().Be("movie.mkv");
+        parsed.Files[1].Path.Should().Be(" movie.mkv");
+        parsed.Files[2].Path.Should().Be("movie.mkv ");
+    }
+
     [TestCase("movie:title.mp4", "movie_title.mp4")]
     [TestCase("star*wars.iso", "star_wars.iso")]
     [TestCase("what?now.mkv", "what_now.mkv")]
