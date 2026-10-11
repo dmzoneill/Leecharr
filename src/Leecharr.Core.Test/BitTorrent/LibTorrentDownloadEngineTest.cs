@@ -110,6 +110,34 @@ public class LibTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task ConfigureSessionSettingsAsync_WhenDirectIpv6Configured_BracketsListenInterfaces()
+    {
+        this.configService.NetworkInterfaceBinding.Returns("2001:db8::10");
+        this.configService.ListeningPort.Returns(6885);
+
+        string capturedBody = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult()!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"settings_applied\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        await engine.ConfigureSessionSettingsAsync();
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        var paramsObj = doc.RootElement.GetProperty("params");
+
+        paramsObj.GetProperty("listen_interfaces").GetString().Should().Be("[2001:db8::10]:6885");
+    }
+
+    [Test]
     public async Task ConfigureSessionSettingsAsync_WhenProxyConfigured_DispatchesProxySettingsToRpc()
     {
         this.configService.ProxyType.Returns("socks5");

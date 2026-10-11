@@ -39,7 +39,9 @@ public static class TorrentEngineNetworkHelper
             return "0.0.0.0";
         }
 
-        if (IPAddress.TryParse(iface, out var parsedIp) && parsedIp.AddressFamily == AddressFamily.InterNetwork)
+        if (IPAddress.TryParse(iface, out var parsedIp) &&
+            (parsedIp.AddressFamily == AddressFamily.InterNetwork ||
+             parsedIp.AddressFamily == AddressFamily.InterNetworkV6))
         {
             return parsedIp.ToString();
         }

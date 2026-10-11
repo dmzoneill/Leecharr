@@ -75,6 +75,19 @@ public class EmbeddedTransmissionEngineTest
     }
 
     [Test]
+    public void ResolveBoundIpv4Address_WhenDirectIpv6Configured_ReturnsDirectIp()
+    {
+        this.configService.NetworkInterfaceBinding.Returns("2001:db8::10");
+
+        using var engine = this.CreateEngine();
+
+        var ip = engine.ResolveBoundIpv4Address();
+
+        ip.Should().Be("2001:db8::10");
+        ip.Should().NotBe("127.0.0.1");
+    }
+
+    [Test]
     public void ResolveBoundIpv4Address_WhenVpnKillSwitchActive_FailsClosedToLoopback()
     {
         this.configService.NetworkInterfaceBinding.Returns("tun0");
