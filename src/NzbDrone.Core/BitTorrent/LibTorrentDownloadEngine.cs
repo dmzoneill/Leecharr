@@ -133,6 +133,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         return true;
     }
 
+    public Task RecheckNetworkInterfacesAsync(bool forceRebind, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    public Task ClearDhtCacheAsync(bool bootstrapNodes, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     public LibTorrentDownloadEngine(
         IConfigService configService,
         IStoragePathService storagePathService,

@@ -186,6 +186,64 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return Task.FromResult(string.IsNullOrWhiteSpace(targetVersion) || targetVersion.StartsWith("3."));
     }
 
+    public async Task RecheckNetworkInterfacesAsync(bool forceRebind, CancellationToken cancellationToken = default)
+    {
+        if (this.engine == null)
+        {
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (forceRebind)
+        {
+            await this.UpdateEngineListenEndpointsAsync().ConfigureAwait(false);
+            if (!this.isHaltedByKillSwitch)
+            {
+                await this.ResetPeerSocketsAsync().ConfigureAwait(false);
+            }
+
+            var currentIface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+                ? this.configService.NetworkInterfaceBinding
+                : this.configService.BindInterface;
+            var currentPort = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
+            this.lastAppliedInterfaceBinding = currentIface;
+            this.lastAppliedListenPort = currentPort;
+            return;
+        }
+
+        await this.ApplyConfigChangesAsync().ConfigureAwait(false);
+    }
+
+    public async Task ClearDhtCacheAsync(bool bootstrapNodes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var cacheDir = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+            ? Path.Combine(this.appFolderInfo.AppDataFolder, "Cache")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr", "Cache");
+
+        if (Directory.Exists(cacheDir))
+        {
+            foreach (var file in Directory.EnumerateFiles(cacheDir, "*dht*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to delete DHT cache file {0}", file);
+                }
+            }
+        }
+
+        if (bootstrapNodes && this.configService.EnableDht && !this.configService.AnonymousMode && !this.IsProxyActive())
+        {
+            await this.ConfigureDhtBootstrapNodesAsync().ConfigureAwait(false);
+        }
+    }
+
     public int DhtNodeCount
     {
         get
