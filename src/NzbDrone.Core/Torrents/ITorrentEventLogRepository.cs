@@ -11,5 +11,7 @@ public interface ITorrentEventLogRepository : IBasicRepository<TorrentEventLog>
 
     void DeleteForTorrent(int torrentId);
 
+    void TrimToMaxPerTorrent(int torrentId, int maxRows);
+
     void DeleteAll();
 }
