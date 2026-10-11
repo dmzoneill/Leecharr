@@ -363,6 +363,58 @@ public class DownloadHistoryServiceTest
     }
 
     [Test]
+    public void ReAdd_WhenIncompleteInHistory_WhenTitlePathExistsOnDisk_SetsDownloadingStatusAndZeroProgress()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var payloadFile = Path.Combine(tempDir, "Partial Show");
+            File.WriteAllText(payloadFile, "partial payload content");
+
+            this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>())
+                .Returns(tempDir);
+
+            var history = new DownloadHistory
+            {
+                Id = 19,
+                InfoHash = "partialhash777",
+                Title = "Partial Show",
+                TotalSize = 50000,
+                Status = "Downloading",
+                Downloaded = 10000,
+                Uploaded = 0,
+                Ratio = 0.0,
+            };
+
+            this.historyRepository.Get(19).Returns(history);
+            this.torrentRepository.ExistsByInfoHash("partialhash777").Returns(false);
+            this.torrentRepository.All().Returns(new List<Torrent>());
+            this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+            {
+                var t = (Torrent)args[0];
+                t.Id = 104;
+                return t;
+            });
+
+            var added = this.service.ReAdd(19);
+
+            added.Should().NotBeNull();
+            added.Status.Should().Be(TorrentStatus.Downloading);
+            added.Progress.Should().Be(0.0);
+            added.Downloaded.Should().Be(0);
+            added.DateCompleted.Should().BeNull();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public void ReAdd_WhenCompletedInHistory_WhenFilesExistOnDisk_SetsSeedingStatusAndFullProgress()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_test_" + Guid.NewGuid().ToString("N"));
