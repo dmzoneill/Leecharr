@@ -290,7 +290,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IFallbackAwareAiProvider
         {
             var prompt = $"Analyze BitTorrent swarm: Name '{torrent?.Name}', Status '{torrent?.Status}', Progress {torrent?.Progress * 100:F1}%, Seeders {torrent?.Seeders}, Leechers {torrent?.Leechers}, DL Speed {torrent?.DownloadSpeed} B/s. Provide concise 1-sentence diagnostic.";
             var aiText = await this.GenerateChatResponseAsync(prompt, "You are a BitTorrent network diagnostics expert. Provide a single sentence diagnostic.");
-            if (!string.IsNullOrWhiteSpace(aiText))
+            if (!this.LastChatUsedFallback && !string.IsNullOrWhiteSpace(aiText))
             {
                 report.Recommendations.Insert(0, $"[Gemini AI] {aiText.Trim()}");
             }
