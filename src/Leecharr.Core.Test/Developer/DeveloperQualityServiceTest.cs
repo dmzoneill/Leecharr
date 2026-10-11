@@ -146,6 +146,39 @@ public class DeveloperQualityServiceTest
     }
 
     [Test]
+    public async Task GetQualityReportAsync_slower_fallback_does_not_overwrite_live_cached_report()
+    {
+        var liveGateJson = @"{ ""projectStatus"": { ""status"": ""ERROR"", ""conditions"": [ { ""metricKey"": ""new_coverage"", ""status"": ""ERROR"", ""actualValue"": ""50.0"", ""errorThreshold"": ""80"" } ] } }";
+        var measuresJson = @"{ ""component"": { ""measures"": [ { ""metric"": ""coverage"", ""value"": ""75.5"" } ] } }";
+        var workflowsListJson = @"{ ""workflows"": [ { ""id"": 101, ""name"": ""SonarCloud Analysis"" } ] }";
+        var sonarRunJson = @"{ ""workflow_runs"": [ { ""name"": ""SonarCloud Analysis"", ""status"": ""completed"", ""conclusion"": ""failure"", ""run_number"": 105, ""html_url"": ""https://github.com/dmzoneill/Leecharr/actions/runs/123"", ""created_at"": ""2026-10-04T08:00:00Z"" } ] }";
+
+        var fastHandler = new MockHttpMessageHandler();
+        fastHandler.Enqueue(HttpStatusCode.OK, liveGateJson);
+        fastHandler.Enqueue(HttpStatusCode.OK, measuresJson);
+        fastHandler.Enqueue(HttpStatusCode.OK, workflowsListJson);
+        fastHandler.Enqueue(HttpStatusCode.OK, sonarRunJson);
+
+        var slowHandler = new DelayedHttpMessageHandler(TimeSpan.FromMilliseconds(200));
+        slowHandler.Enqueue(HttpStatusCode.InternalServerError, "Error");
+        slowHandler.Enqueue(HttpStatusCode.InternalServerError, "Error");
+        slowHandler.Enqueue(HttpStatusCode.InternalServerError, "Error");
+
+        var fastService = new DeveloperQualityService(new HttpClient(fastHandler));
+        var slowService = new DeveloperQualityService(new HttpClient(slowHandler));
+
+        var slowTask = slowService.GetQualityReportAsync(CancellationToken.None);
+        var liveReport = await fastService.GetQualityReportAsync(CancellationToken.None);
+        var slowReport = await slowTask;
+
+        Assert.That(liveReport.QualityGate.Status, Is.EqualTo("ERROR"));
+        Assert.That(liveReport.UsedFallbackQualityGate, Is.False);
+        Assert.That(liveReport.UsedFallbackPipelines, Is.False);
+        Assert.That(slowReport.QualityGate.Status, Is.EqualTo("ERROR"));
+        Assert.That(slowReport.UsedFallbackQualityGate, Is.False);
+    }
+
+    [Test]
     public async Task GetQualityReportAsync_when_apis_fail_returns_fallback_report()
     {
         var handler = new MockHttpMessageHandler();
@@ -162,6 +195,22 @@ public class DeveloperQualityServiceTest
         Assert.That(report.QualityGate.Status, Is.EqualTo("OK"));
         Assert.That(report.Metrics.ReliabilityRating, Is.EqualTo("A"));
         Assert.That(report.RecentPipelines, Is.Not.Empty);
+    }
+
+    private class DelayedHttpMessageHandler : MockHttpMessageHandler
+    {
+        private readonly TimeSpan delay;
+
+        public DelayedHttpMessageHandler(TimeSpan delay)
+        {
+            this.delay = delay;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(this.delay, cancellationToken);
+            return await base.SendAsync(request, cancellationToken);
+        }
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
