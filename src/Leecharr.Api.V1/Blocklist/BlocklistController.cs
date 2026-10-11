@@ -81,6 +81,20 @@ public class BlocklistController : Controller
     {
         try
         {
+            if (!this.configService.BlocklistEnabled)
+            {
+                var existingRules = this.blocklistService.TotalRulesLoaded;
+                return this.Ok(new BlocklistSyncResponse
+                {
+                    Success = true,
+                    Status = "Skipped",
+                    Message = "Blocklist update skipped: blocklist is disabled in configuration.",
+                    RuleCount = existingRules,
+                    TotalRuleCount = existingRules,
+                    LastUpdatedUtc = DateTime.UtcNow,
+                });
+            }
+
             var rulesLoaded = await this.updateService.UpdateRulesAsync(cancellationToken);
             return this.Ok(new BlocklistSyncResponse
             {

@@ -269,6 +269,29 @@ public class BlocklistControllerTest
     }
 
     [Test]
+    public async Task SyncBlocklistAsync_WhenBlocklistDisabled_ReturnsSkippedResponseWithoutCallingUpdate()
+    {
+        this.configService.BlocklistEnabled.Returns(false);
+        this.blocklistService.TotalRulesLoaded.Returns(350);
+
+        var actionResult = await this.controller.SyncBlocklistAsync(CancellationToken.None);
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var response = okResult!.Value as BlocklistSyncResponse;
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Status.Should().Be("Skipped");
+        response.Message.Should().Be("Blocklist update skipped: blocklist is disabled in configuration.");
+        response.RuleCount.Should().Be(350);
+        response.TotalRuleCount.Should().Be(350);
+        response.LastUpdatedUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+
+        await this.updateService.DidNotReceive().UpdateRulesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task SyncBlocklistAsync_WhenUpdateReturnsZeroRules_ReturnsWarningResponseWithExistingRuleCount()
     {
         this.updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(0));
