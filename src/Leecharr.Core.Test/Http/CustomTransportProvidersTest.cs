@@ -414,6 +414,51 @@ public class CustomTransportProvidersTest
         // 5. Clear all remaining sessions
         await provider.ClearSessionsAsync();
         provider.ActiveSessionCount.Should().Be(0);
+        destroyedCount.Should().Be(2);
+    }
+
+    [Test]
+    public async Task SessionManagement_FlareSolverr_DisposeDestroysActiveSessionsOnSolver()
+    {
+        var destroyedCount = 0;
+
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+
+            if (body.Contains("sessions.create"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"session\":\"sess_dispose\"}"),
+                };
+            }
+
+            if (body.Contains("sessions.destroy"))
+            {
+                destroyedCount++;
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"message\":\"Session destroyed\"}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        var provider = new FlareSolverrTransportProvider(config, httpClient);
+        await provider.GetOrCreateSessionAsync("tracker.org");
+        await provider.GetOrCreateSessionAsync("other.org");
+        provider.ActiveSessionCount.Should().Be(2);
+
+        provider.Dispose();
+
+        destroyedCount.Should().Be(2);
+        provider.ActiveSessionCount.Should().Be(0);
     }
 
     [Test]

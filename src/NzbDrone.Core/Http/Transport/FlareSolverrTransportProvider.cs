@@ -324,7 +324,15 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         if (!this.disposed)
         {
             this.disposed = true;
-            this.sessionPool.Clear();
+            try
+            {
+                this.ClearSessionsAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to destroy FlareSolverr sessions during dispose");
+            }
+
             this.httpClient.Dispose();
         }
     }
