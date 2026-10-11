@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml.Linq;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Messaging.Events;
@@ -122,6 +123,8 @@ public class ConfigFileProvider : IConfigFileProvider
             {
                 this.config[element.Name.LocalName] = element.Value.Trim();
             }
+
+            UnixPrivatePermissions.ApplyPrivateFileMode(this.configFile);
         }
     }
 
@@ -188,6 +191,7 @@ public class ConfigFileProvider : IConfigFileProvider
 
         var xDoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), configElement);
         xDoc.Save(this.configFile);
+        UnixPrivatePermissions.ApplyPrivateFileMode(this.configFile);
     }
 
     private static string FormatConfigValue(string key, object value)

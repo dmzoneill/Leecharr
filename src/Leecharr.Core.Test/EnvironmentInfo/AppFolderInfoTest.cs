@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using FluentAssertions;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 
 namespace Leecharr.Core.Test.EnvironmentInfo;
@@ -140,5 +141,63 @@ public class AppFolderInfoTest
 
         appFolderInfo.AppDataFolder.Should().NotStartWith("~");
         appFolderInfo.AppDataFolder.Should().EndWith("my-custom-env-folder");
+    }
+
+    [Test]
+    public void Constructor_WhenAppDataPathCreated_OnUnix_UsesOwnerOnlyDirectoryMode()
+    {
+        if (!UnixPrivatePermissions.IsUnixLike)
+        {
+            Assert.Ignore("Test is applicable only to Unix-like systems");
+            return;
+        }
+
+        var cliPath = Path.Combine(Path.GetTempPath(), "leecharr-perm-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var context = new StartupContext($"--data={cliPath}");
+            _ = new AppFolderInfo(context);
+
+            Directory.Exists(cliPath).Should().BeTrue();
+            var mode = File.GetUnixFileMode(cliPath);
+            mode.Should().Be(UnixPrivatePermissions.PrivateDirectoryMode);
+        }
+        finally
+        {
+            if (Directory.Exists(cliPath))
+            {
+                Directory.Delete(cliPath, true);
+            }
+        }
+    }
+
+    [Test]
+    public void Constructor_WhenAppDataDirectoryAlreadyExists_OnUnix_TightensDirectoryMode()
+    {
+        if (!UnixPrivatePermissions.IsUnixLike)
+        {
+            Assert.Ignore("Test is applicable only to Unix-like systems");
+            return;
+        }
+
+        var cliPath = Path.Combine(Path.GetTempPath(), "leecharr-perm-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(cliPath);
+        File.SetUnixFileMode(cliPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+            UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+
+        try
+        {
+            var context = new StartupContext($"--data={cliPath}");
+            _ = new AppFolderInfo(context);
+
+            File.GetUnixFileMode(cliPath).Should().Be(UnixPrivatePermissions.PrivateDirectoryMode);
+        }
+        finally
+        {
+            if (Directory.Exists(cliPath))
+            {
+                Directory.Delete(cliPath, true);
+            }
+        }
     }
 }

@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
@@ -74,6 +75,11 @@ public class ConfigFileProviderTest
 
         var configFile = Path.Combine(this.tempDir, "config.xml");
         File.Exists(configFile).Should().BeTrue();
+
+        if (UnixPrivatePermissions.IsUnixLike)
+        {
+            File.GetUnixFileMode(configFile).Should().Be(UnixPrivatePermissions.PrivateFileMode);
+        }
     }
 
     [Test]
