@@ -107,6 +107,37 @@ public class BlocklistProvidersAndTaskTest
     }
 
     [Test]
+    public async Task BlocklistUpdateTask_HandleConfigSaved_WhenBlocklistEnabled_StartsLoop()
+    {
+        var updateService = Substitute.For<IBlocklistUpdateService>();
+        var configService = Substitute.For<IConfigService>();
+        configService.BlocklistEnabled.Returns(true);
+        configService.BlocklistAutoUpdateEnabled.Returns(true);
+        configService.BlocklistUpdateIntervalHours.Returns(100);
+        updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(10));
+
+        using var task = new BlocklistUpdateTask(updateService, configService);
+        task.Handle(new ConfigSavedEvent());
+
+        await Task.Delay(100);
+
+        await updateService.Received().UpdateRulesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public void BlocklistUpdateTask_HandleConfigSaved_WhenBlocklistDisabled_DoesNotStartLoop()
+    {
+        var updateService = Substitute.For<IBlocklistUpdateService>();
+        var configService = Substitute.For<IConfigService>();
+        configService.BlocklistEnabled.Returns(false);
+
+        using var task = new BlocklistUpdateTask(updateService, configService);
+        task.Handle(new ConfigSavedEvent());
+
+        updateService.DidNotReceive().UpdateRulesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task BlocklistUpdateTask_Handle_WhenAutoUpdateDisabled_DoesNotPerformInitialUpdate()
     {
         var updateService = Substitute.For<IBlocklistUpdateService>();
