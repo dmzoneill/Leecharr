@@ -429,9 +429,19 @@ public class FreeboxDownloadController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(queuePos))
         {
-            await this.torrentService.MoveQueueAsync(id, queuePos);
+            await this.torrentService.MoveQueueAsync(id, ToMoveQueuePosition(queuePos));
         }
 
         return this.Ok(new { success = true });
+    }
+
+    private static string ToMoveQueuePosition(string queuePos)
+    {
+        if (int.TryParse(queuePos, out var oneBasedPosition))
+        {
+            return Math.Max(0, oneBasedPosition - 1).ToString();
+        }
+
+        return queuePos;
     }
 }
