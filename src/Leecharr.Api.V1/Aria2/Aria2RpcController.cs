@@ -384,10 +384,14 @@ public class Aria2RpcController : ControllerBase
 
     private IActionResult ReturnRpcResponse(object payload, int statusCode = StatusCodes.Status200OK)
     {
-        if (this.Request?.Query != null && this.Request.Query.TryGetValue("callback", out var callback) && !string.IsNullOrWhiteSpace(callback))
+        if (this.Request?.Query != null && this.Request.Query.TryGetValue("callback", out var callback))
         {
-            var json = JsonSerializer.Serialize(payload, CamelCaseJsonOptions);
-            return this.Content($"{callback}({json});", "application/javascript", Encoding.UTF8);
+            var callbackName = callback.ToString();
+            if (JsonpCallbackHelper.IsValidCallbackName(callbackName))
+            {
+                var json = JsonSerializer.Serialize(payload, CamelCaseJsonOptions);
+                return this.Content($"{callbackName}({json});", "application/javascript", Encoding.UTF8);
+            }
         }
 
         if (statusCode == StatusCodes.Status200OK)
