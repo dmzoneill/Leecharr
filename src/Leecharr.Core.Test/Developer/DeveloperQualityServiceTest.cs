@@ -91,6 +91,34 @@ public class DeveloperQualityServiceTest
     }
 
     [Test]
+    public async Task GetQualityReportAsync_when_quality_gate_missing_applies_alert_status_from_measures()
+    {
+        var measuresJson = @"{
+            ""component"": {
+                ""measures"": [
+                    { ""metric"": ""alert_status"", ""value"": ""ERROR"" },
+                    { ""metric"": ""bugs"", ""value"": ""3"" }
+                ]
+            }
+        }";
+
+        var workflowsListJson = @"{ ""workflows"": [] }";
+
+        var handler = new MockHttpMessageHandler();
+        handler.Enqueue(HttpStatusCode.NotFound, "Not found");
+        handler.Enqueue(HttpStatusCode.OK, measuresJson);
+        handler.Enqueue(HttpStatusCode.OK, workflowsListJson);
+
+        var client = new HttpClient(handler);
+        var service = new DeveloperQualityService(client);
+
+        var report = await service.GetQualityReportAsync(CancellationToken.None);
+
+        Assert.That(report.QualityGate.Status, Is.EqualTo("ERROR"));
+        Assert.That(report.Metrics.Bugs, Is.EqualTo(3));
+    }
+
+    [Test]
     public async Task GetQualityReportAsync_uses_per_workflow_latest_runs_not_global_feed()
     {
         var qualityGateJson = @"{ ""projectStatus"": { ""status"": ""OK"", ""conditions"": [] } }";
