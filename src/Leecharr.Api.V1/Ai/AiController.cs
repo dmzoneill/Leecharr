@@ -139,7 +139,7 @@ public class AiController : Controller
             }
         }
 
-        if (files.Count == 0 && request.FileNames != null && request.FileNames.Count > 0)
+        if (request.FileNames != null && request.FileNames.Count > 0)
         {
             for (var i = 0; i < request.FileNames.Count; i++)
             {
