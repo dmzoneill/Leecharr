@@ -178,6 +178,20 @@ public class GeoIpProvidersTest
     [TestCase("127.0.0.1")]
     [TestCase("127.1.2.3")]
     [TestCase("::1")]
+    public async Task MaxMind_LookupAsync_WithLoopbackIp_ReturnsLocalhostCityWithoutDatabase(string loopbackIp)
+    {
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(false);
+
+        using var provider = new MaxMindGeoIpProvider(this.diskProvider, this.appFolderInfo);
+        var result = await provider.LookupAsync(loopbackIp);
+
+        result.Should().NotBeNull();
+        result.IpAddress.Should().Be(loopbackIp);
+        result.CountryCode.Should().Be("LAN");
+        result.CountryName.Should().Be("Local Network");
+        result.City.Should().Be("Localhost");
+    }
+
     [TestCase("10.0.0.1")]
     [TestCase("10.255.255.254")]
     [TestCase("172.16.0.1")]
@@ -191,7 +205,7 @@ public class GeoIpProvidersTest
     [TestCase("fc00::1")]
     [TestCase("fd12:3456::1")]
     [TestCase("::ffff:192.168.1.1")]
-    public async Task MaxMind_LookupAsync_WithPrivateOrLoopbackIp_ReturnsLanInfoWithoutDatabase(string privateIp)
+    public async Task MaxMind_LookupAsync_WithPrivateNonLoopbackIp_ReturnsLanWithoutLocalhostCity(string privateIp)
     {
         this.diskProvider.FileExists(Arg.Any<string>()).Returns(false);
 
@@ -202,7 +216,7 @@ public class GeoIpProvidersTest
         result.IpAddress.Should().Be(privateIp);
         result.CountryCode.Should().Be("LAN");
         result.CountryName.Should().Be("Local Network");
-        result.City.Should().Be("Localhost");
+        result.City.Should().BeNullOrEmpty();
     }
 
     [TestCase("8.8.8.8")]
