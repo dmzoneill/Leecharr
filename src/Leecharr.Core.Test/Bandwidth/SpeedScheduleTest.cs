@@ -227,6 +227,50 @@ public class SpeedScheduleTest
         morningLimits.MaxDownloadSpeedKbps.Should().Be(10000);
     }
 
+    [Test]
+    public void GetCurrentLimits_OverlappingSchedules_SamePriorityHighestIdWins()
+    {
+        var workHoursSchedule = new SpeedSchedule
+        {
+            Id = 1,
+            Name = "Work Hours",
+            Days = 127,
+            StartTime = "09:00:00",
+            EndTime = "17:00:00",
+            MaxDownloadSpeed = 10000,
+            MaxUploadSpeed = 5000,
+            IsEnabled = true,
+            Priority = 0,
+        };
+
+        var lunchSchedule = new SpeedSchedule
+        {
+            Id = 2,
+            Name = "Lunch Break",
+            Days = 127,
+            StartTime = "12:00:00",
+            EndTime = "13:00:00",
+            MaxDownloadSpeed = 1000,
+            MaxUploadSpeed = 500,
+            IsEnabled = true,
+            Priority = 0,
+        };
+
+        _repository.GetEnabled().Returns(new List<SpeedSchedule> { lunchSchedule, workHoursSchedule });
+
+        var limits = _service.GetCurrentLimits(new DateTime(2026, 9, 2, 12, 30, 0));
+
+        limits.MaxDownloadSpeedKbps.Should().Be(1000);
+        limits.MaxUploadSpeedKbps.Should().Be(500);
+
+        _repository.GetEnabled().Returns(new List<SpeedSchedule> { workHoursSchedule, lunchSchedule });
+
+        var limitsReversedOrder = _service.GetCurrentLimits(new DateTime(2026, 9, 2, 12, 30, 0));
+
+        limitsReversedOrder.MaxDownloadSpeedKbps.Should().Be(1000);
+        limitsReversedOrder.MaxUploadSpeedKbps.Should().Be(500);
+    }
+
     #endregion
 
     #region Paused Schedules & Application Tests

@@ -338,6 +338,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                 }
             })
             .OrderByDescending(s => s.Priority)
+            .ThenByDescending(s => s.Id)
             .ToList();
 
         if (activeSchedules.Count > 0)

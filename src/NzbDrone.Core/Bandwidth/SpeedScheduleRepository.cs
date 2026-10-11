@@ -18,7 +18,7 @@ public class SpeedScheduleRepository : BasicRepository<SpeedSchedule>, ISpeedSch
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<SpeedSchedule>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = @IsEnabled ORDER BY \"Priority\"",
+                $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = @IsEnabled ORDER BY \"Priority\", \"Id\"",
                 new { IsEnabled = true }));
     }
 }
