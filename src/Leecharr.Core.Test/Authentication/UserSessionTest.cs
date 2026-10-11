@@ -244,6 +244,22 @@ public class UserSessionTest
     }
 
     [Test]
+    public async Task ExecuteAsync_WhenPruneFails_PropagatesException()
+    {
+        var cache = Substitute.For<IUserSessionCache>();
+        this.sessionRepository
+            .PruneExpiredSessionsAsync(Arg.Any<CancellationToken>())
+            .Returns<Task<int>>(_ => throw new InvalidOperationException("database unavailable"));
+
+        using var cleanupTask = new SessionCleanupTask(this.sessionRepository, cache);
+
+        var act = async () => await cleanupTask.ExecuteAsync();
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        cache.DidNotReceive().PruneExpired();
+    }
+
+    [Test]
     public void UserSession_ExpiresAt_AliasesExpiryPropertyCorrectly()
     {
         var session = new UserSession();
