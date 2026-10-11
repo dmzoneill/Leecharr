@@ -278,8 +278,7 @@ public class SabnzbdApiController : ControllerBase
 
                 if (TryParsePriority(prioStr, out var prio))
                 {
-                    target.Priority = prio;
-                    await this.torrentService.UpdateAsync(target);
+                    await this.ApplySabPriorityAsync(target, prio);
                 }
             }
 
@@ -679,8 +678,7 @@ public class SabnzbdApiController : ControllerBase
             var t = this.torrentService.GetByInfoHash(CleanNzoId(directPrioVal));
             if (t != null && TryParsePriority(directPrioVal2, out var directPrio))
             {
-                t.Priority = directPrio;
-                await this.torrentService.UpdateAsync(t);
+                await this.ApplySabPriorityAsync(t, directPrio);
             }
         }
 
@@ -743,10 +741,21 @@ public class SabnzbdApiController : ControllerBase
 
         if (TryParsePriority(prioStr, out var pVal))
         {
-            added.Priority = pVal;
-            await this.torrentService.UpdateAsync(added);
+            await this.ApplySabPriorityAsync(added, pVal);
         }
     }
+
+    private async Task ApplySabPriorityAsync(Torrent target, int priority)
+    {
+        target.Priority = priority;
+        await this.torrentService.UpdateAsync(target);
+        if (IsPausedSabPriority(priority))
+        {
+            await this.torrentService.PauseAsync(target.Id);
+        }
+    }
+
+    private static bool IsPausedSabPriority(int priority) => priority < -1;
 
     private int GetStartParam()
     {

@@ -295,6 +295,7 @@ public class SabnzbdApiControllerTest
     [TestCase("stop", -2)]
     [TestCase("stopped", -2)]
     [TestCase("-2", -2)]
+    [TestCase("-100", -100)]
     public async Task HandleApi_Queue_SetPriority_VariousPriorityStringsAndNumbers_SetsExpectedPriority(string priorityInput, int expectedPriority)
     {
         var context = new DefaultHttpContext();
@@ -304,7 +305,7 @@ public class SabnzbdApiControllerTest
         });
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
-        var torrent = new Torrent { Id = 101, InfoHash = "hashtest", Priority = 99 };
+        var torrent = new Torrent { Id = 101, InfoHash = "hashtest", Priority = 99, Status = TorrentStatus.Downloading };
         this.torrentService.GetByInfoHash("hashtest").Returns(torrent);
 
         var result = await this.controller.HandleApi(
@@ -318,6 +319,15 @@ public class SabnzbdApiControllerTest
         result.Should().BeOfType<OkObjectResult>();
         torrent.Priority.Should().Be(expectedPriority);
         await this.torrentService.Received(1).UpdateAsync(torrent);
+        if (expectedPriority < -1)
+        {
+            await this.torrentService.Received(1).PauseAsync(torrent.Id);
+        }
+        else
+        {
+            await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
+        }
+
         await this.torrentService.DidNotReceive().MoveQueueAsync(Arg.Any<int>(), Arg.Any<string>());
     }
 
@@ -409,6 +419,34 @@ public class SabnzbdApiControllerTest
         result.Should().BeOfType<OkObjectResult>();
         torrent.Priority.Should().Be(1);
         await this.torrentService.Received(1).UpdateAsync(torrent);
+        await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task HandleApi_DirectPriorityMode_WhenPausedPriority_PausesDownloadingTorrent()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            { "value2", "-100" }
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 89, InfoHash = "pausehash", Priority = 0, Status = TorrentStatus.Downloading };
+        this.torrentService.GetByInfoHash("pausehash").Returns(torrent);
+
+        var result = await this.controller.HandleApi(
+            mode: "priority",
+            name: null,
+            value: "pausehash",
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        torrent.Priority.Should().Be(-100);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+        await this.torrentService.Received(1).PauseAsync(89);
     }
 
     [Test]
