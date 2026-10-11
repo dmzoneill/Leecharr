@@ -472,6 +472,12 @@ public class TrackerBoostControllerTest
         this.controller.AddTracker(null!).Should().BeOfType<BadRequestObjectResult>();
         this.controller.AddTracker(new AddTrackerResource { Url = "  " }).Should().BeOfType<BadRequestObjectResult>();
 
+        this.controller.AddTracker(new AddTrackerResource { Url = "not-a-valid-uri" })
+            .Should().BeOfType<BadRequestObjectResult>();
+        this.controller.AddTracker(new AddTrackerResource { Url = "http://localhost/announce" })
+            .Should().BeOfType<BadRequestObjectResult>();
+        this.trackerBoostService.DidNotReceive().AddTracker(Arg.Any<string>(), Arg.Any<TrackerSourceType>(), Arg.Any<string>());
+
         var tracker = new TrackerBoostTracker { Id = 10, Url = "udp://tracker.open.org:1337" };
         this.trackerBoostService.AddTracker("udp://tracker.open.org:1337", TrackerSourceType.Manual, "Manual Entry")
             .Returns(tracker);

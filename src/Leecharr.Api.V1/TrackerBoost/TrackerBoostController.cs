@@ -82,7 +82,13 @@ public class TrackerBoostController : Controller
             return this.BadRequest(new { message = "Tracker URL is required." });
         }
 
-        var tracker = this.trackerBoostService.AddTracker(resource.Url, TrackerSourceType.Manual, "Manual Entry");
+        var url = resource.Url.Trim();
+        if (!TrackerBoostService.IsValidPublicTrackerUrl(url))
+        {
+            return this.BadRequest(new { message = "Tracker URL is invalid or contains private passkey tokens." });
+        }
+
+        var tracker = this.trackerBoostService.AddTracker(url, TrackerSourceType.Manual, "Manual Entry");
         return this.Ok(tracker);
     }
 
