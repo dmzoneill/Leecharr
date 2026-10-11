@@ -2750,6 +2750,7 @@ public class DelugeJsonRpcController : ControllerBase
         var totalRemaining = Math.Max(0L, totalWanted - totalDone);
 
         var trackerEntries = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList();
+        var primaryTracker = trackerEntries != null && trackerEntries.Count > 0 ? trackerEntries[0] : null;
         var trackersList = (trackerEntries != null && trackerEntries.Count > 0)
             ? trackerEntries.Select(tr => new Dictionary<string, object>
             {
@@ -2784,8 +2785,8 @@ public class DelugeJsonRpcController : ControllerBase
             { "tracker", t.TrackerUrl ?? string.Empty },
             { "tracker_host", this.GetTrackerHost(t) },
             { "trackers", trackersList },
-            { "tracker_status", !string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : (!string.IsNullOrWhiteSpace(t.TrackerUrl) ? $"{t.TrackerUrl}: Announce OK" : "Announce OK") },
-            { "next_announce", 1800 },
+            { "tracker_status", GetDelugeTrackerStatus(t, primaryTracker) },
+            { "next_announce", GetDelugeNextAnnounceSeconds(t, primaryTracker) },
             { "finished_time", t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : (t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : 0L) },
             { "time_since_transfer", t.LastActive.HasValue ? (long)Math.Max(0, (DateTime.UtcNow - t.LastActive.Value).TotalSeconds) : 0L },
             { "num_pieces", t.PieceCount },
@@ -3217,6 +3218,54 @@ public class DelugeJsonRpcController : ControllerBase
         }
 
         return string.Equals(t.Status.ToString(), state, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetDelugeTrackerStatus(Torrent torrent, TrackerEntry primaryTracker)
+    {
+        if (primaryTracker != null)
+        {
+            var trackerUrl = !string.IsNullOrWhiteSpace(primaryTracker.Url)
+                ? primaryTracker.Url
+                : torrent.TrackerUrl;
+            var isError = primaryTracker.Status == 2 || !string.IsNullOrWhiteSpace(primaryTracker.ErrorMessage);
+            if (isError)
+            {
+                var message = !string.IsNullOrWhiteSpace(primaryTracker.ErrorMessage)
+                    ? primaryTracker.ErrorMessage
+                    : "Tracker error";
+                return !string.IsNullOrWhiteSpace(trackerUrl) ? $"{trackerUrl}: {message}" : message;
+            }
+
+            if (primaryTracker.Status == 0)
+            {
+                return !string.IsNullOrWhiteSpace(trackerUrl) ? $"{trackerUrl}: Queued" : "Queued";
+            }
+
+            return !string.IsNullOrWhiteSpace(trackerUrl) ? $"{trackerUrl}: Announce OK" : "Announce OK";
+        }
+
+        if (!string.IsNullOrWhiteSpace(torrent.ErrorMessage))
+        {
+            return torrent.ErrorMessage;
+        }
+
+        return !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
+            ? $"{torrent.TrackerUrl}: Announce OK"
+            : "Announce OK";
+    }
+
+    private static int GetDelugeNextAnnounceSeconds(Torrent torrent, TrackerEntry primaryTracker)
+    {
+        const int defaultInterval = 1800;
+        if (primaryTracker == null)
+        {
+            return defaultInterval;
+        }
+
+        var interval = primaryTracker.AnnounceInterval > 0 ? primaryTracker.AnnounceInterval : defaultInterval;
+        var lastAnnounce = primaryTracker.LastAnnounce ?? torrent.DateAdded;
+        var nextAnnounce = primaryTracker.NextAnnounce ?? lastAnnounce.AddSeconds(interval);
+        return Math.Max(0, (int)(nextAnnounce - DateTime.UtcNow).TotalSeconds);
     }
 
     private string GetTrackerHost(Torrent t)
