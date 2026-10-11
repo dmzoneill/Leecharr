@@ -21,6 +21,17 @@ public class CommandQueueManagerTest
     public void SetUp()
     {
         this.repository = Substitute.For<ICommandRepository>();
+        this.repository.FindOrInsert(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CommandModel>())
+            .Returns(callInfo =>
+            {
+                var model = callInfo.ArgAt<CommandModel>(2);
+                if (model.Id == 0)
+                {
+                    model.Id = 1;
+                }
+
+                return model;
+            });
         this.commandQueueManager = new CommandQueueManager(this.repository);
     }
 
@@ -101,7 +112,10 @@ public class CommandQueueManagerTest
         model.Name.Should().Be("SampleTestCommand");
         model.Status.Should().Be(CommandStatus.Queued);
         model.Trigger.Should().Be((int)CommandTrigger.Manual);
-        this.repository.Received(1).Insert(Arg.Is<CommandModel>(m => m.Name == "SampleTestCommand" && m.Status == CommandStatus.Queued));
+        this.repository.Received(1).FindOrInsert(
+            "SampleTestCommand",
+            Arg.Any<string>(),
+            Arg.Is<CommandModel>(m => m.Name == "SampleTestCommand" && m.Status == CommandStatus.Queued));
     }
 
     [Test]
@@ -109,8 +123,14 @@ public class CommandQueueManagerTest
     {
         var command = new SampleTestCommand { Payload = "blocklist" };
         var inserted = new List<CommandModel>();
-        this.repository.When(r => r.Insert(Arg.Any<CommandModel>()))
-            .Do(callInfo => inserted.Add(callInfo.Arg<CommandModel>()));
+        this.repository.FindOrInsert(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CommandModel>())
+            .Returns(callInfo =>
+            {
+                var model = callInfo.ArgAt<CommandModel>(2);
+                inserted.Add(model);
+                model.Id = 1;
+                return model;
+            });
 
         this.commandQueueManager.Push(command, CommandTrigger.Scheduled);
 
@@ -130,12 +150,11 @@ public class CommandQueueManagerTest
             Status = CommandStatus.Queued,
         };
 
-        this.repository.FindExisting("SampleTestCommand", Arg.Any<string>()).Returns(existing);
+        this.repository.FindOrInsert("SampleTestCommand", Arg.Any<string>(), Arg.Any<CommandModel>()).Returns(existing);
 
         var result = this.commandQueueManager.Push(command, CommandTrigger.Manual);
 
         result.Should().BeSameAs(existing);
-        this.repository.DidNotReceive().Insert(Arg.Any<CommandModel>());
     }
 
     [Test]
@@ -149,26 +168,24 @@ public class CommandQueueManagerTest
             Status = CommandStatus.Running,
         };
 
-        this.repository.FindExisting("SampleTestCommand", Arg.Any<string>()).Returns(existing);
+        this.repository.FindOrInsert("SampleTestCommand", Arg.Any<string>(), Arg.Any<CommandModel>()).Returns(existing);
 
         var result = this.commandQueueManager.Push(command, CommandTrigger.Scheduled);
 
         result.Should().BeSameAs(existing);
-        this.repository.DidNotReceive().Insert(Arg.Any<CommandModel>());
     }
 
     [Test]
     public void Push_WhenNoExistingMatchingCommand_InsertsAndReturnsNewModel()
     {
         var command = new SampleTestCommand { Payload = "distinct-payload" };
-        this.repository.FindExisting("SampleTestCommand", Arg.Any<string>()).Returns((CommandModel)null!);
 
         var result = this.commandQueueManager.Push(command, CommandTrigger.Manual);
 
         result.Should().NotBeNull();
         result.Name.Should().Be("SampleTestCommand");
         result.Status.Should().Be(CommandStatus.Queued);
-        this.repository.Received(1).Insert(Arg.Is<CommandModel>(m => m.Name == "SampleTestCommand" && m.Status == CommandStatus.Queued));
+        result.Id.Should().Be(1);
     }
 
     [Test]
@@ -181,12 +198,11 @@ public class CommandQueueManagerTest
             Status = CommandStatus.Queued,
         };
 
-        this.repository.FindExisting("RssSync", "{}").Returns(existing);
+        this.repository.FindOrInsert("RssSync", "{}", Arg.Any<CommandModel>()).Returns(existing);
 
         var result = this.commandQueueManager.PushRaw("RssSync", "{}", CommandTrigger.Manual);
 
         result.Should().BeSameAs(existing);
-        this.repository.DidNotReceive().Insert(Arg.Any<CommandModel>());
     }
 
     [Test]

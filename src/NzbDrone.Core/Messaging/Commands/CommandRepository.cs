@@ -11,6 +11,14 @@ namespace NzbDrone.Core.Messaging.Commands;
 
 public class CommandRepository : BasicRepository<CommandModel>, ICommandRepository
 {
+    private static readonly HashSet<string> CommandEnvelopeProperties = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "name",
+        "queuedAt",
+        "trigger",
+        "suppressMessages",
+    };
+
     public CommandRepository(IDatabase database)
         : base(database)
     {
@@ -53,24 +61,85 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
             return null;
         }
 
+        return this.ExecuteWithRetry(connection =>
+        {
+            return FindExistingOnConnection(connection, name, body);
+        });
+    }
+
+    public CommandModel FindOrInsert(string name, string body, CommandModel candidate)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Command name is required.", nameof(name));
+        }
+
+        ArgumentNullException.ThrowIfNull(candidate);
+
+        return this.ExecuteWithRetry(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+
+            try
+            {
+                var existing = FindExistingOnConnection(connection, name, body, transaction);
+                if (existing != null)
+                {
+                    transaction.Commit();
+                    return existing;
+                }
+
+                var insertSql = TableMapping.GetInsertSql(this.table, candidate);
+                int id;
+                if (this.database.DatabaseType == DatabaseType.SQLite)
+                {
+                    id = connection.ExecuteScalar<int>(
+                        insertSql + "; SELECT last_insert_rowid()",
+                        candidate,
+                        transaction: transaction);
+                }
+                else
+                {
+                    id = connection.ExecuteScalar<int>(
+                        insertSql + " RETURNING \"Id\"",
+                        candidate,
+                        transaction: transaction);
+                }
+
+                candidate.Id = id;
+                transaction.Commit();
+                return candidate;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
+    }
+
+    private static CommandModel FindExistingOnConnection(
+        System.Data.IDbConnection connection,
+        string name,
+        string body,
+        System.Data.IDbTransaction transaction = null)
+    {
         var altName = name.EndsWith("Command", StringComparison.OrdinalIgnoreCase)
             ? name[..^7]
             : name + "Command";
 
-        return this.ExecuteWithRetry(connection =>
-        {
-            var candidates = connection.Query<CommandModel>(
-                "SELECT * FROM \"Commands\" WHERE (\"Name\" = @Name OR \"Name\" = @AltName) AND \"Status\" IN (@Queued, @Running)",
-                new
-                {
-                    Name = name,
-                    AltName = altName,
-                    Queued = (int)CommandStatus.Queued,
-                    Running = (int)CommandStatus.Running
-                });
+        var candidates = connection.Query<CommandModel>(
+            "SELECT * FROM \"Commands\" WHERE (\"Name\" = @Name OR \"Name\" = @AltName) AND \"Status\" IN (@Queued, @Running)",
+            new
+            {
+                Name = name,
+                AltName = altName,
+                Queued = (int)CommandStatus.Queued,
+                Running = (int)CommandStatus.Running
+            },
+            transaction: transaction);
 
-            return candidates.FirstOrDefault(c => AreBodiesEquivalent(c.Body, body));
-        });
+        return candidates.FirstOrDefault(c => AreBodiesEquivalent(c.Body, body));
     }
 
     private static bool AreBodiesEquivalent(string a, string b)
@@ -89,7 +158,7 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
 
         if (aEmpty != bEmpty)
         {
-            return false;
+            return IsEmptyOrDefaultCommandBody(aEmpty ? b : a);
         }
 
         try
@@ -97,6 +166,37 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
             using var docA = JsonDocument.Parse(a);
             using var docB = JsonDocument.Parse(b);
             return JsonElement.DeepEquals(docA.RootElement, docB.RootElement);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsEmptyOrDefaultCommandBody(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body) || body.Trim() == "{}")
+        {
+            return true;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            foreach (var property in doc.RootElement.EnumerateObject())
+            {
+                if (!CommandEnvelopeProperties.Contains(property.Name))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
         catch
         {

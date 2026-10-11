@@ -151,4 +151,87 @@ public class CommandRepositoryTest
 
         found.Should().BeNull();
     }
+
+    [Test]
+    public void FindExisting_WhenStoredTypedBodyAndLookupIsEmptyObject_ReturnsExisting()
+    {
+        var model = new CommandModel
+        {
+            Name = "BackupCommand",
+            Body = "{\"name\":\"BackupCommand\",\"queuedAt\":\"2026-01-01T00:00:00Z\",\"trigger\":\"unspecified\",\"suppressMessages\":false}",
+            Status = CommandStatus.Running,
+            QueuedAt = DateTime.UtcNow,
+            StartedAt = DateTime.UtcNow,
+        };
+        this.repository.Insert(model);
+
+        var found = this.repository.FindExisting("Backup", "{}");
+
+        found.Should().NotBeNull();
+        found!.Id.Should().Be(model.Id);
+    }
+
+    [Test]
+    public void FindExisting_WhenStoredEmptyObjectAndLookupHasDefaultEnvelope_ReturnsExisting()
+    {
+        var model = new CommandModel
+        {
+            Name = "BackupCommand",
+            Body = "{}",
+            Status = CommandStatus.Queued,
+            QueuedAt = DateTime.UtcNow,
+        };
+        this.repository.Insert(model);
+
+        var found = this.repository.FindExisting(
+            "BackupCommand",
+            "{\"name\":\"BackupCommand\",\"queuedAt\":\"2026-01-01T00:00:00Z\",\"trigger\":\"unspecified\",\"suppressMessages\":false}");
+
+        found.Should().NotBeNull();
+        found!.Id.Should().Be(model.Id);
+    }
+
+    [Test]
+    public void FindExisting_WhenStoredBodyHasPayloadAndLookupIsEmptyObject_ReturnsNull()
+    {
+        var model = new CommandModel
+        {
+            Name = "RssSyncCommand",
+            Body = "{\"indexerId\":1}",
+            Status = CommandStatus.Queued,
+            QueuedAt = DateTime.UtcNow,
+        };
+        this.repository.Insert(model);
+
+        var found = this.repository.FindExisting("RssSync", "{}");
+
+        found.Should().BeNull();
+    }
+
+    [Test]
+    public void FindOrInsert_WhenMatchingCommandExists_ReturnsExistingWithoutSecondRow()
+    {
+        var model = new CommandModel
+        {
+            Name = "BackupCommand",
+            Body = "{}",
+            Status = CommandStatus.Running,
+            QueuedAt = DateTime.UtcNow,
+            StartedAt = DateTime.UtcNow,
+        };
+        this.repository.Insert(model);
+
+        var candidate = new CommandModel
+        {
+            Name = "Backup",
+            Body = "{}",
+            Status = CommandStatus.Queued,
+            QueuedAt = DateTime.UtcNow,
+        };
+
+        var result = this.repository.FindOrInsert("Backup", "{}", candidate);
+
+        result.Id.Should().Be(model.Id);
+        this.repository.All().Should().ContainSingle();
+    }
 }

@@ -15,4 +15,6 @@ public interface ICommandRepository : IBasicRepository<CommandModel>
     void DeleteOldTerminalCommands(DateTime cutoff);
 
     CommandModel FindExisting(string name, string body);
+
+    CommandModel FindOrInsert(string name, string body, CommandModel candidate);
 }
