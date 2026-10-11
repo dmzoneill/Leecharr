@@ -37,6 +37,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     private static readonly BencodeParser BParser = new();
     private static readonly TimeSpan ScrapeCacheTtl = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan DnsCacheTtl = TimeSpan.FromMinutes(10);
+    private static readonly string[] TransmissionTorrentPrivateFields = { "hashString", "isPrivate" };
+    private static readonly string[] DelugeTorrentPrivateKeys = { "is_private" };
 
     private static readonly string[] DefaultBootstrapTrackers = new[]
     {
@@ -1187,7 +1189,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return await this.InspectTorrentTrackersAsync(torrent.Id);
         }
 
-        return await this.InspectHashInternalAsync(0, !string.IsNullOrWhiteSpace(name) ? name : infoHash, infoHash, false);
+        var isPrivate = await this.IsHashPrivateOnDownloadClientsAsync(infoHash).ConfigureAwait(false) == true;
+        return await this.InspectHashInternalAsync(0, !string.IsNullOrWhiteSpace(name) ? name : infoHash, infoHash, isPrivate);
     }
 
     public async Task<SwarmBoostResult> BoostTorrentAsync(int torrentId, bool onlyVerified = true)
@@ -1356,6 +1359,19 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return await this.BoostTorrentAsync(torrent.Id, onlyVerified);
         }
 
+        if (await this.IsHashPrivateOnDownloadClientsAsync(infoHash).ConfigureAwait(false) == true)
+        {
+            return new SwarmBoostResult
+            {
+                TorrentId = 0,
+                TorrentName = !string.IsNullOrWhiteSpace(name) ? name : infoHash,
+                InfoHash = infoHash,
+                IsPrivate = true,
+                Boosted = false,
+                Message = "Skipped: Private torrents are protected from external tracker injection.",
+            };
+        }
+
         var inspection = await this.InspectHashTrackersAsync(infoHash, name);
         var settings = this.GetSettings();
         var maxToAdd = settings.MaxTrackersPerTorrent;
@@ -1514,6 +1530,19 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 InfoHash = infoHash,
                 Boosted = false,
                 Message = "Rejected: Tracker URL is invalid or contains private passkey tokens.",
+            };
+        }
+
+        if (!force && await this.IsHashPrivateOnDownloadClientsAsync(infoHash).ConfigureAwait(false) == true)
+        {
+            return new SwarmBoostResult
+            {
+                TorrentId = 0,
+                TorrentName = infoHash,
+                InfoHash = infoHash,
+                IsPrivate = true,
+                Boosted = false,
+                Message = "Skipped: Private torrents are protected. Set force=true to override.",
             };
         }
 
@@ -1829,6 +1858,243 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return true;
     }
 
+    internal async Task<bool?> IsHashPrivateOnDownloadClientsAsync(string infoHash)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash) || this.downloadClientRepository == null)
+        {
+            return null;
+        }
+
+        var clients = this.downloadClientRepository.GetEnabled()?.ToList();
+        if (clients == null || clients.Count == 0)
+        {
+            return null;
+        }
+
+        bool? resolved = null;
+        foreach (var client in clients)
+        {
+            try
+            {
+                var clientPrivate = await TryQueryClientTorrentIsPrivateAsync(client, infoHash).ConfigureAwait(false);
+                if (clientPrivate == true)
+                {
+                    return true;
+                }
+
+                if (clientPrivate == false)
+                {
+                    resolved = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to query private flag for hash {0} on client {1}", infoHash, client?.Name);
+            }
+        }
+
+        return resolved;
+    }
+
+    private static async Task<bool?> TryQueryClientTorrentIsPrivateAsync(DownloadClientDefinition client, string infoHash)
+    {
+        if (client == null || string.IsNullOrWhiteSpace(client.Host) || string.IsNullOrWhiteSpace(infoHash))
+        {
+            return null;
+        }
+
+        var normalizedHash = infoHash.Trim().ToLowerInvariant();
+        var port = client.Port > 0 ? client.Port : 8080;
+        var scheme = client.UseSsl ? "https" : "http";
+        var baseUrl = $"{scheme}://{client.Host}:{port}";
+        var password = DownloadClientPasswordCodec.Unprotect(client.Password);
+        var clientHttp = GetOrCreateClient(client, baseUrl);
+
+        if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+            {
+                var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    { "username", client.Username ?? string.Empty },
+                    { "password", password ?? string.Empty },
+                });
+
+                using var loginResp = await clientHttp.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent).ConfigureAwait(false);
+                if (!loginResp.IsSuccessStatusCode)
+                {
+                    return null;
+                }
+
+                var loginResult = await loginResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (string.Equals(loginResult.Trim(), "Fails.", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+            }
+
+            using var resp = await clientHttp.GetAsync($"{baseUrl}/api/v2/torrents/properties?hash={normalizedHash}").ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("is_private", out var privateElem) &&
+                (privateElem.ValueKind == JsonValueKind.True || privateElem.ValueKind == JsonValueKind.False))
+            {
+                return privateElem.GetBoolean();
+            }
+
+            return null;
+        }
+
+        if (string.Equals(client.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
+        {
+            var payload = JsonSerializer.Serialize(new
+            {
+                method = "torrent-get",
+                arguments = new
+                {
+                    ids = new[] { normalizedHash },
+                    fields = TransmissionTorrentPrivateFields,
+                },
+            });
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json"),
+            };
+
+            if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+            {
+                var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
+                req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
+            }
+
+            using var resp = await clientHttp.SendAsync(req).ConfigureAwait(false);
+            var activeResp = resp;
+            if (resp.StatusCode == HttpStatusCode.Conflict && resp.Headers.TryGetValues("X-Transmission-Session-Id", out var sessValues))
+            {
+                var sessionId = sessValues.FirstOrDefault();
+                resp.Dispose();
+                using var req2 = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
+                {
+                    Content = new StringContent(payload, Encoding.UTF8, "application/json"),
+                };
+
+                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+                {
+                    var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
+                    req2.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
+                }
+
+                req2.Headers.Add("X-Transmission-Session-Id", sessionId);
+                activeResp = await clientHttp.SendAsync(req2).ConfigureAwait(false);
+            }
+
+            using (activeResp)
+            {
+                if (!activeResp.IsSuccessStatusCode)
+                {
+                    return null;
+                }
+
+                var json = await activeResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                using var doc = JsonDocument.Parse(json);
+                if (!doc.RootElement.TryGetProperty("arguments", out var args) ||
+                    !args.TryGetProperty("torrents", out var torrents) ||
+                    torrents.ValueKind != JsonValueKind.Array)
+                {
+                    return null;
+                }
+
+                foreach (var torrent in torrents.EnumerateArray())
+                {
+                    if (torrent.TryGetProperty("isPrivate", out var privateElem) &&
+                        (privateElem.ValueKind == JsonValueKind.True || privateElem.ValueKind == JsonValueKind.False))
+                    {
+                        return privateElem.GetBoolean();
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        if (string.Equals(client.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                var loginContent = new StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        method = "auth.login",
+                        @params = new object[] { password },
+                        id = 1,
+                    }),
+                    Encoding.UTF8,
+                    "application/json");
+
+                using var loginResp = await clientHttp.PostAsync($"{baseUrl}/json", loginContent).ConfigureAwait(false);
+                if (!loginResp.IsSuccessStatusCode)
+                {
+                    return null;
+                }
+
+                var loginJson = await loginResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                using var loginDoc = JsonDocument.Parse(loginJson);
+                if (loginDoc.RootElement.TryGetProperty("result", out var resElem) &&
+                    resElem.ValueKind == JsonValueKind.False)
+                {
+                    return null;
+                }
+            }
+
+            var body = new StringContent(
+                JsonSerializer.Serialize(new
+                {
+                    method = "core.get_torrent_status",
+                    @params = new object[] { new Dictionary<string, object> { [normalizedHash] = string.Empty }, DelugeTorrentPrivateKeys },
+                    id = 2,
+                }),
+                Encoding.UTF8,
+                "application/json");
+
+            using var resp = await clientHttp.PostAsync($"{baseUrl}/json", body).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("error", out var errElem) && errElem.ValueKind != JsonValueKind.Null)
+            {
+                return null;
+            }
+
+            if (!doc.RootElement.TryGetProperty("result", out var result) || result.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            if (!result.TryGetProperty(normalizedHash, out var torrentElem))
+            {
+                return null;
+            }
+
+            if (torrentElem.TryGetProperty("is_private", out var privateElem) &&
+                (privateElem.ValueKind == JsonValueKind.True || privateElem.ValueKind == JsonValueKind.False))
+            {
+                return privateElem.GetBoolean();
+            }
+        }
+
+        return null;
+    }
+
     private async Task<bool> InjectIntoClientAsync(
         DownloadClientDefinition client,
         string infoHash,
@@ -1837,6 +2103,15 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     {
         if (client == null || string.IsNullOrWhiteSpace(client.Host))
         {
+            return false;
+        }
+
+        if (await TryQueryClientTorrentIsPrivateAsync(client, infoHash).ConfigureAwait(false) == true)
+        {
+            this.logger.Warn(
+                "Refusing to inject trackers for private torrent {0} on download client {1}",
+                infoHash,
+                client.Name);
             return false;
         }
 

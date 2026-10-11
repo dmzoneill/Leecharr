@@ -720,6 +720,99 @@ public class TrackerBoostServiceTest
     }
 
     [Test]
+    public async Task BoostHashAsync_WhenRemoteClientReportsPrivate_SkipsInjection()
+    {
+        var hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var addTrackersCalled = false;
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.Contains("torrents/properties", StringComparison.OrdinalIgnoreCase))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"is_private\":true}", Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (request.RequestUri!.AbsolutePath.Contains("addTrackers", StringComparison.OrdinalIgnoreCase))
+            {
+                addTrackersCalled = true;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        this.storedDownloadClients.Add(new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "qbit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Enable = true,
+        });
+
+        var boostService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            httpClient: new HttpClient(handler));
+
+        var result = await boostService.BoostHashAsync(hash);
+
+        result.IsPrivate.Should().BeTrue();
+        result.Boosted.Should().BeFalse();
+        addTrackersCalled.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task InjectTrackerToHashAsync_WhenRemotePrivateAndNotForced_SkipsInjection()
+    {
+        var hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.Contains("torrents/properties", StringComparison.OrdinalIgnoreCase))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"is_private\":true}", Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        this.storedDownloadClients.Add(new DownloadClientDefinition
+        {
+            Id = 2,
+            Name = "qbit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Enable = true,
+        });
+
+        var boostService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            httpClient: new HttpClient(handler));
+
+        var result = await boostService.InjectTrackerToHashAsync(hash, "udp://tracker.opentrackr.org:1337/announce");
+
+        result.IsPrivate.Should().BeTrue();
+        result.Boosted.Should().BeFalse();
+    }
+
+    [Test]
     public async Task InjectTrackerToHashAsync_WhenNonLocalAndNoClients_ReturnsBoostedFalseAndZeroAdded()
     {
         var hash = "0123456789abcdef0123456789abcdef01234567";
