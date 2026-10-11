@@ -390,11 +390,16 @@ public class SimulationConfigController : ConfigController<SimulationConfigResou
 public class TrackerServerConfigController : ConfigController<TrackerServerConfigResource>
 {
     private readonly IUdpTrackerService udpTrackerService;
+    private readonly IHttpTrackerService httpTrackerService;
 
-    public TrackerServerConfigController(IConfigService configService, IUdpTrackerService udpTrackerService = null)
+    public TrackerServerConfigController(
+        IConfigService configService,
+        IUdpTrackerService udpTrackerService = null,
+        IHttpTrackerService httpTrackerService = null)
         : base(configService)
     {
         this.udpTrackerService = udpTrackerService;
+        this.httpTrackerService = httpTrackerService;
 
         this.SharedValidator.RuleFor(c => c.TrackerHttpPort)
             .InclusiveBetween(1, 65535);
@@ -448,6 +453,38 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
                     catch (Exception ex)
                     {
                         this.logger.Error(ex, "Failed to stop UDP tracker service");
+                    }
+                }, CancellationToken.None);
+            }
+        }
+
+        if (this.httpTrackerService != null)
+        {
+            if (resource != null && resource.TrackerServerEnabled && resource.TrackerHttpEnabled)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.httpTrackerService.RestartAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Failed to restart HTTP tracker service");
+                    }
+                }, CancellationToken.None);
+            }
+            else
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.httpTrackerService.StopAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Failed to stop HTTP tracker service");
                     }
                 }, CancellationToken.None);
             }

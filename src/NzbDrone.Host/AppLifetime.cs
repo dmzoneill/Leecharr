@@ -119,10 +119,15 @@ public class AppLifetime : IHostedService, IDisposable
             {
                 await this.services.UdpTrackerService.StartAsync(cancellationToken);
             }
+
+            if (this.services.HttpTrackerService != null)
+            {
+                await this.services.HttpTrackerService.StartAsync(cancellationToken);
+            }
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Error initializing UDP tracker service on startup");
+            this.logger.Warn(ex, "Error initializing tracker services on startup");
         }
 
         try
@@ -207,6 +212,18 @@ public class AppLifetime : IHostedService, IDisposable
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error shutting down UDP tracker service");
+            }
+        }
+
+        if (this.services.HttpTrackerService != null)
+        {
+            try
+            {
+                await this.services.HttpTrackerService.StopAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error shutting down HTTP tracker service");
             }
         }
 
