@@ -420,6 +420,22 @@ public class Aria2RpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_GetRequest_WithMaliciousCallback_ReturnsJsonNotScript()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Method = "GET";
+        context.Request.QueryString = new QueryString("?method=aria2.getVersion&id=99&callback=steal);extra(");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        json.Should().Contain("1.36.0");
+    }
+
+    [Test]
     public async Task HandleRpc_GetRequest_WithTokenAuthInBase64Params_AuthenticatesSuccessfully()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
