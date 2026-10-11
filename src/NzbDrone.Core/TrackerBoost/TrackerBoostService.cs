@@ -68,9 +68,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     private readonly HttpClient httpClient;
     private readonly bool ownsHttpClient;
     private readonly SemaphoreSlim globalScrapeThrottle = new(10, 10);
+    private readonly CancellationTokenSource disposeCts = new();
     private readonly ConcurrentDictionary<string, (bool Success, int Seeders, int Leechers, int Downloaded, DateTime CachedUtc)> scrapeCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger;
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
+    private int disposeState;
+    private int backgroundOperationCount;
 
     public TrackerBoostService(
         ITrackerBoostTrackerRepository trackerRepository,
@@ -115,12 +118,61 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref this.disposeState, 1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            this.disposeCts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (Volatile.Read(ref this.backgroundOperationCount) > 0 && DateTime.UtcNow < deadline)
+        {
+            Thread.Sleep(50);
+        }
+
         if (this.ownsHttpClient)
         {
             this.httpClient?.Dispose();
         }
 
         this.globalScrapeThrottle?.Dispose();
+
+        try
+        {
+            this.disposeCts.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private bool TryEnterBackgroundOperation()
+    {
+        if (Volatile.Read(ref this.disposeState) != 0)
+        {
+            return false;
+        }
+
+        Interlocked.Increment(ref this.backgroundOperationCount);
+        if (Volatile.Read(ref this.disposeState) != 0)
+        {
+            Interlocked.Decrement(ref this.backgroundOperationCount);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ExitBackgroundOperation()
+    {
+        Interlocked.Decrement(ref this.backgroundOperationCount);
     }
 
     internal string GetBoundInterfaceName()
@@ -965,95 +1017,149 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return 0;
         }
 
-        var trackers = this.trackerRepository.All().Where(t => t.Enabled).ToList();
-        var testedCount = 0;
-
-        using var semaphore = new SemaphoreSlim(16);
-        var tasks = trackers.Select(async tracker =>
+        if (!this.TryEnterBackgroundOperation())
         {
-            await semaphore.WaitAsync();
-            try
+            return 0;
+        }
+
+        try
+        {
+            if (this.disposeCts.IsCancellationRequested)
             {
-                if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+                return 0;
+            }
+
+            var cancellationToken = this.disposeCts.Token;
+            var trackers = this.trackerRepository.All().Where(t => t.Enabled).ToList();
+            var testedCount = 0;
+
+            using var semaphore = new SemaphoreSlim(16);
+            var tasks = trackers.Select(async tracker =>
+            {
+                try
                 {
-                    this.logger.Warn("VPN kill switch fail-closed is active; skipping probe for {0}", tracker.Url);
-                    tracker.Status = TrackerHealthStatus.Offline;
-                    tracker.FailedScrapes++;
-                    this.trackerRepository.Update(tracker);
-                    this.LogActivity("Warn", "Health", $"VPN kill switch active - probe skipped for {tracker.Url}", tracker.Url);
-                    Interlocked.Increment(ref testedCount);
+                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
                     return;
                 }
 
-                var isAlive = false;
-
-                if (tracker.Protocol == TrackerProtocol.Udp)
+                try
                 {
-                    var addresses = await ResolveHostAddressesAsync(tracker.Host, this.vpnKillSwitchService).ConfigureAwait(false);
-                    if (addresses.Length == 0)
+                    if (cancellationToken.IsCancellationRequested)
                     {
+                        return;
+                    }
+
+                    if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+                    {
+                        this.logger.Warn("VPN kill switch fail-closed is active; skipping probe for {0}", tracker.Url);
                         tracker.Status = TrackerHealthStatus.Offline;
                         tracker.FailedScrapes++;
                         this.trackerRepository.Update(tracker);
-                        this.LogActivity("Error", "Health", $"DNS resolution failed for {tracker.Host} ({tracker.Url}) - marked Offline", tracker.Url);
+                        this.LogActivity("Warn", "Health", $"VPN kill switch active - probe skipped for {tracker.Url}", tracker.Url);
                         Interlocked.Increment(ref testedCount);
                         return;
                     }
 
-                    var sw = Stopwatch.StartNew();
-                    isAlive = await this.ProbeUdpTrackerAsync(addresses, tracker.Port).ConfigureAwait(false);
-                    sw.Stop();
-                    tracker.LatencyMs = (int)sw.ElapsedMilliseconds;
-                }
-                else
-                {
-                    if (Uri.TryCreate(tracker.Url, UriKind.Absolute, out var uri))
+                    var isAlive = false;
+
+                    if (tracker.Protocol == TrackerProtocol.Udp)
                     {
-                        await ResolveHostAddressesAsync(uri.Host, this.vpnKillSwitchService).ConfigureAwait(false);
+                        var addresses = await ResolveHostAddressesAsync(tracker.Host, this.vpnKillSwitchService).ConfigureAwait(false);
+                        if (addresses.Length == 0)
+                        {
+                            if (!cancellationToken.IsCancellationRequested)
+                            {
+                                tracker.Status = TrackerHealthStatus.Offline;
+                                tracker.FailedScrapes++;
+                                this.trackerRepository.Update(tracker);
+                                this.LogActivity("Error", "Health", $"DNS resolution failed for {tracker.Host} ({tracker.Url}) - marked Offline", tracker.Url);
+                                Interlocked.Increment(ref testedCount);
+                            }
+
+                            return;
+                        }
+
+                        var sw = Stopwatch.StartNew();
+                        isAlive = await this.ProbeUdpTrackerAsync(addresses, tracker.Port, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        sw.Stop();
+                        tracker.LatencyMs = (int)sw.ElapsedMilliseconds;
+                    }
+                    else
+                    {
+                        if (Uri.TryCreate(tracker.Url, UriKind.Absolute, out var uri))
+                        {
+                            await ResolveHostAddressesAsync(uri.Host, this.vpnKillSwitchService).ConfigureAwait(false);
+                        }
+
+                        var sw = Stopwatch.StartNew();
+                        isAlive = await this.ProbeHttpTrackerAsync(tracker.Url, cancellationToken).ConfigureAwait(false);
+                        sw.Stop();
+                        tracker.LatencyMs = (int)sw.ElapsedMilliseconds;
                     }
 
-                    var sw = Stopwatch.StartNew();
-                    isAlive = await this.ProbeHttpTrackerAsync(tracker.Url).ConfigureAwait(false);
-                    sw.Stop();
-                    tracker.LatencyMs = (int)sw.ElapsedMilliseconds;
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    tracker.LastScraped = DateTime.UtcNow;
+
+                    if (isAlive)
+                    {
+                        tracker.Status = tracker.LatencyMs < 400 ? TrackerHealthStatus.Alive : TrackerHealthStatus.Slow;
+                        tracker.LastSuccess = DateTime.UtcNow;
+                        tracker.SuccessfulScrapes++;
+                        this.LogActivity(tracker.Status == TrackerHealthStatus.Alive ? "Success" : "Warn", "Health", $"Probe succeeded for {tracker.Url} ({tracker.LatencyMs}ms - {tracker.Status})", tracker.Url);
+                    }
+                    else
+                    {
+                        tracker.Status = TrackerHealthStatus.Offline;
+                        tracker.FailedScrapes++;
+                        this.LogActivity("Error", "Health", $"Probe failed / connection timeout for {tracker.Url} - marked Offline", tracker.Url);
+                    }
+
+                    this.trackerRepository.Update(tracker);
+                    Interlocked.Increment(ref testedCount);
                 }
-
-                tracker.LastScraped = DateTime.UtcNow;
-
-                if (isAlive)
+                catch (OperationCanceledException)
                 {
-                    tracker.Status = tracker.LatencyMs < 400 ? TrackerHealthStatus.Alive : TrackerHealthStatus.Slow;
-                    tracker.LastSuccess = DateTime.UtcNow;
-                    tracker.SuccessfulScrapes++;
-                    this.LogActivity(tracker.Status == TrackerHealthStatus.Alive ? "Success" : "Warn", "Health", $"Probe succeeded for {tracker.Url} ({tracker.LatencyMs}ms - {tracker.Status})", tracker.Url);
                 }
-                else
+                catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
                 {
                     tracker.Status = TrackerHealthStatus.Offline;
                     tracker.FailedScrapes++;
-                    this.LogActivity("Error", "Health", $"Probe failed / connection timeout for {tracker.Url} - marked Offline", tracker.Url);
+                    this.trackerRepository.Update(tracker);
+                    this.LogActivity("Error", "Health", $"Probe exception for {tracker.Url}: {ex.Message} - marked Offline", tracker.Url);
                 }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
 
-                this.trackerRepository.Update(tracker);
-                Interlocked.Increment(ref testedCount);
-            }
-            catch (Exception ex)
+            try
             {
-                tracker.Status = TrackerHealthStatus.Offline;
-                tracker.FailedScrapes++;
-                this.trackerRepository.Update(tracker);
-                this.LogActivity("Error", "Health", $"Probe exception for {tracker.Url}: {ex.Message} - marked Offline", tracker.Url);
+                await Task.WhenAll(tasks).ConfigureAwait(false);
             }
-            finally
+            catch (OperationCanceledException)
             {
-                semaphore.Release();
             }
-        });
 
-        await Task.WhenAll(tasks);
-        this.stateStore.LastScanTime = DateTime.UtcNow;
-        this.LogActivity("Info", "Health", $"Completed health scan of {testedCount} candidate tracker(s)");
-        return testedCount;
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                this.stateStore.LastScanTime = DateTime.UtcNow;
+                this.LogActivity("Info", "Health", $"Completed health scan of {testedCount} candidate tracker(s)");
+            }
+
+            return testedCount;
+        }
+        finally
+        {
+            this.ExitBackgroundOperation();
+        }
     }
 
     public async Task<TorrentTrackerInspectionResult> InspectTorrentTrackersAsync(int torrentId)
@@ -1809,32 +1915,66 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return;
         }
 
-        this.LogActivity("Info", "Cycle", "Background tracker optimization cycle started");
-
-        this.EnsureDefaultTrackersBootstrapped();
-
-        this.CleanExpiredBoostHistory();
-
-        await this.RecoverMissingTrackersAsync();
-
-        var settings = this.GetSettings();
-        if (settings.AutoHarvestEnabled)
+        if (!this.TryEnterBackgroundOperation())
         {
-            await this.HarvestFromActiveDownloadsAsync();
+            return;
         }
 
-        var hasUntested = this.trackerRepository.All().Any(t => t.Enabled && t.Status == TrackerHealthStatus.Untested);
-        if (hasUntested || this.stateStore.LastScanTime == null || DateTime.UtcNow.Subtract(this.stateStore.LastScanTime.Value).TotalMinutes > 5)
+        try
         {
-            await this.ProbeTrackerHealthAsync();
-        }
+            if (this.disposeCts.IsCancellationRequested)
+            {
+                return;
+            }
 
-        if (settings.AutoBoostEnabled)
+            this.LogActivity("Info", "Cycle", "Background tracker optimization cycle started");
+
+            this.EnsureDefaultTrackersBootstrapped();
+
+            this.CleanExpiredBoostHistory();
+
+            await this.RecoverMissingTrackersAsync().ConfigureAwait(false);
+            if (this.disposeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var settings = this.GetSettings();
+            if (settings.AutoHarvestEnabled)
+            {
+                await this.HarvestFromActiveDownloadsAsync().ConfigureAwait(false);
+            }
+
+            if (this.disposeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var hasUntested = this.trackerRepository.All().Any(t => t.Enabled && t.Status == TrackerHealthStatus.Untested);
+            if (hasUntested || this.stateStore.LastScanTime == null || DateTime.UtcNow.Subtract(this.stateStore.LastScanTime.Value).TotalMinutes > 5)
+            {
+                await this.ProbeTrackerHealthAsync().ConfigureAwait(false);
+            }
+
+            if (this.disposeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (settings.AutoBoostEnabled)
+            {
+                await this.BoostAllTorrentsAsync(onlyVerified: settings.OnlyVerified).ConfigureAwait(false);
+            }
+
+            if (!this.disposeCts.IsCancellationRequested)
+            {
+                this.LogActivity("Info", "Cycle", "Background tracker optimization cycle completed successfully");
+            }
+        }
+        finally
         {
-            await this.BoostAllTorrentsAsync(onlyVerified: settings.OnlyVerified);
+            this.ExitBackgroundOperation();
         }
-
-        this.LogActivity("Info", "Cycle", "Background tracker optimization cycle completed successfully");
     }
 
     private void EnsureDefaultTrackersBootstrapped()
@@ -2155,7 +2295,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return await this.ProbeUdpTrackerAsync(addresses, port, initialTimeoutMs, maxRetries, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<bool> ProbeHttpTrackerAsync(string url)
+    private async Task<bool> ProbeHttpTrackerAsync(string url, CancellationToken cancellationToken = default)
     {
         if (this.vpnKillSwitchService?.IsFailClosedActive == true)
         {
@@ -2166,9 +2306,18 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Head, url);
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            using var resp = await this.httpClient.SendAsync(req, cts.Token);
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken, this.disposeCts.Token);
+            using var resp = await this.httpClient.SendAsync(req, linkedCts.Token).ConfigureAwait(false);
             return resp.IsSuccessStatusCode || resp.StatusCode == HttpStatusCode.BadRequest;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (ObjectDisposedException)
+        {
+            return false;
         }
         catch
         {
@@ -2354,10 +2503,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return (cached.Success, cached.Seeders, cached.Leechers, cached.Downloaded);
         }
 
+        using var scrapeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, this.disposeCts.Token);
+        var scrapeToken = scrapeCts.Token;
+
         // Bounded concurrency: max 10 concurrent outgoing scrape requests globally
         try
         {
-            await this.globalScrapeThrottle.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await this.globalScrapeThrottle.WaitAsync(scrapeToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -2368,7 +2520,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             // Strict timeout per scrape request (5 seconds max) to prevent hanging while allowing BEP 15 UDP retransmissions
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(5000));
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, scrapeToken);
 
             (bool Success, int Seeders, int Leechers, int Downloaded) result;
             try
@@ -2402,7 +2554,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
         finally
         {
-            this.globalScrapeThrottle.Release();
+            try
+            {
+                this.globalScrapeThrottle.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
     }
 

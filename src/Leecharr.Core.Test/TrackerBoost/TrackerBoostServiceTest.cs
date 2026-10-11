@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -1248,6 +1249,45 @@ public class TrackerBoostServiceTest
     }
 
     [Test]
+    public async Task Dispose_DuringProbeTrackerHealth_DoesNotThrowOrMarkTrackersOffline()
+    {
+        this.storedTrackers.Clear();
+        this.storedTrackers.Add(new TrackerBoostTracker
+        {
+            Id = 1,
+            Enabled = true,
+            Url = "http://127.0.0.1:9/announce",
+            Host = "127.0.0.1",
+            Port = 9,
+            Protocol = TrackerProtocol.Http,
+            Status = TrackerHealthStatus.Alive,
+            FailedScrapes = 0,
+        });
+
+        using var httpClient = new HttpClient(new BlockingHttpMessageHandler(), disposeHandler: true);
+        var disposableService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            httpClient: httpClient);
+
+        var probeTask = disposableService.ProbeTrackerHealthAsync();
+        await Task.Delay(200);
+
+        var act = () => disposableService.Dispose();
+        act.Should().NotThrow();
+
+        await probeTask;
+
+        this.storedTrackers[0].Status.Should().Be(TrackerHealthStatus.Alive);
+        this.storedTrackers[0].FailedScrapes.Should().Be(0);
+    }
+
+    [Test]
     public void GetBoundInterfaceName_FallsBackToVpnInterfaceName_WhenConfigEmpty()
     {
         var mockVpn = Substitute.For<IVpnKillSwitchService>();
@@ -1266,5 +1306,14 @@ public class TrackerBoostServiceTest
             vpnKillSwitchService: mockVpn);
 
         boundService.GetBoundInterfaceName().Should().Be("vpn0");
+    }
+
+    private sealed class BlockingHttpMessageHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(TimeSpan.FromMinutes(5), cancellationToken).ConfigureAwait(false);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
     }
 }
