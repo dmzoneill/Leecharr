@@ -112,14 +112,19 @@ public class ScriptApiContextTest
             this.captureRequest = captureRequest;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             this.captureUri(request.RequestUri);
             this.captureRequest?.Invoke(request);
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"),
-            });
+            };
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(this.Send(request, cancellationToken));
         }
     }
 }

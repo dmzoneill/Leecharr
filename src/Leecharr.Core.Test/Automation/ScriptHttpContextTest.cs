@@ -312,9 +312,14 @@ public class ScriptHttpContextTest
             this.handler = handler;
         }
 
+        protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return this.handler(request);
+        }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            return Task.FromResult(this.handler(request));
+            return Task.FromResult(this.Send(request, cancellationToken));
         }
     }
 
@@ -325,6 +330,11 @@ public class ScriptHttpContextTest
         public AsyncTestHttpMessageHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
         {
             this.handler = handler;
+        }
+
+        protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return this.handler(request).GetAwaiter().GetResult();
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
