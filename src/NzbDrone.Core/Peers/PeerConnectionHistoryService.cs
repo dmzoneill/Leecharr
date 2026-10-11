@@ -33,11 +33,6 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService, IHand
             return;
         }
 
-        if (connectionEvent.Id == 0)
-        {
-            connectionEvent.Id = Interlocked.Increment(ref this.idSequence);
-        }
-
         if (string.IsNullOrEmpty(connectionEvent.CountryCode) &&
             string.IsNullOrEmpty(connectionEvent.CountryName) &&
             !string.IsNullOrEmpty(connectionEvent.RemoteIp) &&
@@ -61,6 +56,11 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService, IHand
 
         lock (this.syncRoot)
         {
+            if (connectionEvent.Id == 0)
+            {
+                connectionEvent.Id = Interlocked.Increment(ref this.idSequence);
+            }
+
             this.eventQueue.Enqueue(connectionEvent);
 
             while (this.eventQueue.Count > MaxRecords)
