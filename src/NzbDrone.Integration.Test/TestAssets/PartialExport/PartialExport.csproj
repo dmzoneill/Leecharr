@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <EnableAnalyzers>false</EnableAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../MissingContract/MissingContract.csproj" />
+  </ItemGroup>
+</Project>

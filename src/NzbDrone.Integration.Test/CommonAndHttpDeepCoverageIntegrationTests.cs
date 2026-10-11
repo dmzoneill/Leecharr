@@ -328,6 +328,66 @@ public class CommonAndHttpDeepCoverageIntegrationTests : IntegrationTestBase
         assemblies[0].GetName().Name.Should().Be("Leecharr.Common");
     }
 
+    [Test]
+    public void AssemblyLoader_Load_WithPresentCorruptDll_SkipsAssemblyWithoutThrowing()
+    {
+        const string corruptAssemblyName = "CorruptAssemblyIntegration1498";
+        var corruptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{corruptAssemblyName}.dll");
+        File.WriteAllText(corruptPath, "not-a-valid-assembly");
+
+        try
+        {
+            var assemblies = AssemblyLoader.Load(new List<string> { corruptAssemblyName, "Leecharr.Common" });
+
+            assemblies.Should().HaveCount(1);
+            assemblies[0].GetName().Name.Should().Be("Leecharr.Common");
+        }
+        finally
+        {
+            if (File.Exists(corruptPath))
+            {
+                File.Delete(corruptPath);
+            }
+        }
+    }
+
+    [Test]
+    public void AssemblyLoader_GetExportedTypes_WithPartiallyLoadableAssembly_ReturnsLoadableTypes()
+    {
+        const string partialExportAssemblyName = "PartialExportTest1498";
+        var assemblyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{partialExportAssemblyName}.dll");
+        File.Exists(assemblyPath).Should().BeTrue("test asset should be copied to output directory");
+
+        var assembly = Assembly.LoadFrom(assemblyPath);
+        var types = AssemblyLoader.GetExportedTypes(assembly).Select(type => type.Name).ToList();
+
+        types.Should().Contain("GoodExportedType");
+        types.Should().NotContain("BadExportedType");
+    }
+
+    [Test]
+    public void ContainerBuilder_Build_WithCorruptAndValidAssemblies_DoesNotThrow()
+    {
+        const string corruptAssemblyName = "CorruptContainerBuild1498";
+        var corruptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{corruptAssemblyName}.dll");
+        File.WriteAllText(corruptPath, "not-a-valid-assembly");
+
+        try
+        {
+            using var container = ContainerBuilder.Build(new List<string> { corruptAssemblyName, "Leecharr.Common" });
+
+            container.Should().NotBeNull();
+            KnownTypes.GetImplementations(typeof(object)).Should().NotBeEmpty();
+        }
+        finally
+        {
+            if (File.Exists(corruptPath))
+            {
+                File.Delete(corruptPath);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------------
     // Part 1: Leecharr.Common - BuildInfo
     // ------------------------------------------------------------------------
