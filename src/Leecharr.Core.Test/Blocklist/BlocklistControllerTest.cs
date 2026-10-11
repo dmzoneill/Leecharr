@@ -68,6 +68,7 @@ public class BlocklistControllerTest
         resource!.Enabled.Should().BeTrue();
         resource.Url.Should().Be("https://example.com/blocklist.txt");
         resource.AutoUpdateEnabled.Should().BeTrue();
+        resource.AutoUpdateIntervalHours.Should().Be(48);
         resource.AutoUpdateIntervalDays.Should().Be(2);
         resource.Ipv4RuleCount.Should().Be(1500);
         resource.Ipv6RuleCount.Should().Be(0);
@@ -118,7 +119,7 @@ public class BlocklistControllerTest
     }
 
     [Test]
-    public void GetBlocklist_WhenIntervalHoursLessThan24_DefaultsToAtLeastOneDayInterval()
+    public void GetBlocklist_WhenIntervalHoursLessThan24_ReturnsCanonicalHoursAndDisplayDays()
     {
         this.configService.BlocklistUpdateIntervalHours.Returns(6);
 
@@ -129,7 +130,24 @@ public class BlocklistControllerTest
 
         var resource = okResult!.Value as BlocklistResource;
         resource.Should().NotBeNull();
-        resource!.AutoUpdateIntervalDays.Should().Be(1);
+        resource!.AutoUpdateIntervalHours.Should().Be(6);
+        resource.AutoUpdateIntervalDays.Should().Be(1);
+    }
+
+    [Test]
+    public void GetBlocklist_WhenIntervalHoursNotMultipleOf24_ReturnsFloorDayCount()
+    {
+        this.configService.BlocklistUpdateIntervalHours.Returns(36);
+
+        var actionResult = this.controller.GetBlocklist();
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var resource = okResult!.Value as BlocklistResource;
+        resource.Should().NotBeNull();
+        resource!.AutoUpdateIntervalHours.Should().Be(36);
+        resource.AutoUpdateIntervalDays.Should().Be(1);
     }
 
     [Test]
@@ -247,6 +265,51 @@ public class BlocklistControllerTest
         savedUpdates.Should().NotBeNull();
         savedUpdates!.Should().HaveCount(1);
         savedUpdates.Should().ContainKey("BlocklistUrl").WhoseValue.Should().Be("http://downloads.sourceforge.net/blocklist.txt");
+    }
+
+    [Test]
+    public void UpdateBlocklist_WithAutoUpdateIntervalHours_SavesHoursWithoutDayConversion()
+    {
+        Dictionary<string, object> savedUpdates = null!;
+        this.configService.SaveConfigDictionary(Arg.Do<Dictionary<string, object>>(x => savedUpdates = x));
+
+        var request = new BlocklistConfigRequest
+        {
+            AutoUpdateIntervalHours = 6,
+            AutoUpdateIntervalDays = 1,
+        };
+
+        var actionResult = this.controller.UpdateBlocklist(request);
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        savedUpdates.Should().NotBeNull();
+        savedUpdates!.Should().ContainKey("BlocklistUpdateIntervalHours").WhoseValue.Should().Be(6);
+    }
+
+    [Test]
+    public void UpdateBlocklist_WhenSavingUrlWithCanonicalHours_PreservesSubDayInterval()
+    {
+        this.configService.BlocklistUpdateIntervalHours.Returns(6);
+        Dictionary<string, object> savedUpdates = null!;
+        this.configService.SaveConfigDictionary(Arg.Do<Dictionary<string, object>>(x => savedUpdates = x));
+
+        var request = new BlocklistConfigRequest
+        {
+            Url = "https://rules.example.org/list.p2p",
+            AutoUpdateIntervalHours = 6,
+            AutoUpdateIntervalDays = 1,
+        };
+
+        var actionResult = this.controller.UpdateBlocklist(request);
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        savedUpdates.Should().NotBeNull();
+        savedUpdates!.Should().ContainKey("BlocklistUpdateIntervalHours").WhoseValue.Should().Be(6);
+        savedUpdates.Should().ContainKey("BlocklistUrl").WhoseValue.Should().Be("https://rules.example.org/list.p2p");
     }
 
     [Test]

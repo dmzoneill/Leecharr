@@ -6,6 +6,7 @@ export interface BlocklistResource {
   enabled: boolean;
   url: string;
   autoUpdateEnabled: boolean;
+  autoUpdateIntervalHours: number;
   autoUpdateIntervalDays: number;
   ipv4RuleCount: number;
   ipv6RuleCount: number;
@@ -21,6 +22,7 @@ export interface BlocklistConfigRequest {
   enabled?: boolean;
   url?: string;
   autoUpdateEnabled?: boolean;
+  autoUpdateIntervalHours?: number;
   autoUpdateIntervalDays?: number;
 }
 
