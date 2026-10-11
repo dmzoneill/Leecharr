@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,7 +46,6 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
     private readonly SemaphoreSlim extractionSemaphore;
     private readonly CancellationTokenSource shutdownCts = new();
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
-    private static readonly char[] PasswordSeparators = [',', ';', '\n', '\r'];
 
     public SemaphoreSlim ConcurrencySemaphore => this.extractionSemaphore;
 
@@ -108,7 +108,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             IReadOnlyList<string> candidatePasswords = null;
             if (!string.IsNullOrWhiteSpace(passwordsStr))
             {
-                candidatePasswords = passwordsStr.Split(PasswordSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                candidatePasswords = ParseArchivePasswordList(passwordsStr);
             }
 
             foreach (var file in files)
@@ -250,6 +250,68 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                 ErrorMessage = $"Failed to auto-extract archives for torrent {message.Torrent.Name}: {ex.Message}",
             });
         }
+    }
+
+    /// <summary>
+    /// Parses the <c>ArchivePasswords</c> config value into candidate passwords.
+    /// Entries are separated by comma, semicolon, or line breaks unless escaped with a backslash.
+    /// Use <c>\,</c>, <c>\;</c>, <c>\n</c>, and <c>\\</c> for literal characters in a password.
+    /// </summary>
+    public static IReadOnlyList<string> ParseArchivePasswordList(string passwordsStr)
+    {
+        if (string.IsNullOrEmpty(passwordsStr))
+        {
+            return null;
+        }
+
+        var passwords = new List<string>();
+        var current = new StringBuilder();
+        for (var i = 0; i < passwordsStr.Length; i++)
+        {
+            var c = passwordsStr[i];
+            if (c == '\\')
+            {
+                if (i + 1 >= passwordsStr.Length)
+                {
+                    current.Append('\\');
+                    continue;
+                }
+
+                var next = passwordsStr[++i];
+                current.Append(next switch
+                {
+                    'n' => '\n',
+                    'r' => '\r',
+                    _ => next,
+                });
+                continue;
+            }
+
+            if (c == ',' || c == ';' || c == '\n' || c == '\r')
+            {
+                if (c == '\r' && i + 1 < passwordsStr.Length && passwordsStr[i + 1] == '\n')
+                {
+                    i++;
+                }
+
+                if (current.Length > 0)
+                {
+                    passwords.Add(current.ToString());
+                    current.Clear();
+                }
+
+                continue;
+            }
+
+            current.Append(c);
+        }
+
+        if (current.Length > 0)
+        {
+            passwords.Add(current.ToString());
+        }
+
+        return passwords.Count > 0 ? passwords : null;
     }
 
     public static bool IsSecondaryVolume(string path)
