@@ -164,6 +164,40 @@ public class OllamaAiProviderTest
     }
 
     [Test]
+    public async Task ParseReleaseAsync_WhenResponseContainsTrailingBraceNoise_ParsesJsonObject()
+    {
+        var innerJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            cleanTitle = "The Matrix",
+            year = 1999,
+            confidenceScore = 0.95,
+        });
+
+        var responseText = innerJson + "\nNote {see above}";
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            model = "llama3.2",
+            response = responseText,
+            done = true,
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var parsed = await provider.ParseReleaseAsync("The.Matrix.1999.1080p-GROUP");
+        parsed.CleanTitle.Should().Be("The Matrix");
+        parsed.Year.Should().Be(1999);
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_WhenBooleansAreStringsNumbersOrNull_ParsesCorrectlyWithoutException()
     {
         var innerJson = System.Text.Json.JsonSerializer.Serialize(new
