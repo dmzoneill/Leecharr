@@ -42,7 +42,7 @@ public class TransmissionRpcInputFormatter : TextInputFormatter
         var request = context.HttpContext.Request;
         request.EnableBuffering();
 
-        string content = await ReadRawBodyAsync(request, encoding);
+        var content = await ReadRawBodyAsync(request, encoding);
 
         if (request.HasFormContentType && (string.IsNullOrWhiteSpace(content) || !content.TrimStart().StartsWith('{')))
         {

@@ -629,6 +629,43 @@ public class EmbeddedTransmissionEngineTest
     }
 
     [Test]
+    public async Task RenameFileAsync_CallsTorrentRenamePathAndReturnsTrue()
+    {
+        var rpcMethods = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            rpcMethods.Add(method!);
+
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+
+        var result = await engine.RenameFileAsync(42, "folder/old.mkv", "folder/new.mkv");
+
+        result.Should().BeTrue();
+        rpcMethods.Should().Contain("torrent-rename-path");
+    }
+
+    [Test]
     public async Task DisconnectPeerAsync_WhenPeerConnected_StopStartsTorrentAndReturnsTrue()
     {
         var rpcMethods = new List<string>();

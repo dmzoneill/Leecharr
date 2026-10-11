@@ -246,6 +246,41 @@ public class LibTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task RenameFileAsync_WhenDaemonRenamesFile_ReturnsTrue()
+    {
+        var rpcMethods = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            rpcMethods.Add(doc.RootElement.GetProperty("method").GetString()!);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"renamed\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns("/downloads");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>()).Returns("/downloads");
+
+        var torrent = new Torrent
+        {
+            Id = 7,
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+            Name = "rename-test",
+        };
+        await engine.AddTorrentAsync(torrent);
+
+        var result = await engine.RenameFileAsync(7, "folder/old.mkv", "folder/new.mkv");
+
+        result.Should().BeTrue();
+        rpcMethods.Should().Contain("rename_file");
+    }
+
+    [Test]
     public async Task DisconnectPeerAsync_WhenDaemonDisconnectsPeer_ReturnsTrueAndUpdatesCache()
     {
         var rpcMethods = new List<string>();

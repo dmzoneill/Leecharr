@@ -143,8 +143,13 @@ else:
         try
         {
             ProcessStartInfo startInfo;
-            var usePythonPty = (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                && TryResolvePython3(out var pyBinary);
+            string pyBinary = null;
+            var usePythonPty = false;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                usePythonPty = TryResolvePython3(out pyBinary);
+            }
+
             if (usePythonPty)
             {
                 var safeTempDir = TerminalEnvironmentSanitizer.GetSafeTempDirectory();
