@@ -1,8 +1,11 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using DryIoc;
 using FluentAssertions;
 using MonoTorrent.Client;
@@ -125,5 +128,52 @@ public class PeerConnectionHistoryServiceTest
         eventAggregator.Received(1).PublishEvent(Arg.Is<PeerConnectionEvent>(e =>
             e.InfoHash == "test-hash-3" &&
             e.EventType == "Connected"));
+    }
+
+    [Test]
+    public void RecordEvent_ConcurrentSlowGeoIp_AssignsIdsInEnqueueOrderSoPollersNeverSkipEvents()
+    {
+        var slowGate = new ManualResetEventSlim(false);
+        var geoIpService = Substitute.For<IGeoIpService>();
+        geoIpService.Lookup("10.0.0.1").Returns(_ =>
+        {
+            slowGate.Wait(TimeSpan.FromSeconds(5));
+            return new GeoLocationInfo { CountryCode = "US", CountryName = "United States" };
+        });
+        geoIpService.Lookup("10.0.0.2").Returns(new GeoLocationInfo { CountryCode = "DE", CountryName = "Germany" });
+
+        var service = new PeerConnectionHistoryService(geoIpService);
+        var slowEvent = new PeerConnectionEvent
+        {
+            InfoHash = "slow",
+            RemoteIp = "10.0.0.1",
+            EventType = "Connected",
+            Timestamp = DateTime.UtcNow,
+        };
+        var fastEvent = new PeerConnectionEvent
+        {
+            InfoHash = "fast",
+            RemoteIp = "10.0.0.2",
+            EventType = "Connected",
+            Timestamp = DateTime.UtcNow,
+        };
+
+        var slowTask = Task.Run(() => service.RecordEvent(slowEvent));
+        Thread.Sleep(50);
+        var fastTask = Task.Run(() => service.RecordEvent(fastEvent));
+        Thread.Sleep(50);
+        slowGate.Set();
+        Task.WaitAll(slowTask, fastTask);
+
+        var records = service.GetRecords().OrderBy(r => r.Id).ToList();
+        records.Should().HaveCount(2);
+        records[0].InfoHash.Should().Be("fast");
+        records[1].InfoHash.Should().Be("slow");
+        records[1].Id.Should().BeGreaterThan(records[0].Id);
+
+        var visibleAfterFirstPoll = records.Where(r => r.Id > 0).ToList();
+        visibleAfterFirstPoll.Should().HaveCount(2);
+        visibleAfterFirstPoll[0].Id.Should().Be(1);
+        visibleAfterFirstPoll[1].Id.Should().Be(2);
     }
 }
