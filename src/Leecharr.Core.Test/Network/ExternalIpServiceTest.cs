@@ -95,6 +95,19 @@ public class ExternalIpServiceTest
         Assert.That(ip, Is.EqualTo(expected));
     }
 
+    [TestCase("10.0.0.1")]
+    [TestCase("192.168.0.1")]
+    [TestCase("127.0.0.1")]
+    [TestCase("169.254.12.34")]
+    [TestCase("{\"ip\": \"10.0.0.5\"}")]
+    public void TryExtractIpFromResponse_should_reject_non_public_addresses(string input)
+    {
+        var success = ExternalIpService.TryExtractIpFromResponse(input, out var ip);
+
+        Assert.That(success, Is.False);
+        Assert.That(ip, Is.Empty);
+    }
+
     [TestCase("")]
     [TestCase("   ")]
     [TestCase("invalid-ip")]
@@ -107,15 +120,35 @@ public class ExternalIpServiceTest
         Assert.That(ip, Is.Empty);
     }
 
-    private static WebProxy CreateHttpClientProxy(ExternalIpService subject)
+    private static System.Net.Http.SocketsHttpHandler GetSocketsHandler(ExternalIpService subject)
     {
         var method = typeof(ExternalIpService).GetMethod("CreateHttpClient", BindingFlags.Instance | BindingFlags.NonPublic);
         using var client = (HttpClient)method!.Invoke(subject, null)!;
         var handler = typeof(HttpMessageInvoker)
             .GetField("_handler", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(client);
-        var socketsHandler = (System.Net.Http.SocketsHttpHandler)handler!;
+        return (System.Net.Http.SocketsHttpHandler)handler!;
+    }
+
+    private static WebProxy CreateHttpClientProxy(ExternalIpService subject)
+    {
+        var socketsHandler = GetSocketsHandler(subject);
         return (WebProxy)socketsHandler.Proxy!;
+    }
+
+    [Test]
+    public void CreateHttpClient_WhenProxyAndBindSet_DoesNotOverrideConnectCallback()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("proxy.example");
+        config.ProxyPort.Returns(8080);
+        config.BindInterface.Returns("tun0");
+
+        var handler = GetSocketsHandler(new ExternalIpService(config));
+
+        handler.UseProxy.Should().BeTrue();
+        handler.ConnectCallback.Should().BeNull();
     }
 
     [Test]

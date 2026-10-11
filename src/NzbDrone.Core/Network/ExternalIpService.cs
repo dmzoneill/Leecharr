@@ -222,6 +222,7 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         var proxyHost = this.configService?.ProxyHost;
         var proxyPort = this.configService?.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType is "socks5" or "socks4" ? 1080 : 8080);
 
+        var proxyConfigured = false;
         if ((proxyType is "socks5" or "socks4" or "http") && !string.IsNullOrWhiteSpace(proxyHost))
         {
             var scheme = proxyType switch
@@ -244,6 +245,7 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                 Credentials = credentials,
             };
             handler.UseProxy = true;
+            proxyConfigured = true;
         }
 
         var bindInterface = this.configService?.BindInterface;
@@ -254,7 +256,8 @@ public class ExternalIpService : BackgroundService, IExternalIpService
             bindInterface = this.configService?.NetworkInterfaceBinding;
         }
 
-        if (!string.IsNullOrWhiteSpace(bindInterface) &&
+        if (!proxyConfigured &&
+            !string.IsNullOrWhiteSpace(bindInterface) &&
             !string.Equals(bindInterface, "any", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(bindInterface, "all", StringComparison.OrdinalIgnoreCase))
         {
@@ -331,6 +334,54 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         };
     }
 
+    private static bool IsRoutablePublicIp(IPAddress address)
+    {
+        if (IPAddress.IsLoopback(address) || address.IsIPv6LinkLocal || address.IsIPv6Multicast)
+        {
+            return false;
+        }
+
+        if (address.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return true;
+        }
+
+        var bytes = address.GetAddressBytes();
+        if (bytes[0] == 10)
+        {
+            return false;
+        }
+
+        if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+        {
+            return false;
+        }
+
+        if (bytes[0] == 192 && bytes[1] == 168)
+        {
+            return false;
+        }
+
+        if (bytes[0] == 169 && bytes[1] == 254)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseRoutablePublicIp(string text, out string ip)
+    {
+        ip = string.Empty;
+        if (!IPAddress.TryParse(text, out var address) || !IsRoutablePublicIp(address))
+        {
+            return false;
+        }
+
+        ip = address.ToString();
+        return true;
+    }
+
     public static bool TryExtractIpFromResponse(string responseText, out string ip)
     {
         ip = string.Empty;
@@ -354,9 +405,8 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                     if (dataProp.TryGetProperty("ip", out var dataIpProp) && dataIpProp.ValueKind == JsonValueKind.String)
                     {
                         var extractedIp = dataIpProp.GetString();
-                        if (IPAddress.TryParse(extractedIp, out _))
+                        if (TryParseRoutablePublicIp(extractedIp, out ip))
                         {
-                            ip = extractedIp;
                             return true;
                         }
                     }
@@ -365,9 +415,8 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                 if (root.TryGetProperty("ip", out var ipProp) && ipProp.ValueKind == JsonValueKind.String)
                 {
                     var extractedIp = ipProp.GetString();
-                    if (IPAddress.TryParse(extractedIp, out _))
+                    if (TryParseRoutablePublicIp(extractedIp, out ip))
                     {
-                        ip = extractedIp;
                         return true;
                     }
                 }
@@ -375,9 +424,8 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                 if (root.TryGetProperty("ip_address", out var ipAddrProp) && ipAddrProp.ValueKind == JsonValueKind.String)
                 {
                     var extractedIp = ipAddrProp.GetString();
-                    if (IPAddress.TryParse(extractedIp, out _))
+                    if (TryParseRoutablePublicIp(extractedIp, out ip))
                     {
-                        ip = extractedIp;
                         return true;
                     }
                 }
@@ -389,9 +437,8 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         }
 
         // 2. Try parsing plain-text IP
-        if (IPAddress.TryParse(trimmed, out var parsed))
+        if (TryParseRoutablePublicIp(trimmed, out ip))
         {
-            ip = parsed.ToString();
             return true;
         }
 
