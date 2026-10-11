@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -149,7 +150,7 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
         // 4. Perform outbound HTTP request
         try
         {
-            var endpoint = this.apiEndpointTemplate.Replace("{0}", Uri.EscapeDataString(ipAddress));
+            var endpoint = this.apiEndpointTemplate.Replace("{0}", FormatIpAddressForUrlPath(ipAddress));
             using var response = await this.httpClient.GetAsync(endpoint);
 
             if (!response.IsSuccessStatusCode)
@@ -218,6 +219,16 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
         {
             this.requestTimestamps.Dequeue();
         }
+    }
+
+    public static string FormatIpAddressForUrlPath(string ipAddress)
+    {
+        if (IPAddress.TryParse(ipAddress, out var parsed))
+        {
+            return parsed.ToString();
+        }
+
+        return Uri.EscapeDataString(ipAddress);
     }
 
     private static bool IsPrivateOrLoopback(string ip)
