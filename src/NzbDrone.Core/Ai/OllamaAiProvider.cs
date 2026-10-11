@@ -629,8 +629,12 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                 using var doc = JsonDocument.Parse(body);
                 if (doc.RootElement.TryGetProperty("response", out var respProp))
                 {
-                    AiChatFallbackContext.SetLastChatUsedFallback(false);
-                    return respProp.GetString() ?? string.Empty;
+                    var responseText = respProp.ValueKind == JsonValueKind.Null ? null : respProp.GetString();
+                    if (!string.IsNullOrEmpty(responseText))
+                    {
+                        AiChatFallbackContext.SetLastChatUsedFallback(false);
+                        return responseText;
+                    }
                 }
             }
         }
