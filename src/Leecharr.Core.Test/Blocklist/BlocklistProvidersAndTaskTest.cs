@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -22,13 +23,15 @@ public class BlocklistProvidersAndTaskTest
     {
         var updateService = Substitute.For<IBlocklistUpdateService>();
         var configService = Substitute.For<IConfigService>();
+        var syncState = Substitute.For<IBlocklistSyncState>();
         updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(1234));
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, syncState);
         var result = await task.ExecuteAsync(CancellationToken.None);
 
         result.Should().Be(1234);
         await updateService.Received(1).UpdateRulesAsync(Arg.Any<CancellationToken>());
+        syncState.Received(1).RecordSuccessfulSync(Arg.Any<DateTime>());
     }
 
     [Test]
@@ -39,7 +42,7 @@ public class BlocklistProvidersAndTaskTest
         updateService.UpdateRulesAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException<int>(new IOException("Remote host closed connection.")));
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         var result = await task.ExecuteAsync(CancellationToken.None);
 
         result.Should().Be(0);
@@ -52,7 +55,7 @@ public class BlocklistProvidersAndTaskTest
         var configService = Substitute.For<IConfigService>();
         updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(55));
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         task.Execute(new BlocklistUpdateCommand());
 
         updateService.Received(1).UpdateRulesAsync(Arg.Any<CancellationToken>());
@@ -67,7 +70,7 @@ public class BlocklistProvidersAndTaskTest
         var token = cts.Token;
         updateService.UpdateRulesAsync(token).Returns(Task.FromResult(88));
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         await task.ExecuteAsync(new BlocklistUpdateCommand(), token);
 
         await updateService.Received(1).UpdateRulesAsync(token);
@@ -83,7 +86,7 @@ public class BlocklistProvidersAndTaskTest
         configService.BlocklistUpdateIntervalHours.Returns(100);
         updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(10));
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         task.Handle(new ApplicationStartedEvent());
 
         // Wait briefly for background Task.Run to trigger the initial run
@@ -100,7 +103,7 @@ public class BlocklistProvidersAndTaskTest
         var configService = Substitute.For<IConfigService>();
         configService.BlocklistEnabled.Returns(false);
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         task.Handle(new ApplicationStartedEvent());
 
         updateService.DidNotReceive().UpdateRulesAsync(Arg.Any<CancellationToken>());
@@ -116,7 +119,7 @@ public class BlocklistProvidersAndTaskTest
         configService.BlocklistUpdateIntervalHours.Returns(100);
         updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(10));
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         task.Handle(new ConfigSavedEvent());
 
         await Task.Delay(100);
@@ -131,7 +134,7 @@ public class BlocklistProvidersAndTaskTest
         var configService = Substitute.For<IConfigService>();
         configService.BlocklistEnabled.Returns(false);
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         task.Handle(new ConfigSavedEvent());
 
         updateService.DidNotReceive().UpdateRulesAsync(Arg.Any<CancellationToken>());
@@ -146,7 +149,7 @@ public class BlocklistProvidersAndTaskTest
         configService.BlocklistAutoUpdateEnabled.Returns(false);
         configService.BlocklistUpdateIntervalHours.Returns(100);
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         task.Handle(new ApplicationStartedEvent());
 
         // Wait briefly for background Task.Run
@@ -162,7 +165,7 @@ public class BlocklistProvidersAndTaskTest
         var configService = Substitute.For<IConfigService>();
         configService.BlocklistAutoUpdateEnabled.Returns(false);
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         var command = new BlocklistUpdateCommand { Trigger = CommandTrigger.Scheduled };
         await task.ExecuteAsync(command, CancellationToken.None);
 
@@ -177,7 +180,7 @@ public class BlocklistProvidersAndTaskTest
         configService.BlocklistAutoUpdateEnabled.Returns(false);
         updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(42));
 
-        using var task = new BlocklistUpdateTask(updateService, configService);
+        using var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         var command = new BlocklistUpdateCommand { Trigger = CommandTrigger.Manual };
         await task.ExecuteAsync(command, CancellationToken.None);
 
@@ -190,7 +193,7 @@ public class BlocklistProvidersAndTaskTest
         var updateService = Substitute.For<IBlocklistUpdateService>();
         var configService = Substitute.For<IConfigService>();
 
-        var task = new BlocklistUpdateTask(updateService, configService);
+        var task = new BlocklistUpdateTask(updateService, configService, Substitute.For<IBlocklistSyncState>());
         var act = () =>
         {
             task.Dispose();
