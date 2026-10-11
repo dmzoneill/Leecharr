@@ -351,6 +351,49 @@ public class TerminalControlMessageTest
         outputData.ToString().Should().Be(originalText);
     }
 
+    [Test]
+    public async Task HandleWebSocket_WhenPendingUtf8SequenceCompletesOnFullReadChunk_DecodesWithoutDroppingSession()
+    {
+        var rocketBytes = Encoding.UTF8.GetBytes("🚀");
+        rocketBytes.Length.Should().Be(4);
+
+        var chunk1 = rocketBytes.AsSpan(0, 3).ToArray();
+        var chunk2 = new byte[4096];
+        chunk2[0] = rocketBytes[3];
+        for (var i = 1; i < chunk2.Length; i++)
+        {
+            chunk2[i] = (byte)'a';
+        }
+
+        var expectedText = "🚀" + new string('a', chunk2.Length - 1);
+
+        var testSession = new TestTerminalSession(chunk1, chunk2);
+        var ptySvc = Substitute.For<IPtyTerminalService>();
+        ptySvc.CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>()).Returns(testSession);
+
+        var fakeWs = new FakeWebSocket();
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+        context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, ptySvc, this.configService, this.configFileProvider);
+
+        var outputData = new StringBuilder();
+        foreach (var msg in fakeWs.SentMessages)
+        {
+            using var doc = JsonDocument.Parse(msg);
+            if (doc.RootElement.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "output")
+            {
+                var data = doc.RootElement.GetProperty("data").GetString();
+                data.Should().NotContain("\uFFFD");
+                outputData.Append(data);
+            }
+        }
+
+        outputData.ToString().Should().Be(expectedText);
+    }
+
     private sealed class TestTerminalSession : ITerminalSession
     {
         private readonly Queue<byte[]> chunks;
