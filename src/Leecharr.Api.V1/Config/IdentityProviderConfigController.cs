@@ -96,6 +96,12 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
             return this.BadRequest();
         }
 
+        var existingProvider = this.providerService.GetByProviderId(resource.ProviderId);
+        if (existingProvider != null)
+        {
+            return this.BadRequest($"An identity provider with id '{resource.ProviderId}' already exists.");
+        }
+
         var model = ToModel(resource);
         var created = this.providerService.Add(model);
 
@@ -119,6 +125,12 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
         if (existing == null)
         {
             return this.NotFound();
+        }
+
+        var existingProviderId = this.providerService.GetByProviderId(resource.ProviderId);
+        if (existingProviderId != null && existingProviderId.Id != id)
+        {
+            return this.BadRequest($"An identity provider with id '{resource.ProviderId}' already exists.");
         }
 
         var model = ToModel(resource);
