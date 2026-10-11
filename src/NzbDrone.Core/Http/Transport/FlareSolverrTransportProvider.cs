@@ -105,7 +105,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            var resp = await this.httpClient.GetAsync(url, cts.Token);
+            using var resp = await this.httpClient.GetAsync(url, cts.Token);
             if (resp.IsSuccessStatusCode)
             {
                 return new HttpTransportHealthCheckResult
@@ -160,7 +160,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             };
 
             var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
+            using var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
@@ -213,7 +213,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             };
 
             var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
+            using var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -283,7 +283,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         }
 
         var jsonContent = new StringContent(JsonSerializer.Serialize(payloadDict), Encoding.UTF8, "application/json");
-        var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
+        using var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
 
         if (response.IsSuccessStatusCode)
         {

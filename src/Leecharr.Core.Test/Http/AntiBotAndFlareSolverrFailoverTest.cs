@@ -293,6 +293,78 @@ public class AntiBotAndFlareSolverrFailoverTest
     }
 
     [Test]
+    public async Task FlareSolverrTransportProvider_DisposesSolverHttpResponses()
+    {
+        var solverResponses = new List<DisposableHttpResponseMessage>();
+        var fallbackResponse = new DisposableHttpResponseMessage(HttpStatusCode.BadGateway)
+        {
+            Content = new StringContent("fallback"),
+        };
+
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+
+            if (body.Contains("sessions.create", StringComparison.Ordinal))
+            {
+                var response = new DisposableHttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"message\":\"Session created\",\"session\":\"sess_dispose\"}"),
+                };
+                solverResponses.Add(response);
+                return response;
+            }
+
+            if (body.Contains("request.get", StringComparison.Ordinal))
+            {
+                if (body.Contains("/direct", StringComparison.Ordinal))
+                {
+                    var failedSolverResponse = new DisposableHttpResponseMessage(HttpStatusCode.InternalServerError)
+                    {
+                        Content = new StringContent("solver unavailable"),
+                    };
+                    solverResponses.Add(failedSolverResponse);
+                    return failedSolverResponse;
+                }
+
+                var response = new DisposableHttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"solution\":{\"status\":200,\"response\":\"<rss>ok</rss>\"}}"),
+                };
+                solverResponses.Add(response);
+                return response;
+            }
+
+            if (req.Method == HttpMethod.Get && req.RequestUri?.AbsolutePath == "/direct")
+            {
+                return fallbackResponse;
+            }
+
+            return new DisposableHttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var provider = new FlareSolverrTransportProvider(config, httpClient);
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, "https://tracker.local/rss");
+        using var resp = await provider.SendAsync(req);
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        solverResponses.Should().HaveCount(2);
+        solverResponses.Should().OnlyContain(r => r.IsDisposed);
+
+        using var fallbackReq = new HttpRequestMessage(HttpMethod.Get, "https://tracker.local/direct");
+        using var fallbackResp = await provider.SendAsync(fallbackReq);
+        fallbackResp.StatusCode.Should().Be(HttpStatusCode.BadGateway);
+        solverResponses.Should().HaveCount(3);
+        solverResponses.Should().OnlyContain(r => r.IsDisposed);
+        fallbackResponse.IsDisposed.Should().BeFalse();
+    }
+
+    [Test]
     public async Task AntiBotChallengeDetector_LargeDeclaredContentLength_DoesNotReadBeyondProbeLimit()
     {
         var payload = new string('x', 1024);
@@ -420,6 +492,26 @@ public class AntiBotAndFlareSolverrFailoverTest
         public override void SetLength(long value) => throw new NotSupportedException();
 
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    private sealed class DisposableHttpResponseMessage : HttpResponseMessage
+    {
+        public DisposableHttpResponseMessage(HttpStatusCode statusCode)
+            : base(statusCode)
+        {
+        }
+
+        public bool IsDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                this.IsDisposed = true;
+            }
+
+            base.Dispose(disposing);
+        }
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
