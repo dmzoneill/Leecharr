@@ -375,11 +375,78 @@ public class OllamaAiProviderTest
     }
 
     [Test]
+    public async Task ParseReleaseAsync_WhenOllamaReturnsPartialJson_UsesHeuristicParser()
+    {
+        var jsonResponse = "{\"cleanTitle\":\"Show Name\"}";
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            model = "llama3.2",
+            response = jsonResponse,
+            done = true,
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var parsed = await provider.ParseReleaseAsync("Show.Name.S01E02.1080p");
+
+        parsed.CleanTitle.Should().Be("Show Name");
+        parsed.Season.Should().Be(1);
+        parsed.Episode.Should().Be(2);
+        parsed.Resolution.Should().Be("1080p");
+        parsed.ConfidenceScore.Should().BeGreaterThan(0.5);
+        parsed.AdditionalTags.Should().NotContainKey("Engine");
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_WhenOllamaReturnsCompleteJson_UsesModelConfidenceScore()
+    {
+        var jsonResponse = "{\"cleanTitle\":\"Dune\",\"year\":2021,\"resolution\":\"1080p\",\"quality\":\"1080p BluRay\",\"confidenceScore\":0.72}";
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            model = "llama3.2",
+            response = jsonResponse,
+            done = true,
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var parsed = await provider.ParseReleaseAsync("Dune.2021.1080p.BluRay.x264-GROUP");
+
+        parsed.Year.Should().Be(2021);
+        parsed.Resolution.Should().Be("1080p");
+        parsed.Quality.Should().Be("1080p BluRay");
+        parsed.ConfidenceScore.Should().Be(0.72);
+        parsed.AdditionalTags["Engine"].Should().Be("Ollama");
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_WhenBooleansAreStringsNumbersOrNull_ParsesCorrectlyWithoutException()
     {
         var innerJson = System.Text.Json.JsonSerializer.Serialize(new
         {
             cleanTitle = "Interstellar",
+            year = 2014,
+            resolution = "2160p",
+            quality = "2160p",
+            releaseGroup = "SPARKS",
             isProper = "true",
             isRepack = 0,
             isRemux = 1,
@@ -417,6 +484,10 @@ public class OllamaAiProviderTest
         var innerJson = System.Text.Json.JsonSerializer.Serialize(new
         {
             cleanTitle = "Interstellar",
+            year = 2014,
+            resolution = "2160p",
+            quality = "2160p",
+            releaseGroup = "SPARKS",
             isProper = "yes",
             isRepack = (object)null,
             isRemux = "false",

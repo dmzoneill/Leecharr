@@ -469,6 +469,13 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                             ConfidenceScore = root.TryGetProperty("confidenceScore", out var cs) && cs.TryGetDouble(out var csVal) ? csVal : 0.95,
                         };
                         parsed.AdditionalTags["Engine"] = this.ProviderId;
+
+                        var heuristic = await this.fallbackProvider.ParseReleaseAsync(releaseName);
+                        if (ShouldDeferReleaseParseToHeuristic(parsed, heuristic))
+                        {
+                            return heuristic;
+                        }
+
                         return parsed;
                     }
                 }
@@ -672,6 +679,31 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
         AiChatFallbackContext.SetLastChatUsedFallback(true);
         return await this.fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
+    }
+
+    private static bool ShouldDeferReleaseParseToHeuristic(AiParsedRelease ollama, AiParsedRelease heuristic)
+    {
+        if (heuristic == null)
+        {
+            return false;
+        }
+
+        if (heuristic.Season.HasValue && !ollama.Season.HasValue)
+        {
+            return true;
+        }
+
+        if (heuristic.Episode.HasValue && !ollama.Episode.HasValue)
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(heuristic.Quality) && string.IsNullOrWhiteSpace(ollama.Quality))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static bool ShouldDeferNaturalLanguageSearchToHeuristic(AiSearchParameters ollama, AiSearchParameters heuristic)
