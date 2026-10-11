@@ -384,6 +384,10 @@ public static class TerminalWebSocketHandler
 
         await Task.WhenAny(readPtyTask, receiveWsTask);
         await cts.CancelAsync();
+
+        // Close the PTY before awaiting background tasks: libc read() does not honor cancellation.
+        session.Kill();
+
         try
         {
             await Task.WhenAll(readPtyTask, receiveWsTask);
@@ -413,7 +417,5 @@ public static class TerminalWebSocketHandler
         {
             sendLock.Dispose();
         }
-
-        session.Kill();
     }
 }
