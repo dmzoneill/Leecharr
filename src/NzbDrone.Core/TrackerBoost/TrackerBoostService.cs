@@ -2147,6 +2147,18 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             or SocketError.AddressNotAvailable;
     }
 
+    private static int GetUdpTransactionRetryBudgetMs(int initialTimeoutMs, int maxRetries, int maxTimeoutMs)
+    {
+        var totalMs = 0;
+        for (var attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            var backoffMultiplier = 1 << Math.Min(attempt, 10);
+            totalMs += Math.Min(maxTimeoutMs, initialTimeoutMs * backoffMultiplier);
+        }
+
+        return totalMs;
+    }
+
     internal async Task<UdpResponseResult> SendAndReceiveUdpWithRetryAsync(
         UdpClient client,
         IPEndPoint endpoint,
@@ -2583,11 +2595,15 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         try
         {
-            // Strict timeout per scrape request (5 seconds max) to prevent hanging while allowing BEP 15 UDP retransmissions
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(5000));
+            // HTTP scrapes stay bounded at 5s. UDP runs connect + scrape sequentially; each leg uses SendAndReceiveUdpWithRetryAsync defaults.
+            var scrapeTimeoutMs = tracker.Protocol == TrackerProtocol.Udp
+                ? GetUdpTransactionRetryBudgetMs(1000, 2, 4000) * 2
+                : 5000;
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(scrapeTimeoutMs));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, scrapeToken);
 
             (bool Success, int Seeders, int Leechers, int Downloaded) result;
+            var cacheResult = true;
             try
             {
                 if (tracker.Protocol == TrackerProtocol.Udp)
@@ -2602,13 +2618,17 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             catch (OperationCanceledException)
             {
                 result = (false, 0, 0, 0);
+                cacheResult = false;
             }
             catch
             {
                 result = (false, 0, 0, 0);
             }
 
-            this.scrapeCache[cacheKey] = (result.Success, result.Seeders, result.Leechers, result.Downloaded, DateTime.UtcNow);
+            if (cacheResult)
+            {
+                this.scrapeCache[cacheKey] = (result.Success, result.Seeders, result.Leechers, result.Downloaded, DateTime.UtcNow);
+            }
 
             if (this.scrapeCache.Count > 10000)
             {
