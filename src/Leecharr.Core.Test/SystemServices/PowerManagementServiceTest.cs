@@ -219,10 +219,9 @@ public class PowerManagementServiceTest
     }
 
     [Test]
-    public async Task ExecutePowerActionAsync_OnOsx_Hibernate_UsesPmsetSleepnow()
+    public async Task ExecutePowerActionAsync_OnOsx_Hibernate_SetsHibernateModeThenSleepnow()
     {
-        string executedCommand = null;
-        string[] executedArguments = null;
+        var executedInvocations = new List<(string Command, string[] Arguments)>();
 
         var service = new PowerManagementService
         {
@@ -230,8 +229,7 @@ public class PowerManagementServiceTest
             ContainerDetector = () => false,
             ProcessRunner = (fileName, args) =>
             {
-                executedCommand = fileName;
-                executedArguments = args;
+                executedInvocations.Add((fileName, args));
                 return Task.FromResult(true);
             },
         };
@@ -239,8 +237,11 @@ public class PowerManagementServiceTest
         var result = await service.ExecutePowerActionAsync(PowerAction.Hibernate);
 
         result.Should().BeTrue();
-        executedCommand.Should().Be("pmset");
-        executedArguments.Should().Equal(new[] { "sleepnow" });
+        executedInvocations.Should().HaveCount(2);
+        executedInvocations[0].Command.Should().Be("pmset");
+        executedInvocations[0].Arguments.Should().Equal(new[] { "hibernatemode", "25" });
+        executedInvocations[1].Command.Should().Be("pmset");
+        executedInvocations[1].Arguments.Should().Equal(new[] { "sleepnow" });
     }
 
     [Test]

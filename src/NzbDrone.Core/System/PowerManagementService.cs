@@ -625,20 +625,23 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
     private async Task<bool> ExecuteOsxPowerActionAsync(PowerAction action)
     {
-        var (cmd, args) = action switch
+        switch (action)
         {
-            PowerAction.Shutdown => ("osascript", new[] { "-e", "tell app \"System Events\" to shut down" }),
-            PowerAction.Suspend => ("pmset", new[] { "sleepnow" }),
-            PowerAction.Hibernate => ("pmset", new[] { "sleepnow" }),
-            _ => (null, null),
-        };
+            case PowerAction.Shutdown:
+                return await this.RunProcessAsync("osascript", new[] { "-e", "tell app \"System Events\" to shut down" });
+            case PowerAction.Suspend:
+                return await this.RunProcessAsync("pmset", new[] { "sleepnow" });
+            case PowerAction.Hibernate:
+                // sleepnow alone keeps RAM powered under the default safe-sleep hibernatemode.
+                if (!await this.RunProcessAsync("pmset", new[] { "hibernatemode", "25" }))
+                {
+                    return false;
+                }
 
-        if (cmd == null)
-        {
-            return false;
+                return await this.RunProcessAsync("pmset", new[] { "sleepnow" });
+            default:
+                return false;
         }
-
-        return await this.RunProcessAsync(cmd, args);
     }
 
     private async Task<bool> RunProcessAsync(string fileName, string[] arguments)
