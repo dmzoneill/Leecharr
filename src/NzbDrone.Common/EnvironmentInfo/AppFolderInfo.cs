@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using NzbDrone.Common.Disk;
 
 namespace NzbDrone.Common.EnvironmentInfo;
 
@@ -56,14 +57,7 @@ public class AppFolderInfo : IAppFolderInfo
 
         this.StartUpFolder = AppDomain.CurrentDomain.BaseDirectory;
 
-        try
-        {
-            Directory.CreateDirectory(this.AppDataFolder);
-        }
-        catch
-        {
-            // Ignore directory creation failures during mock/restricted runs
-        }
+        UnixPrivatePermissions.EnsurePrivateDirectory(this.AppDataFolder);
     }
 
     public string AppDataFolder { get; }
