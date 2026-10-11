@@ -12,6 +12,7 @@ using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.BitTorrent;
 
@@ -520,5 +521,53 @@ public class TorrentCreationServiceTest
         loaded.AnnounceUrls.Count.Should().Be(2);
         loaded.AnnounceUrls[0].Should().Contain("http://tracker1.com/announce");
         loaded.AnnounceUrls[1].Should().Contain("http://tracker2.com/announce");
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenNameContainsSlashes_SanitizesEmbeddedName()
+    {
+        var sourceFile = Path.Combine(this.testDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[32768]);
+
+        var service = new TorrentCreationService(new[] { this.testDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            Name = "AC/DC - Back in Black",
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+
+        var loaded = MonoTorrent.Torrent.Load(result.TorrentFileBytes);
+        loaded.Name.Should().Be("AC_DC - Back in Black");
+
+        var parser = new TorrentFileParser();
+        var parsed = parser.Parse(result.TorrentFileBytes);
+        parsed.Name.Should().Be("AC_DC - Back in Black");
+    }
+
+    [TestCase("../../etc/cron.d/x")]
+    [TestCase("..")]
+    [TestCase("/etc/cron.d/payload")]
+    public async Task CreateTorrentAsync_WhenNameIsUnsafe_ReturnsFailure(string unsafeName)
+    {
+        var sourceFile = Path.Combine(this.testDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[32768]);
+
+        var service = new TorrentCreationService(new[] { this.testDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            Name = unsafeName,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().NotBeNullOrWhiteSpace();
     }
 }
