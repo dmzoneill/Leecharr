@@ -43,6 +43,9 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        command.QueuedAt = DateTime.UtcNow;
+        command.Trigger = trigger;
+
         var body = command.ToJson();
         var existing = this.repository.FindExisting(command.Name, body);
         if (existing != null)
@@ -50,9 +53,6 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
             this.logger.Debug("Command {0} is already {1}, returning existing command {2}", command.Name, existing.Status, existing.Id);
             return existing;
         }
-
-        command.QueuedAt = DateTime.UtcNow;
-        command.Trigger = trigger;
 
         this.logger.Trace("Publishing {0}", command.Name);
 

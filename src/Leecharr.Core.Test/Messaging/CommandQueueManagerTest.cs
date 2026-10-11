@@ -105,6 +105,21 @@ public class CommandQueueManagerTest
     }
 
     [Test]
+    public void Push_ScheduledTrigger_IsSerializedInStoredBody()
+    {
+        var command = new SampleTestCommand { Payload = "blocklist" };
+        var inserted = new List<CommandModel>();
+        this.repository.When(r => r.Insert(Arg.Any<CommandModel>()))
+            .Do(callInfo => inserted.Add(callInfo.Arg<CommandModel>()));
+
+        this.commandQueueManager.Push(command, CommandTrigger.Scheduled);
+
+        inserted.Should().ContainSingle();
+        inserted[0].Body.Should().Contain("\"trigger\":\"scheduled\"");
+        inserted[0].Trigger.Should().Be((int)CommandTrigger.Scheduled);
+    }
+
+    [Test]
     public void Push_WhenMatchingCommandAlreadyQueued_ReturnsExistingModelWithoutInserting()
     {
         var command = new SampleTestCommand { Payload = "test" };
