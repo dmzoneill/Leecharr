@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System.Linq;
 using FluentAssertions;
 using Leecharr.Api.V1.System;
 using Microsoft.AspNetCore.Mvc;
@@ -164,5 +165,34 @@ public class SystemDatabaseControllerTest
         using var countCmd = connection.CreateCommand();
         countCmd.CommandText = "SELECT COUNT(*) FROM TestTable;";
         Convert.ToInt32(countCmd.ExecuteScalar()).Should().Be(0);
+    }
+
+    [Test]
+    public void GetSchema_WhenTableHasExpressionIndex_ListsExpressionAndColumnIndexes()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        using (var setupCmd = connection.CreateCommand())
+        {
+            setupCmd.CommandText = @"
+CREATE TABLE ExprIdxTable (Id INTEGER PRIMARY KEY, Value INTEGER);
+CREATE INDEX ExprIdxTable_expr ON ExprIdxTable ((Value * 2));
+CREATE INDEX ExprIdxTable_value ON ExprIdxTable (Value);";
+            setupCmd.ExecuteNonQuery();
+        }
+
+        this.mainDatabase.OpenConnection().Returns(connection);
+
+        var result = this.controller.GetSchema();
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result.Result!;
+        var schema = okResult.Value as DatabaseSchemaResponse;
+        schema.Should().NotBeNull();
+
+        var table = schema!.Tables.Single(t => t.Name == "ExprIdxTable");
+        table.Indexes.Should().HaveCount(2);
+        table.Indexes.Should().Contain(i => i.Name == "ExprIdxTable_expr" && i.Columns.Single() == "(expression)");
+        table.Indexes.Should().Contain(i => i.Name == "ExprIdxTable_value" && i.Columns.Single() == "Value");
     }
 }
