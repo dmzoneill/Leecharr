@@ -76,6 +76,8 @@ public class MonoTorrentDownloadEngineTest
         this.configService.EnableBep27PrivateTorrents.Returns(true);
         this.configService.EnableIncompleteDir.Returns(true);
         this.configService.AutoStart.Returns(true);
+        this.configService.MultiTrackerEnabled.Returns(true);
+        this.configService.MultiTrackerFailoverEnabled.Returns(false);
 
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
@@ -5735,6 +5737,48 @@ public class MonoTorrentDownloadEngineTest
             "Info",
             "Tracker",
             Arg.Is<string>(msg => msg.Contains("Dispatched announce & scrape request to 2 tier(s)")));
+    }
+
+    [Test]
+    public async Task ForceAnnounceAsync_WhenMultiTrackerDisabled_IgnoresParallelAnnounceFlags()
+    {
+        this.configService.MultiTrackerEnabled.Returns(false);
+        this.configService.AnnounceToAllInTier.Returns(true);
+        this.configService.AnnounceToAllTiers.Returns(false);
+
+        var tiers = new List<List<string>>
+        {
+            new() { "http://127.0.0.1:54111/announce", "http://127.0.0.1:54112/announce" },
+            new() { "http://127.0.0.1:54113/announce", "http://127.0.0.1:54114/announce" },
+        };
+
+        var torrentBytes = CreateSampleTorrentWithTiers("force_announce_multi_disabled.bin", tiers);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 606,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "force_announce_multi_disabled.bin",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        await this.engine.ForceAnnounceAsync(torrent.Id);
+
+        this.torrentLogService.Received().Log(
+            torrent.Id,
+            "Info",
+            "Tracker",
+            Arg.Is<string>(msg => msg.Contains("Dispatched announce & scrape request to 1 tracker(s)")));
     }
 
     [Test]

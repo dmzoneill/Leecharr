@@ -66,6 +66,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IPeerConnectionHistoryService peerConnectionHistoryService;
     private readonly IClientBehaviorSimulationService clientBehaviorSimulation;
+    private readonly IMultiTrackerFailoverService multiTrackerFailover;
     private readonly Logger logger;
     private DateTime lastSwarmSimulationUtc = DateTime.MinValue;
     internal static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
@@ -327,7 +328,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         ITorrentFileRepository torrentFileRepository = null,
         ITrackerEntryRepository trackerEntryRepository = null,
         IPeerConnectionHistoryService peerConnectionHistoryService = null,
-        IClientBehaviorSimulationService clientBehaviorSimulation = null)
+        IClientBehaviorSimulationService clientBehaviorSimulation = null,
+        IMultiTrackerFailoverService multiTrackerFailover = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -344,6 +346,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.trackerEntryRepository = trackerEntryRepository;
         this.peerConnectionHistoryService = peerConnectionHistoryService;
         this.clientBehaviorSimulation = clientBehaviorSimulation ?? new ClientBehaviorSimulationService(this.configService);
+        this.multiTrackerFailover = multiTrackerFailover ?? new MultiTrackerFailoverService(this.configService);
         this.logger = LogManager.GetCurrentClassLogger();
 
         this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
@@ -1703,6 +1706,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (this.tasks.TryRemove(torrentId, out var task))
         {
+            this.multiTrackerFailover.ClearTorrent(torrentId);
             this.metadataPersistedTorrentIds.TryRemove(torrentId, out _);
             this.infoHashToId.TryRemove(task.InfoHash, out _);
             if (task.Manager?.InfoHashes?.V1 != null)
@@ -2309,64 +2313,50 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.lastAppliedUserAgent = rotatedUserAgent ?? string.Empty;
         }
 
-        var announceToAllInTier = this.configService?.AnnounceToAllInTier == true;
-        var announceToAllTiers = this.configService?.AnnounceToAllTiers == true;
+        var announceScope = MultiTrackerAnnouncePolicy.ResolveAnnounceScope(this.configService);
 
         var dispatchedCount = 0;
         var unit = "tracker(s)";
+        var utcNow = DateTime.UtcNow;
 
         try
         {
-            if (announceToAllInTier)
+            if (announceScope == MultiTrackerAnnounceScope.AllInTier)
             {
                 unit = "tracker(s)";
                 var tiers = manager.TrackerManager.Tiers?.ToList();
                 if (tiers != null)
                 {
-                    foreach (var tier in tiers)
+                    for (var tierIndex = 0; tierIndex < tiers.Count; tierIndex++)
                     {
+                        var tier = tiers[tierIndex];
                         var trackers = tier?.Trackers?.ToList();
                         if (trackers != null)
                         {
                             foreach (var tracker in trackers)
                             {
-                                if (tracker != null)
+                                if (await this.TryAnnounceTrackerAsync(manager, torrentId, tierIndex, tracker, utcNow).ConfigureAwait(false))
                                 {
-                                    try
-                                    {
-                                        await manager.TrackerManager.AnnounceAsync(tracker, CancellationToken.None).ConfigureAwait(false);
-                                        dispatchedCount++;
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        this.logger.Debug(ex, "Failed to announce to tracker {0} for torrent {1}", tracker.Uri, torrentId);
-                                    }
+                                    dispatchedCount++;
                                 }
                             }
                         }
                     }
                 }
             }
-            else if (announceToAllTiers)
+            else if (announceScope == MultiTrackerAnnounceScope.AllTiers)
             {
                 unit = "tier(s)";
                 var tiers = manager.TrackerManager.Tiers?.ToList();
                 if (tiers != null)
                 {
-                    foreach (var tier in tiers)
+                    for (var tierIndex = 0; tierIndex < tiers.Count; tierIndex++)
                     {
-                        var tracker = tier?.ActiveTracker ?? tier?.Trackers?.FirstOrDefault();
-                        if (tracker != null)
+                        var tier = tiers[tierIndex];
+                        var tracker = this.multiTrackerFailover.SelectTrackerForTier(torrentId, tierIndex, tier, utcNow);
+                        if (await this.TryAnnounceTrackerAsync(manager, torrentId, tierIndex, tracker, utcNow).ConfigureAwait(false))
                         {
-                            try
-                            {
-                                await manager.TrackerManager.AnnounceAsync(tracker, CancellationToken.None).ConfigureAwait(false);
-                                dispatchedCount++;
-                            }
-                            catch (Exception ex)
-                            {
-                                this.logger.Debug(ex, "Failed to announce to tracker tier for torrent {0}", torrentId);
-                            }
+                            dispatchedCount++;
                         }
                     }
                 }
@@ -2374,17 +2364,33 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             else
             {
                 unit = "tracker(s)";
-                var hasAnyTrackers = manager.TrackerManager.Tiers?.Any(t => t.Trackers.Count > 0) == true;
-                if (hasAnyTrackers)
+                var tiers = manager.TrackerManager.Tiers?.ToList();
+                if (tiers != null && tiers.Count > 0)
                 {
-                    try
+                    if (MultiTrackerAnnouncePolicy.IsFailoverEnabled(this.configService))
                     {
-                        await manager.TrackerManager.AnnounceAsync(CancellationToken.None).ConfigureAwait(false);
-                        dispatchedCount = 1;
+                        for (var tierIndex = 0; tierIndex < tiers.Count; tierIndex++)
+                        {
+                            var tier = tiers[tierIndex];
+                            var tracker = this.multiTrackerFailover.SelectTrackerForTier(torrentId, tierIndex, tier, utcNow);
+                            if (await this.TryAnnounceTrackerAsync(manager, torrentId, tierIndex, tracker, utcNow).ConfigureAwait(false))
+                            {
+                                dispatchedCount = 1;
+                                break;
+                            }
+                        }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        this.logger.Debug(ex, "Failed to announce to default tracker for torrent {0}", torrentId);
+                        try
+                        {
+                            await manager.TrackerManager.AnnounceAsync(CancellationToken.None).ConfigureAwait(false);
+                            dispatchedCount = 1;
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Debug(ex, "Failed to announce to default tracker for torrent {0}", torrentId);
+                        }
                     }
                 }
             }
@@ -2400,6 +2406,38 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         return (dispatchedCount, unit);
+    }
+
+    private async Task<bool> TryAnnounceTrackerAsync(
+        TorrentManager manager,
+        int torrentId,
+        int tierIndex,
+        MonoTorrent.Trackers.ITracker tracker,
+        DateTime utcNow)
+    {
+        if (manager?.TrackerManager == null || tracker == null)
+        {
+            return false;
+        }
+
+        if (this.multiTrackerFailover.ShouldSkipAnnounce(torrentId, tierIndex, tracker.Uri, utcNow))
+        {
+            return false;
+        }
+
+        try
+        {
+            await manager.TrackerManager.AnnounceAsync(tracker, CancellationToken.None).ConfigureAwait(false);
+            var success = MultiTrackerAnnouncePolicy.IsAnnounceSuccessful(tracker);
+            this.multiTrackerFailover.RecordAnnounceOutcome(torrentId, tierIndex, tracker, success, utcNow);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.multiTrackerFailover.RecordAnnounceOutcome(torrentId, tierIndex, tracker, false, utcNow);
+            this.logger.Debug(ex, "Failed to announce to tracker {0} for torrent {1}", tracker.Uri, torrentId);
+            return false;
+        }
     }
 
     public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
