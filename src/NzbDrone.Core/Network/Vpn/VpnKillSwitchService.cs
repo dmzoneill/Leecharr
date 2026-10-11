@@ -292,21 +292,7 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
         }
 
         settings ??= new NetworkSettings();
-        if (this.configService != null)
-        {
-            if (!string.IsNullOrWhiteSpace(this.configService.BindInterface))
-            {
-                settings.BindInterface = this.configService.BindInterface;
-            }
-
-            if (!string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding))
-            {
-                settings.BindInterface = this.configService.NetworkInterfaceBinding;
-            }
-
-            settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
-        }
-
+        NetworkSettingsConfigMerge.ApplyConfig(this.configService, settings);
         return settings;
     }
 
