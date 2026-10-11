@@ -172,6 +172,32 @@ public class NotificationPayloadBuilderTest
     }
 
     [Test]
+    public void BuildProviderPayload_Pushover_IncludesConfiguredDeviceRetryExpireAndPriority()
+    {
+        var settings = "{\"token\":\"app\",\"user\":\"usr\",\"priority\":2,\"retry\":120,\"expire\":7200,\"device\":\"phone\"}";
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Pushover", "OnGrab", null, null, "Grabbed", settings);
+        var payloadDict = result.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        payloadDict["priority"].Should().Be(2);
+        payloadDict["device"].Should().Be("phone");
+        payloadDict["retry"].Should().Be(120);
+        payloadDict["expire"].Should().Be(7200);
+    }
+
+    [Test]
+    public void BuildProviderPayload_Pushover_UsesEventPriorityWhenSettingsOmitPriority()
+    {
+        var settings = "{\"token\":\"app\",\"user\":\"usr\",\"device\":\"tablet\"}";
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Pushover", "OnHealthIssue", null, null, "Health", settings);
+        var payloadDict = result.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        payloadDict["priority"].Should().Be(1);
+        payloadDict["device"].Should().Be("tablet");
+        payloadDict.Should().NotContainKey("retry");
+        payloadDict.Should().NotContainKey("expire");
+    }
+
+    [Test]
     public void BuildProviderPayload_Slack_IncludesBlocksStructureWithHeaderSectionAndContext()
     {
         var torrent = new Torrent
