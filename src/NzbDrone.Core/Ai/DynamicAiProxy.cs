@@ -30,7 +30,7 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
 
     public IAiEngineProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
 
-    public bool LastChatUsedFallback { get; private set; }
+    public bool LastChatUsedFallback => AiChatFallbackContext.LastChatUsedFallbackValue;
 
     public DynamicAiProxy(
         IEnumerable<IAiEngineProvider> availableProviders,
@@ -244,11 +244,11 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             {
                 if (provider is IFallbackAwareAiProvider fallbackAware && fallbackAware.LastChatUsedFallback)
                 {
-                    this.LastChatUsedFallback = true;
+                    AiChatFallbackContext.SetLastChatUsedFallback(true);
                 }
                 else
                 {
-                    this.LastChatUsedFallback = string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase);
+                    AiChatFallbackContext.SetLastChatUsedFallback(string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase));
                 }
 
                 return result;
@@ -259,7 +259,7 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             this.logger.Debug(ex, "Active AI provider '{0}' failed to generate chat response, falling back to heuristic assistant.", provider.ProviderId);
         }
 
-        this.LastChatUsedFallback = true;
+        AiChatFallbackContext.SetLastChatUsedFallback(true);
         return await this.defaultFallback.GenerateChatResponseAsync(userMessage, systemContext);
     }
 
