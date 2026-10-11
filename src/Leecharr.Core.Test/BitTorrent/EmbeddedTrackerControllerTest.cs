@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
+using System.Text;
 using FluentAssertions;
 using Leecharr.Api.V1.Tracker;
 using Microsoft.AspNetCore.Authorization;
@@ -385,5 +386,63 @@ public class EmbeddedTrackerControllerTest
         this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
             r.RemoteIp != null &&
             r.RemoteIp.ToString() == "127.0.0.2"));
+    }
+
+    [Test]
+    public void Announce_WhenRateLimitExceeded_ReturnsFailureResponse()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.TrackerRateLimitPerMinute.Returns(2);
+        var rateLimiter = new TrackerClientRateLimiter();
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService, rateLimiter: rateLimiter);
+        var query = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        for (var i = 0; i < 2; i++)
+        {
+            var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            httpContext.Request.QueryString = query;
+            httpContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.1");
+            customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+            customController.Announce().Should().BeOfType<FileContentResult>();
+        }
+
+        var limitedContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        limitedContext.Request.QueryString = query;
+        limitedContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.1");
+        customController.ControllerContext = new ControllerContext { HttpContext = limitedContext };
+
+        var result = customController.Announce();
+        result.Should().BeOfType<FileContentResult>();
+        var file = (FileContentResult)result;
+        Encoding.UTF8.GetString(file.FileContents).Should().Contain("Rate limit exceeded.");
+        this.trackerService.Received(2).ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>());
+    }
+
+    [Test]
+    public void Scrape_WhenRateLimitExceeded_ReturnsFailureResponse()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.TrackerRateLimitPerMinute.Returns(1);
+        var rateLimiter = new TrackerClientRateLimiter();
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService, rateLimiter: rateLimiter);
+
+        this.trackerService.ProcessScrape(Arg.Any<List<byte[]>>()).Returns(Array.Empty<byte>());
+
+        var firstContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        firstContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.2");
+        customController.ControllerContext = new ControllerContext { HttpContext = firstContext };
+        customController.Scrape().Should().BeOfType<FileContentResult>();
+
+        var limitedContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        limitedContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.2");
+        customController.ControllerContext = new ControllerContext { HttpContext = limitedContext };
+
+        var result = customController.Scrape();
+        result.Should().BeOfType<FileContentResult>();
+        var file = (FileContentResult)result;
+        Encoding.UTF8.GetString(file.FileContents).Should().Contain("Rate limit exceeded.");
+        this.trackerService.Received(1).ProcessScrape(Arg.Any<List<byte[]>>());
     }
 }

@@ -919,14 +919,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         return true;
     }
 
-    private static byte[] FailureResponse(string reason)
-    {
-        var dict = new BEncodedDictionary
-        {
-            { "failure reason", new BEncodedString(reason) },
-        };
-        return dict.Encode();
-    }
+    private static byte[] FailureResponse(string reason) => TrackerProtocolEncoding.BuildFailure(reason);
 
     private static string ConvertBytesToHex(byte[] bytes)
     {
