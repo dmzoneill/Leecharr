@@ -30,6 +30,10 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
 
     public int TotalRulesLoaded => Volatile.Read(ref this.activeProvider)?.RuleCount ?? 0;
 
+    public int Ipv4RulesLoaded => Volatile.Read(ref this.activeProvider)?.Ipv4RuleCount ?? 0;
+
+    public int Ipv6RulesLoaded => Volatile.Read(ref this.activeProvider)?.Ipv6RuleCount ?? 0;
+
     public DynamicBlocklistProxy(
         IEnumerable<IBlocklistProvider> availableProviders,
         IConfigService configService,

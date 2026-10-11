@@ -444,4 +444,16 @@ public class DynamicBlocklistProxyTest
         provider.ClearRules();
         provider.IsIpBlocked("192.168.1.50").Should().BeFalse();
     }
+
+    [Test]
+    public void TotalRulesLoaded_ExposesIpv4AndIpv6CountsFromActiveProvider()
+    {
+        this.radixTreeProvider.Ipv4RuleCount.Returns(3);
+        this.radixTreeProvider.Ipv6RuleCount.Returns(2);
+        this.radixTreeProvider.RuleCount.Returns(5);
+
+        this.proxy.Ipv4RulesLoaded.Should().Be(3);
+        this.proxy.Ipv6RulesLoaded.Should().Be(2);
+        this.proxy.TotalRulesLoaded.Should().Be(5);
+    }
 }

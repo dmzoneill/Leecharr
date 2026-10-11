@@ -16,4 +16,8 @@ public interface IBlocklistService
     void ClearRules();
 
     int TotalRulesLoaded { get; }
+
+    int Ipv4RulesLoaded { get; }
+
+    int Ipv6RulesLoaded { get; }
 }

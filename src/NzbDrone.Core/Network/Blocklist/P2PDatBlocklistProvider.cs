@@ -18,6 +18,8 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
     private List<IpRangeV4> v4Ranges = new();
     private List<IpRangeV6> v6Ranges = new();
     private int ruleCount;
+    private int ipv4RuleCount;
+    private int ipv6RuleCount;
 
     public string ProviderId => "P2PDat";
 
@@ -30,6 +32,10 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
     public BlocklistCapabilities Capabilities => BlocklistCapabilities.IPv4 | BlocklistCapabilities.IPv6 | BlocklistCapabilities.Cidr | BlocklistCapabilities.P2PDat | BlocklistCapabilities.LiveAutoRefresh;
 
     public int RuleCount => this.ruleCount;
+
+    public int Ipv4RuleCount => this.ipv4RuleCount;
+
+    public int Ipv6RuleCount => this.ipv6RuleCount;
 
     public P2PDatBlocklistProvider()
     {
@@ -201,6 +207,8 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             this.v4Ranges = mergedV4;
             this.v6Ranges = mergedV6;
             this.ruleCount = totalCount;
+            this.ipv4RuleCount = mergedV4.Count;
+            this.ipv6RuleCount = mergedV6.Count;
         }
 
         this.logger.Info("Loaded and merged {0} IP ranges ({1} IPv4, {2} IPv6) into P2P blocklist.", totalCount, mergedV4.Count, mergedV6.Count);
@@ -214,6 +222,8 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             this.v4Ranges = new List<IpRangeV4>();
             this.v6Ranges = new List<IpRangeV6>();
             this.ruleCount = 0;
+            this.ipv4RuleCount = 0;
+            this.ipv6RuleCount = 0;
         }
     }
 
