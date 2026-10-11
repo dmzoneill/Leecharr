@@ -588,13 +588,13 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     }
 
     [Test]
-    public async Task TmdbProvider_ProbeHealthAsync_ReturnsHealthy()
+    public async Task TmdbProvider_ProbeHealthAsync_WhenApiKeyMissing_ReturnsUnhealthy()
     {
         var provider = new TmdbMetadataProvider();
         var health = await provider.ProbeHealthAsync();
 
         health.Should().NotBeNull();
-        health.IsHealthy.Should().BeTrue();
+        health.IsHealthy.Should().BeFalse();
     }
 
     [Test]

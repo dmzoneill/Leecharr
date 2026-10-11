@@ -58,21 +58,124 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
     }
 
-    public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
+    public async Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
     {
         var apiKey = this.GetApiKey();
-        var hasApiKey = !string.IsNullOrWhiteSpace(apiKey);
-        var arrCount = this.arrRepository?.GetEnabled().Count() ?? 0;
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            try
+            {
+                var token = await this.GetBearerTokenAsync(apiKey, this.GetPin());
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    return new MediaMetadataHealthCheckResult
+                    {
+                        IsHealthy = true,
+                        StatusMessage = "TheTVDB v4 API provider is active and configured.",
+                    };
+                }
 
-        return Task.FromResult(new MediaMetadataHealthCheckResult
+                return new MediaMetadataHealthCheckResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = "TheTVDB v4 login failed; check API key and subscriber PIN.",
+                };
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "TheTVDB metadata health probe failed");
+                return new MediaMetadataHealthCheckResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = $"TheTVDB API health probe failed: {ex.Message}",
+                };
+            }
+        }
+
+        var enabled = this.arrRepository?.GetEnabled()?.ToList() ?? new List<ArrConnectionDefinition>();
+        if (enabled.Count == 0)
+        {
+            return new MediaMetadataHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "TheTVDB API key is not configured and no enabled Arr instances are available for Servarr fallback.",
+            };
+        }
+
+        var reachable = 0;
+        var warnings = new List<string>();
+        foreach (var conn in enabled)
+        {
+            if (await this.ProbeArrConnectionForHealthAsync(conn))
+            {
+                reachable++;
+            }
+            else
+            {
+                warnings.Add($"{conn.Name ?? conn.ArrType} ({conn.Url}) is not reachable for Servarr fallback.");
+            }
+        }
+
+        if (reachable == 0)
+        {
+            return new MediaMetadataHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "TheTVDB API key is not configured and no enabled Arr instances responded to a system status probe.",
+                Warnings = warnings,
+            };
+        }
+
+        var result = new MediaMetadataHealthCheckResult
         {
             IsHealthy = true,
-            StatusMessage = hasApiKey
-                ? "TheTVDB v4 API provider is active and configured."
-                : (arrCount > 0
-                    ? $"TheTVDB provider operational with Servarr fallback ({arrCount} Arr instances configured)."
-                    : "TheTVDB provider operational (heuristic parsing mode without API key or Arr instances)."),
-        });
+            StatusMessage = $"TheTVDB provider operational with Servarr fallback ({reachable}/{enabled.Count} enabled Arr instances reachable).",
+        };
+
+        if (warnings.Count > 0)
+        {
+            result.Warnings = warnings;
+        }
+
+        return result;
+    }
+
+    private async Task<bool> ProbeArrConnectionForHealthAsync(ArrConnectionDefinition conn)
+    {
+        if (string.IsNullOrWhiteSpace(conn?.Url))
+        {
+            return false;
+        }
+
+        var baseUrl = conn.Url.TrimEnd('/');
+        var endpoints = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase)
+            ? new[] { "api/v1/system/status", "api/v3/system/status" }
+            : new[] { "api/v3/system/status", "api/v1/system/status" };
+
+        foreach (var endpoint in endpoints)
+        {
+            try
+            {
+                var uri = new Uri(new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/"), endpoint);
+                using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+                if (!string.IsNullOrWhiteSpace(conn.ApiKey))
+                {
+                    req.Headers.Add("X-Api-Key", conn.ApiKey);
+                }
+
+                using var response = await this.httpClient.SendAsync(req);
+                if (response.IsSuccessStatusCode)
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "TheTVDB Servarr fallback health probe failed for {0}", conn.Name);
+            }
+        }
+
+        return false;
     }
 
     public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)

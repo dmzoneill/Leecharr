@@ -45,18 +45,47 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
     }
 
-    public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
+    public async Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
     {
         var apiKey = this.GetApiKey();
-        var hasApiKey = !string.IsNullOrWhiteSpace(apiKey);
-
-        return Task.FromResult(new MediaMetadataHealthCheckResult
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
-            IsHealthy = true,
-            StatusMessage = hasApiKey
-                ? "TMDB API provider is reachable and active (API key configured)."
-                : "TMDB provider operational (heuristic parsing mode without API key).",
-        });
+            return new MediaMetadataHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "TMDB API key is not configured; metadata enrichment will return title-only placeholders.",
+            };
+        }
+
+        try
+        {
+            var endpoint = $"https://api.themoviedb.org/3/configuration?api_key={Uri.EscapeDataString(apiKey)}";
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            using var response = await this.httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new MediaMetadataHealthCheckResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = $"TMDB API configuration probe failed with HTTP {(int)response.StatusCode}.",
+                };
+            }
+
+            return new MediaMetadataHealthCheckResult
+            {
+                IsHealthy = true,
+                StatusMessage = "TMDB API provider is reachable and active (API key configured).",
+            };
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "TMDB metadata health probe failed");
+            return new MediaMetadataHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = $"TMDB API health probe failed: {ex.Message}",
+            };
+        }
     }
 
     public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)

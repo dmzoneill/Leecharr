@@ -46,23 +46,93 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
     }
 
-    public Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
+    public async Task<MediaMetadataHealthCheckResult> ProbeHealthAsync()
     {
-        var count = 0;
-        if (this.arrRepository != null)
+        var enabled = this.arrRepository?.GetEnabled()?.ToList() ?? new List<ArrConnectionDefinition>();
+        if (enabled.Count == 0)
         {
-            var all = this.arrRepository.All();
-            if (all != null)
+            return new MediaMetadataHealthCheckResult
             {
-                count = all.Count();
+                IsHealthy = false,
+                StatusMessage = "No enabled Sonarr, Radarr, or Lidarr connections are configured for Servarr metadata sync.",
+            };
+        }
+
+        var reachable = 0;
+        var warnings = new List<string>();
+
+        foreach (var conn in enabled)
+        {
+            if (await this.ProbeArrConnectionAsync(conn))
+            {
+                reachable++;
+            }
+            else
+            {
+                warnings.Add($"{conn.Name ?? conn.ArrType} ({conn.Url}) is not reachable.");
             }
         }
 
-        return Task.FromResult(new MediaMetadataHealthCheckResult
+        if (reachable == 0)
+        {
+            return new MediaMetadataHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "No enabled Arr instances responded to a system status probe.",
+                Warnings = warnings,
+            };
+        }
+
+        var result = new MediaMetadataHealthCheckResult
         {
             IsHealthy = true,
-            StatusMessage = $"Servarr metadata provider ready ({count} Arr instances configured).",
-        });
+            StatusMessage = $"Servarr metadata provider ready ({reachable}/{enabled.Count} enabled Arr instances reachable).",
+        };
+
+        if (warnings.Count > 0)
+        {
+            result.Warnings = warnings;
+        }
+
+        return result;
+    }
+
+    private async Task<bool> ProbeArrConnectionAsync(ArrConnectionDefinition conn)
+    {
+        if (string.IsNullOrWhiteSpace(conn?.Url))
+        {
+            return false;
+        }
+
+        var baseUrl = conn.Url.TrimEnd('/');
+        var endpoints = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase)
+            ? new[] { "api/v1/system/status", "api/v3/system/status" }
+            : new[] { "api/v3/system/status", "api/v1/system/status" };
+
+        foreach (var endpoint in endpoints)
+        {
+            try
+            {
+                var uri = new Uri(new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/"), endpoint);
+                using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+                if (!string.IsNullOrWhiteSpace(conn.ApiKey))
+                {
+                    req.Headers.Add("X-Api-Key", conn.ApiKey);
+                }
+
+                using var response = await this.httpClient.SendAsync(req);
+                if (response.IsSuccessStatusCode)
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Servarr metadata health probe failed for {0}", conn.Name);
+            }
+        }
+
+        return false;
     }
 
     public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)

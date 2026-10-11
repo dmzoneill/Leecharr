@@ -227,21 +227,52 @@ public class ServarrSyncMetadataProviderTest
     }
 
     [Test]
-    public async Task ProbeHealthAsync_ReturnsHealthyWithArrCount()
+    public async Task ProbeHealthAsync_WhenNoEnabledConnections_ReturnsUnhealthy()
     {
-        var connections = new List<ArrConnectionDefinition>
-        {
-            new() { Id = 1, Name = "Sonarr" },
-            new() { Id = 2, Name = "Radarr" },
-        };
-        this.arrRepository.All().Returns(connections);
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition>());
 
         var provider = new ServarrSyncMetadataProvider(this.arrRepository);
         var health = await provider.ProbeHealthAsync();
 
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("No enabled");
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenEnabledArrResponds_ReturnsHealthyWithReachableCount()
+    {
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            req.RequestUri!.AbsolutePath.Should().Contain("system/status");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr",
+                ArrType = "Sonarr",
+                Url = "http://127.0.0.1:8989",
+                ApiKey = "sonarr-key",
+                Enable = true,
+            },
+            new() { Id = 2, Name = "Radarr", ArrType = "Radarr", Url = "http://127.0.0.1:7878", Enable = true },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var provider = new ServarrSyncMetadataProvider(this.arrRepository, httpClient);
+        var health = await provider.ProbeHealthAsync();
+
         health.Should().NotBeNull();
         health.IsHealthy.Should().BeTrue();
-        health.StatusMessage.Should().Contain("2 Arr instances");
+        health.StatusMessage.Should().Contain("1/2");
+        health.Warnings.Should().NotBeEmpty();
     }
 
     [TestCase("Severance.S02E01.1080p.WEB-DL", "Severance")]
