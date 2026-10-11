@@ -1142,6 +1142,7 @@ public class IndexerController : Controller
 
                     var settings = new IndexerSettings
                     {
+                        CapabilitiesVerified = true,
                         SupportsSearch = testResult.Capabilities.SupportsSearch,
                         SupportsTvSearch = testResult.Capabilities.SupportsTvSearch,
                         SupportsMovieSearch = testResult.Capabilities.SupportsMovieSearch,

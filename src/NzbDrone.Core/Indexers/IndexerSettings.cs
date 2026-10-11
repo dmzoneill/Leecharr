@@ -16,6 +16,11 @@ public class IndexerSettings
 
     public bool SupportsBookSearch { get; set; }
 
+    /// <summary>
+    /// Set after a successful caps probe so stored search-mode flags are honored on queries.
+    /// </summary>
+    public bool CapabilitiesVerified { get; set; }
+
     public List<string> SupportedTvParams { get; set; } = new();
 
     public List<string> SupportedMovieParams { get; set; } = new();
