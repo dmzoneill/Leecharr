@@ -623,6 +623,16 @@ public class SystemDatabaseController : Controller
                 rows.Add(row);
             }
 
+            var totalRows = rows.Count;
+            if (truncated)
+            {
+                totalRows++;
+                while (reader.Read())
+                {
+                    totalRows++;
+                }
+            }
+
             reader.Close();
 
             // Run EXPLAIN QUERY PLAN for query operations to provide visual query plan DAG
@@ -662,7 +672,7 @@ public class SystemDatabaseController : Controller
                 IsQuery = true,
                 Columns = columns,
                 Rows = rows,
-                TotalRows = rows.Count,
+                TotalRows = totalRows,
                 ExecutionTimeMs = sw.Elapsed.TotalMilliseconds,
                 Message = truncated ? $"Showing first {maxRows} rows (truncated)." : $"Returned {rows.Count} row(s).",
                 QueryPlan = queryPlan
