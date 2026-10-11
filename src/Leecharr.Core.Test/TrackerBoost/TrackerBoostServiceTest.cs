@@ -26,6 +26,21 @@ using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Core.Test.TrackerBoost;
 
+internal sealed class StubHttpMessageHandler : HttpMessageHandler
+{
+    private readonly Func<HttpRequestMessage, HttpResponseMessage> responder;
+
+    public StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder)
+    {
+        this.responder = responder;
+    }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        return Task.FromResult(this.responder(request));
+    }
+}
+
 [TestFixture]
 public class TrackerBoostServiceTest
 {
@@ -395,6 +410,119 @@ public class TrackerBoostServiceTest
         this.storedTrackers.Should().NotContain(t => t.Url == "https://redacted.ch/0123456789abcdef0123456789abcdef/announce");
         this.storedTrackers.Should().NotContain(t => t.Url == "https://tracker.site/announce/abcdef123456");
         this.storedTrackers.Should().NotContain(t => t.Url == "http://tracker.site/announce?passkey=secret123");
+    }
+
+    [Test]
+    public async Task HarvestFromActiveDownloads_DoesNotCountExistingTrackerRows()
+    {
+        var existingUrl = "udp://tracker.opentrackr.org:1337/announce";
+        this.storedTrackers.Should().Contain(t => t.Url == existingUrl);
+
+        var publicTorrent = new Torrent
+        {
+            Id = 40,
+            Name = "Public Torrent",
+            InfoHash = "DDDD111122223333444455556666777788889999",
+            IsPrivate = false,
+        };
+        this.storedTorrents.Add(publicTorrent);
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = 40,
+            Url = existingUrl,
+        });
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = 40,
+            Url = existingUrl,
+        });
+
+        var count = await this.service.HarvestFromActiveDownloadsAsync();
+
+        count.Should().Be(0);
+    }
+
+    [Test]
+    public async Task HarvestFromProwlarrAsync_CountsOnlyNewlyInsertedTrackers()
+    {
+        var existingUrl = "udp://tracker.opentrackr.org:1337/announce";
+        var newUrl = "udp://brandnew.prowlarr.tracker.org:1337/announce";
+        var json = $$"""
+            [
+              {
+                "name": "OpenTrackr",
+                "privacy": "public",
+                "fields": [
+                  { "name": "tracker", "value": "{{existingUrl}}" },
+                  { "name": "tracker2", "value": "{{newUrl}}" }
+                ]
+              }
+            ]
+            """;
+
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            request.RequestUri!.AbsolutePath.Should().Be("/api/v1/indexer");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json),
+            };
+        });
+
+        this.indexerRepository.All().Returns(new List<IndexerDefinition>
+        {
+            new()
+            {
+                Name = "Prowlarr",
+                Url = "http://prowlarr.local:9696",
+                ApiKey = "test-key",
+                Implementation = "Prowlarr",
+            },
+        });
+
+        var prowlarrService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            httpClient: new HttpClient(handler));
+
+        var count = await prowlarrService.HarvestFromProwlarrAsync();
+
+        count.Should().Be(1);
+        this.storedTrackers.Should().Contain(t => t.Url == newUrl);
+    }
+
+    [Test]
+    public async Task HarvestFromCuratedListsAsync_CountsEachNewTrackerOnceAcrossFeeds()
+    {
+        var sharedUrl = "udp://shared.curated.feed.tracker.org:1337/announce";
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            request.RequestUri!.Host.Should().Be("raw.githubusercontent.com");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(sharedUrl + "\n"),
+            };
+        });
+
+        var curatedService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            httpClient: new HttpClient(handler));
+
+        var count = await curatedService.HarvestFromCuratedListsAsync();
+
+        count.Should().Be(1);
+        this.storedTrackers.Should().Contain(t => t.Url == sharedUrl);
     }
 
     [Test]

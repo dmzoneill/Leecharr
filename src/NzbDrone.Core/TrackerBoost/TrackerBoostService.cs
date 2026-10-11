@@ -638,7 +638,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             throw new ArgumentException("Tracker URL is invalid or contains private passkey tokens.");
         }
 
-        return this.AddTrackerInternal(url, source, sourceName);
+        return this.AddTrackerInternal(url, source, sourceName, out _);
     }
 
     public void DeleteTracker(int id)
@@ -720,8 +720,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
                 if (IsValidPublicTrackerUrl(entry.Url))
                 {
-                    var res = this.AddTrackerInternal(entry.Url, TrackerSourceType.ActiveTorrent, "Leecharr Active Download");
-                    if (res != null && res.Id > 0)
+                    this.AddTrackerInternal(entry.Url, TrackerSourceType.ActiveTorrent, "Leecharr Active Download", out var added);
+                    if (added)
                     {
                         discovered++;
                     }
@@ -798,8 +798,11 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
                 foreach (var (url, sourceName) in discoveredTrackers)
                 {
-                    this.AddTrackerInternal(url, TrackerSourceType.Prowlarr, sourceName);
-                    harvestedCount++;
+                    this.AddTrackerInternal(url, TrackerSourceType.Prowlarr, sourceName, out var added);
+                    if (added)
+                    {
+                        harvestedCount++;
+                    }
                 }
             }
 
@@ -926,8 +929,11 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
                     if (IsValidPublicTrackerUrl(clean))
                     {
-                        this.AddTrackerInternal(clean, TrackerSourceType.PublicList, "Curated Public Feed");
-                        count++;
+                        this.AddTrackerInternal(clean, TrackerSourceType.PublicList, "Curated Public Feed", out var added);
+                        if (added)
+                        {
+                            count++;
+                        }
                     }
                 }
             }
@@ -2032,7 +2038,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             {
                 foreach (var url in DefaultBootstrapTrackers)
                 {
-                    this.AddTrackerInternal(url, TrackerSourceType.PublicList, "Builtin Curated List");
+                    this.AddTrackerInternal(url, TrackerSourceType.PublicList, "Builtin Curated List", out _);
                 }
             }
         }
@@ -2042,8 +2048,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
     }
 
-    private TrackerBoostTracker AddTrackerInternal(string url, TrackerSourceType source, string sourceName)
+    private TrackerBoostTracker AddTrackerInternal(string url, TrackerSourceType source, string sourceName, out bool isNew)
     {
+        isNew = false;
+
         if (string.IsNullOrWhiteSpace(url))
         {
             throw new ArgumentException("Tracker URL cannot be empty");
@@ -2102,6 +2110,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             Enabled = true,
         };
 
+        isNew = true;
         return this.trackerRepository.Insert(tracker);
     }
 
