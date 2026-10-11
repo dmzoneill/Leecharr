@@ -268,13 +268,6 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
     [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static extern IntPtr CFStringCreateWithCharacters(
-        IntPtr alloc,
-        [MarshalAs(UnmanagedType.LPWStr)] string str,
-        IntPtr length);
-
-    [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern void CFRelease(IntPtr cf);
 
     private bool IsPlatform(OSPlatform platform)
@@ -433,8 +426,8 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             var typeStr = "PreventUserIdleSystemSleep";
             var nameStr = string.IsNullOrWhiteSpace(reason) ? "Leecharr active download" : $"Leecharr: {reason}";
 
-            var cfType = CFStringCreateWithCharacters(IntPtr.Zero, typeStr, (IntPtr)typeStr.Length);
-            var cfName = CFStringCreateWithCharacters(IntPtr.Zero, nameStr, (IntPtr)nameStr.Length);
+            var cfType = MacOsCfStringInterop.Create(typeStr);
+            var cfName = MacOsCfStringInterop.Create(nameStr);
 
             try
             {
@@ -705,6 +698,34 @@ public class PowerManagementService : IPowerManagementService, IDisposable
                 this.service?.ReleaseSleepLease(this.reason);
                 this.service = null;
             }
+        }
+    }
+}
+
+internal static class MacOsCfStringInterop
+{
+    internal static Func<IntPtr, IntPtr, IntPtr, IntPtr> CreateWithCharactersOverride { get; set; }
+
+    [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    private static extern IntPtr CFStringCreateWithCharacters(
+        IntPtr alloc,
+        IntPtr chars,
+        IntPtr length);
+
+    internal static IntPtr Create(string value)
+    {
+        var text = value ?? string.Empty;
+        var characters = text.ToCharArray();
+        var handle = GCHandle.Alloc(characters, GCHandleType.Pinned);
+        try
+        {
+            var create = CreateWithCharactersOverride ?? CFStringCreateWithCharacters;
+            return create(IntPtr.Zero, handle.AddrOfPinnedObject(), (IntPtr)characters.Length);
+        }
+        finally
+        {
+            handle.Free();
         }
     }
 }
