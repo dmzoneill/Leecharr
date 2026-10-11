@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -218,7 +219,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             }
 
             var host = this.ResolveDownloadClientHost(connection);
-            var port = this.configFileProvider?.Port > 0 ? this.configFileProvider.Port : 7889;
+            var port = this.ResolveDownloadClientPort(connection);
 
             var (catField, catVal) = GetCategoryFieldAndValue(connection);
 
@@ -472,11 +473,11 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             {
                 if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
                 {
-                    return uri.Host;
+                    return FormatHostAuthority(uri.Host);
                 }
             }
 
-            return trimmed;
+            return FormatHostAuthority(trimmed);
         }
 
         var envHost = Environment.GetEnvironmentVariable("LEECHARR_HOST") ??
@@ -503,6 +504,24 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
         var hostname = Dns.GetHostName();
         return IsHexContainerId(hostname) ? "leecharr.local" : hostname;
+    }
+
+    private int ResolveDownloadClientPort(ArrConnectionDefinition connection)
+    {
+        if (!string.IsNullOrWhiteSpace(connection.WebhookHost))
+        {
+            var trimmed = connection.WebhookHost.Trim();
+            if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && uri.Port > 0)
+                {
+                    return uri.Port;
+                }
+            }
+        }
+
+        return this.configFileProvider?.Port > 0 ? this.configFileProvider.Port : 7889;
     }
 
     private string GetLeecharrBaseUrl(ArrConnectionDefinition connection)
@@ -596,6 +615,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         }
 
         var trimmedHost = host.Trim().TrimEnd('/');
+        trimmedHost = FormatHostAuthority(trimmedHost);
 
         bool hasPort;
         if (trimmedHost.StartsWith('[') && trimmedHost.Contains(']'))
@@ -618,6 +638,27 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         }
 
         return $"{trimmedHost}:{port}";
+    }
+
+    private static string FormatHostAuthority(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = host.Trim();
+        if (trimmed.StartsWith('[') && trimmed.Contains(']'))
+        {
+            return trimmed;
+        }
+
+        if (IPAddress.TryParse(trimmed, out var address) && address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return $"[{trimmed}]";
+        }
+
+        return trimmed;
     }
 
     private static string NormalizeUrlBase(string urlBase)
