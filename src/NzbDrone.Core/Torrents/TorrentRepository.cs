@@ -23,20 +23,20 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     public override Torrent Insert(Torrent model)
     {
         NormalizeTorrent(model);
-        if (model != null && model.QueuePosition <= 0)
+        if (model == null)
         {
-            lock (QueuePositionLock)
-            {
-                if (model.QueuePosition <= 0)
-                {
-                    model.QueuePosition = this.GetNextQueuePositionInternal();
-                }
-
-                return base.Insert(model);
-            }
+            return base.Insert(model);
         }
 
-        return base.Insert(model);
+        lock (QueuePositionLock)
+        {
+            if (model.QueuePosition <= 0 || this.IsQueuePositionTaken(model.QueuePosition))
+            {
+                model.QueuePosition = this.GetNextQueuePositionInternal();
+            }
+
+            return base.Insert(model);
+        }
     }
 
     public override Torrent Update(Torrent model)
@@ -179,6 +179,14 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     {
         return this.ExecuteWithRetry(connection =>
             connection.ExecuteScalar<int>("SELECT COALESCE(MAX(\"QueuePosition\"), 0) + 1 FROM \"Torrents\""));
+    }
+
+    private bool IsQueuePositionTaken(int queuePosition)
+    {
+        return this.ExecuteWithRetry(connection =>
+            connection.ExecuteScalar<int>(
+                "SELECT COUNT(1) FROM \"Torrents\" WHERE \"QueuePosition\" = @QueuePosition",
+                new { QueuePosition = queuePosition }) > 0);
     }
 
     private static void NormalizeTorrent(Torrent model)

@@ -251,7 +251,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         await QueueLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            torrent.QueuePosition = this.torrentRepository.GetNextQueuePosition();
             inserted = this.torrentRepository.Insert(torrent) ?? torrent;
         }
         finally
@@ -513,7 +512,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         await QueueLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            torrent.QueuePosition = this.torrentRepository.GetNextQueuePosition();
             inserted = this.torrentRepository.Insert(torrent) ?? torrent;
         }
         finally
