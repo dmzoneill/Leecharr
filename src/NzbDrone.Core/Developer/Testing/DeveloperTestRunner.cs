@@ -190,7 +190,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
             Id = "engine-ratelimits",
             Name = "BitTorrent Rate Limits Verification",
             Category = "BitTorrent",
-            Description = "Tests applying and querying engine global rate limits.",
+            Description = "Verifies engine rate-limit support and configured caps without mutating live limits.",
             TargetComponent = "DownloadEngine",
         },
         new DeveloperTestItem
@@ -1175,15 +1175,25 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"Download Engine '{this.downloadEngine.ProtocolName}' is healthy. Active tasks: {tasks}, DHT nodes: {dhtNodes}";
     }
 
-    private async Task<string> ExecuteEngineRateLimitsCheckAsync()
+    private Task<string> ExecuteEngineRateLimitsCheckAsync()
     {
         if (this.downloadEngine == null)
         {
-            return "Download engine is not registered.";
+            return Task.FromResult("Download engine is not registered.");
         }
 
-        await this.downloadEngine.SetRateLimitsAsync(0, 0);
-        return "Engine global rate limits verified (0 KB/s unlimited).";
+        var supportsDynamic = this.downloadEngine is ITorrentEngine torrentEngine
+            && torrentEngine.Capabilities.SupportsDynamicRateLimits;
+
+        var downloadKbps = this.configService?.MaxDownloadSpeedKbps ?? 0;
+        var uploadKbps = this.configService?.MaxUploadSpeedKbps ?? 0;
+
+        static string FormatLimit(int kbps) => kbps > 0 ? $"{kbps} KB/s" : "unlimited";
+
+        return Task.FromResult(
+            $"Engine rate limit API available (DynamicRateLimits={supportsDynamic}). " +
+            $"Configured caps: download {FormatLimit(downloadKbps)}, upload {FormatLimit(uploadKbps)}. " +
+            "Smoke test does not modify live engine caps.");
     }
 
     private string ExecuteEngineLoopbackCheck()
