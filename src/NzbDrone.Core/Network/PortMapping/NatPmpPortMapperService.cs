@@ -372,6 +372,30 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 name.StartsWith("utun", StringComparison.OrdinalIgnoreCase);
     }
 
+    public static IPAddress SelectGatewayFromLinuxProcRoute(string interfaceName, IEnumerable<string> procRouteLines)
+    {
+        return NatPmpRouteGatewayResolver.SelectGatewayFromLinuxProcRoute(interfaceName, procRouteLines);
+    }
+
+    internal static IPAddress TryResolveVpnTunnelGateway(NetworkInterface ni)
+    {
+        if (ni == null)
+        {
+            return null;
+        }
+
+        var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
+                                    ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
+                                    IsVpnInterfaceName(ni.Name);
+
+        if (!isVpnOrPointToPoint)
+        {
+            return null;
+        }
+
+        return NatPmpRouteGatewayResolver.TryGetGatewayFromRouteTable(ni.Name);
+    }
+
     public static IPAddress GetGatewayFromInterface(NetworkInterface ni)
     {
         try
@@ -385,26 +409,10 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return gw.Address;
             }
 
-            // VPN and point-to-point tunnels on Linux omit GatewayAddresses; derive subnet gateway (.1) from unicast IPv4
-            var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
-                                        ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
-                                        IsVpnInterfaceName(ni.Name);
-
-            if (isVpnOrPointToPoint)
+            var routeGateway = TryResolveVpnTunnelGateway(ni);
+            if (routeGateway != null)
             {
-                var unicast = props.UnicastAddresses
-                    .FirstOrDefault(u => IsValidIpv4UnicastAddress(u.Address));
-
-                if (unicast != null)
-                {
-                    var bytes = unicast.Address.GetAddressBytes();
-                    if (bytes[3] != 1)
-                    {
-                        var gwBytes = (byte[])bytes.Clone();
-                        gwBytes[3] = 1;
-                        return new IPAddress(gwBytes);
-                    }
-                }
+                return routeGateway;
             }
         }
         catch (Exception ex)
@@ -455,22 +463,12 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                         }
                     }
 
-                    // VPN and point-to-point tunnels on Linux omit GatewayAddresses; derive subnet gateway (.1) from unicast IPv4
                     if (gateways.Count == 0 && unicasts.Count > 0)
                     {
-                        var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
-                                                ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
-                                                IsVpnInterfaceName(ni.Name);
-
-                        if (isVpnOrPointToPoint)
+                        var routeGateway = TryResolveVpnTunnelGateway(ni);
+                        if (routeGateway != null)
                         {
-                            var bytes = unicasts[0].Address.GetAddressBytes();
-                            if (bytes[3] != 1)
-                            {
-                                var gwBytes = (byte[])bytes.Clone();
-                                gwBytes[3] = 1;
-                                gateways.Add(new IPAddress(gwBytes));
-                            }
+                            gateways.Add(routeGateway);
                         }
                     }
 
