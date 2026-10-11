@@ -610,13 +610,13 @@ public class AutomationService : IAutomationService
             if (_torrentService != null)
             {
                 await _torrentService.ResumeAsync(torrent.Id).ConfigureAwait(false);
-                torrent.Status = (torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.DateCompleted != null)
+                torrent.Status = (torrent.Progress >= 1.0f || torrent.DateCompleted != null)
                     ? TorrentStatus.Seeding
                     : TorrentStatus.Downloading;
             }
             else
             {
-                torrent.Status = (torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.DateCompleted != null)
+                torrent.Status = (torrent.Progress >= 1.0f || torrent.DateCompleted != null)
                     ? TorrentStatus.Seeding
                     : TorrentStatus.Downloading;
                 changed = true;

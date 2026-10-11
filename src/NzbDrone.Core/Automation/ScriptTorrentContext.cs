@@ -63,7 +63,7 @@ public class ScriptTorrentContext
 
     public bool isPrivate => _torrent.IsPrivate;
 
-    public bool isComplete => _torrent.Progress >= 1.0 || _torrent.Progress >= 0.999 || _torrent.Status == TorrentStatus.Seeding || _torrent.DateCompleted.HasValue;
+    public bool isComplete => _torrent.Progress >= 1.0 || _torrent.Status == TorrentStatus.Seeding || _torrent.DateCompleted.HasValue;
 
     public long seedingTime => _torrent.CumulativeSeedingTimeSeconds;
 
