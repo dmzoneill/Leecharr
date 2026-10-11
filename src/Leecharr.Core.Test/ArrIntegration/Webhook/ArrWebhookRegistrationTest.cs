@@ -182,7 +182,10 @@ public class ArrWebhookRegistrationTest
                     {
                         ""id"": 15,
                         ""name"": ""Leecharr"",
-                        ""fields"": []
+                        ""implementation"": ""Webhook"",
+                        ""fields"": [
+                            { ""name"": ""url"", ""value"": ""http://leecharr.local:7889/api/v1/webhook/arr"" }
+                        ]
                     }
                 ]";
                 return new HttpResponseMessage(HttpStatusCode.OK)
@@ -215,6 +218,108 @@ public class ArrWebhookRegistrationTest
         requests.Should().HaveCount(2);
         requests[1].Method.Should().Be(HttpMethod.Delete);
         requests[1].RequestUri!.ToString().Should().Be("http://radarr:7878/api/v3/notification/15");
+    }
+
+    [Test]
+    public void RegisterWebhook_WhenNotificationNamedLeecharrButNotWebhookUrl_CreatesViaPostWithoutDeletingOther()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            if (req.Method == HttpMethod.Get)
+            {
+                var existingJson = @"[
+                    {
+                        ""id"": 99,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""Discord"",
+                        ""fields"": [
+                            { ""name"": ""webHookUrl"", ""value"": ""https://discord.com/api/webhooks/abc"" }
+                        ]
+                    }
+                ]";
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(existingJson),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 100}"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Put || req.Method == HttpMethod.Delete)
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-api-key",
+            Enable = true,
+            WebhookEnabled = true,
+            WebhookHost = "leecharr.local",
+        };
+
+        var result = registration.RegisterWebhook(conn);
+        result.Should().BeTrue();
+
+        requests.Should().HaveCount(2);
+        requests[0].Method.Should().Be(HttpMethod.Get);
+        requests[1].Method.Should().Be(HttpMethod.Post);
+        requests.Should().NotContain(r => r.Method == HttpMethod.Put);
+    }
+
+    [Test]
+    public void UnregisterWebhook_WhenNotificationNamedLeecharrOnly_DoesNotDelete()
+    {
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                var existingJson = @"[
+                    {
+                        ""id"": 20,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""Slack"",
+                        ""fields"": []
+                    }
+                ]";
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(existingJson),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-key",
+        };
+
+        var result = registration.UnregisterWebhook(conn);
+        result.Should().BeTrue();
+        handler.CallCount.Should().Be(1);
     }
 
     [Test]
