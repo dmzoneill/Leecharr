@@ -26,6 +26,16 @@ public class SystemDatabaseController : Controller
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
 
+    private static readonly Regex ReadOnlyDisallowedStartPattern = new(
+        @"^\s*(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|VACUUM|ATTACH|DETACH|REINDEX|BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE|ANALYZE)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex MutatingPragmaPattern = new(
+        @"^\s*PRAGMA\s+(journal_mode|synchronous|cache_size|user_version|application_id|wal_checkpoint|incremental_vacuum|optimize|locking_mode|secure_delete|page_size|auto_vacuum|mmap_size|temp_store|foreign_keys|recursive_triggers|soft_heap_limit|threads|encoding|shrink_memory)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
     private static readonly Regex NonTransactionPattern = new(
         @"^\s*(VACUUM|ATTACH|DETACH)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
@@ -530,20 +540,26 @@ public class SystemDatabaseController : Controller
         var sw = Stopwatch.StartNew();
 
         // Enforce safe mode if readOnly is true
-        if (request.ReadOnly && WritePattern.IsMatch(trimmedQuery))
+        if (request.ReadOnly && !IsReadOnlySafeQuery(trimmedQuery, out var readOnlyError))
         {
             return this.BadRequest(new DatabaseQueryResult
             {
                 Success = false,
-                ErrorMessage = "Query contains write/mutation statements (INSERT, UPDATE, DELETE, DROP, etc.) but Safe Mode (Read-Only) is enabled.",
+                ErrorMessage = readOnlyError,
                 ExecutionTimeMs = 0
             });
         }
 
         using var connection = this.mainDatabase.OpenConnection();
+        var readOnlyMode = request.ReadOnly;
 
         try
         {
+            if (readOnlyMode)
+            {
+                SetSqliteQueryOnly(connection, true);
+            }
+
             using var cmd = connection.CreateCommand();
             SetCommandQuery(cmd, trimmedQuery);
             cmd.CommandTimeout = 30;
@@ -689,6 +705,147 @@ public class SystemDatabaseController : Controller
                 ExecutionTimeMs = sw.Elapsed.TotalMilliseconds
             });
         }
+        finally
+        {
+            if (readOnlyMode)
+            {
+                try
+                {
+                    SetSqliteQueryOnly(connection, false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to reset PRAGMA query_only after safe-mode SQL console query");
+                }
+            }
+        }
+    }
+
+    private static bool IsReadOnlySafeQuery(string query, out string errorMessage)
+    {
+        if (ReadOnlyDisallowedStartPattern.IsMatch(query))
+        {
+            errorMessage = "Query contains write/mutation statements (INSERT, UPDATE, DELETE, DROP, BEGIN, etc.) but Safe Mode (Read-Only) is enabled.";
+            return false;
+        }
+
+        if (ContainsMultipleStatements(query))
+        {
+            errorMessage = "Safe Mode (Read-Only) does not allow batched or stacked SQL statements. Run a single read-only statement.";
+            return false;
+        }
+
+        if (MutatingPragmaPattern.IsMatch(query) || PragmaHasAssignment(query))
+        {
+            errorMessage = "Query contains a mutating PRAGMA but Safe Mode (Read-Only) is enabled.";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
+    }
+
+    private static bool PragmaHasAssignment(string query)
+    {
+        if (!query.TrimStart().StartsWith("PRAGMA", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return query.IndexOf('=', StringComparison.Ordinal) >= 0;
+    }
+
+    private static bool ContainsMultipleStatements(string query)
+    {
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var inLineComment = false;
+        var inBlockComment = false;
+
+        for (var i = 0; i < query.Length; i++)
+        {
+            var c = query[i];
+            var next = i + 1 < query.Length ? query[i + 1] : '\0';
+
+            if (inLineComment)
+            {
+                if (c == '\n')
+                {
+                    inLineComment = false;
+                }
+
+                continue;
+            }
+
+            if (inBlockComment)
+            {
+                if (c == '*' && next == '/')
+                {
+                    inBlockComment = false;
+                    i++;
+                }
+
+                continue;
+            }
+
+            if (!inSingleQuote && !inDoubleQuote)
+            {
+                if (c == '-' && next == '-')
+                {
+                    inLineComment = true;
+                    i++;
+                    continue;
+                }
+
+                if (c == '/' && next == '*')
+                {
+                    inBlockComment = true;
+                    i++;
+                    continue;
+                }
+            }
+
+            if (c == '\'' && !inDoubleQuote)
+            {
+                if (inSingleQuote && next == '\'')
+                {
+                    i++;
+                    continue;
+                }
+
+                inSingleQuote = !inSingleQuote;
+                continue;
+            }
+
+            if (c == '"' && !inSingleQuote)
+            {
+                if (inDoubleQuote && next == '"')
+                {
+                    i++;
+                    continue;
+                }
+
+                inDoubleQuote = !inDoubleQuote;
+                continue;
+            }
+
+            if (c == ';' && !inSingleQuote && !inDoubleQuote)
+            {
+                if (query.AsSpan(i + 1).Trim().Length > 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static void SetSqliteQueryOnly(IDbConnection connection, bool enabled)
+    {
+        using var pragmaCmd = connection.CreateCommand();
+        SetCommandQuery(pragmaCmd, enabled ? "PRAGMA query_only = ON;" : "PRAGMA query_only = OFF;");
+        pragmaCmd.ExecuteNonQuery();
     }
 
     private static string EscapeIdentifier(string identifier)
