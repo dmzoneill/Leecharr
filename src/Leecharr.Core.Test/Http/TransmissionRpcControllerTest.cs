@@ -2872,9 +2872,9 @@ public class TransmissionRpcControllerTest
 
         result.Should().BeOfType<OkObjectResult>();
         this.trackerEntryRepository.Received(1).DeleteByTorrentId(1);
-        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://trk1.org/announce" && t.Tier == 0));
-        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://trk2.org/announce" && t.Tier == 0));
-        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://trk3.org/announce" && t.Tier == 1));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://trk1.org/announce" && t.Tier == 0 && t.AnnounceInterval == 1800));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://trk2.org/announce" && t.Tier == 0 && t.AnnounceInterval == 1800));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://trk3.org/announce" && t.Tier == 1 && t.AnnounceInterval == 1800));
         await this.downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://oldtracker.org/announce")));
         await this.downloadEngine.Received(1).AddTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Count() == 3));
         testTorrent.TrackerUrl.Should().Be("http://trk1.org/announce");

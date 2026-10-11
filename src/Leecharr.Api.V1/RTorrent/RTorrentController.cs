@@ -311,7 +311,8 @@ public class RTorrentController : ControllerBase
                                     }
                                     else if (cleanField.Equals("t.get_normal_interval", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("t.normal_interval", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        tRowData.Add(new XElement("value", new XElement("i4", tracker.AnnounceInterval)));
+                                        var announceInterval = tracker.AnnounceInterval > 0 ? tracker.AnnounceInterval : 1800;
+                                        tRowData.Add(new XElement("value", new XElement("i4", announceInterval)));
                                     }
                                     else
                                     {
