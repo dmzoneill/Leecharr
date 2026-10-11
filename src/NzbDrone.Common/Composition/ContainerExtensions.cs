@@ -46,7 +46,7 @@ public static class ContainerExtensions
 
     public static void RegisterSingletonWithInterfaces<TImplementation>(
         this IContainer container,
-        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.AppendNotKeyed)
         where TImplementation : class
     {
         container.RegisterSingletonWithInterfaces(typeof(TImplementation), ifAlreadyRegistered);
@@ -55,19 +55,13 @@ public static class ContainerExtensions
     public static void RegisterSingletonWithInterfaces(
         this IContainer container,
         Type implementationType,
-        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.AppendNotKeyed)
     {
-        var interfaces = GetServiceInterfaces(implementationType).Distinct().ToArray();
+        container.Register(implementationType, Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
 
-        if (interfaces.Length == 0)
+        foreach (var iface in GetServiceInterfaces(implementationType))
         {
-            container.Register(implementationType, Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
-            return;
-        }
-
-        foreach (var iface in interfaces)
-        {
-            container.Register(iface, implementationType, Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
+            container.RegisterMapping(iface, implementationType, ifAlreadyRegistered: ifAlreadyRegistered);
         }
     }
 
@@ -121,6 +115,11 @@ public static class ContainerExtensions
             return true;
         }
 
+        if (type.Name.StartsWith("Dynamic", StringComparison.Ordinal) && type.Name.EndsWith("Proxy", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
         foreach (var suffix in ExcludedTypeSuffixes)
         {
             if (type.Name.EndsWith(suffix, StringComparison.Ordinal))
@@ -144,9 +143,16 @@ public static class ContainerExtensions
 
     private static Type[] GetServiceInterfaces(Type type)
     {
-        return type.GetInterfaces()
+        var interfaces = type.GetInterfaces()
             .Where(i => i != typeof(IDisposable) && i != typeof(IAsyncDisposable))
             .ToArray();
+
+        if (!interfaces.Any(i => i.Name == "ITorrentEngine"))
+        {
+            return interfaces;
+        }
+
+        return interfaces.Where(i => i.Name != "IDownloadEngine").ToArray();
     }
 
     private static bool IsController(Type type)
