@@ -472,6 +472,30 @@ public class TorrentCreationServiceTest
     }
 
     [Test]
+    public async Task CreateTorrentAsync_WhenTrackerTiersAreBlank_FallsBackToFlatTrackers()
+    {
+        var sourceFile = Path.Combine(this.testDir, "data.bin");
+        await File.WriteAllBytesAsync(sourceFile, new byte[32768]);
+
+        var service = new TorrentCreationService(new[] { this.testDir });
+        var tracker = "http://tracker.example/announce";
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            TrackerTiers = new List<List<string>> { new List<string> { "" }, new List<string>() },
+            Trackers = new List<string> { tracker },
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+
+        var loaded = MonoTorrent.Torrent.Load(result.TorrentFileBytes);
+        loaded.AnnounceUrls.Should().Contain(l => l.Contains(tracker));
+    }
+
+    [Test]
     public async Task CreateTorrentAsync_WithMultipleTrackers_CreatesSeparateTiersPerBEP12()
     {
         var sourceFile = Path.Combine(this.testDir, "data.bin");
