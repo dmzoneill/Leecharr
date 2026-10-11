@@ -66,4 +66,16 @@ public class EpisodicParserTest
         episode.Should().BeNull();
         title.Should().BeNull();
     }
+
+    [TestCase(0, "00:00:00")]
+    [TestCase(-1, "00:00:00")]
+    [TestCase(3661, "01:01:01")]
+    [TestCase(90061, "1d 01:01:01")]
+    [TestCase(8640000, "100d 00:00:00")]
+    [TestCase(10000000, "115d 17:46:40")]
+    public void FormatEta_FormatsSecondsIncludingLongDurations(long seconds, string expected)
+    {
+        this.parser.FormatEta(seconds).Should().Be(expected);
+        EpisodicParser.FormatEtaStatic(seconds).Should().Be(expected);
+    }
 }
