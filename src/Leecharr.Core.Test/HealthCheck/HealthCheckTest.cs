@@ -118,6 +118,21 @@ public class HealthCheckTest
     }
 
     [Test]
+    public async Task EngineHealthCheck_ReturnsError_WhenKillSwitchHalted_WithoutCallingProbe()
+    {
+        var engine = Substitute.For<IDownloadEngine>();
+        engine.IsHaltedByKillSwitch.Returns(true);
+
+        var check = new EngineHealthCheck(engine);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Source.Should().Be("EngineHealth");
+        result.Message.Should().Contain("kill switch");
+        await engine.DidNotReceive().ProbeHealthAsync();
+    }
+
+    [Test]
     public async Task NetworkBindingHealthCheck_ReturnsOk_WhenHealthy()
     {
         var manager = Substitute.For<INetworkBindingManager>();
