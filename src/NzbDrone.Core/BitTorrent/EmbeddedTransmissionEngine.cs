@@ -1446,7 +1446,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
         var isAnonymous = this.configService?.AnonymousMode ?? false;
         sessionArgs["dht-enabled"] = (this.configService?.EnableDht ?? true) && !isAnonymous;
-        sessionArgs["pex-enabled"] = (this.configService?.EnablePex ?? true) && !isAnonymous;
+        sessionArgs["pex-enabled"] = ProtocolExtensionPolicy.IsUtPexEnabled(this.configService) && !isAnonymous;
         sessionArgs["lpd-enabled"] = (this.configService?.EnableLpd ?? true) && !isAnonymous;
         sessionArgs["encryption"] = MapTransmissionEncryptionPreference(this.configService?.EncryptionMode);
 
