@@ -420,29 +420,8 @@ public class DeveloperDebuggerService : IDeveloperDebuggerService
                         continue;
                     }
 
-                    var ns = type.Namespace;
-                    var rootFolder = asmName.StartsWith("Leecharr.Api.V1") ? "src/Leecharr.Api.V1"
-                        : asmName.StartsWith("Leecharr.Http") ? "src/Leecharr.Http"
-                        : asmName.StartsWith("Leecharr.Common") || ns.StartsWith("NzbDrone.Common") ? "src/NzbDrone.Common"
-                        : asmName.StartsWith("Leecharr.SignalR") || ns.StartsWith("NzbDrone.SignalR") ? "src/NzbDrone.SignalR"
-                        : asmName.StartsWith("Leecharr.Host") || ns.StartsWith("NzbDrone.Host") ? "src/NzbDrone.Host"
-                        : "src/NzbDrone.Core";
-
-                    var subPath = ns.Replace("NzbDrone.Core.", "")
-                                    .Replace("NzbDrone.Core", "")
-                                    .Replace("Leecharr.Api.V1.", "")
-                                    .Replace("Leecharr.Api.V1", "")
-                                    .Replace("NzbDrone.Common.", "")
-                                    .Replace("NzbDrone.Common", "")
-                                    .Replace("Leecharr.Http.", "")
-                                    .Replace("Leecharr.Http", "")
-                                    .Replace("NzbDrone.Host.", "")
-                                    .Replace("NzbDrone.Host", "")
-                                    .Replace('.', '/');
-
-                    var computedPath = string.IsNullOrWhiteSpace(subPath)
-                        ? $"{rootFolder}/{type.Name}.cs"
-                        : $"{rootFolder}/{subPath}/{type.Name}.cs";
+                    var computedPath = ComputeSourcePathForType(type, asmName);
+                    var rootFolder = GetRootFolderForAssembly(asmName, type.Namespace);
 
                     if (seenPaths.Add(computedPath))
                     {
@@ -452,7 +431,7 @@ public class DeveloperDebuggerService : IDeveloperDebuggerService
                             ClassName = type.Name,
                             Namespace = type.Namespace,
                             Subsystem = rootFolder.Replace("src/", ""),
-                            LineCount = type.GetMethods().Length * 5 + 10,
+                            LineCount = 0,
                         });
                     }
                 }
@@ -509,17 +488,14 @@ public class DeveloperDebuggerService : IDeveloperDebuggerService
             }
         }
 
-        // Generate synthetic metadata preview if source file is not physically on disk
-        var className = Path.GetFileNameWithoutExtension(normalized);
-        var type = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(SafeGetTypes)
-            .FirstOrDefault(t => string.Equals(t.Name, className, StringComparison.OrdinalIgnoreCase));
+        // Runtime outline only when the requested path maps to a Leecharr/NzbDrone type (not arbitrary name matches)
+        var type = TryResolveLeecharrTypeForSourcePath(normalized);
 
         if (type != null)
         {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"// Runtime Metadata Outline for {type.FullName}");
-            sb.AppendLine($"// Physical source not mounted in container. Showing reflected type signature.\n");
+            sb.AppendLine($"// Physical source not on disk. Line numbers below do not match real source.\n");
             sb.AppendLine($"namespace {type.Namespace};\n");
             sb.AppendLine($"public class {type.Name}");
             sb.AppendLine("{");
@@ -545,7 +521,7 @@ public class DeveloperDebuggerService : IDeveloperDebuggerService
                 FilePath = normalized,
                 Content = genContent,
                 LineCount = genContent.Split('\n').Length,
-                Exists = true,
+                Exists = false,
             };
         }
 
@@ -568,5 +544,72 @@ public class DeveloperDebuggerService : IDeveloperDebuggerService
         {
             return Array.Empty<Type>();
         }
+    }
+
+    private static bool IsProductAssembly(System.Reflection.Assembly assembly)
+    {
+        var name = assembly.GetName().Name;
+        return name?.StartsWith("Leecharr", StringComparison.Ordinal) == true
+            || name?.StartsWith("NzbDrone", StringComparison.Ordinal) == true;
+    }
+
+    private static string GetRootFolderForAssembly(string asmName, string ns)
+    {
+        return asmName.StartsWith("Leecharr.Api.V1", StringComparison.Ordinal) ? "src/Leecharr.Api.V1"
+            : asmName.StartsWith("Leecharr.Http", StringComparison.Ordinal) ? "src/Leecharr.Http"
+            : asmName.StartsWith("Leecharr.Common", StringComparison.Ordinal) || (ns?.StartsWith("NzbDrone.Common", StringComparison.Ordinal) == true) ? "src/NzbDrone.Common"
+            : asmName.StartsWith("Leecharr.SignalR", StringComparison.Ordinal) || (ns?.StartsWith("NzbDrone.SignalR", StringComparison.Ordinal) == true) ? "src/NzbDrone.SignalR"
+            : asmName.StartsWith("Leecharr.Host", StringComparison.Ordinal) || (ns?.StartsWith("NzbDrone.Host", StringComparison.Ordinal) == true) ? "src/NzbDrone.Host"
+            : "src/NzbDrone.Core";
+    }
+
+    private static string ComputeSourcePathForType(Type type, string asmName)
+    {
+        var ns = type.Namespace ?? string.Empty;
+        var rootFolder = GetRootFolderForAssembly(asmName, ns);
+
+        var subPath = ns.Replace("NzbDrone.Core.", "")
+                        .Replace("NzbDrone.Core", "")
+                        .Replace("Leecharr.Api.V1.", "")
+                        .Replace("Leecharr.Api.V1", "")
+                        .Replace("NzbDrone.Common.", "")
+                        .Replace("NzbDrone.Common", "")
+                        .Replace("Leecharr.Http.", "")
+                        .Replace("Leecharr.Http", "")
+                        .Replace("NzbDrone.Host.", "")
+                        .Replace("NzbDrone.Host", "")
+                        .Replace('.', '/');
+
+        return string.IsNullOrWhiteSpace(subPath)
+            ? $"{rootFolder}/{type.Name}.cs"
+            : $"{rootFolder}/{subPath}/{type.Name}.cs";
+    }
+
+    private static Type TryResolveLeecharrTypeForSourcePath(string normalized)
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (!IsProductAssembly(assembly))
+            {
+                continue;
+            }
+
+            var asmName = assembly.GetName().Name ?? string.Empty;
+            foreach (var type in SafeGetTypes(assembly))
+            {
+                if (type.IsNested || string.IsNullOrEmpty(type.Namespace) || type.Name.StartsWith('<'))
+                {
+                    continue;
+                }
+
+                var computedPath = ComputeSourcePathForType(type, asmName);
+                if (string.Equals(computedPath, normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    return type;
+                }
+            }
+        }
+
+        return null;
     }
 }
