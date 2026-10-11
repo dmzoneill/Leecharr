@@ -1,6 +1,8 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using NzbDrone.Core.Trackers;
 using NzbDrone.Core.Trackers.Metrics;
 
 namespace Leecharr.Api.V1.Trackers;
@@ -118,7 +120,7 @@ public static class TrackerMetricResourceMapper
         return new TrackerMetricResource
         {
             Id = model.Id,
-            TrackerUrl = model.TrackerUrl,
+            TrackerUrl = TrackerUrlSanitizer.Sanitize(model.TrackerUrl),
             Host = model.Host,
             Domain = model.Domain,
             Protocol = model.Protocol,
@@ -157,5 +159,53 @@ public static class TrackerMetricResourceMapper
             LatencyP95Ms = model.LatencyP95Ms,
             LatencyP99Ms = model.LatencyP99Ms,
         };
+    }
+
+    public static TrackerMetricsSummary SanitizeSummary(TrackerMetricsSummary summary)
+    {
+        if (summary == null)
+        {
+            return null;
+        }
+
+        SanitizeItemSummaries(summary.TopUploadTrackers);
+        SanitizeItemSummaries(summary.TopPeerTrackers);
+        return summary;
+    }
+
+    public static void SanitizeSnapshots(IList<TrackerMetricSnapshot> snapshots)
+    {
+        if (snapshots == null)
+        {
+            return;
+        }
+
+        foreach (var snapshot in snapshots)
+        {
+            if (snapshot == null)
+            {
+                continue;
+            }
+
+            snapshot.TrackerUrl = TrackerUrlSanitizer.Sanitize(snapshot.TrackerUrl);
+        }
+    }
+
+    private static void SanitizeItemSummaries(List<TrackerMetricItemSummary> items)
+    {
+        if (items == null)
+        {
+            return;
+        }
+
+        foreach (var item in items)
+        {
+            if (item == null)
+            {
+                continue;
+            }
+
+            item.TrackerUrl = TrackerUrlSanitizer.Sanitize(item.TrackerUrl);
+        }
     }
 }

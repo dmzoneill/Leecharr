@@ -811,6 +811,65 @@ public class TrackerMetricsAndOptimizationTest
     }
 
     [Test]
+    public void TrackerMetricResourceMapper_ToResource_SanitizesTrackerUrl()
+    {
+        var rawUrl = "http://private.tracker.org/announce?passkey=123456";
+        var metric = new TrackerMetric
+        {
+            Id = 2,
+            TrackerUrl = rawUrl,
+            Status = "Working",
+            TotalAnnounces = 1,
+            SuccessfulAnnounces = 1,
+        };
+
+        var resource = TrackerMetricResourceMapper.ToResource(metric);
+
+        resource.Should().NotBeNull();
+        resource!.TrackerUrl.Should().Be("http://private.tracker.org/announce?passkey=********");
+        resource.TrackerUrl.Should().NotContain("123456");
+    }
+
+    [Test]
+    public void TrackerMetricResourceMapper_SanitizeSummary_RedactsTopTrackerUrls()
+    {
+        var summary = new TrackerMetricsSummary
+        {
+            TopUploadTrackers = new List<TrackerMetricItemSummary>
+            {
+                new()
+                {
+                    TrackerUrl = "http://private.tracker.org/announce?passkey=abcdef123456",
+                },
+            },
+        };
+
+        var sanitized = TrackerMetricResourceMapper.SanitizeSummary(summary);
+
+        sanitized!.TopUploadTrackers[0].TrackerUrl.Should().Be("http://private.tracker.org/announce?passkey=********");
+    }
+
+    [Test]
+    public void TrackerMetricsController_GetHistory_SanitizesSnapshotTrackerUrls()
+    {
+        var secretUrl = "http://history.tracker.org/announce?passkey=1234567890123456";
+        this.storedSnapshots.Add(new TrackerMetricSnapshot
+        {
+            TrackerMetricId = 1,
+            TrackerUrl = secretUrl,
+            Timestamp = DateTime.UtcNow,
+        });
+
+        var controller = new TrackerMetricsController(this.metricService);
+        var result = controller.GetHistory(1, hours: 24, limit: 100);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var history = okResult.Value.Should().BeAssignableTo<List<TrackerMetricSnapshot>>().Subject;
+        history.Should().HaveCount(1);
+        history[0].TrackerUrl.Should().Be("http://history.tracker.org/announce?passkey=********");
+    }
+
+    [Test]
     public void TrackerMetricsController_GetAll_ReturnsOkWithMappedResources()
     {
         var metric = new TrackerMetric
