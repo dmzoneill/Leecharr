@@ -456,6 +456,9 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                     grabbedCount++;
                                     break;
                                 }
+
+                                // A matching rule owns this release for this sync pass, even when the grab fails.
+                                break;
                             }
                         }
                     }
