@@ -558,7 +558,12 @@ public class Aria2RpcController : ControllerBase
     {
         var gid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
         var torrent = this.FindByGid(gid);
-        return torrent != null ? this.MapTorrentToAria2(torrent) : new object();
+        if (torrent == null)
+        {
+            ThrowGidNotFound(gid);
+        }
+
+        return this.MapTorrentToAria2(torrent);
     }
 
     private async Task<object> HandleAddTorrentAsync(List<JsonElement> cleanParams)
@@ -570,7 +575,8 @@ public class Aria2RpcController : ControllerBase
             return await this.AddTorrentBase64Async(b64, savePath, isPaused);
         }
 
-        return GenerateRandomGid();
+        ThrowEmptyAdd();
+        return string.Empty;
     }
 
     private async Task<object> HandleAddUriAsync(List<JsonElement> cleanParams)
@@ -594,7 +600,8 @@ public class Aria2RpcController : ControllerBase
             }
         }
 
-        return GenerateRandomGid();
+        ThrowEmptyAdd();
+        return string.Empty;
     }
 
     private async Task<object> HandleRemoveAsync(List<JsonElement> cleanParams)
@@ -871,12 +878,12 @@ public class Aria2RpcController : ControllerBase
             case "aria2.tellstatus":
                 var gid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
                 var found = this.FindByGid(gid);
-                if (found != null)
+                if (found == null)
                 {
-                    return BuildXmlRpcTorrentStruct(found, downloadDir, this.torrentFileService);
+                    ThrowGidNotFound(gid);
                 }
 
-                return new XElement("struct");
+                return BuildXmlRpcTorrentStruct(found, downloadDir, this.torrentFileService);
 
             case "aria2.geturis":
                 var urisXmlGid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
@@ -939,7 +946,8 @@ public class Aria2RpcController : ControllerBase
                     return new XElement("string", addedGid);
                 }
 
-                return new XElement("string", GenerateRandomGid());
+                ThrowEmptyAdd();
+                return new XElement("string", string.Empty);
 
             case "aria2.adduri":
                 if (stringParams.Count > 0)
@@ -950,7 +958,8 @@ public class Aria2RpcController : ControllerBase
                     return new XElement("string", addedGid);
                 }
 
-                return new XElement("string", GenerateRandomGid());
+                ThrowEmptyAdd();
+                return new XElement("string", string.Empty);
 
             case "aria2.remove":
             case "aria2.forceremove":
@@ -1178,7 +1187,7 @@ public class Aria2RpcController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(base64))
         {
-            return GenerateRandomGid();
+            ThrowEmptyAdd();
         }
 
         var bytes = Convert.FromBase64String(base64);
@@ -1191,7 +1200,7 @@ public class Aria2RpcController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(uri))
         {
-            return GenerateRandomGid();
+            ThrowEmptyAdd();
         }
 
         if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
@@ -1210,11 +1219,12 @@ public class Aria2RpcController : ControllerBase
     private async Task<string> RemoveTorrentByGidAsync(string gid)
     {
         var toRemove = this.FindByGid(gid);
-        if (toRemove != null)
+        if (toRemove == null)
         {
-            await this.torrentService.DeleteAsync(toRemove.Id, false);
+            ThrowGidNotFound(gid);
         }
 
+        await this.torrentService.DeleteAsync(toRemove.Id, false);
         return gid ?? "OK";
     }
 
@@ -1251,22 +1261,24 @@ public class Aria2RpcController : ControllerBase
     private async Task<string> PauseTorrentByGidAsync(string gid)
     {
         var toPause = this.FindByGid(gid);
-        if (toPause != null)
+        if (toPause == null)
         {
-            await this.torrentService.PauseAsync(toPause.Id);
+            ThrowGidNotFound(gid);
         }
 
+        await this.torrentService.PauseAsync(toPause.Id);
         return gid ?? "OK";
     }
 
     private async Task<string> ResumeTorrentByGidAsync(string gid)
     {
         var toUnpause = this.FindByGid(gid);
-        if (toUnpause != null)
+        if (toUnpause == null)
         {
-            await this.torrentService.ResumeAsync(toUnpause.Id);
+            ThrowGidNotFound(gid);
         }
 
+        await this.torrentService.ResumeAsync(toUnpause.Id);
         return gid ?? "OK";
     }
 
@@ -1933,12 +1945,21 @@ public class Aria2RpcController : ControllerBase
         return (bps + 1023) / 1024;
     }
 
-    private static string GenerateRandomGid() => Guid.NewGuid().ToString("N")[..16];
+    private static void ThrowEmptyAdd() =>
+        throw new InvalidOperationException("No files to download.");
 
-    private static string GetGidFromInfoHash(string infoHash) =>
-        infoHash != null && infoHash.Length >= 16
-            ? infoHash[..16]
-            : (infoHash ?? GenerateRandomGid());
+    private static void ThrowGidNotFound(string gid) =>
+        throw new InvalidOperationException($"GID {gid?.Trim() ?? string.Empty} is not found");
+
+    private static string GetGidFromInfoHash(string infoHash)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            throw new InvalidOperationException("Failed to add download.");
+        }
+
+        return infoHash.Length >= 16 ? infoHash[..16] : infoHash;
+    }
 
     private Dictionary<string, object> MapTorrentToAria2(Torrent t)
     {

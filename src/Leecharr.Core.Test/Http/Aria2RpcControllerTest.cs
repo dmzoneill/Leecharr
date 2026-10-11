@@ -289,7 +289,7 @@ public class Aria2RpcControllerTest
     }
 
     [Test]
-    public async Task AddTorrent_WhenAddedIsNull_Returns16CharGid()
+    public async Task AddTorrent_WhenAddedIsNull_ReturnsJsonRpcError()
     {
         var torrentBytes = new byte[] { 0x64, 0x31, 0x3a, 0x61, 0x64, 0x65 };
         var b64Torrent = Convert.ToBase64String(torrentBytes);
@@ -309,14 +309,11 @@ public class Aria2RpcControllerTest
             """);
 
         var actionResult = await this.controller.HandleRpc();
-        var gid = GetJsonRpcResultString(actionResult);
-
-        gid.Should().NotBeNull();
-        gid.Length.Should().Be(16);
+        GetJsonRpcErrorMessage(actionResult).Should().Be("Failed to add download.");
     }
 
     [Test]
-    public async Task AddUri_WhenAddedIsNull_Returns16CharGid()
+    public async Task AddUri_WhenAddedIsNull_ReturnsJsonRpcError()
     {
         var magnetUri = $"magnet:?xt=urn:btih:{FullInfoHash}&dn=NullTorrent";
 
@@ -333,10 +330,7 @@ public class Aria2RpcControllerTest
             """);
 
         var actionResult = await this.controller.HandleRpc();
-        var gid = GetJsonRpcResultString(actionResult);
-
-        gid.Should().NotBeNull();
-        gid.Length.Should().Be(16);
+        GetJsonRpcErrorMessage(actionResult).Should().Be("Failed to add download.");
     }
 
     private void SetJsonRequestBody(string json)
@@ -2144,6 +2138,108 @@ public class Aria2RpcControllerTest
         doc.RootElement.GetProperty("result").GetProperty("status").GetString().Should().Be("complete");
     }
 
+    [Test]
+    public async Task AddTorrent_JsonRpc_WithNoParams_ReturnsJsonRpcError()
+    {
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "aria2.addTorrent",
+                "params": []
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcErrorMessage(result).Should().Be("No files to download.");
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task AddUri_JsonRpc_WithEmptyUriList_ReturnsJsonRpcError()
+    {
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "aria2.addUri",
+                "params": [[""]]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcErrorMessage(result).Should().Be("No files to download.");
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task TellStatus_JsonRpc_WithUnknownGid_ReturnsJsonRpcError()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "aria2.tellStatus",
+                "params": ["deadbeefdeadbeef"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcErrorMessage(result).Should().Be("GID deadbeefdeadbeef is not found");
+    }
+
+    [Test]
+    public async Task Pause_JsonRpc_WithUnknownGid_ReturnsJsonRpcError()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "aria2.pause",
+                "params": ["deadbeefdeadbeef"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcErrorMessage(result).Should().Be("GID deadbeefdeadbeef is not found");
+        await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task Remove_JsonRpc_WithUnknownGid_ReturnsJsonRpcError()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "aria2.remove",
+                "params": ["deadbeefdeadbeef"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcErrorMessage(result).Should().Be("GID deadbeefdeadbeef is not found");
+        await this.torrentService.DidNotReceive().DeleteAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task AddUri_XmlRpc_WithNoParams_ReturnsFault()
+    {
+        this.SetXmlRpcRequest("aria2.addUri");
+
+        var result = await this.controller.HandleRpc();
+        result.Should().BeOfType<ContentResult>();
+        var content = ((ContentResult)result).Content;
+        content.Should().Contain("faultString").And.Contain("No files to download.");
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);
@@ -2158,6 +2254,15 @@ public class Aria2RpcControllerTest
         var json = JsonSerializer.Serialize(okResult.Value);
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("result").GetString();
+    }
+
+    private static string GetJsonRpcErrorMessage(IActionResult actionResult)
+    {
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("error").GetProperty("message").GetString();
     }
 
     private static List<string> GetJsonRpcResultGids(IActionResult actionResult)
