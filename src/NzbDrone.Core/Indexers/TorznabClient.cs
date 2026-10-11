@@ -20,6 +20,7 @@ using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Http.Transport;
+using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Indexers;
@@ -463,7 +464,7 @@ public class TorznabClient : ITorznabClient
 
             MergeQueryParams(uriBuilder, queryParams);
 
-            this.logger.Debug("Torznab querying: {0}", uriBuilder.Uri);
+            this.logger.Debug("Torznab querying: {0}", RedactUriForLog(uriBuilder.Uri));
 
             using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
             this.ApplyIndexerAuthHeaders(request, indexer);
@@ -1175,7 +1176,7 @@ public class TorznabClient : ITorznabClient
 
             MergeQueryParams(uriBuilder, query);
 
-            this.logger.Debug("Fetching Torznab capabilities: {0}", uriBuilder.Uri);
+            this.logger.Debug("Fetching Torznab capabilities: {0}", RedactUriForLog(uriBuilder.Uri));
 
             using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
             this.ApplyIndexerAuthHeaders(request, indexer);
@@ -1748,6 +1749,16 @@ public class TorznabClient : ITorznabClient
         }
 
         return val.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+    }
+
+    internal static string RedactUriForLog(Uri uri)
+    {
+        if (uri == null)
+        {
+            return string.Empty;
+        }
+
+        return MediaArtworkUrls.RedactApiKeyQuery(uri.ToString());
     }
 
     private static void MergeQueryParams(UriBuilder uriBuilder, string queryParams)
