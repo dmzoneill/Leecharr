@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -122,6 +123,7 @@ public class TorznabClient : ITorznabClient
 
     private static readonly ConcurrentDictionary<string, (TorznabCapabilities Caps, DateTime ExpiresAt)> CapabilitiesCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> FetchLocks = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly JsonSerializerOptions IndexerSettingsJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly IConfigService configService;
     private readonly HttpClient httpClient;
@@ -198,6 +200,37 @@ public class TorznabClient : ITorznabClient
     public TorznabClient(IConfigService configService)
         : this(null, null, configService)
     {
+    }
+
+    private void ApplyIndexerAuthHeaders(HttpRequestMessage request, IndexerDefinition indexer)
+    {
+        if (request == null || indexer == null || string.IsNullOrWhiteSpace(indexer.Settings))
+        {
+            return;
+        }
+
+        try
+        {
+            var settings = JsonSerializer.Deserialize<IndexerSettings>(indexer.Settings, IndexerSettingsJsonOptions);
+            if (settings == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(settings.Cookie))
+            {
+                request.Headers.TryAddWithoutValidation("Cookie", settings.Cookie);
+            }
+
+            if (!string.IsNullOrWhiteSpace(settings.UserAgent))
+            {
+                request.Headers.TryAddWithoutValidation("User-Agent", settings.UserAgent);
+            }
+        }
+        catch (JsonException ex)
+        {
+            this.logger.Trace(ex, "Failed to deserialize indexer settings for Torznab auth headers");
+        }
     }
 
     internal int ResolveEffectiveLimit(IndexerDefinition indexer, int requestedLimit, bool isRss = false)
@@ -417,6 +450,7 @@ public class TorznabClient : ITorznabClient
             this.logger.Debug("Torznab querying: {0}", uriBuilder.Uri);
 
             using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
+            this.ApplyIndexerAuthHeaders(request, indexer);
             using var response = await this.httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
@@ -472,6 +506,7 @@ public class TorznabClient : ITorznabClient
             MergeQueryParams(uriBuilder, queryParams);
 
             using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
+            this.ApplyIndexerAuthHeaders(request, indexer);
             using var response = await this.httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
@@ -1127,6 +1162,7 @@ public class TorznabClient : ITorznabClient
             this.logger.Debug("Fetching Torznab capabilities: {0}", uriBuilder.Uri);
 
             using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
+            this.ApplyIndexerAuthHeaders(request, indexer);
             using var response = await this.httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
@@ -1318,6 +1354,7 @@ public class TorznabClient : ITorznabClient
             MergeQueryParams(capsUriBuilder, capsQuery);
 
             using var capsReq = new HttpRequestMessage(HttpMethod.Get, capsUriBuilder.Uri);
+            this.ApplyIndexerAuthHeaders(capsReq, indexer);
             var capsResp = await this.httpClient.SendAsync(capsReq, cancellationToken).ConfigureAwait(false);
             var capsContent = await capsResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1357,6 +1394,7 @@ public class TorznabClient : ITorznabClient
             MergeQueryParams(searchUriBuilder, searchQuery);
 
             using var searchReq = new HttpRequestMessage(HttpMethod.Get, searchUriBuilder.Uri);
+            this.ApplyIndexerAuthHeaders(searchReq, indexer);
             var searchResp = await this.httpClient.SendAsync(searchReq, cancellationToken).ConfigureAwait(false);
 
             var searchContent = await searchResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -713,6 +714,57 @@ public class TorznabClientTest
         capturedUri.Query.Should().NotContain("apikey=oldKey");
         capturedUri.Query.Should().Contain("custom=param");
         capturedUri.Query.Should().Contain("t=search");
+    }
+
+    [Test]
+    public async Task TorznabRequests_WithIndexerCookieAndUserAgent_SendsAuthHeaders()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+        var capturedHeaders = new List<HttpRequestMessage>();
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedHeaders.Add(req);
+            if (req.RequestUri!.Query.Contains("t=caps", StringComparison.OrdinalIgnoreCase))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("<caps><server /><limits default=\"50\" max=\"100\" /><searching><search available=\"yes\" /></searching></caps>"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Test</title></channel></rss>"),
+            };
+        });
+
+        var testHttpClient = new HttpClient(handler);
+        var customClient = new TorznabClient(testHttpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "PrivateTracker",
+            Url = "https://indexer.local/api",
+            ApiKey = "key",
+            Settings = JsonSerializer.Serialize(new IndexerSettings
+            {
+                Cookie = "session=abc123",
+                UserAgent = "LeecharrTest/2.0",
+            }),
+        };
+
+        await customClient.SearchAsync(indexer, "test");
+        await customClient.FetchRssAsync(indexer);
+        await customClient.FetchCapabilitiesAsync(indexer);
+        await customClient.TestConnectionAsync(indexer);
+
+        capturedHeaders.Should().NotBeEmpty();
+        foreach (var request in capturedHeaders)
+        {
+            request.Headers.GetValues("Cookie").Should().ContainSingle().Which.Should().Be("session=abc123");
+            request.Headers.GetValues("User-Agent").Should().ContainSingle().Which.Should().Be("LeecharrTest/2.0");
+        }
     }
 
     [Test]
