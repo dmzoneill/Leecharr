@@ -1,5 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Ai;
@@ -111,5 +113,32 @@ public class AiControllerTest
         response.Success.Should().BeTrue();
         response.Reply.Should().Be("Rule response");
         response.Provider.Should().Be("Rule-Based Heuristic AI");
+    }
+
+    [Test]
+    public async Task CheckMalwareRisk_WhenTorrentHasDbFiles_IncludesRequestFileNames()
+    {
+        const int torrentId = 5;
+        this.torrentService.Get(torrentId).Returns(new Torrent { Id = torrentId, Name = "Movie.1080p.mkv" });
+        this.torrentFileService.GetFiles(torrentId).Returns(new List<TorrentFile>
+        {
+            new TorrentFile { TorrentId = torrentId, Path = "Movie.1080p.mkv", Size = 4_000_000_000 },
+        });
+        this.aiService.AnalyzeMalwareRiskAsync(Arg.Any<string>(), Arg.Any<List<TorrentFile>>())
+            .Returns(Task.FromResult(new AiMalwareRiskAssessment { RiskLevel = "Safe" }));
+
+        var result = await this.controller.CheckMalwareRisk(new AiMalwareCheckRequest
+        {
+            TorrentId = torrentId,
+            FileNames = new List<string> { "codec_setup.exe" },
+        });
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        await this.aiService.Received().AnalyzeMalwareRiskAsync(
+            "Movie.1080p.mkv",
+            Arg.Is<List<TorrentFile>>(files =>
+                files.Count == 2
+                && files.Any(f => f.Path == "Movie.1080p.mkv")
+                && files.Any(f => f.Path == "codec_setup.exe" && f.Size == 1024 * 1024)));
     }
 }
