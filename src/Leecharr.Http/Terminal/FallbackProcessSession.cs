@@ -14,8 +14,8 @@ namespace Leecharr.Http.Terminal;
 
 public sealed class FallbackProcessSession : ITerminalSession, IDisposable
 {
-    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private const int SigWinch = 28;
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly Process process;
     private readonly Stream inputStream;
     private readonly Channel<byte[]> outputChannel;

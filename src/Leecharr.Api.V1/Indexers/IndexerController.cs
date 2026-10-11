@@ -14,6 +14,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Torrents;
@@ -42,6 +43,8 @@ public class IndexerController : Controller
     private readonly IDownloadHistoryService downloadHistoryService;
     private readonly IIndexerStatusService indexerStatusService;
     private readonly ITorrentRepository torrentRepository;
+    private readonly IDownloadClientRepository downloadClientRepository;
+    private readonly IIndexerGrabRoutingService indexerGrabRoutingService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
@@ -54,7 +57,9 @@ public class IndexerController : Controller
         ISafeHttpClientService safeHttpClientService = null,
         IDownloadHistoryService downloadHistoryService = null,
         IIndexerStatusService indexerStatusService = null,
-        ITorrentRepository torrentRepository = null)
+        ITorrentRepository torrentRepository = null,
+        IDownloadClientRepository downloadClientRepository = null,
+        IIndexerGrabRoutingService indexerGrabRoutingService = null)
     {
         this.indexerRepository = indexerRepository;
         this.torznabClient = torznabClient;
@@ -65,6 +70,8 @@ public class IndexerController : Controller
         this.downloadHistoryService = downloadHistoryService;
         this.indexerStatusService = indexerStatusService ?? new IndexerStatusService();
         this.torrentRepository = torrentRepository;
+        this.downloadClientRepository = downloadClientRepository;
+        this.indexerGrabRoutingService = indexerGrabRoutingService;
     }
 
     [HttpGet]
@@ -758,19 +765,20 @@ public class IndexerController : Controller
             return this.BadRequest("Request is null.");
         }
 
-        Torrent torrent = null;
+        var downloadClientId = this.ResolveDownloadClientId(request);
+        byte[] torrentBytes = null;
+        var magnetUrl = request.MagnetUrl;
+        var downloadUrl = request.DownloadUrl;
+
         if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
         {
-            if (request.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-            {
-                torrent = await this.torrentService.AddFromMagnetAsync(request.DownloadUrl, request.Category, request.SavePath, request.StartPaused);
-            }
-            else if (request.DownloadUrl.EndsWith(".nzb", StringComparison.OrdinalIgnoreCase))
+            if (request.DownloadUrl.EndsWith(".nzb", StringComparison.OrdinalIgnoreCase))
             {
                 this.logger.Warn("Cannot grab NZB release '{0}' from {1}: Leecharr operates exclusively as a BitTorrent engine.", request.Title, request.DownloadUrl);
                 return this.BadRequest("Usenet/NZB releases are not supported. Leecharr is a BitTorrent engine.");
             }
-            else
+
+            if (!request.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
@@ -827,18 +835,15 @@ public class IndexerController : Controller
                         customHeaders["User-Agent"] = userAgent;
                     }
 
-                    var bytes = customHeaders != null && customHeaders.Count > 0
+                    torrentBytes = customHeaders != null && customHeaders.Count > 0
                         ? await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl, customHeaders).ConfigureAwait(false)
                         : await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl).ConfigureAwait(false);
 
-                    if (bytes != null && bytes.Length > 0 && bytes[0] == (byte)'<')
+                    if (torrentBytes != null && torrentBytes.Length > 0 && torrentBytes[0] == (byte)'<')
                     {
                         this.logger.Warn("Downloaded payload for '{0}' from {1} appears to be XML/NZB rather than a .torrent file.", request.Title, request.DownloadUrl);
                         return this.BadRequest("Downloaded release payload is an XML/NZB file or web error, not a valid .torrent file. Leecharr is a BitTorrent engine.");
                     }
-
-                    var parsed = this.torrentFileParser.Parse(bytes);
-                    torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);
                 }
                 catch (OperationCanceledException)
                 {
@@ -846,26 +851,45 @@ public class IndexerController : Controller
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Warn(ex, "Failed to download or parse .torrent for '{0}' from {1}", request.Title, request.DownloadUrl);
+                    this.logger.Warn(ex, "Failed to download .torrent for '{0}' from {1}", request.Title, request.DownloadUrl);
                 }
             }
         }
-        else if (!string.IsNullOrWhiteSpace(request.MagnetUrl))
+        if (torrentBytes == null && string.IsNullOrWhiteSpace(magnetUrl) && !string.IsNullOrWhiteSpace(request.InfoHash))
         {
-            torrent = await this.torrentService.AddFromMagnetAsync(request.MagnetUrl, request.Category, request.SavePath, request.StartPaused);
+            magnetUrl = MagnetLinkParser.BuildMagnetUri(request.InfoHash.Trim(), request.Title ?? request.InfoHash.Trim());
         }
 
-        if (torrent == null && !string.IsNullOrWhiteSpace(request.InfoHash))
+        var grabRequest = new IndexerGrabRequest
         {
-            var fallbackMagnet = MagnetLinkParser.BuildMagnetUri(request.InfoHash.Trim(), request.Title ?? request.InfoHash.Trim());
-            try
+            Title = request.Title,
+            MagnetUrl = magnetUrl,
+            DownloadUrl = downloadUrl,
+            TorrentBytes = torrentBytes,
+            Category = request.Category,
+            SavePath = request.SavePath,
+            StartPaused = request.StartPaused,
+        };
+
+        var grabResult = await this.GetGrabRouter().GrabAsync(downloadClientId, grabRequest);
+        if (!grabResult.Success)
+        {
+            return this.BadRequest(grabResult.ErrorMessage ?? "Failed to grab release.");
+        }
+
+        Torrent torrent;
+        if (grabResult.UsedExternalClient)
+        {
+            torrent = new Torrent
             {
-                torrent = await this.torrentService.AddFromMagnetAsync(fallbackMagnet, request.Category, request.SavePath, request.StartPaused);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Error(ex, "Failed to add release '{0}' via fallback magnet for infohash {1}", request.Title, request.InfoHash);
-            }
+                Name = request.Title ?? grabResult.InfoHash ?? "External download",
+                InfoHash = grabResult.InfoHash,
+                Status = TorrentStatus.Downloading,
+            };
+        }
+        else
+        {
+            torrent = grabResult.Torrent;
         }
 
         if (torrent == null)
@@ -873,47 +897,78 @@ public class IndexerController : Controller
             return this.BadRequest("Failed to grab release.");
         }
 
-        var ratioUpdated = false;
-        if (request.MinimumRatio.HasValue && request.MinimumRatio.Value > 0)
+        if (!grabResult.UsedExternalClient)
         {
-            torrent.TargetRatio = Math.Max(torrent.TargetRatio, request.MinimumRatio.Value);
-            ratioUpdated = true;
-        }
-
-        if (request.MinimumSeedTime.HasValue && request.MinimumSeedTime.Value > 0)
-        {
-            var seedTimeMinutes = (int)Math.Ceiling(request.MinimumSeedTime.Value / 60.0);
-            torrent.TargetSeedTimeMinutes = Math.Max(torrent.TargetSeedTimeMinutes, seedTimeMinutes);
-            ratioUpdated = true;
-        }
-
-        if (ratioUpdated)
-        {
-            this.torrentRepository?.Update(torrent);
-            if (this.torrentService != null)
+            var ratioUpdated = false;
+            if (request.MinimumRatio.HasValue && request.MinimumRatio.Value > 0)
             {
-                await this.torrentService.UpdateAsync(torrent);
-            }
-        }
-
-        if (this.downloadHistoryService != null)
-        {
-            var indexerName = request.IndexerName;
-            if (string.IsNullOrWhiteSpace(indexerName) && request.IndexerId.HasValue)
-            {
-                var indexer = this.indexerRepository?.Get(request.IndexerId.Value);
-                indexerName = indexer?.Name;
+                torrent.TargetRatio = Math.Max(torrent.TargetRatio, request.MinimumRatio.Value);
+                ratioUpdated = true;
             }
 
-            this.downloadHistoryService.RecordTorrentAdded(
-                torrent,
-                source: !string.IsNullOrWhiteSpace(indexerName) ? indexerName : "Indexer",
-                magnetUrl: request.MagnetUrl,
-                downloadUrl: request.DownloadUrl,
-                indexerName: indexerName);
+            if (request.MinimumSeedTime.HasValue && request.MinimumSeedTime.Value > 0)
+            {
+                var seedTimeMinutes = (int)Math.Ceiling(request.MinimumSeedTime.Value / 60.0);
+                torrent.TargetSeedTimeMinutes = Math.Max(torrent.TargetSeedTimeMinutes, seedTimeMinutes);
+                ratioUpdated = true;
+            }
+
+            if (ratioUpdated)
+            {
+                this.torrentRepository?.Update(torrent);
+                if (this.torrentService != null)
+                {
+                    await this.torrentService.UpdateAsync(torrent);
+                }
+            }
+
+            if (this.downloadHistoryService != null)
+            {
+                var indexerName = request.IndexerName;
+                if (string.IsNullOrWhiteSpace(indexerName) && request.IndexerId.HasValue)
+                {
+                    var indexer = this.indexerRepository?.Get(request.IndexerId.Value);
+                    indexerName = indexer?.Name;
+                }
+
+                this.downloadHistoryService.RecordTorrentAdded(
+                    torrent,
+                    source: !string.IsNullOrWhiteSpace(indexerName) ? indexerName : "Indexer",
+                    magnetUrl: request.MagnetUrl,
+                    downloadUrl: request.DownloadUrl,
+                    indexerName: indexerName);
+            }
         }
 
         return this.Ok(TorrentResourceMapper.ToResource(torrent));
+    }
+
+    private int ResolveDownloadClientId(DownloadReleaseRequest request)
+    {
+        if (request?.IndexerId is > 0)
+        {
+            var indexer = this.indexerRepository?.Get(request.IndexerId.Value);
+            if (indexer != null && indexer.DownloadClientId > 0)
+            {
+                return indexer.DownloadClientId;
+            }
+        }
+
+        return 0;
+    }
+
+    private IIndexerGrabRoutingService GetGrabRouter()
+    {
+        if (this.indexerGrabRoutingService != null)
+        {
+            return this.indexerGrabRoutingService;
+        }
+
+        return new IndexerGrabRoutingService(
+            this.downloadClientRepository,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService);
     }
 
     public static string CleanProwlarrBaseUrl(string url)

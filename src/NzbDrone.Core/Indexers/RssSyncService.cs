@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Categories;
+using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Torrents;
@@ -41,6 +42,8 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
     private readonly ICategoryService categoryService;
     private readonly IIndexerStatusService indexerStatusService;
     private readonly ITorrentRepository torrentRepository;
+    private readonly IDownloadClientRepository downloadClientRepository;
+    private readonly IIndexerGrabRoutingService indexerGrabRoutingService;
     private readonly BoundedSet<string> grabbedReleaseIds;
     private readonly SemaphoreSlim syncLock = new(1, 1);
     private readonly Logger logger;
@@ -52,7 +55,9 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         ITorrentService torrentService,
         IRssSyncContext context,
         int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity,
-        ITorrentRepository torrentRepository = null)
+        ITorrentRepository torrentRepository = null,
+        IDownloadClientRepository downloadClientRepository = null,
+        IIndexerGrabRoutingService indexerGrabRoutingService = null)
     {
         this.indexerRepository = indexerRepository;
         this.rssRuleRepository = rssRuleRepository;
@@ -66,6 +71,8 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         this.categoryService = this.context.CategoryService;
         this.indexerStatusService = this.context.IndexerStatusService;
         this.torrentRepository = torrentRepository ?? this.context.TorrentRepository;
+        this.downloadClientRepository = downloadClientRepository;
+        this.indexerGrabRoutingService = indexerGrabRoutingService;
         this.grabbedReleaseIds = new BoundedSet<string>(
             maxGrabbedReleasesCapacity > 0 ? maxGrabbedReleasesCapacity : DefaultMaxGrabbedReleasesCapacity,
             StringComparer.OrdinalIgnoreCase);
@@ -234,6 +241,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
 
                                 Torrent addedTorrent = null;
                                 var grabbed = false;
+                                var usedExternalClient = false;
                                 try
                                 {
                                     if (!string.IsNullOrEmpty(release.MagnetUrl))
@@ -252,8 +260,13 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                             }
                                         }
 
-                                        addedTorrent = await this.torrentService.AddFromMagnetAsync(release.MagnetUrl, categoryName, savePath);
-                                        grabbed = true;
+                                        var magnetGrab = await this.GrabReleaseForIndexerAsync(indexer, release, categoryName, savePath, release.MagnetUrl, null, null);
+                                        if (magnetGrab != null)
+                                        {
+                                            addedTorrent = magnetGrab.Value.Torrent;
+                                            usedExternalClient = magnetGrab.Value.UsedExternalClient;
+                                            grabbed = true;
+                                        }
                                     }
                                     else if (!string.IsNullOrEmpty(release.DownloadUrl))
                                     {
@@ -279,8 +292,13 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                                 }
                                             }
 
-                                            addedTorrent = await this.torrentService.AddFromMagnetAsync(release.DownloadUrl, categoryName, savePath);
-                                            grabbed = true;
+                                            var downloadMagnetGrab = await this.GrabReleaseForIndexerAsync(indexer, release, categoryName, savePath, release.DownloadUrl, null, null);
+                                            if (downloadMagnetGrab != null)
+                                            {
+                                                addedTorrent = downloadMagnetGrab.Value.Torrent;
+                                                usedExternalClient = downloadMagnetGrab.Value.UsedExternalClient;
+                                                grabbed = true;
+                                            }
                                         }
                                         else
                                         {
@@ -320,8 +338,13 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                                         }
                                                     }
 
-                                                    addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, categoryName, savePath, false, torrentBytes);
-                                                    grabbed = true;
+                                                    var torrentGrab = await this.GrabReleaseForIndexerAsync(indexer, release, categoryName, savePath, null, release.DownloadUrl, torrentBytes);
+                                                    if (torrentGrab != null)
+                                                    {
+                                                        addedTorrent = torrentGrab.Value.Torrent;
+                                                        usedExternalClient = torrentGrab.Value.UsedExternalClient;
+                                                        grabbed = true;
+                                                    }
                                                 }
                                                 catch (Exception parseEx)
                                                 {
@@ -355,8 +378,13 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                                             }
                                                         }
 
-                                                        addedTorrent = await this.torrentService.AddFromMagnetAsync(fallbackMagnet, categoryName, savePath);
-                                                        grabbed = true;
+                                                        var fallbackGrab = await this.GrabReleaseForIndexerAsync(indexer, release, categoryName, savePath, fallbackMagnet, null, null);
+                                                        if (fallbackGrab != null)
+                                                        {
+                                                            addedTorrent = fallbackGrab.Value.Torrent;
+                                                            usedExternalClient = fallbackGrab.Value.UsedExternalClient;
+                                                            grabbed = true;
+                                                        }
                                                     }
                                                     catch (Exception magEx)
                                                     {
@@ -375,20 +403,20 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                 if (grabbed && addedTorrent != null)
                                 {
                                     var torrentUpdated = false;
-                                    if (release.MinimumRatio.HasValue && release.MinimumRatio.Value > 0)
+                                    if (!usedExternalClient && release.MinimumRatio.HasValue && release.MinimumRatio.Value > 0)
                                     {
                                         addedTorrent.TargetRatio = Math.Max(addedTorrent.TargetRatio, release.MinimumRatio.Value);
                                         torrentUpdated = true;
                                     }
 
-                                    if (release.MinimumSeedTime.HasValue && release.MinimumSeedTime.Value > 0)
+                                    if (!usedExternalClient && release.MinimumSeedTime.HasValue && release.MinimumSeedTime.Value > 0)
                                     {
                                         var seedTimeMinutes = (int)Math.Ceiling(release.MinimumSeedTime.Value / 60.0);
                                         addedTorrent.TargetSeedTimeMinutes = Math.Max(addedTorrent.TargetSeedTimeMinutes, seedTimeMinutes);
                                         torrentUpdated = true;
                                     }
 
-                                    if (torrentUpdated)
+                                    if (!usedExternalClient && torrentUpdated)
                                     {
                                         this.torrentRepository?.Update(addedTorrent);
                                         if (this.torrentService != null)
@@ -413,12 +441,15 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                         ? release.MagnetUrl
                                         : (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true ? release.DownloadUrl : null);
 
-                                    this.downloadHistoryService?.RecordTorrentAdded(
-                                        addedTorrent,
-                                        source: $"RSS: {rule.Name}",
-                                        magnetUrl: effectiveMagnet,
-                                        downloadUrl: release.DownloadUrl,
-                                        indexerName: indexer.Name);
+                                    if (!usedExternalClient)
+                                    {
+                                        this.downloadHistoryService?.RecordTorrentAdded(
+                                            addedTorrent,
+                                            source: $"RSS: {rule.Name}",
+                                            magnetUrl: effectiveMagnet,
+                                            downloadUrl: release.DownloadUrl,
+                                            indexerName: indexer.Name);
+                                    }
 
                                     this.RecordGrabbed(releaseId, normalizedAddedHash);
 
@@ -452,6 +483,59 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         {
             this.syncLock.Release();
         }
+    }
+
+    private async Task<(Torrent Torrent, bool UsedExternalClient)?> GrabReleaseForIndexerAsync(
+        IndexerDefinition indexer,
+        TorznabSearchResult release,
+        string categoryName,
+        string savePath,
+        string magnetUrl,
+        string downloadUrl,
+        byte[] torrentBytes)
+    {
+        var grabRequest = new IndexerGrabRequest
+        {
+            Title = release?.Title,
+            MagnetUrl = magnetUrl,
+            DownloadUrl = downloadUrl,
+            TorrentBytes = torrentBytes,
+            Category = categoryName,
+            SavePath = savePath,
+        };
+
+        var grabResult = await this.GetGrabRouter().GrabAsync(indexer?.DownloadClientId ?? 0, grabRequest);
+        if (!grabResult.Success)
+        {
+            return null;
+        }
+
+        if (grabResult.UsedExternalClient)
+        {
+            return (new Torrent
+            {
+                Name = release?.Title ?? grabResult.InfoHash ?? "External download",
+                InfoHash = grabResult.InfoHash,
+                Status = TorrentStatus.Downloading,
+            }, true);
+        }
+
+        return (grabResult.Torrent, false);
+    }
+
+    private IIndexerGrabRoutingService GetGrabRouter()
+    {
+        if (this.indexerGrabRoutingService != null)
+        {
+            return this.indexerGrabRoutingService;
+        }
+
+        return new IndexerGrabRoutingService(
+            this.downloadClientRepository,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService,
+            this.httpClient);
     }
 
     private void RecordGrabbed(string releaseId, string infoHash = null)
