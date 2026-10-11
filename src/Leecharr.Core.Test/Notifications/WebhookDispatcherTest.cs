@@ -629,6 +629,96 @@ public class WebhookDispatcherTest
         result.Should().BeTrue();
         this.handler.SentRequests.Should().HaveCount(2);
         this.handler.SentRequests[1].RequestUri.Should().Be(new Uri("https://example.com/redirected-webhook"));
+        this.handler.SentRequests[1].Method.Should().Be(HttpMethod.Get);
+        this.handler.SentRequests[1].Content.Should().BeNull();
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenRedirect302_StripsAuthorizationAndUsesGetWithoutBody()
+    {
+        var count = 0;
+        var customHeaders = "{\"Authorization\":\"Bearer secret-token\",\"X-Custom-Header\":\"keep-me\"}";
+        this.handler.ResponseFactory = req =>
+        {
+            count++;
+            if (count == 1)
+            {
+                var res = new HttpResponseMessage(HttpStatusCode.Redirect);
+                res.Headers.Location = new Uri("https://example.com/redirected-webhook");
+                return res;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(2);
+
+        var redirectRequest = this.handler.SentRequests[1];
+        redirectRequest.Method.Should().Be(HttpMethod.Get);
+        redirectRequest.Content.Should().BeNull();
+        redirectRequest.Headers.Contains("Authorization").Should().BeFalse();
+        redirectRequest.Headers.GetValues("X-Custom-Header").Should().ContainSingle().Which.Should().Be("keep-me");
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenRedirectToDifferentHost_BlocksRedirectAndReturnsFalse()
+    {
+        this.handler.ResponseFactory = _ =>
+        {
+            var res = new HttpResponseMessage(HttpStatusCode.Redirect);
+            res.Headers.Location = new Uri("https://other.example/collect");
+            return res;
+        };
+
+        var result = await this.dispatcher.DispatchAsync(
+            "https://hooks.example/notify",
+            new { eventType = "Test" },
+            "{\"Authorization\":\"Bearer secret\"}");
+
+        result.Should().BeFalse();
+        this.handler.SentRequests.Should().HaveCount(1);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenRedirect307_StripsAuthorizationButKeepsPostBody()
+    {
+        var count = 0;
+        var customHeaders = "{\"Authorization\":\"Bearer secret-token\"}";
+        this.handler.ResponseFactory = req =>
+        {
+            count++;
+            if (count == 1)
+            {
+                var res = new HttpResponseMessage(HttpStatusCode.TemporaryRedirect);
+                res.Headers.Location = new Uri("https://example.com/final");
+                return res;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, customHeaders);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(2);
+
+        var redirectRequest = this.handler.SentRequests[1];
+        redirectRequest.Method.Should().Be(HttpMethod.Post);
+        redirectRequest.Content.Should().NotBeNull();
+        redirectRequest.Headers.Contains("Authorization").Should().BeFalse();
+    }
+
+    [Test]
+    public void SanitizeCustomHeadersForRedirect_RemovesAuthorizationFromJsonAndLineFormats()
+    {
+        WebhookDispatcher.SanitizeCustomHeadersForRedirect("{\"Authorization\":\"Bearer x\",\"X-Trace\":\"1\"}")
+            .Should().Be("{\"X-Trace\":\"1\"}");
+
+        WebhookDispatcher.SanitizeCustomHeadersForRedirect("Authorization: Bearer x\r\nX-Trace: 1")
+            .Should().Be("X-Trace: 1");
     }
 
     [Test]

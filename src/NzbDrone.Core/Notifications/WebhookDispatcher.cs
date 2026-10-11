@@ -53,6 +53,12 @@ public class WebhookDispatcher : IWebhookDispatcher
     private static readonly char[] LineSeparators = ['\r', '\n'];
     private static readonly char[] HeaderLineSeparators = ['\r', '\n', ','];
     private static readonly SearchValues<char> KeyValueSeparators = SearchValues.Create([':', '=']);
+    private static readonly string[] SensitiveRedirectHeaderNames =
+    [
+        "Authorization",
+        "Proxy-Authorization",
+        "Cookie",
+    ];
     private readonly TimeSpan timeout;
     private readonly bool allowLoopback;
     private readonly bool allowPrivateNetworkRequests;
@@ -480,6 +486,118 @@ public class WebhookDispatcher : IWebhookDispatcher
         return delay > MaxRetryAfter ? MaxRetryAfter : delay;
     }
 
+    internal static bool ShouldUseGetWithoutBodyOnRedirect(HttpStatusCode statusCode)
+    {
+        return statusCode == HttpStatusCode.MovedPermanently
+            || statusCode == HttpStatusCode.Redirect
+            || statusCode == HttpStatusCode.SeeOther;
+    }
+
+    internal static bool IsSameHostRedirect(Uri initialUri, Uri redirectUri)
+    {
+        if (initialUri == null || redirectUri == null)
+        {
+            return false;
+        }
+
+        return string.Equals(initialUri.Host, redirectUri.Host, StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static string SanitizeCustomHeadersForRedirect(string customHeadersJson)
+    {
+        if (string.IsNullOrWhiteSpace(customHeadersJson))
+        {
+            return customHeadersJson;
+        }
+
+        var trimmed = customHeadersJson.Trim();
+        if (trimmed.StartsWith('{'))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                {
+                    return customHeadersJson;
+                }
+
+                var sanitized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    var key = prop.Name?.Trim();
+                    if (string.IsNullOrWhiteSpace(key) || IsSensitiveRedirectHeader(key))
+                    {
+                        continue;
+                    }
+
+                    var val = prop.Value.ValueKind == JsonValueKind.String
+                        ? prop.Value.GetString()
+                        : prop.Value.GetRawText();
+                    sanitized[key] = val ?? string.Empty;
+                }
+
+                return sanitized.Count == 0 ? null : JsonSerializer.Serialize(sanitized);
+            }
+            catch (Exception ex)
+            {
+                StaticLogger.Trace(ex, "Failed to sanitize custom headers JSON for redirect");
+            }
+        }
+
+        try
+        {
+            var lines = trimmed.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
+            var kept = new List<string>();
+            foreach (var line in lines)
+            {
+                var cleanLine = line.Trim();
+                if (string.IsNullOrWhiteSpace(cleanLine) || cleanLine.StartsWith('#') || cleanLine.StartsWith("//"))
+                {
+                    continue;
+                }
+
+                var separatorIndex = cleanLine.AsSpan().IndexOfAny(KeyValueSeparators);
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                var key = cleanLine.Substring(0, separatorIndex).Trim();
+                if (string.IsNullOrWhiteSpace(key) || IsSensitiveRedirectHeader(key))
+                {
+                    continue;
+                }
+
+                kept.Add(cleanLine);
+            }
+
+            return kept.Count == 0 ? null : string.Join("\r\n", kept);
+        }
+        catch (Exception ex)
+        {
+            StaticLogger.Trace(ex, "Failed to sanitize line-based custom headers for redirect");
+            return customHeadersJson;
+        }
+    }
+
+    private static bool IsSensitiveRedirectHeader(string headerName)
+    {
+        if (string.IsNullOrWhiteSpace(headerName))
+        {
+            return false;
+        }
+
+        foreach (var sensitive in SensitiveRedirectHeaderNames)
+        {
+            if (string.Equals(headerName, sensitive, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public async Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default)
     {
         return await this.DispatchAsync(targetUrl, payload, customHeadersJson, HttpMethod.Post, cancellationToken).ConfigureAwait(false);
@@ -520,15 +638,19 @@ public class WebhookDispatcher : IWebhookDispatcher
         try
         {
             var currentUrl = targetUrl;
+            var initialUri = new Uri(targetUrl);
             var redirectCount = 0;
             const int maxRedirects = 5;
+            var currentMethod = httpMethod ?? HttpMethod.Post;
+            var currentPayload = payload;
+            var currentCustomHeaders = customHeadersJson;
 
             while (redirectCount <= maxRedirects)
             {
                 using var response = await this.retryPolicy.ExecuteAsync(
                     async (ct) =>
                     {
-                        var request = this.BuildHttpRequest(currentUrl, payload, customHeadersJson, httpMethod);
+                        var request = this.BuildHttpRequest(currentUrl, currentPayload, currentCustomHeaders, currentMethod);
                         return await this.httpClient.SendAsync(request, ct).ConfigureAwait(false);
                     },
                     cancellationToken).ConfigureAwait(false);
@@ -571,7 +693,25 @@ public class WebhookDispatcher : IWebhookDispatcher
                         };
                     }
 
+                    if (!IsSameHostRedirect(initialUri, redirectUri))
+                    {
+                        this.logger.Warn("Webhook redirect blocked: Cross-host redirect is not permitted ({0} -> {1})", RedactTargetUrlForLogging(currentUrl), RedactTargetUrlForLogging(nextUrl));
+                        return new WebhookDispatchResult
+                        {
+                            Success = false,
+                            StatusCode = response.StatusCode,
+                            Message = $"Webhook redirect blocked: Cross-host redirect is not permitted ({RedactTargetUrlForLogging(currentUrl)} -> {RedactTargetUrlForLogging(nextUrl)}).",
+                        };
+                    }
+
                     this.logger.Debug("Webhook redirected from {0} to {1}", RedactTargetUrlForLogging(currentUrl), RedactTargetUrlForLogging(nextUrl));
+                    currentCustomHeaders = SanitizeCustomHeadersForRedirect(currentCustomHeaders);
+                    if (ShouldUseGetWithoutBodyOnRedirect(response.StatusCode))
+                    {
+                        currentMethod = HttpMethod.Get;
+                        currentPayload = null;
+                    }
+
                     currentUrl = nextUrl;
                     continue;
                 }
@@ -807,35 +947,38 @@ public class WebhookDispatcher : IWebhookDispatcher
 
     private HttpRequestMessage BuildHttpRequest(string targetUrl, object payload, string customHeadersJson, HttpMethod httpMethod = null)
     {
-        HttpContent content;
-
-        if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
-            payload is IDictionary<string, object> dict)
-        {
-            var formPairs = dict.Select(kvp =>
-                new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
-            content = new FormUrlEncodedContent(formPairs);
-        }
-        else if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
-            payload is IDictionary<string, string> stringDict)
-        {
-            content = new FormUrlEncodedContent(stringDict);
-        }
-        else if (payload is string strPayload)
-        {
-            var trimmed = strPayload.TrimStart();
-            var mediaType = (trimmed.StartsWith('{') || trimmed.StartsWith('['))
-                ? "application/json"
-                : "text/plain";
-            content = new StringContent(strPayload, Encoding.UTF8, mediaType);
-        }
-        else
-        {
-            var json = JsonSerializer.Serialize(payload, DefaultJsonOptions);
-            content = new StringContent(json, Encoding.UTF8, "application/json");
-        }
-
+        HttpContent content = null;
         var method = httpMethod ?? HttpMethod.Post;
+
+        if (payload != null && method != HttpMethod.Get && method != HttpMethod.Head)
+        {
+            if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
+                payload is IDictionary<string, object> dict)
+            {
+                var formPairs = dict.Select(kvp =>
+                    new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
+                content = new FormUrlEncodedContent(formPairs);
+            }
+            else if (targetUrl.Contains("pushover.net", StringComparison.OrdinalIgnoreCase) &&
+                payload is IDictionary<string, string> stringDict)
+            {
+                content = new FormUrlEncodedContent(stringDict);
+            }
+            else if (payload is string strPayload)
+            {
+                var trimmed = strPayload.TrimStart();
+                var mediaType = (trimmed.StartsWith('{') || trimmed.StartsWith('['))
+                    ? "application/json"
+                    : "text/plain";
+                content = new StringContent(strPayload, Encoding.UTF8, mediaType);
+            }
+            else
+            {
+                var json = JsonSerializer.Serialize(payload, DefaultJsonOptions);
+                content = new StringContent(json, Encoding.UTF8, "application/json");
+            }
+        }
+
         var request = new HttpRequestMessage(method, targetUrl)
         {
             Content = content,
