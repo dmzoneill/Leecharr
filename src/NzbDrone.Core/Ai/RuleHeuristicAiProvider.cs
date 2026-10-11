@@ -613,6 +613,16 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
         else
         {
+            var altSeMatch = AltSeasonEpisodeRegex.Match(working);
+            if (altSeMatch.Success)
+            {
+                result.Season = int.Parse(altSeMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
+                result.Episode = int.Parse(altSeMatch.Groups["episode"].Value, CultureInfo.InvariantCulture);
+                result.Category = "tv";
+                working = working.Remove(altSeMatch.Index, altSeMatch.Length);
+            }
+            else
+            {
             var seasonMatch = SeasonOnlyRegex.Match(working);
             if (seasonMatch.Success)
             {
@@ -637,6 +647,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
                 result.Episode = int.Parse(epMatch.Groups["episode"].Value, CultureInfo.InvariantCulture);
                 result.Category = "tv";
                 working = working.Remove(epMatch.Index, epMatch.Length);
+            }
             }
         }
 
