@@ -100,7 +100,7 @@ public class TrackerBoostAndMetricsLifecycleIntegrationTests : IntegrationTestBa
         var trackerMetricService = services.GetService(typeof(ITrackerMetricService)) as ITrackerMetricService;
         trackerMetricService.Should().NotBeNull();
 
-        var testTrackerUrl = "http://tracker.integration-endpoint-test.org:6969/announce";
+        var testTrackerUrl = "http://tracker.integration-endpoint-test.org:6969/announce?passkey=1234567890123456";
         var recorded = trackerMetricService.RecordAnnounce(
             testTrackerUrl,
             torrentId: 42,
@@ -119,7 +119,8 @@ public class TrackerBoostAndMetricsLifecycleIntegrationTests : IntegrationTestBa
         var getResp = await this.Client.GetAsync($"/api/v1/trackermetrics/{recorded.Id}");
         getResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var getDoc = JsonDocument.Parse(await getResp.Content.ReadAsStringAsync());
-        getDoc.RootElement.GetProperty("trackerUrl").GetString().Should().Be(testTrackerUrl);
+        getDoc.RootElement.GetProperty("trackerUrl").GetString().Should().Be("http://tracker.integration-endpoint-test.org:6969/announce?passkey=********");
+        getDoc.RootElement.GetProperty("trackerUrl").GetString().Should().NotContain("1234567890123456");
 
         // 3. GET /api/v1/trackermetrics/{id}/history valid and validations
         var historyResp = await this.Client.GetAsync($"/api/v1/trackermetrics/{recorded.Id}/history?hours=24&limit=50");

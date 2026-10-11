@@ -29,7 +29,7 @@ public class TrackerMetricsController : Controller
     [HttpGet("summary")]
     public ActionResult<TrackerMetricsSummary> GetSummary()
     {
-        var summary = this.trackerMetricService.GetSummary();
+        var summary = TrackerMetricResourceMapper.SanitizeSummary(this.trackerMetricService.GetSummary());
         return this.Ok(summary);
     }
 
@@ -64,6 +64,7 @@ public class TrackerMetricsController : Controller
         }
 
         var history = this.trackerMetricService.GetHistory(id, hours, limit);
+        TrackerMetricResourceMapper.SanitizeSnapshots(history);
         return this.Ok(history);
     }
 
