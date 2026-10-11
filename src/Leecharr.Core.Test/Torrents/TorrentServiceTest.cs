@@ -502,6 +502,27 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task DeleteAsync_WhenEngineRemoveFails_DoesNotDeleteFilesOrRepository()
+    {
+        var torrent = new Torrent
+        {
+            Id = 302,
+            Name = "EngineRemoveFailed",
+            SavePath = "/downloads",
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        };
+        this.torrentRepository.Get(302).Returns(torrent);
+        this.downloadEngine.RemoveTorrentAsync(302, true)
+            .Returns<Task>(_ => throw new InvalidOperationException("engine remove failed"));
+
+        await this.service.DeleteAsync(302, deleteFiles: true);
+
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentDeletedEvent>());
+        this.fileRepository.DidNotReceive().DeleteByTorrentId(Arg.Any<int>());
+        this.torrentRepository.DidNotReceive().Delete(Arg.Any<int>());
+    }
+
+    [Test]
     public async Task DeleteAsync_PublishesTorrentDeletedEvent_BeforeDeletingChildEntitiesAndCache()
     {
         var torrent = new Torrent
