@@ -146,11 +146,17 @@ public class AiController : Controller
         {
             for (var i = 0; i < request.FileNames.Count; i++)
             {
+                var size = 0L;
+                if (request.FileSizes != null && i < request.FileSizes.Count)
+                {
+                    size = Math.Max(0L, request.FileSizes[i]);
+                }
+
                 files.Add(new TorrentFile
                 {
                     TorrentId = request.TorrentId ?? 0,
                     Path = request.FileNames[i],
-                    Size = 1024 * 1024,
+                    Size = size,
                 });
             }
         }

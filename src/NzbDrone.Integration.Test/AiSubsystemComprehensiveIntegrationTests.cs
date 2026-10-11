@@ -150,6 +150,18 @@ public class AiSubsystemComprehensiveIntegrationTests : IntegrationTestBase
         var dangerLevel = dangerDoc.RootElement.GetProperty("riskLevel").GetString();
         dangerLevel.Should().NotBe("Clean");
         dangerDoc.RootElement.GetProperty("riskScore").GetDouble().Should().BeGreaterThan(0);
+
+        // 3. Tiny HD video with explicit size (pasted file list) should not be scored as 1 MiB Safe
+        var tinyVideoReq = new
+        {
+            torrentName = "Movie.2024.1080p",
+            fileNames = new List<string> { "Movie.2024.1080p.mp4" },
+            fileSizes = new List<long> { 100_000L },
+        };
+        var tinyVideoResp = await this.PostJsonAsync("/api/v1/ai/malware-check", tinyVideoReq);
+        tinyVideoResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var tinyVideoDoc = JsonDocument.Parse(await tinyVideoResp.Content.ReadAsStringAsync());
+        tinyVideoDoc.RootElement.GetProperty("riskLevel").GetString().Should().Be("Medium");
     }
 
     [Test]

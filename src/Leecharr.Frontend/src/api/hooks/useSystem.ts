@@ -213,7 +213,12 @@ export function useAiMalwareCheck() {
   return useMutation<
     AiMalwareRiskAssessment,
     Error,
-    { torrentId?: number; torrentName?: string; fileNames?: string[] }
+    {
+      torrentId?: number;
+      torrentName?: string;
+      fileNames?: string[];
+      fileSizes?: number[];
+    }
   >({
     mutationFn: (vars) => apiClient.post("/ai/malware-check", vars),
   });

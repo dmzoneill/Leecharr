@@ -21,6 +21,11 @@ public class AiMalwareCheckRequest
     public string TorrentName { get; set; }
 
     public List<string> FileNames { get; set; } = new();
+
+    /// <summary>
+    /// Optional byte sizes aligned with <see cref="FileNames"/> (0 when unknown).
+    /// </summary>
+    public List<long> FileSizes { get; set; } = new();
 }
 
 public class AiChatRequest

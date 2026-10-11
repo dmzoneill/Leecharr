@@ -154,6 +154,45 @@ public class AiControllerTest
             Arg.Is<List<TorrentFile>>(files =>
                 files.Count == 2
                 && files.Any(f => f.Path == "Movie.1080p.mkv")
-                && files.Any(f => f.Path == "codec_setup.exe" && f.Size == 1024 * 1024)));
+                && files.Any(f => f.Path == "codec_setup.exe" && f.Size == 0)));
+    }
+
+    [Test]
+    public async Task CheckMalwareRisk_WhenFileSizesProvided_UsesProvidedSizes()
+    {
+        this.aiService.AnalyzeMalwareRiskAsync(Arg.Any<string>(), Arg.Any<List<TorrentFile>>())
+            .Returns(Task.FromResult(new AiMalwareRiskAssessment { RiskLevel = "Safe" }));
+
+        var result = await this.controller.CheckMalwareRisk(new AiMalwareCheckRequest
+        {
+            TorrentName = "Movie.2024.1080p",
+            FileNames = new List<string> { "Movie.2024.1080p.mp4" },
+            FileSizes = new List<long> { 100_000 },
+        });
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        await this.aiService.Received().AnalyzeMalwareRiskAsync(
+            "Movie.2024.1080p",
+            Arg.Is<List<TorrentFile>>(files =>
+                files.Count == 1
+                && files[0].Path == "Movie.2024.1080p.mp4"
+                && files[0].Size == 100_000));
+    }
+
+    [Test]
+    public async Task CheckMalwareRisk_WhenFileNamesOnly_DoesNotInventOneMiBSize()
+    {
+        this.aiService.AnalyzeMalwareRiskAsync(Arg.Any<string>(), Arg.Any<List<TorrentFile>>())
+            .Returns(Task.FromResult(new AiMalwareRiskAssessment { RiskLevel = "Safe" }));
+
+        await this.controller.CheckMalwareRisk(new AiMalwareCheckRequest
+        {
+            TorrentName = "Movie.2024.1080p",
+            FileNames = new List<string> { "Movie.2024.1080p.mp4" },
+        });
+
+        await this.aiService.Received().AnalyzeMalwareRiskAsync(
+            "Movie.2024.1080p",
+            Arg.Is<List<TorrentFile>>(files => files.Single().Size == 0));
     }
 }
