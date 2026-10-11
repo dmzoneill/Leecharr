@@ -423,10 +423,12 @@ public class SynologyDownloadStationController : ControllerBase
                 var formForceComplete = this.Request.HasFormContentType ? this.Request.Form["force_complete"].ToString() : string.Empty;
                 var formDeleteData = this.Request.HasFormContentType ? this.Request.Form["delete_data"].ToString() : string.Empty;
 
-                var deleteFiles = string.Equals(this.Request.Query["force_complete"], "true", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(this.Request.Query["delete_data"], "true", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(formForceComplete, "true", StringComparison.OrdinalIgnoreCase) ||
+                // Synology: force_complete=true keeps incomplete files (moves to destination); omitted/false removes them.
+                var forceComplete = string.Equals(this.Request.Query["force_complete"], "true", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(formForceComplete, "true", StringComparison.OrdinalIgnoreCase);
+                var deleteData = string.Equals(this.Request.Query["delete_data"], "true", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(formDeleteData, "true", StringComparison.OrdinalIgnoreCase);
+                var deleteFiles = deleteData || !forceComplete;
 
                 foreach (var taskId in idsToDelete)
                 {
