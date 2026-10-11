@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Leecharr.Api.V1.Auth;
 using Leecharr.Api.V1.QBittorrent;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -55,6 +56,7 @@ public class QBittorrentApiControllerTest
     public void SetUp()
     {
         QBittorrentApiController.ResetSyncState();
+        AuthController.ResetThrottling();
 
         this.torrentService = Substitute.For<ITorrentService>();
         this.torrentFileService = Substitute.For<ITorrentFileService>();
@@ -1769,6 +1771,30 @@ public class QBittorrentApiControllerTest
         var contentResult = (ContentResult)result;
         contentResult.Content.Should().Be("Fails.");
         contentResult.ContentType.Should().Be("text/plain");
+    }
+
+    [Test]
+    public void Login_WhenAuthenticationEnabled_AfterRepeatedFailures_BlocksFurtherAttempts()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+        var httpContext = new DefaultHttpContext();
+        httpContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.50");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        for (var i = 0; i < 5; i++)
+        {
+            var failed = this.controller.Login(username: "admin", password: "wrong_password");
+            failed.Should().BeOfType<ContentResult>();
+            ((ContentResult)failed).Content.Should().Be("Fails.");
+        }
+
+        AuthController.IsLoginThrottledForIp("203.0.113.50").Should().BeTrue();
+
+        var throttled = this.controller.Login(username: "admin", password: "secret_api_key_123");
+        throttled.Should().BeOfType<ContentResult>();
+        ((ContentResult)throttled).Content.Should().Be("Fails.");
+        httpContext.Response.Headers.TryGetValue("Set-Cookie", out _).Should().BeFalse();
     }
 
     [Test]

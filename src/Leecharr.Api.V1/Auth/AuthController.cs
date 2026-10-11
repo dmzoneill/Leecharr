@@ -936,6 +936,21 @@ public class AuthController : ControllerBase
         return record.Failures >= MaxFailedAttempts;
     }
 
+    public static bool IsLoginThrottledForIp(string ipAddress)
+    {
+        return IsLoginThrottled(ipAddress);
+    }
+
+    public static void RecordFailedLoginForIp(string ipAddress)
+    {
+        RecordFailedLogin(ipAddress);
+    }
+
+    public static void ResetLoginAttemptsForIp(string ipAddress)
+    {
+        ResetLoginAttempts(ipAddress);
+    }
+
     public static void RecordFailedLoginAttempt(string ipAddress, int failures = 1, DateTime? windowStart = null, DateTime? lockoutUntil = null)
     {
         var start = windowStart ?? DateTime.UtcNow;
