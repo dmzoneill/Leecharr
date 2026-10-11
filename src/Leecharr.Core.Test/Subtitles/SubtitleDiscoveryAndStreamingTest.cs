@@ -149,6 +149,21 @@ public class SubtitleDiscoveryAndStreamingTest
     }
 
     [Test]
+    public void SubtitleConversionService_WhenAlreadyWebVtt_PreservesXTimestampMap()
+    {
+        const string existingVtt = "WEBVTT\n" +
+            "X-TIMESTAMP-MAP=MPEGTS:900000,LOCAL:00:00:00.000\n" +
+            "\n" +
+            "00:00:01.000 --> 00:00:04.000\n" +
+            "HLS cue\n";
+        var result = this.conversionService.ConvertToWebVtt(existingVtt, "vtt");
+
+        result.Should().StartWith("WEBVTT");
+        result.Should().Contain("X-TIMESTAMP-MAP=MPEGTS:900000,LOCAL:00:00:00.000");
+        result.Should().Contain("HLS cue");
+    }
+
+    [Test]
     public void SubtitleEncodingDetector_DetectsUtf8WithBom()
     {
         var bytes = new byte[] { 0xEF, 0xBB, 0xBF, (byte)'H', (byte)'i' };
