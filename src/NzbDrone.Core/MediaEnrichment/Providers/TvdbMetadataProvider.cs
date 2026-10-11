@@ -590,11 +590,6 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
                         if (url.StartsWith('/'))
                         {
                             url = $"{baseUrl}{url}";
-                            if (!string.IsNullOrWhiteSpace(conn.ApiKey) && !url.Contains("apikey=", StringComparison.OrdinalIgnoreCase))
-                            {
-                                var sep = url.Contains('?') ? "&" : "?";
-                                url = $"{url}{sep}apikey={Uri.EscapeDataString(conn.ApiKey)}";
-                            }
                         }
 
                         if (coverType.Equals("poster", StringComparison.OrdinalIgnoreCase))

@@ -121,7 +121,8 @@ public class MediaControllerTest
         {
             TorrentId = 42,
             PosterLocalPath = (type == "poster" || type == "thumb") ? filePath : Path.Combine(this.tempDir, "poster.jpg"),
-            BackdropLocalPath = (type == "backdrop" || type == "fanart" || type == "banner") ? filePath : Path.Combine(this.tempDir, "backdrop.jpg"),
+            BackdropLocalPath = (type == "backdrop" || type == "fanart") ? filePath : Path.Combine(this.tempDir, "backdrop.jpg"),
+            BannerLocalPath = type == "banner" ? filePath : Path.Combine(this.tempDir, "banner.jpg"),
         };
         this.mediaEnrichmentService.GetMetadata(42).Returns(meta);
 

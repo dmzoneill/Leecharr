@@ -281,6 +281,11 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
             metadata.BackdropLocalPath = await this.CacheArtworkAsync(metadata.BackdropUrl, torrent.Id, "backdrop");
         }
 
+        if (!string.IsNullOrEmpty(metadata.BannerUrl) && string.IsNullOrEmpty(metadata.BannerLocalPath))
+        {
+            metadata.BannerLocalPath = await this.CacheArtworkAsync(metadata.BannerUrl, torrent.Id, "banner");
+        }
+
         if (torrent.Id > 0)
         {
             if (existing == null)
@@ -330,6 +335,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
             {
                 DeleteLocalFile(metadata.PosterLocalPath);
                 DeleteLocalFile(metadata.BackdropLocalPath);
+                DeleteLocalFile(metadata.BannerLocalPath);
             }
 
             this.repository.DeleteByTorrentId(torrentId);
@@ -381,8 +387,20 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
                         }
                     }
 
+                    if (!string.IsNullOrWhiteSpace(metadata.BannerUrl))
+                    {
+                        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(metadata.BannerUrl)))[..16].ToLowerInvariant();
+                        var hashDir = Path.Combine(mediaCacheBase, hash);
+                        if (Directory.Exists(hashDir))
+                        {
+                            Directory.Delete(hashDir, recursive: true);
+                            this.logger.Debug("Pruned pre-enrichment banner cache directory {0} for torrent {1}", hash, torrentId);
+                        }
+                    }
+
                     PruneCacheDirForFilePath(mediaCacheBase, metadata.PosterLocalPath);
                     PruneCacheDirForFilePath(mediaCacheBase, metadata.BackdropLocalPath);
+                    PruneCacheDirForFilePath(mediaCacheBase, metadata.BannerLocalPath);
                 }
             }
         }

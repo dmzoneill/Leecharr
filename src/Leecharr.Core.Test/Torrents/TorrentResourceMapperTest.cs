@@ -69,6 +69,29 @@ public class TorrentResourceMapperTest
     }
 
     [Test]
+    public void ToResource_WhenRemoteArtworkContainsArrApiKey_RedactsQueryParameter()
+    {
+        var torrent = new Torrent
+        {
+            Id = 200,
+            Name = "Show",
+            InfoHash = "abcdef1234567890abcdef1234567890abcdef14",
+        };
+
+        var metadata = new TorrentMediaMetadata
+        {
+            TorrentId = 200,
+            PosterUrl = "http://127.0.0.1:8989/MediaCover/1/poster.jpg?apikey=sonarr-key",
+            BackdropUrl = "http://127.0.0.1:8989/MediaCover/1/fanart.jpg?apikey=sonarr-key",
+        };
+
+        var resource = TorrentResourceMapper.ToResource(torrent, metadata: metadata);
+
+        resource.PosterUrl.Should().Be("http://127.0.0.1:8989/MediaCover/1/poster.jpg");
+        resource.BackdropUrl.Should().Be("http://127.0.0.1:8989/MediaCover/1/fanart.jpg");
+    }
+
+    [Test]
     public void MediaMetadataResourceMapper_WithLocalArtwork_MapsToArtworkApiEndpoint()
     {
         var metadata = new TorrentMediaMetadata

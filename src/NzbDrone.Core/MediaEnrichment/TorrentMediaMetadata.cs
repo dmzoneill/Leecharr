@@ -40,6 +40,8 @@ public class TorrentMediaMetadata : ModelBase
 
     public string BannerUrl { get; set; }
 
+    public string BannerLocalPath { get; set; }
+
     public string MusicBrainzId { get; set; }
 
     public string ArtistName { get; set; }
