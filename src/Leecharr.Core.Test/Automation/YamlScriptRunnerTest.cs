@@ -411,7 +411,7 @@ public class YamlScriptRunnerTest
                         "    actions:\n" +
                         "      - cleanExtensions:\n" +
                         $"          directory: '{tempDir}'\n" +
-                        "          extensions: 'xyz'\n" +
+                        "          extensions: 'sample'\n" +
                         "          maxSizeLimit: '50'\n";
 
             var script = new AutomationScript
@@ -426,6 +426,51 @@ public class YamlScriptRunnerTest
             result.Success.Should().BeTrue();
             File.Exists(smallFile).Should().BeFalse();
             File.Exists(largeFile).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public void ShouldCleanExtensionsOnDisk_WithMaxSizeLimit_DoesNotDeleteNonMatchingExtensions()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var smallNfo = Path.Combine(tempDir, "readme.nfo");
+            var smallMkv = Path.Combine(tempDir, "clip.mkv");
+
+            File.WriteAllText(smallNfo, "meta");
+            File.WriteAllText(smallMkv, "vid");
+
+            var yaml = "name: 'Clean small sidecars'\n" +
+                        "steps:\n" +
+                        "  - name: 'Delete small nfo only'\n" +
+                        "    actions:\n" +
+                        "      - cleanExtensions:\n" +
+                        $"          directory: '{tempDir}'\n" +
+                        "          extensions: 'nfo, txt'\n" +
+                        "          maxSizeLimit: '50'\n";
+
+            var script = new AutomationScript
+            {
+                Name = "Clean Sidecar Script",
+                Code = yaml,
+                Language = AutomationLanguage.Yaml,
+            };
+
+            var result = _runner.Execute(script, new Torrent { Id = 71, Name = "SidecarTorrent" });
+
+            result.Success.Should().BeTrue();
+            File.Exists(smallNfo).Should().BeFalse();
+            File.Exists(smallMkv).Should().BeTrue();
         }
         finally
         {
