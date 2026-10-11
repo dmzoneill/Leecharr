@@ -169,6 +169,74 @@ public class DeveloperGitHubServiceTest
         Assert.That(result.Items, Is.Not.Empty);
     }
 
+    [Test]
+    public async Task GetPullRequestsAsync_slower_failure_does_not_overwrite_live_cached_result()
+    {
+        var liveJson = @"[
+            {
+                ""id"": 1001,
+                ""number"": 42,
+                ""title"": ""feat: add new feature"",
+                ""state"": ""open"",
+                ""html_url"": ""https://github.com/dmzoneill/Leecharr/pull/42"",
+                ""created_at"": ""2026-10-01T12:00:00Z"",
+                ""user"": { ""login"": ""alice"" }
+            }
+        ]";
+
+        var fastHandler = new MockHttpMessageHandler();
+        fastHandler.Enqueue(HttpStatusCode.OK, liveJson);
+
+        var slowHandler = new DelayedHttpMessageHandler(TimeSpan.FromMilliseconds(200));
+        slowHandler.Enqueue(HttpStatusCode.InternalServerError, "Error");
+
+        var fastService = new DeveloperGitHubService(new HttpClient(fastHandler));
+        var slowService = new DeveloperGitHubService(new HttpClient(slowHandler));
+
+        var slowTask = slowService.GetPullRequestsAsync("open", CancellationToken.None);
+        var liveResult = await fastService.GetPullRequestsAsync("open", CancellationToken.None);
+        var slowResult = await slowTask;
+
+        Assert.That(liveResult.UsedFallbackSnapshot, Is.False);
+        Assert.That(liveResult.Items[0].Number, Is.EqualTo(42));
+        Assert.That(slowResult.UsedFallbackSnapshot, Is.False);
+        Assert.That(slowResult.Items[0].Number, Is.EqualTo(42));
+    }
+
+    [Test]
+    public async Task GetIssuesAsync_slower_failure_does_not_overwrite_live_cached_result()
+    {
+        var liveJson = @"[
+            {
+                ""id"": 2001,
+                ""number"": 99,
+                ""title"": ""bug: resolve memory leak"",
+                ""state"": ""open"",
+                ""html_url"": ""https://github.com/dmzoneill/Leecharr/issues/99"",
+                ""created_at"": ""2026-10-02T14:00:00Z"",
+                ""user"": { ""login"": ""bob"" }
+            }
+        ]";
+
+        var fastHandler = new MockHttpMessageHandler();
+        fastHandler.Enqueue(HttpStatusCode.OK, liveJson);
+
+        var slowHandler = new DelayedHttpMessageHandler(TimeSpan.FromMilliseconds(200));
+        slowHandler.Enqueue(HttpStatusCode.Forbidden, "Rate limited");
+
+        var fastService = new DeveloperGitHubService(new HttpClient(fastHandler));
+        var slowService = new DeveloperGitHubService(new HttpClient(slowHandler));
+
+        var slowTask = slowService.GetIssuesAsync("open", CancellationToken.None);
+        var liveResult = await fastService.GetIssuesAsync("open", CancellationToken.None);
+        var slowResult = await slowTask;
+
+        Assert.That(liveResult.UsedFallbackSnapshot, Is.False);
+        Assert.That(liveResult.Items[0].Number, Is.EqualTo(99));
+        Assert.That(slowResult.UsedFallbackSnapshot, Is.False);
+        Assert.That(slowResult.Items[0].Number, Is.EqualTo(99));
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Queue<HttpResponseMessage> responses = new();
@@ -196,6 +264,22 @@ public class DeveloperGitHubServiceTest
             }
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
+
+    private class DelayedHttpMessageHandler : MockHttpMessageHandler
+    {
+        private readonly TimeSpan delay;
+
+        public DelayedHttpMessageHandler(TimeSpan delay)
+        {
+            this.delay = delay;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(this.delay, cancellationToken);
+            return await base.SendAsync(request, cancellationToken);
         }
     }
 }

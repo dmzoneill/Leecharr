@@ -81,5 +81,7 @@ public class DeveloperGitHubListResult<T>
 
     public bool IsRateLimited { get; set; }
 
+    public bool UsedFallbackSnapshot { get; set; }
+
     public string Message { get; set; }
 }
