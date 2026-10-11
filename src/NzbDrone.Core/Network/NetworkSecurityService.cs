@@ -185,6 +185,15 @@ public class NetworkSecurityService : INetworkSecurityService, IExecute<VpnKillS
 
         if (settings.Id == 0)
         {
+            var existing = this.repository.GetSettings();
+            if (existing.Id != 0)
+            {
+                settings.Id = existing.Id;
+            }
+        }
+
+        if (settings.Id == 0)
+        {
             this.repository.Insert(settings);
         }
         else

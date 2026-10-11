@@ -115,11 +115,26 @@ public class NetworkSecurityServiceTest
     [Test]
     public void SaveSettings_WhenNew_CallsInsert()
     {
+        this.repository.GetSettings().Returns(new NetworkSettings());
         var settings = new NetworkSettings { Id = 0, BindInterface = "tun0" };
 
         this.service.SaveSettings(settings);
 
         this.repository.Received(1).Insert(settings);
+        this.repository.DidNotReceive().Update(Arg.Any<NetworkSettings>());
+    }
+
+    [Test]
+    public void SaveSettings_WhenIdZeroButRowExists_CallsUpdateWithExistingId()
+    {
+        this.repository.GetSettings().Returns(new NetworkSettings { Id = 3, BindInterface = "eth0" });
+        var settings = new NetworkSettings { Id = 0, BindInterface = "tun0" };
+
+        this.service.SaveSettings(settings);
+
+        settings.Id.Should().Be(3);
+        this.repository.Received(1).Update(settings);
+        this.repository.DidNotReceive().Insert(Arg.Any<NetworkSettings>());
     }
 
     [Test]
