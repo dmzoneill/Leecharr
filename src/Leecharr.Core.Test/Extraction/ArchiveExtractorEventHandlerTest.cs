@@ -183,6 +183,62 @@ public class ArchiveExtractorEventHandlerTest
     }
 
     [Test]
+    public void Handle_WhenExtractionFails_DoesNotDeleteUnrelatedLeecharrTmpStagingFiles()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var destDir = "/downloads/Shared.Category";
+        var unrelatedStaging = Path.Combine(destDir, "other-torrent.mkv.leecharr.tmp");
+
+        var torrent = new Torrent { Id = 21, Name = "Corrupt.Archive", SavePath = destDir };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 21, Path = "corrupt.zip", Size = 50000 },
+        };
+
+        this.torrentFileService.GetFiles(21).Returns(files);
+        this.extractorService.IsArchiveFile("corrupt.zip").Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call =>
+        {
+            var path = call.Arg<string>();
+            return !path.Contains(".leecharr_extracted");
+        });
+        this.diskProvider.FolderExists(destDir).Returns(true);
+        this.diskProvider.GetFiles(destDir, true).Returns(new[] { unrelatedStaging, Path.Combine(destDir, "corrupt.zip.leecharr.tmp") });
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
+
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionFailedEvent>())).Do(_ => signal.Set());
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        signal.Wait(TimeSpan.FromSeconds(3)).Should().BeTrue();
+        this.diskProvider.DidNotReceive().DeleteFile(Arg.Is<string>(p => p.EndsWith(".leecharr.tmp", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Test]
+    public void Handle_WhenExtractionThrows_DoesNotSweepLeecharrTmpUnderSavePath()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var destDir = "/downloads/Shared.Category";
+        var unrelatedStaging = Path.Combine(destDir, "completed-copy.mkv.leecharr.tmp");
+        var torrent = new Torrent { Id = 22, Name = "Broken.Handler", SavePath = destDir };
+
+        this.torrentFileService.GetFiles(22).Returns(_ => throw new InvalidOperationException("simulated failure"));
+        this.diskProvider.FolderExists(destDir).Returns(true);
+        this.diskProvider.GetFiles(destDir, true).Returns(new[] { unrelatedStaging });
+
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionFailedEvent>())).Do(_ => signal.Set());
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        signal.Wait(TimeSpan.FromSeconds(3)).Should().BeTrue();
+        this.diskProvider.DidNotReceive().DeleteFile(Arg.Any<string>());
+    }
+
+    [Test]
     public void Handle_WhenDiskSpaceInsufficient_AbortsExtractionAndPublishesFailedEvent()
     {
         this.configService.AutoExtractArchives.Returns(true);
