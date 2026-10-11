@@ -61,6 +61,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     private readonly IEventAggregator eventAggregator;
     private readonly IQueueManagerService queueManagerService;
     private readonly ITorrentRepository torrentRepository;
+    private readonly IBandwidthDistributionService bandwidthDistributionService;
     private readonly System.Threading.Timer timer;
     private readonly Logger logger;
     private readonly HashSet<int> schedulerPausedTorrentIds = new();
@@ -77,7 +78,8 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         IDownloadEngine downloadEngine = null,
         IEventAggregator eventAggregator = null,
         IQueueManagerService queueManagerService = null,
-        ITorrentRepository torrentRepository = null)
+        ITorrentRepository torrentRepository = null,
+        IBandwidthDistributionService bandwidthDistributionService = null)
     {
         this.repository = repository;
         this.configService = configService;
@@ -85,6 +87,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         this.eventAggregator = eventAggregator;
         this.queueManagerService = queueManagerService;
         this.torrentRepository = torrentRepository;
+        this.bandwidthDistributionService = bandwidthDistributionService;
         this.logger = LogManager.GetCurrentClassLogger();
 
         if (this.downloadEngine != null)
@@ -254,6 +257,11 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
 
                         this.speedThresholdExceeded = isExceeded;
                     }
+                }
+
+                if (this.bandwidthDistributionService != null)
+                {
+                    await this.bandwidthDistributionService.ApplyPerTorrentLimitsAsync(limits);
                 }
             }
             catch (Exception ex)
