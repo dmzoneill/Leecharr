@@ -25,33 +25,52 @@ public class DeveloperDiagnosticsService : IDeveloperDiagnosticsService
             for (var i = 0; i < threads.Count; i++)
             {
                 var t = threads[i];
-                items.Add(new ThreadDiagnosticItem
+                try
                 {
-                    ThreadId = t.Id,
-                    Name = $"Thread-{t.Id}",
-                    State = t.ThreadState.ToString(),
-                    Priority = t.PriorityLevel.ToString(),
-                    IsThreadPoolThread = false,
-                    IsAlive = t.ThreadState != ThreadState.Terminated,
-                    WaitReason = t.ThreadState == ThreadState.Wait ? t.WaitReason.ToString() : "None",
-                    CallStack = string.Empty,
-                });
+                    var state = t.ThreadState;
+                    var priority = "Unknown";
+                    try
+                    {
+                        priority = t.PriorityLevel.ToString();
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+
+                    var waitReason = "None";
+                    if (state == ThreadState.Wait)
+                    {
+                        waitReason = "Unknown";
+                        try
+                        {
+                            waitReason = t.WaitReason.ToString();
+                        }
+                        catch (InvalidOperationException)
+                        {
+                        }
+                    }
+
+                    items.Add(new ThreadDiagnosticItem
+                    {
+                        ThreadId = t.Id,
+                        Name = $"Thread-{t.Id}",
+                        State = state.ToString(),
+                        Priority = priority,
+                        IsThreadPoolThread = false,
+                        IsAlive = state != ThreadState.Terminated,
+                        WaitReason = waitReason,
+                        CallStack = string.Empty,
+                    });
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to inspect system thread {0}", t.Id);
+                }
             }
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to inspect system threads");
-            items.Add(new ThreadDiagnosticItem
-            {
-                ThreadId = Environment.CurrentManagedThreadId,
-                Name = "MainExecutionThread",
-                State = "Running",
-                Priority = "Normal",
-                IsThreadPoolThread = true,
-                IsAlive = true,
-                WaitReason = "None",
-                CallStack = Environment.StackTrace,
-            });
+            this.logger.Warn(ex, "Failed to enumerate system threads");
         }
 
         return items.AsReadOnly();
