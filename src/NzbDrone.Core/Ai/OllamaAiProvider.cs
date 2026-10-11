@@ -92,16 +92,75 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            using var response = await this.httpClient.GetAsync($"{baseUrl}/api/version", cts.Token);
-            sw.Stop();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var versionResponse = await this.httpClient.GetAsync($"{baseUrl}/api/version", cts.Token);
+            if (!versionResponse.IsSuccessStatusCode)
+            {
+                sw.Stop();
+                return new AiHealthResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = $"Ollama sidecar returned HTTP status {(int)versionResponse.StatusCode} {versionResponse.ReasonPhrase}.",
+                    Warnings = new List<string> { $"Status code {(int)versionResponse.StatusCode}" },
+                    LatencyMs = sw.ElapsedMilliseconds,
+                    ModelName = model,
+                    Version = this.Version,
+                };
+            }
 
-            if (response.IsSuccessStatusCode)
+            var versionBody = await versionResponse.Content.ReadAsStringAsync(cts.Token);
+            if (!TryParseOllamaVersion(versionBody, out var ollamaVersion))
+            {
+                sw.Stop();
+                return new AiHealthResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = $"Ollama sidecar at {baseUrl} returned an unexpected /api/version response.",
+                    Warnings = new List<string> { "Response was not a valid Ollama version payload." },
+                    LatencyMs = sw.ElapsedMilliseconds,
+                    ModelName = model,
+                    Version = this.Version,
+                };
+            }
+
+            using var tagsResponse = await this.httpClient.GetAsync($"{baseUrl}/api/tags", cts.Token);
+            if (!tagsResponse.IsSuccessStatusCode)
+            {
+                sw.Stop();
+                return new AiHealthResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = $"Ollama sidecar at {baseUrl} is reachable but /api/tags returned HTTP {(int)tagsResponse.StatusCode}.",
+                    Warnings = new List<string> { $"Status code {(int)tagsResponse.StatusCode}" },
+                    LatencyMs = sw.ElapsedMilliseconds,
+                    ModelName = model,
+                    Version = this.Version,
+                };
+            }
+
+            var tagsBody = await tagsResponse.Content.ReadAsStringAsync(cts.Token);
+            if (!TryParseInstalledModels(tagsBody, out var installedModels))
+            {
+                sw.Stop();
+                return new AiHealthResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = $"Ollama sidecar at {baseUrl} returned an unexpected /api/tags response.",
+                    Warnings = new List<string> { "Response was not a valid Ollama model list." },
+                    LatencyMs = sw.ElapsedMilliseconds,
+                    ModelName = model,
+                    Version = this.Version,
+                };
+            }
+
+            sw.Stop();
+            if (!IsConfiguredModelInstalled(model, installedModels))
             {
                 return new AiHealthResult
                 {
-                    IsHealthy = true,
-                    StatusMessage = $"Ollama sidecar reachable at {baseUrl} using model '{model}'.",
+                    IsHealthy = false,
+                    StatusMessage = $"Ollama sidecar reachable at {baseUrl} (version {ollamaVersion}) but model '{model}' is not installed.",
+                    Warnings = new List<string> { $"Pull the model with: ollama pull {model}" },
                     LatencyMs = sw.ElapsedMilliseconds,
                     ModelName = model,
                     Version = this.Version,
@@ -110,9 +169,8 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
             return new AiHealthResult
             {
-                IsHealthy = false,
-                StatusMessage = $"Ollama sidecar returned HTTP status {(int)response.StatusCode} {response.ReasonPhrase}.",
-                Warnings = new List<string> { $"Status code {(int)response.StatusCode}" },
+                IsHealthy = true,
+                StatusMessage = $"Ollama sidecar reachable at {baseUrl} (version {ollamaVersion}) with model '{model}' installed.",
                 LatencyMs = sw.ElapsedMilliseconds,
                 ModelName = model,
                 Version = this.Version,
@@ -131,6 +189,97 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                 Version = this.Version,
             };
         }
+    }
+
+    private static bool TryParseOllamaVersion(string json, out string version)
+    {
+        version = string.Empty;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("version", out var versionProp))
+            {
+                return false;
+            }
+
+            version = versionProp.GetString()?.Trim() ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(version);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryParseInstalledModels(string json, out List<string> models)
+    {
+        models = new List<string>();
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("models", out var modelsProp) || modelsProp.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            foreach (var modelEntry in modelsProp.EnumerateArray())
+            {
+                if (modelEntry.TryGetProperty("name", out var nameProp))
+                {
+                    var name = nameProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        models.Add(name);
+                    }
+                }
+            }
+
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsConfiguredModelInstalled(string configuredModel, IReadOnlyList<string> installedModels)
+    {
+        if (string.IsNullOrWhiteSpace(configuredModel) || installedModels == null || installedModels.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var installed in installedModels)
+        {
+            if (ModelNamesMatch(configuredModel, installed))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ModelNamesMatch(string configuredModel, string installedModel)
+    {
+        if (string.Equals(configuredModel, installedModel, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var configuredBase = configuredModel.Split(':', 2)[0];
+        var installedBase = installedModel.Split(':', 2)[0];
+        return string.Equals(configuredBase, installedBase, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ExtractJson(string text)

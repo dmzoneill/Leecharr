@@ -66,10 +66,23 @@ public class OllamaAiProviderTest
     {
         var handler = new MockHttpMessageHandler((req, ct) =>
         {
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            if (req.RequestUri?.AbsolutePath == "/api/version")
             {
-                Content = new StringContent("{\"version\": \"0.3.12\"}"),
-            });
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"version\": \"0.3.12\"}"),
+                });
+            }
+
+            if (req.RequestUri?.AbsolutePath == "/api/tags")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"models\":[{\"name\":\"llama3.2:latest\"}]}"),
+                });
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         });
 
         using var client = new HttpClient(handler);
@@ -78,6 +91,39 @@ public class OllamaAiProviderTest
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
         health.ModelName.Should().Be("llama3.2");
+        health.StatusMessage.Should().Contain("llama3.2");
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenModelMissing_ReturnsUnhealthy()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            if (req.RequestUri?.AbsolutePath == "/api/version")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"version\": \"0.3.12\"}"),
+                });
+            }
+
+            if (req.RequestUri?.AbsolutePath == "/api/tags")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"models\":[{\"name\":\"mistral:latest\"}]}"),
+                });
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var health = await provider.ProbeHealthAsync();
+        health.IsHealthy.Should().BeFalse();
+        health.Warnings.Should().Contain(w => w.Contains("ollama pull", StringComparison.OrdinalIgnoreCase));
     }
 
     [Test]
