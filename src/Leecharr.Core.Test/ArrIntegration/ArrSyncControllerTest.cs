@@ -13,23 +13,19 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
-using NzbDrone.Core.Torrents;
-
 namespace Leecharr.Core.Test.ArrIntegration;
 
 [TestFixture]
 public class ArrSyncControllerTest
 {
     private IArrConnectionRepository arrRepository = null!;
-    private ITorrentService torrentService = null!;
     private ArrSyncController controller = null!;
 
     [SetUp]
     public void SetUp()
     {
         this.arrRepository = Substitute.For<IArrConnectionRepository>();
-        this.torrentService = Substitute.For<ITorrentService>();
-        this.controller = new ArrSyncController(this.arrRepository, this.torrentService);
+        this.controller = new ArrSyncController(this.arrRepository);
     }
 
     [Test]
@@ -43,14 +39,14 @@ public class ArrSyncControllerTest
         okResult.Should().NotBeNull();
         var result = okResult!.Value as SyncResultResource;
         result.Should().NotBeNull();
-        result!.Success.Should().BeTrue();
+        result!.Success.Should().BeFalse();
         result.SyncedCount.Should().Be(0);
         result.TotalCount.Should().Be(0);
         result.FailedCount.Should().Be(0);
         result.Added.Should().Be(0);
         result.Skipped.Should().Be(0);
         result.Failed.Should().Be(0);
-        result.Message.Should().Be("Arr sync completed successfully (0/0 connected).");
+        result.Message.Should().Be("Arr sync did not run: no enabled Arr connections.");
     }
 
     [Test]
@@ -74,14 +70,14 @@ public class ArrSyncControllerTest
         okResult.Should().NotBeNull();
         var result = okResult!.Value as SyncResultResource;
         result.Should().NotBeNull();
-        result!.Success.Should().BeTrue();
+        result!.Success.Should().BeFalse();
         result.SyncedCount.Should().Be(0);
         result.TotalCount.Should().Be(1);
         result.FailedCount.Should().Be(1);
         result.Added.Should().Be(0);
         result.Skipped.Should().Be(0);
         result.Failed.Should().Be(1);
-        result.Message.Should().Be("Arr sync completed successfully (0/1 connected).");
+        result.Message.Should().Be("Arr sync failed (0/1 connected).");
     }
 
     [TestCase("Lidarr", "/api/v1/system/status")]
@@ -99,7 +95,7 @@ public class ArrSyncControllerTest
         });
 
         using var httpClient = new HttpClient(handler);
-        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+        var syncController = new ArrSyncController(this.arrRepository, httpClient);
 
         var connections = new List<ArrConnectionDefinition>
         {
@@ -137,7 +133,7 @@ public class ArrSyncControllerTest
         });
 
         using var httpClient = new HttpClient(handler);
-        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+        var syncController = new ArrSyncController(this.arrRepository, httpClient);
 
         var connections = new List<ArrConnectionDefinition>
         {
@@ -177,7 +173,7 @@ public class ArrSyncControllerTest
         });
 
         using var httpClient = new HttpClient(handler);
-        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+        var syncController = new ArrSyncController(this.arrRepository, httpClient);
 
         var connections = new List<ArrConnectionDefinition>
         {
@@ -248,7 +244,7 @@ public class ArrSyncControllerTest
         var response = new DisposableHttpResponseMessage(HttpStatusCode.OK);
         var handler = new MockHttpMessageHandler(_ => response);
         using var httpClient = new HttpClient(handler);
-        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+        var syncController = new ArrSyncController(this.arrRepository, httpClient);
 
         var connections = new List<ArrConnectionDefinition>
         {
@@ -281,7 +277,7 @@ public class ArrSyncControllerTest
             return callCount == 1 ? response1 : response2;
         });
         using var httpClient = new HttpClient(handler);
-        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+        var syncController = new ArrSyncController(this.arrRepository, httpClient);
 
         var connections = new List<ArrConnectionDefinition>
         {
@@ -313,7 +309,7 @@ public class ArrSyncControllerTest
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
         using var httpClient = new HttpClient(handler);
-        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+        var syncController = new ArrSyncController(this.arrRepository, httpClient);
 
         var connections = new List<ArrConnectionDefinition>
         {
@@ -332,8 +328,11 @@ public class ArrSyncControllerTest
         var okResult = actionResult.Result as OkObjectResult;
         okResult.Should().NotBeNull();
         var result = okResult!.Value as SyncResultResource;
-        result!.SyncedCount.Should().Be(0);
-        result.FailedCount.Should().Be(1);
+        result!.Success.Should().BeFalse();
+        result.SyncedCount.Should().Be(0);
+        result.Skipped.Should().Be(1);
+        result.FailedCount.Should().Be(0);
+        result.Failed.Should().Be(0);
         requestsMade.Should().Be(0);
     }
 

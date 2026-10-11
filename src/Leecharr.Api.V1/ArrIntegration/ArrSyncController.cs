@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
-using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.ArrIntegration;
 
@@ -22,14 +21,12 @@ public class ArrSyncController : Controller
     };
 
     private readonly IArrConnectionRepository arrRepository;
-    private readonly ITorrentService torrentService;
     private readonly HttpClient httpClient;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    public ArrSyncController(IArrConnectionRepository arrRepository, ITorrentService torrentService, HttpClient httpClient = null)
+    public ArrSyncController(IArrConnectionRepository arrRepository, HttpClient httpClient = null)
     {
         this.arrRepository = arrRepository;
-        this.torrentService = torrentService;
         this.httpClient = httpClient;
     }
 
@@ -38,69 +35,86 @@ public class ArrSyncController : Controller
     {
         var connections = this.arrRepository.GetEnabled().ToList();
         var syncedCount = 0;
+        var skippedCount = 0;
+        var failedCount = 0;
         var client = this.httpClient ?? DefaultHttpClient;
 
         foreach (var conn in connections)
         {
             try
             {
-                if (!string.IsNullOrWhiteSpace(conn.Url))
+                if (string.IsNullOrWhiteSpace(conn.Url))
                 {
-                    if (!ArrConnectionController.IsValidTargetUrl(conn.Url, out var ssrfError))
+                    skippedCount++;
+                    continue;
+                }
+
+                if (!ArrConnectionController.IsValidTargetUrl(conn.Url, out var ssrfError))
+                {
+                    this.logger.Warn("Skipping Arr connection {0} ({1}): {2}", conn.Name, conn.Url, ssrfError);
+                    skippedCount++;
+                    continue;
+                }
+
+                var baseUrl = ArrConnectionUrlNormalizer.StripApiSuffix(conn.Url);
+                var endpoints = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(conn.ArrType, "Prowlarr", StringComparison.OrdinalIgnoreCase)
+                    ? new[] { "api/v1/system/status", "api/v3/system/status" }
+                    : new[] { "api/v3/system/status", "api/v1/system/status" };
+
+                var connected = false;
+
+                foreach (var endpoint in endpoints)
+                {
+                    var uri = new Uri(new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/"), endpoint);
+                    using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+                    if (!string.IsNullOrWhiteSpace(conn.ApiKey))
                     {
-                        this.logger.Warn("Skipping Arr connection {0} ({1}): {2}", conn.Name, conn.Url, ssrfError);
-                        continue;
+                        req.Headers.Add("X-Api-Key", conn.ApiKey);
                     }
 
-                    var baseUrl = ArrConnectionUrlNormalizer.StripApiSuffix(conn.Url);
-                    var endpoints = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
-                                    string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ||
-                                    string.Equals(conn.ArrType, "Prowlarr", StringComparison.OrdinalIgnoreCase)
-                        ? new[] { "api/v1/system/status", "api/v3/system/status" }
-                        : new[] { "api/v3/system/status", "api/v1/system/status" };
-
-                    var connected = false;
-
-                    foreach (var endpoint in endpoints)
+                    using var response = await client.SendAsync(req);
+                    if (response.IsSuccessStatusCode)
                     {
-                        var uri = new Uri(new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/"), endpoint);
-                        using var req = new HttpRequestMessage(HttpMethod.Get, uri);
-                        if (!string.IsNullOrWhiteSpace(conn.ApiKey))
-                        {
-                            req.Headers.Add("X-Api-Key", conn.ApiKey);
-                        }
-
-                        using var response = await client.SendAsync(req);
-                        if (response.IsSuccessStatusCode)
-                        {
-                            connected = true;
-                            break;
-                        }
+                        connected = true;
+                        break;
                     }
+                }
 
-                    if (connected)
-                    {
-                        syncedCount++;
-                    }
+                if (connected)
+                {
+                    syncedCount++;
+                }
+                else
+                {
+                    failedCount++;
                 }
             }
             catch (Exception ex)
             {
+                failedCount++;
                 this.logger.Warn(ex, "Failed to sync Arr connection {0} ({1})", conn.Name, conn.Url);
             }
         }
 
-        var failedCount = connections.Count - syncedCount;
+        var success = syncedCount > 0;
+        var message = connections.Count == 0
+            ? "Arr sync did not run: no enabled Arr connections."
+            : success
+                ? $"Arr sync completed successfully ({syncedCount}/{connections.Count} connected)."
+                : $"Arr sync failed ({syncedCount}/{connections.Count} connected).";
+
         return this.Ok(new SyncResultResource
         {
-            Success = true,
+            Success = success,
             SyncedCount = syncedCount,
             TotalCount = connections.Count,
             FailedCount = failedCount,
             Added = syncedCount,
-            Skipped = 0,
+            Skipped = skippedCount,
             Failed = failedCount,
-            Message = $"Arr sync completed successfully ({syncedCount}/{connections.Count} connected).",
+            Message = message,
         });
     }
 }
