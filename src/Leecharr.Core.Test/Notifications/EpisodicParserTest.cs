@@ -33,9 +33,11 @@ public class EpisodicParserTest
     [TestCase("The.Show.S01E01-E04.1080p.WEB-DL", 1, 1, new[] { 1, 2, 3, 4 }, "S01E01-E04")]
     [TestCase("The.Show.S02E05-08.720p.HDTV", 2, 5, new[] { 5, 6, 7, 8 }, "S02E05-E08")]
     [TestCase("The.Show.S01E01E02.1080p", 1, 1, new[] { 1, 2 }, "S01E01-E02")]
+    [TestCase("The.Show.S01E01.S01E02.1080p", 1, 1, new[] { 1, 2 }, "S01E01-E02")]
     [TestCase("The.Show.S01E01E02E03.1080p", 1, 1, new[] { 1, 2, 3 }, "S01E01-E03")]
     [TestCase("The.Show.1x01-04.720p", 1, 1, new[] { 1, 2, 3, 4 }, "S01E01-E04")]
     [TestCase("The.Show.1x01x02.720p", 1, 1, new[] { 1, 2 }, "S01E01-E02")]
+    [TestCase("The.Show.1x01.1x02.720p", 1, 1, new[] { 1, 2 }, "S01E01-E02")]
     [TestCase("The.Show.SP03.1080p", 0, 3, new[] { 3 }, "S00E03")]
     public void ExtractDetailedEpisodicInfo_MultiEpisodeRangesAndSpecials_ExtractsAllEpisodes(
         string name,
