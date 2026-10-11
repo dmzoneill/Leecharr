@@ -428,9 +428,9 @@ public class UTorrentWebUiControllerTest
 
         result.Should().BeOfType<OkObjectResult>();
         this.trackerEntryRepository.Received(1).DeleteByTorrentId(1);
-        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 1 && t.Url == "http://t1.com/announce" && t.Tier == 0));
-        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 1 && t.Url == "http://t2.com/announce" && t.Tier == 0));
-        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 1 && t.Url == "http://t3.com/announce" && t.Tier == 1));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 1 && t.Url == "http://t1.com/announce" && t.Tier == 0 && t.AnnounceInterval == 1800));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 1 && t.Url == "http://t2.com/announce" && t.Tier == 0 && t.AnnounceInterval == 1800));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 1 && t.Url == "http://t3.com/announce" && t.Tier == 1 && t.AnnounceInterval == 1800));
 
         await this.downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://old.com/announce")));
         await this.downloadEngine.Received(1).AddTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Count() == 3));

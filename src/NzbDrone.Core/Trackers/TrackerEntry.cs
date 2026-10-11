@@ -31,7 +31,7 @@ public class TrackerEntry : ModelBase
 
     public long LastResponseTime { get; set; }
 
-    public int AnnounceInterval { get; set; }
+    public int AnnounceInterval { get; set; } = 1800;
 
     public DateTime? LastAnnounce { get; set; }
 
