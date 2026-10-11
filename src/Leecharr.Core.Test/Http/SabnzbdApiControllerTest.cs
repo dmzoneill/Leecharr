@@ -998,4 +998,50 @@ public class SabnzbdApiControllerTest
         await this.torrentService.Received(1).PauseAsync(3);
         this.torrentService.DidNotReceive().GetByInfoHash(Arg.Any<string>());
     }
+
+    [Test]
+    public async Task HandleApi_GetConfig_CategoryDir_UsesCategorySavePath()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        this.configService.DownloadDir.Returns("/downloads");
+        this.categoryService.GetAll().Returns(new List<Category> { new() { Name = "movies", SavePath = "/data/movies" } });
+        this.categoryService
+            .GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>())
+            .Returns(call =>
+            {
+                var categoryName = call.ArgAt<string>(0);
+                var defaultPath = call.ArgAt<string>(1);
+                return string.Equals(categoryName, "movies", StringComparison.OrdinalIgnoreCase)
+                    ? "/data/movies"
+                    : defaultPath;
+            });
+
+        var result = await this.controller.HandleApi(
+            mode: "get_config",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var categories = doc.RootElement.GetProperty("config").GetProperty("categories");
+
+        string moviesDir = null;
+        for (var i = 0; i < categories.GetArrayLength(); i++)
+        {
+            if (string.Equals(categories[i].GetProperty("name").GetString(), "movies", StringComparison.OrdinalIgnoreCase))
+            {
+                moviesDir = categories[i].GetProperty("dir").GetString();
+                break;
+            }
+        }
+
+        moviesDir.Should().Be("/data/movies");
+        this.categoryService.Received().GetSavePathForCategory("movies", "/downloads");
+    }
 }
