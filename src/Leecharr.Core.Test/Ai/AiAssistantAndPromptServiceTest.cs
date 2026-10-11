@@ -244,7 +244,7 @@ public class AiAssistantAndPromptServiceTest
         var report = await provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), Array.Empty<TrackerEntry>());
 
         var unescapedBody = Regex.Unescape(capturedBody);
-        unescapedBody.Should().Contain("Name 'SlowTorrent'");
+        unescapedBody.Should().Contain("<torrent_name>SlowTorrent</torrent_name>");
         unescapedBody.Should().Contain("Status 'Downloading'");
         unescapedBody.Should().Contain("Progress 45.5%");
         unescapedBody.Should().Contain("Seeders 0");
