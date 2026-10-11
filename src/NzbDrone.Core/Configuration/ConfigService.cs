@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using NLog;
@@ -60,6 +61,8 @@ public interface IConfigService
     string BlocklistPath { get; }
 
     int BlocklistUpdateIntervalHours { get; }
+
+    DateTime? BlocklistLastSuccessfulSyncUtc { get; }
 
     string ActiveAiProvider { get; }
 
@@ -847,6 +850,25 @@ public class ConfigService : IConfigService
     public string BlocklistPath => this.GetValue("BlocklistPath", string.Empty);
 
     public int BlocklistUpdateIntervalHours => this.GetValueInt("BlocklistUpdateIntervalHours", 24);
+
+    public DateTime? BlocklistLastSuccessfulSyncUtc
+    {
+        get
+        {
+            var raw = this.GetValue("BlocklistLastSuccessfulSyncUtc", string.Empty);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return null;
+            }
+
+            if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
+            {
+                return parsed.Kind == DateTimeKind.Utc ? parsed : parsed.ToUniversalTime();
+            }
+
+            return null;
+        }
+    }
 
     public string ActiveAiProvider => this.GetValue("ActiveAiProvider", "RuleHeuristic");
 

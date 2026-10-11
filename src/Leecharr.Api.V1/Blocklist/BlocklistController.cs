@@ -20,15 +20,18 @@ public class BlocklistController : Controller
     private readonly IConfigService configService;
     private readonly IBlocklistService blocklistService;
     private readonly IBlocklistUpdateService updateService;
+    private readonly IBlocklistSyncState syncState;
 
     public BlocklistController(
         IConfigService configService,
         IBlocklistService blocklistService,
-        IBlocklistUpdateService updateService)
+        IBlocklistUpdateService updateService,
+        IBlocklistSyncState syncState)
     {
         this.configService = configService;
         this.blocklistService = blocklistService;
         this.updateService = updateService;
+        this.syncState = syncState;
     }
 
     [HttpGet]
@@ -91,11 +94,19 @@ public class BlocklistController : Controller
                     Message = "Blocklist update skipped: blocklist is disabled in configuration.",
                     RuleCount = existingRules,
                     TotalRuleCount = existingRules,
-                    LastUpdatedUtc = DateTime.UtcNow,
+                    LastUpdatedUtc = this.syncState.LastSuccessfulSyncUtc,
                 });
             }
 
             var rulesLoaded = await this.updateService.UpdateRulesAsync(cancellationToken);
+            var lastUpdatedUtc = this.syncState.LastSuccessfulSyncUtc;
+            if (rulesLoaded > 0)
+            {
+                var syncedAt = DateTime.UtcNow;
+                this.syncState.RecordSuccessfulSync(syncedAt);
+                lastUpdatedUtc = syncedAt;
+            }
+
             return this.Ok(new BlocklistSyncResponse
             {
                 Success = rulesLoaded > 0,
@@ -105,7 +116,7 @@ public class BlocklistController : Controller
                     : "No rules could be loaded from configured sources.",
                 RuleCount = rulesLoaded > 0 ? rulesLoaded : this.blocklistService.TotalRulesLoaded,
                 TotalRuleCount = rulesLoaded > 0 ? rulesLoaded : this.blocklistService.TotalRulesLoaded,
-                LastUpdatedUtc = DateTime.UtcNow,
+                LastUpdatedUtc = lastUpdatedUtc,
             });
         }
         catch (Exception ex)
@@ -117,7 +128,7 @@ public class BlocklistController : Controller
                 Message = $"Failed to synchronize blocklist: {ex.Message}",
                 RuleCount = this.blocklistService.TotalRulesLoaded,
                 TotalRuleCount = this.blocklistService.TotalRulesLoaded,
-                LastUpdatedUtc = DateTime.UtcNow,
+                LastUpdatedUtc = this.syncState.LastSuccessfulSyncUtc,
             });
         }
     }
@@ -162,9 +173,11 @@ public class BlocklistController : Controller
             Ipv6RuleCount = ipv6Rules,
             TotalRuleCount = totalRules,
             RuleCount = totalRules,
-            LastUpdatedUtc = DateTime.UtcNow,
+            LastUpdatedUtc = this.syncState.LastSuccessfulSyncUtc,
             LastSyncStatus = totalRules > 0 ? "Active" : "Idle",
-            NextScheduledSyncUtc = DateTime.UtcNow.AddHours(intervalHours),
+            NextScheduledSyncUtc = this.syncState.ResolveNextScheduledSyncUtc(
+                intervalHours,
+                this.configService.BlocklistAutoUpdateEnabled),
         };
     }
 }

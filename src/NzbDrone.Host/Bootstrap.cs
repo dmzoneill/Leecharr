@@ -67,6 +67,7 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<DynamicGeoIpProxy>(IfAlreadyRegistered.Replace);
         container.RegisterSingletonWithInterfaces<GeoIpUpdateTask>(IfAlreadyRegistered.Replace);
         container.RegisterSingletonWithInterfaces<DynamicBlocklistProxy>(IfAlreadyRegistered.Replace);
+        container.RegisterSingleton<IBlocklistSyncState, BlocklistSyncState>();
         container.RegisterSingletonWithInterfaces<BlocklistUpdateTask>(IfAlreadyRegistered.Replace);
         container.RegisterSingletonWithInterfaces<DynamicArchiveExtractorProxy>(IfAlreadyRegistered.Replace);
         container.RegisterSingletonWithInterfaces<DynamicMediaInspectorProxy>(IfAlreadyRegistered.Replace);

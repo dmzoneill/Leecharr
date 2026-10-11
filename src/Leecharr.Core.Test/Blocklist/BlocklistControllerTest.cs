@@ -20,6 +20,9 @@ public class BlocklistControllerTest
     private IConfigService configService = null!;
     private IBlocklistService blocklistService = null!;
     private IBlocklistUpdateService updateService = null!;
+    private IBlocklistSyncState syncState = null!;
+    private DateTime storedLastSync;
+    private DateTime storedNextSync;
     private BlocklistController controller = null!;
 
     [SetUp]
@@ -28,6 +31,7 @@ public class BlocklistControllerTest
         this.configService = Substitute.For<IConfigService>();
         this.blocklistService = Substitute.For<IBlocklistService>();
         this.updateService = Substitute.For<IBlocklistUpdateService>();
+        this.syncState = Substitute.For<IBlocklistSyncState>();
 
         this.configService.BlocklistEnabled.Returns(true);
         this.configService.BlocklistAutoUpdateEnabled.Returns(true);
@@ -38,10 +42,16 @@ public class BlocklistControllerTest
         this.blocklistService.Ipv4RulesLoaded.Returns(1500);
         this.blocklistService.Ipv6RulesLoaded.Returns(0);
 
+        this.storedLastSync = new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+        this.storedNextSync = new DateTime(2024, 6, 3, 12, 0, 0, DateTimeKind.Utc);
+        this.syncState.LastSuccessfulSyncUtc.Returns(_ => this.storedLastSync);
+        this.syncState.ResolveNextScheduledSyncUtc(Arg.Any<int>(), Arg.Any<bool>()).Returns(_ => this.storedNextSync);
+
         this.controller = new BlocklistController(
             this.configService,
             this.blocklistService,
-            this.updateService);
+            this.updateService,
+            this.syncState);
     }
 
     [Test]
@@ -64,8 +74,9 @@ public class BlocklistControllerTest
         resource.TotalRuleCount.Should().Be(1500);
         resource.RuleCount.Should().Be(1500);
         resource.LastSyncStatus.Should().Be("Active");
-        resource.LastUpdatedUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
-        resource.NextScheduledSyncUtc.Should().BeCloseTo(DateTime.UtcNow.AddHours(48), TimeSpan.FromSeconds(5));
+        resource.LastUpdatedUtc.Should().Be(this.storedLastSync);
+        resource.NextScheduledSyncUtc.Should().Be(this.storedNextSync);
+        this.syncState.Received(1).ResolveNextScheduledSyncUtc(48, true);
     }
 
     [Test]
@@ -290,11 +301,14 @@ public class BlocklistControllerTest
         response.TotalRuleCount.Should().Be(2450);
         response.Message.Should().Contain("2,450 rules active");
         response.LastUpdatedUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        this.syncState.Received(1).RecordSuccessfulSync(Arg.Any<DateTime>());
     }
 
     [Test]
     public async Task SyncBlocklistAsync_WhenBlocklistDisabled_ReturnsSkippedResponseWithoutCallingUpdate()
     {
+        var previousSync = new DateTime(2023, 1, 15, 8, 30, 0, DateTimeKind.Utc);
+        this.syncState.LastSuccessfulSyncUtc.Returns(previousSync);
         this.configService.BlocklistEnabled.Returns(false);
         this.blocklistService.TotalRulesLoaded.Returns(350);
         this.blocklistService.Ipv4RulesLoaded.Returns(350);
@@ -312,9 +326,10 @@ public class BlocklistControllerTest
         response.Message.Should().Be("Blocklist update skipped: blocklist is disabled in configuration.");
         response.RuleCount.Should().Be(350);
         response.TotalRuleCount.Should().Be(350);
-        response.LastUpdatedUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        response.LastUpdatedUtc.Should().Be(previousSync);
 
         await this.updateService.DidNotReceive().UpdateRulesAsync(Arg.Any<CancellationToken>());
+        this.syncState.DidNotReceive().RecordSuccessfulSync(Arg.Any<DateTime>());
     }
 
     [Test]
@@ -337,11 +352,14 @@ public class BlocklistControllerTest
         response.Message.Should().Be("No rules could be loaded from configured sources.");
         response.RuleCount.Should().Be(350);
         response.TotalRuleCount.Should().Be(350);
+        this.syncState.DidNotReceive().RecordSuccessfulSync(Arg.Any<DateTime>());
     }
 
     [Test]
     public async Task SyncBlocklistAsync_WhenUpdateServiceThrows_ReturnsErrorResponseWithExceptionMessage()
     {
+        var previousSync = new DateTime(2022, 5, 10, 16, 45, 0, DateTimeKind.Utc);
+        this.syncState.LastSuccessfulSyncUtc.Returns(previousSync);
         this.updateService.UpdateRulesAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException<int>(new InvalidOperationException("Connection refused by peer.")));
         this.blocklistService.TotalRulesLoaded.Returns(800);
@@ -360,6 +378,8 @@ public class BlocklistControllerTest
         response.Message.Should().Contain("Connection refused by peer.");
         response.RuleCount.Should().Be(800);
         response.TotalRuleCount.Should().Be(800);
+        response.LastUpdatedUtc.Should().Be(previousSync);
+        this.syncState.DidNotReceive().RecordSuccessfulSync(Arg.Any<DateTime>());
     }
 
     [Test]
