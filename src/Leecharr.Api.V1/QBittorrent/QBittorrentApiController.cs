@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Leecharr.Api.V1.Auth;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -178,6 +179,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
         {
+            var clientIp = ClientIpResolver.ResolveClientIp(this.HttpContext, trustedNetworkService: null, this.configService);
+            if (AuthController.IsLoginThrottledForIp(clientIp))
+            {
+                return this.Content("Fails.", "text/plain");
+            }
+
             var authenticated = false;
             var masterApiKey = this.configFileProvider.ApiKey;
 
@@ -198,8 +205,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
             if (!authenticated)
             {
+                AuthController.RecordFailedLoginForIp(clientIp);
                 return this.Content("Fails.", "text/plain");
             }
+
+            AuthController.ResetLoginAttemptsForIp(clientIp);
         }
 
         var sid = Guid.NewGuid().ToString("N");
