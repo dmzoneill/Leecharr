@@ -3482,6 +3482,125 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_TorrentStop_WhenIdsOmitted_PausesAllTorrents()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.GetAll().Returns(new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "T1" },
+            new Torrent { Id = 2, Name = "T2" },
+        });
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-stop",
+            Arguments = new Dictionary<string, JsonElement>(),
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).PauseAsync(1);
+        await this.torrentService.Received(1).PauseAsync(2);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentStop_WithUnknownInfoHash_DoesNotPauseAnyTorrent()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var staleHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        this.torrentService.GetByInfoHash(staleHash).Returns((Torrent)null);
+        this.torrentService.GetAll().Returns(new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "T1" },
+            new Torrent { Id = 2, Name = "T2" },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse($"[\"{staleHash}\"]");
+        args["ids"] = idsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-stop",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentStop_WithEmptyIdsArray_DoesNotPauseAnyTorrent()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.GetAll().Returns(new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "T1" },
+            new Torrent { Id = 2, Name = "T2" },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[]");
+        args["ids"] = idsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-stop",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithUnknownInfoHash_DoesNotUpdateAnyTorrent()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var staleHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        this.torrentService.GetByInfoHash(staleHash).Returns((Torrent)null);
+        var t1 = new Torrent { Id = 1, Name = "T1", Priority = 0 };
+        var t2 = new Torrent { Id = 2, Name = "T2", Priority = 0 };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2 });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse($"[\"{staleHash}\"]");
+        using var bpDoc = JsonDocument.Parse("1");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["bandwidthPriority"] = bpDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+        t1.Priority.Should().Be(0);
+        t2.Priority.Should().Be(0);
+    }
+
+    [Test]
     public async Task HandleRpc_TorrentSet_WithEmptyLabelsArray_ClearsCategoryAndLabel()
     {
         var context = new DefaultHttpContext();

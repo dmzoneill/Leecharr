@@ -1803,6 +1803,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
     private List<int> ExtractIds(Dictionary<string, JsonElement> arguments, bool applyAllIfEmpty = false)
     {
         var ids = new List<int>();
+        var idsSpecified = arguments != null && arguments.ContainsKey("ids");
         if (arguments != null && arguments.TryGetValue("ids", out var idsElem))
         {
             if (idsElem.ValueKind == JsonValueKind.Array)
@@ -1862,7 +1863,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             }
         }
 
-        if (ids.Count == 0 && applyAllIfEmpty && !IsRecentlyActive(arguments))
+        if (ids.Count == 0 && applyAllIfEmpty && !idsSpecified && !IsRecentlyActive(arguments))
         {
             return this.torrentService.GetAll().Select(t => t.Id).ToList();
         }
