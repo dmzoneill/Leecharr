@@ -15,16 +15,9 @@ public static class TorrentFileProgressEnricher
             return;
         }
 
-        if (torrent.Progress >= 1.0 || torrent.Status == TorrentStatus.Completed || torrent.Status == TorrentStatus.Seeding)
-        {
-            foreach (var file in files)
-            {
-                file.Progress = 1.0;
-                file.BytesCompleted = file.Size;
-            }
-
-            return;
-        }
+        var torrentComplete = torrent.Progress >= 1.0
+            || torrent.Status == TorrentStatus.Completed
+            || torrent.Status == TorrentStatus.Seeding;
 
         if (downloadTask?.PieceBitfield != null && downloadTask.PieceBitfield.Length > 0)
         {
@@ -39,8 +32,8 @@ public static class TorrentFileProgressEnricher
             return;
         }
 
-        // Fallback: prorated from torrent progress
-        var torrentProgress = Math.Clamp(torrent.Progress, 0.0, 1.0);
+        // Fallback: prorated from torrent progress (completed/seeding torrents count as 100% for wanted files)
+        var torrentProgress = torrentComplete ? 1.0 : Math.Clamp(torrent.Progress, 0.0, 1.0);
         foreach (var file in files)
         {
             if (file.Priority == 0)

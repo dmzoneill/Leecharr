@@ -28,7 +28,7 @@ public class TorrentFileProgressEnricherTest
 
     [TestCase(TorrentStatus.Completed)]
     [TestCase(TorrentStatus.Seeding)]
-    public void Enrich_WhenCompletedOrSeeding_MarksAllFiles100PercentAndBytesCompletedEqualsSize(TorrentStatus status)
+    public void Enrich_WhenCompletedOrSeeding_MarksWantedFiles100PercentAndBytesCompletedEqualsSize(TorrentStatus status)
     {
         var torrent = new Torrent
         {
@@ -50,6 +50,32 @@ public class TorrentFileProgressEnricherTest
         files[0].BytesCompleted.Should().Be(3000);
         files[1].Progress.Should().Be(1.0);
         files[1].BytesCompleted.Should().Be(2000);
+    }
+
+    [TestCase(TorrentStatus.Completed)]
+    [TestCase(TorrentStatus.Seeding)]
+    public void Enrich_WhenCompletedOrSeeding_SkippedFilesStayAtZeroProgress(TorrentStatus status)
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = status,
+            Progress = 1.0,
+            TotalSize = 5000,
+        };
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, Path = "a.mp4", Size = 3000, Priority = 3 },
+            new() { Id = 2, Path = "extras.mkv", Size = 2000, Priority = 0 },
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, files);
+
+        files[0].Progress.Should().Be(1.0);
+        files[0].BytesCompleted.Should().Be(3000);
+        files[1].Progress.Should().Be(0.0);
+        files[1].BytesCompleted.Should().Be(0);
     }
 
     [Test]
