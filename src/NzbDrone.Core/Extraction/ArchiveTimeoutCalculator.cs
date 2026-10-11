@@ -34,36 +34,32 @@ public static class ArchiveTimeoutCalculator
             {
                 var prefix = partMatch.Groups[1].Value;
                 var ext = partMatch.Groups[2].Value;
-                var companionFiles = diskProvider.GetFiles(dir, false);
-                long totalVolumeSize = 0;
-                foreach (var file in companionFiles)
-                {
-                    var fn = Path.GetFileName(file);
-                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.part\d+\.{Regex.Escape(ext)}$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
-                    {
-                        totalVolumeSize += diskProvider.GetFileSize(file);
-                    }
-                }
-
-                return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
+                var pattern = $"^{Regex.Escape(prefix)}\\.part\\d+\\.{Regex.Escape(ext)}$";
+                return SumMatchingVolumeFiles(dir, diskProvider, pattern, baseSize);
             }
 
             var numMatch = Regex.Match(fileName, @"^(.*?)\.(r\d{2}|\d{3}|z\d{2}|001)$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (numMatch.Success)
             {
                 var prefix = numMatch.Groups[1].Value;
-                var companionFiles = diskProvider.GetFiles(dir, false);
-                long totalVolumeSize = 0;
-                foreach (var file in companionFiles)
+                var openedExt = numMatch.Groups[2].Value;
+                if (Regex.IsMatch(openedExt, @"^\d{3}$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
                 {
-                    var fn = Path.GetFileName(file);
-                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.(r\d{{2}}|\d{{3}}|z\d{{2}}|rar)$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
-                    {
-                        totalVolumeSize += diskProvider.GetFileSize(file);
-                    }
+                    var numericTotal = SumContiguousNumericSplitVolumes(prefix, dir, diskProvider);
+                    return numericTotal > 0 ? numericTotal : Math.Max(0L, baseSize);
                 }
 
-                return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
+                if (Regex.IsMatch(openedExt, @"^r\d{2}$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
+                {
+                    var pattern = $"^{Regex.Escape(prefix)}\\.(rar|r\\d{{2}})$";
+                    return SumMatchingVolumeFiles(dir, diskProvider, pattern, baseSize);
+                }
+
+                if (Regex.IsMatch(openedExt, @"^z\d{2}$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
+                {
+                    var pattern = $"^{Regex.Escape(prefix)}\\.(zip|z\\d{{2}})$";
+                    return SumMatchingVolumeFiles(dir, diskProvider, pattern, baseSize);
+                }
             }
 
             var splitMatch = Regex.Match(fileName, @"^(.*?)\.(7z|tar|zip|rar)\.\d+$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
@@ -71,18 +67,19 @@ public static class ArchiveTimeoutCalculator
             {
                 var prefix = splitMatch.Groups[1].Value;
                 var ext = splitMatch.Groups[2].Value;
-                var companionFiles = diskProvider.GetFiles(dir, false);
-                long totalVolumeSize = 0;
-                foreach (var file in companionFiles)
-                {
-                    var fn = Path.GetFileName(file);
-                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.{Regex.Escape(ext)}\.\d+$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
-                    {
-                        totalVolumeSize += diskProvider.GetFileSize(file);
-                    }
-                }
+                var pattern = $"^{Regex.Escape(prefix)}\\.{Regex.Escape(ext)}\\.\\d+$";
+                return SumMatchingVolumeFiles(dir, diskProvider, pattern, baseSize);
+            }
 
-                return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
+            var primaryRarZip = Regex.Match(fileName, @"^(.*?)\.(rar|zip)$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+            if (primaryRarZip.Success)
+            {
+                var prefix = primaryRarZip.Groups[1].Value;
+                var ext = primaryRarZip.Groups[2].Value;
+                var pattern = string.Equals(ext, "rar", StringComparison.OrdinalIgnoreCase)
+                    ? $"^{Regex.Escape(prefix)}\\.(rar|r\\d{{2}})$"
+                    : $"^{Regex.Escape(prefix)}\\.(zip|z\\d{{2}})$";
+                return SumMatchingVolumeFiles(dir, diskProvider, pattern, baseSize);
             }
 
             return Math.Max(0L, baseSize);
@@ -91,6 +88,45 @@ public static class ArchiveTimeoutCalculator
         {
             return 0L;
         }
+    }
+
+    private static long SumMatchingVolumeFiles(string dir, IDiskProvider diskProvider, string fileNamePattern, long fallbackSize)
+    {
+        var companionFiles = diskProvider.GetFiles(dir, false);
+        long totalVolumeSize = 0;
+        foreach (var file in companionFiles)
+        {
+            var fn = Path.GetFileName(file);
+            if (Regex.IsMatch(fn, fileNamePattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
+            {
+                totalVolumeSize += diskProvider.GetFileSize(file);
+            }
+        }
+
+        return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, fallbackSize);
+    }
+
+    private static long SumContiguousNumericSplitVolumes(string prefix, string dir, IDiskProvider diskProvider)
+    {
+        var firstPart = Path.Combine(dir, prefix + ".001");
+        if (!diskProvider.FileExists(firstPart))
+        {
+            return 0L;
+        }
+
+        long totalVolumeSize = 0;
+        for (var part = 1; part <= 999; part++)
+        {
+            var partPath = Path.Combine(dir, $"{prefix}.{part:D3}");
+            if (!diskProvider.FileExists(partPath))
+            {
+                break;
+            }
+
+            totalVolumeSize += diskProvider.GetFileSize(partPath);
+        }
+
+        return totalVolumeSize;
     }
 
     public static TimeSpan CalculateDynamicTimeout(
