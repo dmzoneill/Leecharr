@@ -236,6 +236,17 @@ public static class TerminalWebSocketHandler
                         break;
                     }
 
+                    var charCount = decoder.GetCharCount(buffer, 0, bytesRead, flush: false);
+                    if (charCount <= 0)
+                    {
+                        continue;
+                    }
+
+                    if (charCount > charBuffer.Length)
+                    {
+                        charBuffer = new char[charCount];
+                    }
+
                     var charsRead = decoder.GetChars(buffer, 0, bytesRead, charBuffer, 0, flush: false);
                     if (charsRead > 0)
                     {
