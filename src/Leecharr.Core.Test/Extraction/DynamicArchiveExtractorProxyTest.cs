@@ -203,6 +203,24 @@ public class DynamicArchiveExtractorProxyTest
     }
 
     [Test]
+    public async Task SwitchProviderAsync_WhenConfigSaveFails_KeepsPreviousActiveProvider()
+    {
+        this.configService
+            .When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(_ => throw new System.InvalidOperationException("database locked"));
+
+        var result = await this.proxy.SwitchProviderAsync("SevenZip");
+
+        result.Success.Should().BeFalse();
+        result.PreviousProvider.Should().Be("SharpCompress");
+        result.ActiveProvider.Should().Be("SharpCompress");
+        result.Error.Should().Contain("database locked");
+        this.proxy.ActiveProviderId.Should().Be("SharpCompress");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.sharpCompressProvider);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractorSwitchedEvent>());
+    }
+
+    [Test]
     public async Task ExtractArchiveAsync_DelegatesToActiveProvider()
     {
         var result = await this.proxy.ExtractArchiveAsync("/path/to/archive.zip", "/dest/dir");

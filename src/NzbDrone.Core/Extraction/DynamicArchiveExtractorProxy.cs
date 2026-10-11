@@ -126,6 +126,7 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
 
         ArchiveExtractorSwitchedEvent switchedEvent = null;
         ExtractorSwitchResult result;
+        IArchiveExtractorProvider previousProvider = null;
 
         await this.switchLock.WaitAsync(cancellationToken);
         try
@@ -142,15 +143,15 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
                 };
             }
 
-            var previousProvider = Volatile.Read(ref this.activeProvider);
+            previousProvider = Volatile.Read(ref this.activeProvider);
             this.logger.Info("Switching archive extractor: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
-
-            Volatile.Write(ref this.activeProvider, targetProvider);
 
             this.configService.SaveConfigDictionary(new Dictionary<string, object>
             {
                 { "ActiveArchiveExtractor", targetProvider.ProviderId },
             });
+
+            Volatile.Write(ref this.activeProvider, targetProvider);
 
             switchedEvent = new ArchiveExtractorSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
 
@@ -167,11 +168,18 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         catch (Exception ex)
         {
             this.logger.Error(ex, "Fatal error during extractor hot-swap to {0}", targetProviderId);
+
+            if (previousProvider != null)
+            {
+                Volatile.Write(ref this.activeProvider, previousProvider);
+            }
+
+            var activeProviderId = previousProvider?.ProviderId ?? Volatile.Read(ref this.activeProvider)?.ProviderId;
             return new ExtractorSwitchResult
             {
                 Success = false,
-                PreviousProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
-                ActiveProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
+                PreviousProvider = activeProviderId,
+                ActiveProvider = activeProviderId,
                 Error = $"Archive extractor switch failed: {ex.Message}",
             };
         }
