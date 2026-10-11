@@ -328,7 +328,7 @@ public class SynologyDownloadStationControllerTest
     }
 
     [Test]
-    public async Task HandleTask_Delete_WithoutFiles_InvokesDeleteAsyncWithFalse()
+    public async Task HandleTask_Delete_WithoutForceComplete_InvokesDeleteAsyncWithTrue()
     {
         var httpContext = new DefaultHttpContext();
         this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
@@ -346,11 +346,11 @@ public class SynologyDownloadStationControllerTest
             destination: null!);
 
         result.Should().BeOfType<OkObjectResult>();
-        await this.torrentService.Received(1).DeleteAsync(100, false);
+        await this.torrentService.Received(1).DeleteAsync(100, true);
     }
 
     [Test]
-    public async Task HandleTask_Delete_WithDeleteDataTrue_InvokesDeleteAsyncWithTrue()
+    public async Task HandleTask_Delete_WithForceCompleteTrue_KeepsFiles()
     {
         var httpContext = new DefaultHttpContext();
         httpContext.Request.QueryString = new QueryString("?force_complete=true");
@@ -369,7 +369,30 @@ public class SynologyDownloadStationControllerTest
             destination: null!);
 
         result.Should().BeOfType<OkObjectResult>();
-        await this.torrentService.Received(1).DeleteAsync(101, true);
+        await this.torrentService.Received(1).DeleteAsync(101, false);
+    }
+
+    [Test]
+    public async Task HandleTask_Delete_WithDeleteDataTrue_InvokesDeleteAsyncWithTrue()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.QueryString = new QueryString("?force_complete=true&delete_data=true");
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var hash = "delete3333333333333333333333333333333333";
+        var torrent = new Torrent { Id = 102, InfoHash = hash };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var result = await this.controller.TaskHandler(
+            api: "SYNO.DownloadStation.Task",
+            method: "delete",
+            id: hash,
+            uri: null!,
+            url: null!,
+            destination: null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).DeleteAsync(102, true);
     }
 
     [Test]
