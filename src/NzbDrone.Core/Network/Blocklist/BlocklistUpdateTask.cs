@@ -22,7 +22,7 @@ public interface IBlocklistUpdateTask
     void StartLoop();
 }
 
-public class BlocklistUpdateTask : IBlocklistUpdateTask, IHandle<ApplicationStartedEvent>, IExecute<BlocklistUpdateCommand>, IExecuteAsync<BlocklistUpdateCommand>, IDisposable
+public class BlocklistUpdateTask : IBlocklistUpdateTask, IHandle<ApplicationStartedEvent>, IHandle<ConfigSavedEvent>, IExecute<BlocklistUpdateCommand>, IExecuteAsync<BlocklistUpdateCommand>, IDisposable
 {
     private readonly IBlocklistUpdateService blocklistUpdateService;
     private readonly IConfigService configService;
@@ -38,6 +38,14 @@ public class BlocklistUpdateTask : IBlocklistUpdateTask, IHandle<ApplicationStar
     }
 
     public void Handle(ApplicationStartedEvent message)
+    {
+        if (this.configService.BlocklistEnabled)
+        {
+            this.StartLoop();
+        }
+    }
+
+    public void Handle(ConfigSavedEvent message)
     {
         if (this.configService.BlocklistEnabled)
         {
