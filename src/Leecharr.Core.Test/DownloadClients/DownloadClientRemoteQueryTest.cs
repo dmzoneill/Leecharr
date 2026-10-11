@@ -151,6 +151,26 @@ public class DownloadClientRemoteQueryTest
     }
 
     [Test]
+    public async Task QueryRemoteClientItemsDetailedAsync_QBittorrentTorrentsInfoHttpError_SetsErrorMessage()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        using var httpClient = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Name = "QBit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+        };
+
+        var result = await DownloadClientRemoteQuery.QueryRemoteClientItemsDetailedAsync(client, httpClient);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("HTTP 500");
+        result.Items.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task PauseTorrentAsync_QBittorrentNotFoundFallback_DisposesBothResponses()
     {
         var pauseResponse = new DisposableHttpResponseMessage(HttpStatusCode.NotFound);
