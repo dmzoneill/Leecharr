@@ -108,6 +108,21 @@ public class RuleHeuristicAiProviderTest
     }
 
     [Test]
+    public async Task ParseReleaseAsync_TrailingTsContainer_DoesNotClassifyAsTeleSync()
+    {
+        var transportStream = await this.provider.ParseReleaseAsync("Movie.2020.1080p.x264-GROUP.ts");
+        transportStream.Quality.Should().BeNull();
+        transportStream.Resolution.Should().Be("1080p");
+        transportStream.Year.Should().Be(2020);
+
+        var bluRayWithTsContainer = await this.provider.ParseReleaseAsync("Movie.2020.1080p.BluRay.x264-GROUP.ts");
+        bluRayWithTsContainer.Quality.Should().Be("1080p BluRay");
+
+        var teleSync = await this.provider.ParseReleaseAsync("Movie.2020.CAM.TeleSync.x264-GROUP");
+        teleSync.Quality.Should().Be("TeleSync");
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_QualityDistinctions_MaintainsExplicitDistinction()
     {
         var uhdRemux = await this.provider.ParseReleaseAsync("Avatar.2009.2160p.UHD.Remux.HEVC.TrueHD-GROUP");

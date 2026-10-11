@@ -207,6 +207,11 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
 
         // 5. Quality
         var qualityMatch = QualityRegex.Match(working);
+        if (qualityMatch.Success && IsTrailingTsMediaExtensionMisparse(working, qualityMatch))
+        {
+            qualityMatch = Match.Empty;
+        }
+
         if (qualityMatch.Success)
         {
             result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, result.IsRemux);
@@ -565,6 +570,11 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
 
         // 5. Quality
         var qualityMatch = Regex.Match(working, @"(?i)\b(?:in\s+)?(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b", RegexOptions.None, TimeSpan.FromSeconds(2));
+        if (qualityMatch.Success && IsTrailingTsMediaExtensionMisparse(working, qualityMatch))
+        {
+            qualityMatch = Match.Empty;
+        }
+
         if (qualityMatch.Success)
         {
             result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, qualityMatch.Groups["quality"].Value.Contains("remux", StringComparison.OrdinalIgnoreCase));
@@ -868,6 +878,28 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         clean = Regex.Replace(clean, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
 
         return string.IsNullOrWhiteSpace(clean) ? raw : clean;
+    }
+
+    private static bool IsTrailingTsMediaExtensionMisparse(string working, Match qualityMatch)
+    {
+        if (!qualityMatch.Success)
+        {
+            return false;
+        }
+
+        var token = qualityMatch.Groups["quality"].Value;
+        if (!token.Equals("TS", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(working);
+        if (string.IsNullOrEmpty(ext) || !ext.Equals(".ts", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return qualityMatch.Index + qualityMatch.Length == working.Length;
     }
 
     private static string NormalizeQuality(string quality, string resolution = null, bool isRemux = false)
