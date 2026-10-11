@@ -1673,8 +1673,13 @@ public class Aria2RpcControllerTest
     }
 
     [Test]
-    public async Task PurgeDownloadResult_JsonRpc_ReturnsOK()
+    public async Task PurgeDownloadResult_JsonRpc_DeletesCompletedAndErrorResultsAndReturnsOK()
     {
+        var completed = new Torrent { Id = 20, Name = "Done", InfoHash = FullInfoHash, Status = TorrentStatus.Completed };
+        var error = new Torrent { Id = 21, Name = "Failed", InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Status = TorrentStatus.Error };
+        var active = new Torrent { Id = 22, Name = "Active", InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Status = TorrentStatus.Downloading };
+        this.torrentService.GetAll().Returns(new List<Torrent> { completed, error, active });
+
         this.SetJsonRequestBody("""
             {
                 "jsonrpc": "2.0",
@@ -1687,16 +1692,25 @@ public class Aria2RpcControllerTest
         var result = await this.controller.HandleRpc();
         var okStr = GetJsonRpcResultString(result);
         okStr.Should().Be("OK");
+
+        await this.torrentService.Received(1).DeleteAsync(completed.Id, false);
+        await this.torrentService.Received(1).DeleteAsync(error.Id, false);
+        await this.torrentService.DidNotReceive().DeleteAsync(active.Id, false);
     }
 
     [Test]
-    public async Task PurgeDownloadResult_XmlRpc_ReturnsOK()
+    public async Task PurgeDownloadResult_XmlRpc_DeletesCompletedResultsAndReturnsOK()
     {
+        var completed = new Torrent { Id = 23, Name = "DoneXml", InfoHash = FullInfoHash, Status = TorrentStatus.Completed };
+        this.torrentService.GetAll().Returns(new List<Torrent> { completed });
+
         this.SetXmlRpcRequest("aria2.purgeDownloadResult");
 
         var actionResult = await this.controller.HandleRpc();
         var okStr = GetXmlRpcResultString(actionResult);
         okStr.Should().Be("OK");
+
+        await this.torrentService.Received(1).DeleteAsync(completed.Id, false);
     }
 
     [Test]
@@ -1707,7 +1721,7 @@ public class Aria2RpcControllerTest
             Id = 14,
             Name = "FinishedTorrent",
             InfoHash = FullInfoHash,
-            Status = TorrentStatus.Stopped,
+            Status = TorrentStatus.Completed,
         };
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
 
@@ -1735,7 +1749,7 @@ public class Aria2RpcControllerTest
             Id = 15,
             Name = "FinishedTorrentXml",
             InfoHash = FullInfoHash,
-            Status = TorrentStatus.Stopped,
+            Status = TorrentStatus.Completed,
         };
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
 
@@ -1746,6 +1760,60 @@ public class Aria2RpcControllerTest
         okStr.Should().Be("OK");
 
         await this.torrentService.Received(1).DeleteAsync(torrent.Id, false);
+    }
+
+    [Test]
+    public async Task RemoveDownloadResult_JsonRpc_DoesNotDeleteActiveTorrent()
+    {
+        var torrent = new Torrent
+        {
+            Id = 16,
+            Name = "ActiveTorrent",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": 109,
+                "method": "aria2.removeDownloadResult",
+                "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcResultString(result).Should().Be("OK");
+        await this.torrentService.DidNotReceive().DeleteAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task RemoveDownloadResult_JsonRpc_AmbiguousGidPrefix_ReturnsError()
+    {
+        var sharedPrefix = "0123456789abcdef";
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 17, Name = "One", InfoHash = sharedPrefix + "111111111111111111111111", Status = TorrentStatus.Completed },
+            new() { Id = 18, Name = "Two", InfoHash = sharedPrefix + "222222222222222222222222", Status = TorrentStatus.Completed },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": 110,
+                "method": "aria2.removeDownloadResult",
+                "params": ["{{sharedPrefix}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("error").GetProperty("message").GetString().Should().Contain("not unique");
+        await this.torrentService.DidNotReceive().DeleteAsync(Arg.Any<int>(), Arg.Any<bool>());
     }
 
     [Test]
