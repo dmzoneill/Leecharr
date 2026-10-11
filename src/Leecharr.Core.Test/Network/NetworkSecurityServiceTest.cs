@@ -218,6 +218,44 @@ public class NetworkSecurityServiceTest
     }
 
     [Test]
+    public void SaveSettings_WhenBindInterfaceCleared_PersistsEmptyBindInterfaceToConfig()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        var serviceWithConfig = new NetworkSecurityService(this.repository, this.eventAggregator, configService);
+        var settings = new NetworkSettings
+        {
+            Id = 1,
+            EnableVpnKillSwitch = true,
+            BindInterface = string.Empty,
+        };
+
+        serviceWithConfig.SaveSettings(settings);
+
+        configService.Received(1).SaveConfigDictionary(Arg.Is<System.Collections.Generic.Dictionary<string, object>>(d =>
+            d.ContainsKey("BindInterface") && (string)d["BindInterface"] == string.Empty));
+    }
+
+    [Test]
+    public void GetCurrentSettings_WhenRepositoryBindInterfaceCleared_DoesNotFallBackToNetworkInterfaceBinding()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.BindInterface.Returns(string.Empty);
+        configService.NetworkInterfaceBinding.Returns("wg0");
+
+        var settings = new NetworkSettings
+        {
+            Id = 1,
+            BindInterface = string.Empty,
+        };
+        this.repository.GetSettings().Returns(settings);
+
+        var serviceWithConfig = new NetworkSecurityService(this.repository, this.eventAggregator, configService);
+        var current = serviceWithConfig.GetCurrentSettings();
+
+        current.BindInterface.Should().Be(string.Empty);
+    }
+
+    [Test]
     public void CheckVpnKillSwitch_WhenOnlyNetworkInterfaceBindingConfiguredAndInterfaceDropped_TriggersKillSwitch()
     {
         var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();

@@ -172,21 +172,7 @@ public class NetworkSecurityService : INetworkSecurityService, IExecute<VpnKillS
     public NetworkSettings GetCurrentSettings()
     {
         var settings = this.repository.GetSettings() ?? new NetworkSettings();
-        if (this.configService != null)
-        {
-            if (!string.IsNullOrWhiteSpace(this.configService.BindInterface))
-            {
-                settings.BindInterface = this.configService.BindInterface;
-            }
-
-            if (!string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding))
-            {
-                settings.BindInterface = this.configService.NetworkInterfaceBinding;
-            }
-
-            settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
-        }
-
+        NetworkSettingsConfigMerge.ApplyConfig(this.configService, settings);
         return settings;
     }
 
@@ -211,12 +197,8 @@ public class NetworkSecurityService : INetworkSecurityService, IExecute<VpnKillS
             var dict = new Dictionary<string, object>
             {
                 { "EnableVpnKillSwitch", settings.EnableVpnKillSwitch },
+                { "BindInterface", settings.BindInterface?.Trim() ?? string.Empty },
             };
-
-            if (!string.IsNullOrWhiteSpace(settings.BindInterface))
-            {
-                dict["BindInterface"] = settings.BindInterface;
-            }
 
             this.configService.SaveConfigDictionary(dict);
         }

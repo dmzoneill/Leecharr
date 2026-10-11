@@ -451,6 +451,23 @@ public class VpnKillSwitchServiceTest
     }
 
     [Test]
+    public void VpnInterfaceName_WhenRepositoryBindCleared_IgnoresStaleNetworkInterfaceBinding()
+    {
+        var settings = new NetworkSettings
+        {
+            Id = 1,
+            EnableVpnKillSwitch = true,
+            BindInterface = string.Empty,
+        };
+        this.repository.GetSettings().Returns(settings);
+        this.configService.BindInterface.Returns("tun0");
+        this.configService.NetworkInterfaceBinding.Returns("wg0");
+
+        this.service.VpnInterfaceName.Should().BeEmpty();
+        this.service.CheckVpnState().Should().BeFalse();
+    }
+
+    [Test]
     public void Dispose_UnhooksEventHandlersAndDisposesTimerSafely()
     {
         this.service.Dispose();
