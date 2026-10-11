@@ -95,6 +95,8 @@ public class Aria2RpcController : ControllerBase
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     };
 
+    private static readonly string ProcessSessionId = Guid.NewGuid().ToString("N");
+
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -483,7 +485,7 @@ public class Aria2RpcController : ControllerBase
         return method.ToLowerInvariant() switch
         {
             "aria2.getversion" => GetVersionPayload(),
-            "aria2.getsessioninfo" => new { sessionId = Guid.NewGuid().ToString("N") },
+            "aria2.getsessioninfo" => new { sessionId = ProcessSessionId },
             "aria2.getglobalstat" => this.HandleGetGlobalStat(),
             "aria2.tellactive" => this.HandleTellActive(),
             "aria2.tellwaiting" => this.HandleTellWaiting(cleanParams),
@@ -810,7 +812,7 @@ public class Aria2RpcController : ControllerBase
                     new XElement(
                         "member",
                         new XElement("name", "sessionId"),
-                        new XElement("value", new XElement("string", Guid.NewGuid().ToString("N")))));
+                        new XElement("value", new XElement("string", ProcessSessionId))));
 
             case "aria2.getglobalstat":
                 var stats = this.GetGlobalStats();
@@ -1345,15 +1347,25 @@ public class Aria2RpcController : ControllerBase
             if (t != null)
             {
                 var modified = false;
+                if (options.TryGetValue("dir", out var dirStr) && !string.IsNullOrWhiteSpace(dirStr))
+                {
+                    if (!string.Equals(t.SavePath, dirStr, StringComparison.Ordinal))
+                    {
+                        await this.torrentService.SetLocationAsync(t.Id, dirStr, moveFiles: true);
+                        t.SavePath = dirStr;
+                        modified = true;
+                    }
+                }
+
                 if (options.TryGetValue("max-download-limit", out var tdlStr) && int.TryParse(tdlStr, out var tdlBps))
                 {
-                    t.DownloadLimit = tdlBps / 1024;
+                    t.DownloadLimit = Aria2BpsToKbps(tdlBps);
                     modified = true;
                 }
 
                 if (options.TryGetValue("max-upload-limit", out var tulStr) && int.TryParse(tulStr, out var tulBps))
                 {
-                    t.UploadLimit = tulBps / 1024;
+                    t.UploadLimit = Aria2BpsToKbps(tulBps);
                     modified = true;
                 }
 
@@ -1381,12 +1393,12 @@ public class Aria2RpcController : ControllerBase
         var updateDict = new Dictionary<string, object>();
         if (options.TryGetValue("max-overall-download-limit", out var dlOptStr) && int.TryParse(dlOptStr, out var dlBps))
         {
-            updateDict["MaxDownloadSpeedKbps"] = dlBps / 1024;
+            updateDict["MaxDownloadSpeedKbps"] = Aria2BpsToKbps(dlBps);
         }
 
         if (options.TryGetValue("max-overall-upload-limit", out var ulOptStr) && int.TryParse(ulOptStr, out var ulBps))
         {
-            updateDict["MaxUploadSpeedKbps"] = ulBps / 1024;
+            updateDict["MaxUploadSpeedKbps"] = Aria2BpsToKbps(ulBps);
         }
 
         if (updateDict.Count > 0 && this.configService != null)
@@ -1847,6 +1859,16 @@ public class Aria2RpcController : ControllerBase
         var clean = gid.Trim();
         var all = this.torrentService.GetAll().ToList();
         return all.FirstOrDefault(t => t.InfoHash.StartsWith(clean, StringComparison.OrdinalIgnoreCase) || t.InfoHash.Equals(clean, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int Aria2BpsToKbps(int bps)
+    {
+        if (bps <= 0)
+        {
+            return 0;
+        }
+
+        return (bps + 1023) / 1024;
     }
 
     private static string GenerateRandomGid() => Guid.NewGuid().ToString("N")[..16];
