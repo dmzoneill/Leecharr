@@ -923,14 +923,11 @@ public class TorznabClientTest
     [TestCase("")]
     [TestCase("   ")]
     [TestCase("invalid-date-string")]
-    public void ParsePublishDate_NullEmptyOrInvalid_ReturnsUtcNow(string input)
+    public void ParsePublishDate_NullEmptyOrInvalid_ReturnsDefault(string input)
     {
-        var before = DateTime.UtcNow.AddSeconds(-1);
         var parsed = TorznabClient.ParsePublishDate(input);
-        var after = DateTime.UtcNow.AddSeconds(1);
 
-        parsed.Kind.Should().Be(DateTimeKind.Utc);
-        parsed.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
+        parsed.Should().Be(default);
     }
 
     [Test]
@@ -939,6 +936,25 @@ public class TorznabClientTest
         var parsed = TorznabClient.ParsePublishDate("2026-09-07 12:00:00");
         parsed.Should().Be(new DateTime(2026, 9, 7, 12, 0, 0, DateTimeKind.Utc));
         parsed.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_WhenPubDateMissing_LeavesPublishDateUnset()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+<channel>
+    <item>
+        <title>No PubDate Release</title>
+        <torznab:attr name=""infohash"" value=""0123456789abcdef0123456789abcdef01234567""/>
+        <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+</channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+        results.Should().HaveCount(1);
+        results[0].PublishDate.Should().Be(default);
     }
 
     [Test]

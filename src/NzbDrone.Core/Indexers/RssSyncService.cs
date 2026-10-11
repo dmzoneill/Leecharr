@@ -624,8 +624,13 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         }
 
         // 6. MaxAgeDays
-        if (rule.MaxAgeDays > 0 && release.PublishDate != default)
+        if (rule.MaxAgeDays > 0)
         {
+            if (release.PublishDate == default)
+            {
+                return false;
+            }
+
             var publishDateUtc = release.PublishDate.Kind switch
             {
                 DateTimeKind.Utc => release.PublishDate,

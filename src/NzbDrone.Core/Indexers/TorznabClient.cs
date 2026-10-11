@@ -888,7 +888,7 @@ public class TorznabClient : ITorznabClient
     {
         if (string.IsNullOrWhiteSpace(pubDateStr))
         {
-            return DateTime.UtcNow;
+            return default;
         }
 
         var trimmed = pubDateStr.Trim();
@@ -939,7 +939,7 @@ public class TorznabClient : ITorznabClient
             return DateTime.SpecifyKind(parsedOriginal, DateTimeKind.Utc);
         }
 
-        return DateTime.UtcNow;
+        return default;
     }
 
     internal static string ExtractMagnetUri(params string[] candidates)
