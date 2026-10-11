@@ -721,4 +721,40 @@ public class CategoryServiceTest
         Action act = () => serviceWithDisk.Add(category);
         act.Should().Throw<InvalidOperationException>().WithMessage("*not writable*");
     }
+
+    [TestCase("movies/../../etc")]
+    [TestCase("movies/..")]
+    [TestCase("../movies")]
+    public void Add_WhenCategoryNameContainsTraversalSegment_ThrowsArgumentException(string categoryName)
+    {
+        var category = new Category { Name = categoryName, SavePath = "/downloads/movies" };
+        Action act = () => this.service.Add(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*invalid path segment*");
+    }
+
+    [Test]
+    public void GetSavePathForCategory_WhenVirtualCategoryEscapesParentSavePath_FallsBackToDefault()
+    {
+        var parentCat = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+        this.repository.GetByName("movies/../../etc").Returns((Category)null!);
+        this.repository.GetByName("movies/..").Returns((Category)null!);
+        this.repository.GetByName("movies").Returns(parentCat);
+        this.repository.GetDefault().Returns(new Category { Name = "default", SavePath = "/downloads/default", IsDefault = true });
+
+        var path = this.service.GetSavePathForCategory("movies/../../etc", "/fallback");
+
+        path.Should().Be("/downloads/default");
+    }
+
+    [Test]
+    public void GetSavePathForCategory_WithValidSubcategory_StillInheritsUnderParentSavePath()
+    {
+        var parentCat = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+        this.repository.GetByName("movies/uhd").Returns(new Category { Name = "movies/uhd", SavePath = string.Empty });
+        this.repository.GetByName("movies").Returns(parentCat);
+
+        var path = this.service.GetSavePathForCategory("movies/uhd");
+
+        path.Should().Be(Path.GetFullPath(Path.Combine("/downloads/movies", "uhd")));
+    }
 }
