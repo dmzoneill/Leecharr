@@ -155,7 +155,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<Torrent>(
-                "SELECT * FROM \"Torrents\" WHERE \"Category\" = @Category",
+                "SELECT * FROM \"Torrents\" WHERE LOWER(\"Category\") = LOWER(@Category)",
                 new { Category = category }));
     }
 
