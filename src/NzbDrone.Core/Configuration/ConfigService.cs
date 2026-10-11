@@ -852,7 +852,7 @@ public class ConfigService : IConfigService
 
     public string OllamaHost => this.GetValue("OllamaHost", "http://127.0.0.1:11434");
 
-    public string OllamaModel => this.GetValue("OllamaModel", "llama3");
+    public string OllamaModel => this.GetValue("OllamaModel", "llama3.2");
 
     public string GeminiApiKey => this.GetValue("GeminiApiKey", string.Empty);
 

@@ -38,7 +38,7 @@ export function AiTab() {
   const [formData, setFormData] = useState<AiConfig>({
     activeAiProvider: "RuleHeuristic",
     ollamaHost: "http://127.0.0.1:11434",
-    ollamaModel: "llama3",
+    ollamaModel: "llama3.2",
     geminiApiKey: "",
     geminiModel: "gemini-2.0-flash",
     onnxModelPath: "/config/models/leecharr-ai.onnx",
