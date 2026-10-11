@@ -42,6 +42,8 @@ public abstract class BaseDaemonDownloadTask : IDownloadTask
 
     public long UploadedBytes { get; set; }
 
+    public bool UploadedBytesIsLifetimeTotal => true;
+
     public double Progress { get; set; }
 
     public long DownloadSpeed

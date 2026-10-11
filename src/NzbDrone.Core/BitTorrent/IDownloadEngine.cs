@@ -110,6 +110,12 @@ public interface IDownloadTask
 
     long UploadedBytes { get; }
 
+    /// <summary>
+    /// When true, <see cref="UploadedBytes"/> is the engine lifetime total (libtorrent, Transmission).
+    /// When false, it is bytes uploaded since the current engine session started (MonoTorrent).
+    /// </summary>
+    bool UploadedBytesIsLifetimeTotal => false;
+
     double Progress { get; }
 
     long DownloadSpeed { get; }

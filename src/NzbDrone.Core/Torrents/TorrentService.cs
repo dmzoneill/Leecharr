@@ -1527,27 +1527,32 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             var currentSessionUploaded = task.UploadedBytes;
             if (currentSessionUploaded >= 0)
             {
-                if (this.lastSeenSessionUploaded.TryGetValue(torrent.Id, out var lastSeen) && currentSessionUploaded < lastSeen)
+                if (task.UploadedBytesIsLifetimeTotal)
                 {
-                    // Active engine session was reset or restarted
-                    this.sessionUploadBaselines[torrent.Id] = torrent.Uploaded;
+                    torrent.Uploaded = Math.Max(torrent.Uploaded, currentSessionUploaded);
                 }
-                else if (!this.sessionUploadBaselines.ContainsKey(torrent.Id))
+                else
                 {
-                    // If the task already reports total lifetime upload matching the torrent model,
-                    // the task uploaded count is already cumulative (e.g. Transmission/LibTorrent engines).
-                    // Otherwise, the task reports session bytes since startup (e.g. MonoTorrent), so baseline is the DB cumulative upload.
-                    var baseline = currentSessionUploaded == torrent.Uploaded && currentSessionUploaded > 0
-                        ? 0
-                        : torrent.Uploaded;
+                    if (this.lastSeenSessionUploaded.TryGetValue(torrent.Id, out var lastSeen) && currentSessionUploaded < lastSeen)
+                    {
+                        // Active engine session was reset or restarted
+                        this.sessionUploadBaselines[torrent.Id] = torrent.Uploaded;
+                    }
+                    else if (!this.sessionUploadBaselines.ContainsKey(torrent.Id))
+                    {
+                        // MonoTorrent reports session bytes since startup, so baseline is the DB cumulative upload.
+                        var baseline = currentSessionUploaded == torrent.Uploaded && currentSessionUploaded > 0
+                            ? 0
+                            : torrent.Uploaded;
 
-                    this.sessionUploadBaselines.TryAdd(torrent.Id, baseline);
+                        this.sessionUploadBaselines.TryAdd(torrent.Id, baseline);
+                    }
+
+                    this.lastSeenSessionUploaded[torrent.Id] = currentSessionUploaded;
+
+                    var sessionBaseline = this.sessionUploadBaselines.TryGetValue(torrent.Id, out var b) ? b : torrent.Uploaded;
+                    torrent.Uploaded = Math.Max(torrent.Uploaded, sessionBaseline + currentSessionUploaded);
                 }
-
-                this.lastSeenSessionUploaded[torrent.Id] = currentSessionUploaded;
-
-                var sessionBaseline = this.sessionUploadBaselines.TryGetValue(torrent.Id, out var b) ? b : torrent.Uploaded;
-                torrent.Uploaded = Math.Max(torrent.Uploaded, sessionBaseline + currentSessionUploaded);
             }
 
             var isInactive = torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;

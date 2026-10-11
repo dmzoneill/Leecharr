@@ -1007,6 +1007,34 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public void Get_WhenLifetimeEngineUploadDiffersFromDatabase_UsesEngineTotalWithoutDoubleCount()
+    {
+        var torrent = new Torrent
+        {
+            Id = 51,
+            Name = "Seeding Torrent",
+            TotalSize = 1000,
+            Downloaded = 1000,
+            Uploaded = 400,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+        };
+        this.torrentRepository.Get(51).Returns(torrent);
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.UploadedBytes.Returns(500);
+        task.UploadedBytesIsLifetimeTotal.Returns(true);
+        this.downloadEngine.GetTask(51).Returns(task);
+
+        var result = this.service.Get(51);
+
+        result.Uploaded.Should().Be(500);
+        result.Ratio.Should().Be(0.5);
+    }
+
+    [Test]
     public void Get_WhenDownloading_CalculatesEtaFromRemainingProgressAndTotalSize()
     {
         var torrent = new Torrent
