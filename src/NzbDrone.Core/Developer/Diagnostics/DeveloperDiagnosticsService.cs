@@ -10,7 +10,6 @@ namespace NzbDrone.Core.Developer.Diagnostics;
 
 public class DeveloperDiagnosticsService : IDeveloperDiagnosticsService
 {
-    private static readonly DateTime ProcessStartTimeUtc = DateTime.UtcNow;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IReadOnlyList<ThreadDiagnosticItem> GetThreads()
@@ -95,7 +94,7 @@ public class DeveloperDiagnosticsService : IDeveloperDiagnosticsService
     public EnvironmentDiagnosticReport GetEnvironmentReport()
     {
         var proc = Process.GetCurrentProcess();
-        var uptime = DateTime.UtcNow - ProcessStartTimeUtc;
+        var uptime = DateTime.UtcNow - proc.StartTime.ToUniversalTime();
 
         return new EnvironmentDiagnosticReport
         {
