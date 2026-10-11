@@ -639,6 +639,65 @@ public class OllamaAiProviderTest
         report.Recommendations.Should().Contain(r => r.Contains("[Ollama AI] Swarm looks stalled"));
     }
 
+    [Test]
+    public async Task ProcessNaturalLanguageSearchAsync_WhenOllamaReturnsPartialJson_UsesHeuristicParser()
+    {
+        var jsonResponse = "{\"cleanTitle\":\"Dune\"}";
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            model = "llama3.2",
+            response = jsonResponse,
+            done = true,
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var result = await provider.ProcessNaturalLanguageSearchAsync("Dune 2021 1080p");
+
+        result.Year.Should().Be(2021);
+        result.Resolution.Should().Be("1080p");
+        result.CleanTitle.Should().Be("Dune");
+        result.ConfidenceScore.Should().Be(0.9);
+    }
+
+    [Test]
+    public async Task ProcessNaturalLanguageSearchAsync_WhenOllamaReturnsCompleteJson_UsesModelConfidenceScore()
+    {
+        var jsonResponse = "{\"cleanTitle\":\"Dune\",\"year\":2021,\"resolution\":\"1080p\",\"confidenceScore\":0.72}";
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            model = "llama3.2",
+            response = jsonResponse,
+            done = true,
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var result = await provider.ProcessNaturalLanguageSearchAsync("Dune 2021 1080p");
+
+        result.Year.Should().Be(2021);
+        result.Resolution.Should().Be("1080p");
+        result.ConfidenceScore.Should().Be(0.72);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler;
