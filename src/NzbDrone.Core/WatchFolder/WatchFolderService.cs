@@ -446,10 +446,9 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                     }
                     else
                     {
-                        var loadedDir = Path.Combine(watchRoot, "loaded");
-                        this.diskProvider.EnsureFolder(loadedDir);
-                        var dest = Path.Combine(loadedDir, Path.GetFileName(file));
-                        this.diskProvider.MoveFile(file, dest, true);
+                        var dest = this.GetWatchFolderArchiveDestination(watchRoot, file, "loaded");
+                        this.diskProvider.EnsureFolder(Path.GetDirectoryName(dest));
+                        this.diskProvider.MoveFile(file, dest, overwrite: false);
                     }
                 }
                 catch (Exception ex)
@@ -561,15 +560,49 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
     {
         try
         {
-            var failedDir = Path.Combine(watchFolder, "failed");
-            this.diskProvider.EnsureFolder(failedDir);
-            var dest = Path.Combine(failedDir, Path.GetFileName(file));
-            this.diskProvider.MoveFile(file, dest, overwrite: true);
+            var dest = this.GetWatchFolderArchiveDestination(watchFolder, file, "failed");
+            this.diskProvider.EnsureFolder(Path.GetDirectoryName(dest));
+            this.diskProvider.MoveFile(file, dest, overwrite: false);
             this.logger.Info("Quarantined corrupt watch folder file to '{0}'", dest);
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to quarantine corrupt watch folder file: {0}", file);
+        }
+    }
+
+    private string GetWatchFolderArchiveDestination(string watchRoot, string file, string archiveFolder)
+    {
+        var archiveRoot = Path.Combine(watchRoot, archiveFolder);
+        var relativePath = this.GetRelativeWatchFilePath(watchRoot, file);
+        return string.IsNullOrWhiteSpace(relativePath)
+            ? Path.Combine(archiveRoot, Path.GetFileName(file))
+            : Path.Combine(archiveRoot, relativePath);
+    }
+
+    private string GetRelativeWatchFilePath(string watchRoot, string file)
+    {
+        if (string.IsNullOrWhiteSpace(watchRoot) || string.IsNullOrWhiteSpace(file))
+        {
+            return Path.GetFileName(file);
+        }
+
+        try
+        {
+            var fullFile = Path.GetFullPath(file);
+            var fullRoot = Path.GetFullPath(watchRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!fullFile.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.GetFileName(file);
+            }
+
+            var relativePath = Path.GetRelativePath(fullRoot, fullFile);
+            return relativePath.StartsWith("..", StringComparison.Ordinal) ? Path.GetFileName(file) : relativePath;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error resolving relative watch folder path for '{0}'", file);
+            return Path.GetFileName(file);
         }
     }
 
