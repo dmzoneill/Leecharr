@@ -595,6 +595,7 @@ public class DownloadClientController : Controller
             Password = string.IsNullOrEmpty(model.Password) ? string.Empty : "********",
             Category = model.Category,
             Enabled = model.Enable,
+            Priority = model.Priority,
         };
     }
 
@@ -612,6 +613,7 @@ public class DownloadClientController : Controller
             Password = DownloadClientPasswordHelper.Protect(resource.Password, this.protector),
             Category = resource.Category,
             Enable = resource.Enabled,
+            Priority = resource.Priority,
         };
     }
 

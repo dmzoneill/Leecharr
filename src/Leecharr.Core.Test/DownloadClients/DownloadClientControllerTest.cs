@@ -38,7 +38,7 @@ public class DownloadClientControllerTest
     {
         var definitions = new List<DownloadClientDefinition>
         {
-            new() { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Category = "movies", Enable = true },
+            new() { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Category = "movies", Enable = true, Priority = 5 },
             new() { Id = 2, Name = "Client2", ClientType = "Transmission", Host = "localhost", Port = 9091, Category = "tv", Enable = false },
         };
         this.repository.All().Returns(definitions);
@@ -53,6 +53,7 @@ public class DownloadClientControllerTest
         list!.Count.Should().Be(2);
         list[0].Category.Should().Be("movies");
         list[0].Enabled.Should().BeTrue();
+        list[0].Priority.Should().Be(5);
         list[1].Category.Should().Be("tv");
         list[1].Enabled.Should().BeFalse();
     }
@@ -593,6 +594,33 @@ public class DownloadClientControllerTest
         requests.Should().HaveCount(1);
         requests[0].Headers.Authorization.Should().NotBeNull();
         requests[0].Headers.Authorization!.Scheme.Should().Be("Basic");
+    }
+
+    [Test]
+    public void Create_PersistsPriority()
+    {
+        DownloadClientDefinition captured = null!;
+        this.repository.Insert(Arg.Do<DownloadClientDefinition>(d => captured = d))
+            .Returns(callInfo => callInfo.Arg<DownloadClientDefinition>());
+
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var resource = new DownloadClientResource
+        {
+            Name = "PriorityClient",
+            ClientType = "qBittorrent",
+            Host = "192.168.1.50",
+            Port = 8080,
+            Enabled = true,
+            Priority = 7,
+        };
+
+        var result = controller.Create(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var returned = okResult!.Value as DownloadClientResource;
+        returned!.Priority.Should().Be(7);
+        captured.Priority.Should().Be(7);
     }
 
     [Test]
