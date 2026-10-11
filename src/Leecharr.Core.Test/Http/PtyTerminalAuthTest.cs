@@ -184,4 +184,72 @@ public class PtyTerminalAuthTest
         context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         this.ptyService.DidNotReceive().CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
     }
+
+    [Test]
+    public async Task HandleWebSocket_WhenAuthDisabledAndCrossOriginOrigin_RejectsWith403Forbidden()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(false);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/api/v1/terminal/ws";
+        context.Request.Host = new HostString("localhost", 7889);
+        context.Request.Headers["Origin"] = "https://evil.example.com";
+        context.Response.Body = new MemoryStream();
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        this.ptyService.DidNotReceive().CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task HandleWebSocket_WhenAuthDisabledAndCrossSiteSecFetchSite_RejectsWith403Forbidden()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(false);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Request.Host = new HostString("localhost", 7889);
+        context.Request.Headers["Sec-Fetch-Site"] = "cross-site";
+        context.Response.Body = new MemoryStream();
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        this.ptyService.DidNotReceive().CreateSession(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Test]
+    public void IsTerminalHandshakeOriginAllowed_WhenMatchingOrigin_ReturnsTrue()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Host = new HostString("localhost", 7889);
+        context.Request.Headers["Origin"] = "http://localhost:7889";
+
+        TerminalWebSocketHandler.IsTerminalHandshakeOriginAllowed(context, this.configService, this.configFileProvider)
+            .Should().BeTrue();
+    }
+
+    [Test]
+    public void IsTerminalHandshakeOriginAllowed_WhenCrossOriginWithoutCredentials_ReturnsFalse()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Host = new HostString("localhost", 7889);
+        context.Request.Headers["Origin"] = "http://attacker.com:7889";
+
+        TerminalWebSocketHandler.IsTerminalHandshakeOriginAllowed(context, this.configService, this.configFileProvider)
+            .Should().BeFalse();
+    }
+
+    [Test]
+    public void IsTerminalHandshakeOriginAllowed_WhenCrossOriginWithApiKeyHeader_ReturnsTrue()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Host = new HostString("localhost", 7889);
+        context.Request.Headers["Origin"] = "http://attacker.com:7889";
+        context.Request.Headers["X-Api-Key"] = "master_secret_api_key";
+
+        TerminalWebSocketHandler.IsTerminalHandshakeOriginAllowed(context, this.configService, this.configFileProvider)
+            .Should().BeTrue();
+    }
 }

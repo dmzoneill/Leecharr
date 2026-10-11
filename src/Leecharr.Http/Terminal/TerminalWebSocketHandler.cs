@@ -32,6 +32,79 @@ public static class TerminalWebSocketHandler
         return RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider);
     }
 
+    public static bool IsTerminalHandshakeOriginAllowed(
+        HttpContext context,
+        IConfigService configService,
+        IConfigFileProvider configFileProvider)
+    {
+        if (HasExplicitTerminalCredentials(context))
+        {
+            return true;
+        }
+
+        var allowedCorsOrigins = configService?.AllowedCorsOrigins;
+        if (string.IsNullOrWhiteSpace(allowedCorsOrigins))
+        {
+            allowedCorsOrigins = configFileProvider?.AllowedCorsOrigins;
+        }
+
+        var hasOrigin = context.Request.Headers.TryGetValue("Origin", out var originHeader) &&
+                        !string.IsNullOrWhiteSpace(originHeader);
+        var hasReferer = context.Request.Headers.TryGetValue("Referer", out var refererHeader) &&
+                         !string.IsNullOrWhiteSpace(refererHeader);
+
+        if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&
+            string.Equals(secFetchSite.ToString(), "cross-site", StringComparison.OrdinalIgnoreCase))
+        {
+            var originCandidate = hasOrigin ? originHeader.ToString() : (hasReferer ? refererHeader.ToString() : null);
+            if (string.IsNullOrWhiteSpace(originCandidate) ||
+                !CsrfProtectionMiddleware.IsOriginAllowed(originCandidate, context.Request.Host, allowedCorsOrigins))
+            {
+                return false;
+            }
+        }
+
+        if (hasOrigin &&
+            !CsrfProtectionMiddleware.IsOriginAllowed(originHeader.ToString(), context.Request.Host, allowedCorsOrigins))
+        {
+            return false;
+        }
+
+        if (!hasOrigin && hasReferer &&
+            !CsrfProtectionMiddleware.IsOriginAllowed(refererHeader.ToString(), context.Request.Host, allowedCorsOrigins))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool HasExplicitTerminalCredentials(HttpContext context)
+    {
+        if (context.Request.Headers.ContainsKey("X-Api-Key") ||
+            context.Request.Headers.ContainsKey("ApiKey") ||
+            context.Request.Headers.ContainsKey("X-Transmission-Session-Id"))
+        {
+            return true;
+        }
+
+        if (context.Request.Headers.TryGetValue("Authorization", out var authHeader) &&
+            !string.IsNullOrWhiteSpace(authHeader))
+        {
+            var authHeaderValue = authHeader.ToString();
+            if (authHeaderValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ||
+                authHeaderValue.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return context.Request.Query.ContainsKey("apikey") ||
+               context.Request.Query.ContainsKey("api_key") ||
+               context.Request.Query.ContainsKey("token") ||
+               context.Request.Query.ContainsKey("access_token");
+    }
+
     public static async Task HandleWebSocket(
         HttpContext context,
         IPtyTerminalService ptyService,
@@ -39,6 +112,21 @@ public static class TerminalWebSocketHandler
         IConfigFileProvider configFileProvider = null)
     {
         configFileProvider ??= context.RequestServices?.GetService(typeof(IConfigFileProvider)) as IConfigFileProvider;
+
+        if (!IsTerminalHandshakeOriginAllowed(context, configService, configFileProvider))
+        {
+            Logger.Warn(
+                "Terminal WebSocket blocked: cross-origin handshake from Origin={0}, Referer={1}, Sec-Fetch-Site={2}",
+                context.Request.Headers.Origin.ToString(),
+                context.Request.Headers.Referer.ToString(),
+                context.Request.Headers["Sec-Fetch-Site"].ToString());
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsync(
+                "Terminal access blocked: cross-origin WebSocket handshake rejected.",
+                context.RequestAborted);
+            await context.Response.CompleteAsync();
+            return;
+        }
 
         if (configFileProvider?.AuthenticationEnabled == true)
         {
