@@ -222,6 +222,40 @@ public class CategoryServiceTest
     }
 
     [Test]
+    public void Update_WhenOnlyDefaultCategoryAndIsDefaultCleared_ThrowsInvalidOperationException()
+    {
+        var defaultCategory = new Category { Id = 1, Name = "general", IsDefault = true };
+        var otherCategory = new Category { Id = 2, Name = "movies", IsDefault = false };
+        this.repository.Get(1).Returns(defaultCategory);
+        this.repository.All().Returns(new List<Category> { defaultCategory, otherCategory });
+
+        var update = new Category { Id = 1, Name = "general", IsDefault = false };
+
+        Action act = () => this.service.Update(update);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*only default*");
+        this.repository.DidNotReceive().Update(Arg.Any<Category>());
+    }
+
+    [Test]
+    public void Update_WhenAnotherDefaultExists_AllowsClearingIsDefaultOnCurrentDefault()
+    {
+        var staleDefault = new Category { Id = 1, Name = "general", IsDefault = true };
+        var otherDefault = new Category { Id = 2, Name = "movies", IsDefault = true };
+        this.repository.Get(1).Returns(staleDefault);
+        this.repository.All().Returns(new List<Category> { staleDefault, otherDefault });
+        this.repository.Update(Arg.Any<Category>()).Returns(callInfo => callInfo.Arg<Category>());
+
+        var update = new Category { Id = 1, Name = "general", IsDefault = false };
+
+        var updated = this.service.Update(update);
+
+        updated.IsDefault.Should().BeFalse();
+        this.repository.Received(1).Update(Arg.Is<Category>(c => c.Id == 1 && !c.IsDefault));
+    }
+
+    [Test]
     public void GetSavePathForCategory_WhenCategoryExists_ReturnsCategorySavePath()
     {
         this.repository.GetByName("tv").Returns(new Category { Name = "tv", SavePath = "/custom/tv/path" });

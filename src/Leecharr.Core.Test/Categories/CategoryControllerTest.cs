@@ -321,7 +321,7 @@ public class CategoryControllerTest
     [Test]
     public void Update_WhenSameCategoryUpdatesItself_Succeeds()
     {
-        this.categoryService.Get(1).Returns(new Category { Id = 1, Name = "anime", SavePath = "/old" });
+        this.categoryService.Get(1).Returns(new Category { Id = 1, Name = "anime", SavePath = "/old", IsDefault = true });
         this.categoryService.GetByName("anime").Returns(new Category { Id = 1, Name = "anime" });
         this.categoryService.Update(Arg.Any<Category>()).Returns(args => (Category)args[0]);
 
@@ -339,6 +339,21 @@ public class CategoryControllerTest
         res.SavePath.Should().Be("/new");
         res.AutoStop.Should().BeTrue();
         res.TargetRatio.Should().Be(2.5);
+
+        this.categoryService.Received(1).Update(Arg.Is<Category>(c => c.IsDefault));
+    }
+
+    [Test]
+    public void Update_WhenIsDefaultOmitted_PreservesExistingDefaultFlag()
+    {
+        this.categoryService.Get(3).Returns(new Category { Id = 3, Name = "tv", IsDefault = true });
+        this.categoryService.GetByName("tv").Returns(new Category { Id = 3, Name = "tv" });
+        this.categoryService.Update(Arg.Any<Category>()).Returns(args => (Category)args[0]);
+
+        var result = this.controller.Update(3, new CategoryResource { Name = "tv", SavePath = "/downloads/tv" });
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        this.categoryService.Received(1).Update(Arg.Is<Category>(c => c.Id == 3 && c.IsDefault));
     }
 
     [Test]

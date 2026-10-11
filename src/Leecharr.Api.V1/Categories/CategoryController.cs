@@ -147,6 +147,11 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
         {
             var model = CategoryResourceMapper.ToModel(resource);
             model.Id = id;
+            if (!resource.IsDefault.HasValue)
+            {
+                model.IsDefault = current.IsDefault;
+            }
+
             var updated = this.categoryService.Update(model);
             return this.Ok(CategoryResourceMapper.ToResource(updated));
         }
