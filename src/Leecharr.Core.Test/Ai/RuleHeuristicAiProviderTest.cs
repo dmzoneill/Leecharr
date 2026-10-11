@@ -260,6 +260,35 @@ public class RuleHeuristicAiProviderTest
     }
 
     [Test]
+    public async Task ParseReleaseAsync_LanguageWordInTitle_PreservesCleanTitleAndYear()
+    {
+        var italianJob = await this.provider.ParseReleaseAsync("The.Italian.Job.2003.1080p.BluRay.x264-GROUP");
+        italianJob.CleanTitle.Should().Be("The Italian Job");
+        italianJob.Year.Should().Be(2003);
+        italianJob.Language.Should().BeNull();
+        italianJob.Languages.Should().BeEmpty();
+        italianJob.Resolution.Should().Be("1080p");
+        italianJob.ReleaseGroup.Should().Be("GROUP");
+
+        var frenchConnection = await this.provider.ParseReleaseAsync("The.French.Connection.1971.1080p.BluRay.x264-GROUP");
+        frenchConnection.CleanTitle.Should().Be("The French Connection");
+        frenchConnection.Year.Should().Be(1971);
+        frenchConnection.Languages.Should().BeEmpty();
+
+        var englishPatient = await this.provider.ParseReleaseAsync("The.English.Patient.1996.1080p.BluRay.x264-GROUP");
+        englishPatient.CleanTitle.Should().Be("The English Patient");
+        englishPatient.Year.Should().Be(1996);
+
+        var spanishPrisoner = await this.provider.ParseReleaseAsync("The.Spanish.Prisoner.1997.1080p.BluRay-GROUP");
+        spanishPrisoner.CleanTitle.Should().Be("The Spanish Prisoner");
+        spanishPrisoner.Year.Should().Be(1997);
+
+        var germanDoctor = await this.provider.ParseReleaseAsync("The.German.Doctor.2013.1080p.BluRay-GROUP");
+        germanDoctor.CleanTitle.Should().Be("The German Doctor");
+        germanDoctor.Year.Should().Be(2013);
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_FrenchAndSpanishSceneTags_TokenizesCorrectly()
     {
         var releaseFrench = "Le.Fabuleux.Destin.d.Amelie.Poulain.2001.VOSTFR.TRUEFRENCH.VFF.1080p.BluRay-GROUP";

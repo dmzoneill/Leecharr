@@ -199,7 +199,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         CheckTech(AudioChannelsRegex);
         CheckTech(DynamicRangeRegex);
         CheckTech(EditionRegex);
-        CheckTech(LanguageRegex);
+        CheckLanguageTech(working, ref techCutoff);
 
         var yearMatches = YearRegex.Matches(working);
         Match releaseYearMatch = null;
@@ -285,7 +285,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         var langMatches = LanguageRegex.Matches(working);
         foreach (Match lm in langMatches)
         {
-            if (lm.Success)
+            if (lm.Success && !IsTitleEmbeddedLanguageToken(working, lm))
             {
                 var normalizedLang = NormalizeLanguageToken(lm.Groups["lang"].Value);
                 if (!result.Languages.Contains(normalizedLang, StringComparer.OrdinalIgnoreCase))
@@ -888,7 +888,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         CheckMatch(VideoCodecRegex);
         CheckMatch(AudioCodecRegex);
         CheckMatch(AudioChannelsRegex);
-        CheckMatch(LanguageRegex);
+        CheckLanguageTitleCutoff(clean, ref cutoffIndex);
         CheckMatch(DynamicRangeRegex);
         CheckMatch(EditionRegex);
 
@@ -921,6 +921,52 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         clean = Regex.Replace(clean, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(2)).Trim();
 
         return string.IsNullOrWhiteSpace(clean) ? raw : clean;
+    }
+
+    private static void CheckLanguageTech(string working, ref int techCutoff)
+    {
+        var languageMatch = LanguageRegex.Match(working);
+        if (languageMatch.Success
+            && languageMatch.Index > 0
+            && languageMatch.Index < techCutoff
+            && !IsTitleEmbeddedLanguageToken(working, languageMatch))
+        {
+            techCutoff = languageMatch.Index;
+        }
+    }
+
+    private static void CheckLanguageTitleCutoff(string working, ref int cutoffIndex)
+    {
+        var languageMatch = LanguageRegex.Match(working);
+        if (languageMatch.Success
+            && languageMatch.Index > 0
+            && languageMatch.Index < cutoffIndex
+            && !IsTitleEmbeddedLanguageToken(working, languageMatch))
+        {
+            cutoffIndex = languageMatch.Index;
+        }
+    }
+
+    private static bool IsTitleEmbeddedLanguageToken(string working, Match languageMatch)
+    {
+        if (!languageMatch.Success)
+        {
+            return false;
+        }
+
+        var firstYearMatch = YearRegex.Match(working);
+        if (!firstYearMatch.Success || languageMatch.Index >= firstYearMatch.Index)
+        {
+            return false;
+        }
+
+        var betweenLanguageAndYear = working[(languageMatch.Index + languageMatch.Length)..firstYearMatch.Index];
+        var titleSegment = betweenLanguageAndYear.Replace(".", string.Empty, StringComparison.Ordinal)
+            .Replace("_", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal)
+            .Replace(" ", string.Empty, StringComparison.Ordinal);
+
+        return titleSegment.Length > 0;
     }
 
     private static bool IsTrailingTsMediaExtensionMisparse(string working, Match qualityMatch)
