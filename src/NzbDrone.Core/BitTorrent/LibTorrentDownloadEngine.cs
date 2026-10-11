@@ -695,7 +695,14 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     {
         var boundIp = this.ResolveBoundIpv4Address();
         var port = this.configService?.ListeningPort > 0 ? this.configService.ListeningPort : 6882;
-        var listenInterfaces = $"{boundIp}:{port}";
+        var listenHost = boundIp;
+        if (IPAddress.TryParse(boundIp, out var boundAddress) &&
+            boundAddress.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            listenHost = $"[{boundIp}]";
+        }
+
+        var listenInterfaces = $"{listenHost}:{port}";
 
         var isAltSpeed = this.configService?.AlternativeSpeedEnabled ?? false;
         var maxDownloadSpeedKbps = isAltSpeed
