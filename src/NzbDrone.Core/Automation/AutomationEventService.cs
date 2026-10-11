@@ -152,10 +152,18 @@ public class AutomationEventService :
 
     public void Handle(MediaEnrichedEvent message)
     {
-        if (message?.TorrentId > 0)
+        if (message == null || message.TorrentId <= 0)
         {
-            _ = DispatchTrigger(AutomationTrigger.MediaEnriched, null);
+            return;
         }
+
+        var torrent = _torrentRepository?.Get(message.TorrentId);
+        if (torrent == null)
+        {
+            return;
+        }
+
+        _ = DispatchTrigger(AutomationTrigger.MediaEnriched, torrent);
     }
 
     public void Handle(ArchiveExtractionCompletedEvent message)

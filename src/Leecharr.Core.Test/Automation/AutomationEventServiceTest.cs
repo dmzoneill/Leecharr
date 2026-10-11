@@ -322,4 +322,27 @@ public class AutomationEventServiceTest
 
         _automationService.Received(1).ExecuteScript(successScript, torrent);
     }
+
+    [Test]
+    public async Task ShouldLoadTorrentForMediaEnrichedAutomation()
+    {
+        var torrent = new Torrent { Id = 99, Name = "EnrichedTorrent", Category = "Movies" };
+        var script = new AutomationScript
+        {
+            Id = 91,
+            Name = "Media Enriched Script",
+            IsEnabled = true,
+            Trigger = AutomationTrigger.MediaEnriched,
+        };
+
+        _torrentRepository.Get(99).Returns(torrent);
+        _automationService.GetAll().Returns(new List<AutomationScript> { script });
+        var service = new AutomationEventService(_automationService, TimeSpan.FromSeconds(2), _torrentRepository);
+
+        service.Handle(new MediaEnrichedEvent { TorrentId = 99 });
+
+        await Task.Delay(200);
+
+        _automationService.Received(1).ExecuteScript(script, torrent);
+    }
 }
