@@ -9,11 +9,10 @@ namespace NzbDrone.Core.Automation;
 
 public sealed class ScriptHtmlContext
 {
-    private static readonly HtmlParser Parser = new();
-
     public static HtmlDocumentWrapper parse(string html)
     {
-        var document = Parser.ParseDocument(html ?? string.Empty);
+        // AngleSharp's HtmlParser is not thread-safe; automation scripts may call parse concurrently.
+        var document = new HtmlParser().ParseDocument(html ?? string.Empty);
         return new HtmlDocumentWrapper(document);
     }
 
