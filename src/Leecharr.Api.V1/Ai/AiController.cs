@@ -127,15 +127,18 @@ public class AiController : Controller
 
         if (request.TorrentId.HasValue)
         {
-            var torrent = this.torrentService.Get(request.TorrentId.Value);
-            if (torrent != null)
+            var torrentId = request.TorrentId.Value;
+            var torrent = this.torrentService.Get(torrentId);
+            if (torrent == null)
             {
-                torrentName ??= torrent.Name;
-                var dbFiles = this.torrentFileService.GetFiles(request.TorrentId.Value);
-                if (dbFiles != null)
-                {
-                    files.AddRange(dbFiles);
-                }
+                return this.NotFound(new { error = $"Torrent with ID {torrentId} not found." });
+            }
+
+            torrentName ??= torrent.Name;
+            var dbFiles = this.torrentFileService.GetFiles(torrentId);
+            if (dbFiles != null)
+            {
+                files.AddRange(dbFiles);
             }
         }
 
