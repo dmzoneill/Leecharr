@@ -602,7 +602,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                             Uploaded = inBucket.Sum(s => s.Uploaded),
                             Downloaded = inBucket.Sum(s => s.Downloaded),
                             Announces = inBucket.Count(s => s.Operation == "Announce"),
-                            PeersDiscovered = inBucket.Sum(s => s.PeersDiscovered),
+                            PeersDiscovered = inBucket.Sum(s => (long)s.PeersDiscovered),
                             AvgLatencyMs = inBucket.Where(s => s.ResponseTimeMs > 0).Select(s => (double)s.ResponseTimeMs).DefaultIfEmpty(0).Average(),
                         });
                     }

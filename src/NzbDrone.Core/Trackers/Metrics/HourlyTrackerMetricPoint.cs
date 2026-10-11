@@ -12,7 +12,7 @@ public class HourlyTrackerMetricPoint
 
     public int Announces { get; set; }
 
-    public int PeersDiscovered { get; set; }
+    public long PeersDiscovered { get; set; }
 
     public double AvgLatencyMs { get; set; }
 }
