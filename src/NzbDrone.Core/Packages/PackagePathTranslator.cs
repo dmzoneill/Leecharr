@@ -76,12 +76,12 @@ public static class PackagePathTranslator
         if (remappings != null && remappings.Count > 0)
         {
             var normCurrent = NormalizeForComparison(path);
-            foreach (var kvp in remappings)
+            foreach (var kvp in remappings.OrderByDescending(k => NormalizeForComparison(k.Key).Length))
             {
                 if (!string.IsNullOrWhiteSpace(kvp.Key) && !string.IsNullOrWhiteSpace(kvp.Value))
                 {
                     var normKvpKey = NormalizeForComparison(kvp.Key);
-                    if (normCurrent.StartsWith(normKvpKey, StringComparison.OrdinalIgnoreCase))
+                    if (HasPathPrefix(normCurrent, normKvpKey))
                     {
                         var suffix = normCurrent.Substring(normKvpKey.Length).TrimStart('/');
                         var destPfx = NormalizePathSeparators(kvp.Value, sep).TrimEnd(sep);
@@ -96,7 +96,7 @@ public static class PackagePathTranslator
         {
             var normSource = NormalizeForComparison(sourcePrefix);
             var normCurrent = NormalizeForComparison(path);
-            if (normCurrent.StartsWith(normSource, StringComparison.OrdinalIgnoreCase))
+            if (HasPathPrefix(normCurrent, normSource))
             {
                 var suffix = normCurrent.Substring(normSource.Length).TrimStart('/');
                 var targetPfx = !string.IsNullOrWhiteSpace(destinationPrefix)
@@ -132,5 +132,30 @@ public static class PackagePathTranslator
 
         var s = StripDriveLetter(p).Replace('\\', '/').TrimEnd('/');
         return s.StartsWith('/') ? s : "/" + s;
+    }
+
+    private static bool HasPathPrefix(string normalizedPath, string normalizedPrefix)
+    {
+        if (string.IsNullOrEmpty(normalizedPrefix))
+        {
+            return false;
+        }
+
+        if (normalizedPath.Equals(normalizedPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (normalizedPath.Length <= normalizedPrefix.Length)
+        {
+            return false;
+        }
+
+        if (!normalizedPath.StartsWith(normalizedPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return normalizedPath[normalizedPrefix.Length] == '/';
     }
 }

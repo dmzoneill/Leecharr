@@ -438,6 +438,52 @@ public class PackageManagementTest
     }
 
     [Test]
+    public void PackagePathTranslator_DoesNotMatchPartialDirectoryPrefix()
+    {
+        var remappings = new Dictionary<string, string>
+        {
+            ["tv"] = "/dest/tv",
+        };
+
+        var translated = PackagePathTranslator.TranslatePath(
+            "tvshow/episode.mkv",
+            remappings: remappings,
+            destinationRoot: "/fallback",
+            targetSeparator: '/');
+
+        translated.Should().Be("/fallback/tvshow/episode.mkv");
+    }
+
+    [Test]
+    public void PackagePathTranslator_SourcePrefixRequiresDirectoryBoundary()
+    {
+        var translated = PackagePathTranslator.TranslatePath(
+            "tvshow/episode.mkv",
+            sourcePrefix: "tv",
+            destinationPrefix: "/dest",
+            targetSeparator: '/');
+
+        translated.Should().Be("tvshow/episode.mkv");
+    }
+
+    [Test]
+    public void PackagePathTranslator_PrefersLongestRemappingKey()
+    {
+        var remappings = new Dictionary<string, string>
+        {
+            ["/data/tv"] = "/short",
+            ["/data/tvshow"] = "/long",
+        };
+
+        var translated = PackagePathTranslator.TranslatePath(
+            "/data/tvshow/episode.mkv",
+            remappings: remappings,
+            targetSeparator: '/');
+
+        translated.Should().Be("/long/episode.mkv");
+    }
+
+    [Test]
     public async Task PackageController_Export_Get_ReturnsFileResultWithSanitizedFilename()
     {
         var torrent = new Torrent
