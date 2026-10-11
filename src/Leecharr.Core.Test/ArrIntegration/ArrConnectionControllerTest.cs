@@ -269,8 +269,98 @@ public class ArrConnectionControllerTest
 
         var deserialized = JsonSerializer.Deserialize<ArrConnectionResource>("{\"name\":\"Test\",\"publicUrl\":\"https://alt.example.com\"}");
         deserialized.Should().NotBeNull();
-        deserialized!.ExternalUrl.Should().Be("https://alt.example.com");
+        deserialized!.PublicUrl.Should().Be("https://alt.example.com");
         deserialized.PublicUrl.Should().Be("https://alt.example.com");
+    }
+
+    [Test]
+    public void Update_PreservesPrioritySettingsAndMetadata_WhenOmittedFromResource()
+    {
+        var existing = new ArrConnectionDefinition
+        {
+            Id = 7,
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            Priority = 9,
+            Settings = "{\"tags\":[\"tv\"]}",
+            ConfigContract = "CustomContract",
+            AutoEnrichMetadata = false,
+            Implementation = "Sonarr",
+        };
+        this.repository.Get(7).Returns(existing);
+
+        var resource = new ArrConnectionResource
+        {
+            Id = 7,
+            Name = "Renamed Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "********",
+            Enabled = true,
+        };
+
+        var result = this.controller.Update(7, resource);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        this.repository.Received(1).Update(Arg.Is<ArrConnectionDefinition>(m =>
+            m.Id == 7 &&
+            m.Name == "Renamed Sonarr" &&
+            m.Priority == 9 &&
+            m.Settings == "{\"tags\":[\"tv\"]}" &&
+            m.ConfigContract == "CustomContract" &&
+            m.AutoEnrichMetadata == false));
+    }
+
+    [Test]
+    public void Update_DoesNotPersistResolvedExternalUrl_WhenStoredUrlBlank()
+    {
+        Environment.SetEnvironmentVariable("LEECHARR__ARR_SONARR_PUBLIC_URL", "https://sonarr.env.example");
+
+        var existing = new ArrConnectionDefinition
+        {
+            Id = 8,
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ExternalUrl = null,
+            ApiKey = "key",
+        };
+        this.repository.Get(8).Returns(existing);
+
+        var resource = new ArrConnectionResource
+        {
+            Id = 8,
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ExternalUrl = "https://sonarr.env.example",
+            PublicUrl = "https://sonarr.env.example",
+            ApiKey = "********",
+            Enabled = true,
+        };
+
+        var result = this.controller.Update(8, resource);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        this.repository.Received(1).Update(Arg.Is<ArrConnectionDefinition>(m =>
+            m.Id == 8 && m.ExternalUrl == null));
+    }
+
+    [Test]
+    public void NormalizeExternalUrlForStorage_WhenCandidateMatchesEnvFallback_ReturnsNull()
+    {
+        Environment.SetEnvironmentVariable("SONARR_EXTERNAL_URL", "https://sonarr.public.net");
+
+        var existing = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Name = "Sonarr",
+            ExternalUrl = null,
+        };
+        var resource = new ArrConnectionResource { PublicUrl = "https://sonarr.public.net" };
+
+        ArrConnectionController.NormalizeExternalUrlForStorage(resource, existing).Should().BeNull();
     }
 
     [Test]
