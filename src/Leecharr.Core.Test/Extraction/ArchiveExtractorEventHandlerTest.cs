@@ -70,6 +70,53 @@ public class ArchiveExtractorEventHandlerTest
         ArchiveExtractorEventHandler.IsSecondaryVolume(filePath).Should().Be(isSecondary);
     }
 
+    [TestCase(null, null)]
+    [TestCase("", null)]
+    [TestCase("pass1,pass2", new[] { "pass1", "pass2" })]
+    [TestCase("pass1;pass2", new[] { "pass1", "pass2" })]
+    [TestCase("p@ss\\,word", new[] { "p@ss,word" })]
+    [TestCase("p@ss\\;word", new[] { "p@ss;word" })]
+    [TestCase(" leading", new[] { " leading" })]
+    [TestCase("trail ", new[] { "trail " })]
+    [TestCase("a\\nb", new[] { "a\nb" })]
+    [TestCase("back\\\\slash", new[] { "back\\slash" })]
+    public void ParseArchivePasswordList_ParsesSeparatorsAndEscapes(string input, string[] expected)
+    {
+        var result = ArchiveExtractorEventHandler.ParseArchivePasswordList(input!);
+        if (expected == null)
+        {
+            result.Should().BeNull();
+        }
+        else
+        {
+            result.Should().BeEquivalentTo(expected, options => options.WithStrictOrdering());
+        }
+    }
+
+    [Test]
+    public async Task Handle_WhenArchivePasswordsConfigured_PassesParsedCandidatesToExtractor()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+        this.configService.GetValue("ArchivePassword", (string)null).Returns((string)null);
+        this.configService.GetValue("ArchivePasswords", (string)null).Returns("p@ss\\,word,plain");
+
+        var torrent = new Torrent { Id = 20, Name = "Test", SavePath = "/downloads/Test" };
+        var files = new List<TorrentFile> { new() { Id = 1, TorrentId = 20, Path = "file.rar", Size = 1000 } };
+        this.torrentFileService.GetFiles(20).Returns(files);
+        this.extractorService.IsArchiveFile("file.rar").Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call => !call.Arg<string>().Contains(".leecharr_extracted"));
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+
+        await this.handler.HandleAsync(new TorrentDownloadCompletedEvent(torrent));
+
+        await this.extractorService.Received(1).ExtractArchiveAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Is<IReadOnlyList<string>>(p => p != null && p.Count == 2 && p[0] == "p@ss,word" && p[1] == "plain"),
+            Arg.Any<CancellationToken>());
+    }
+
     [Test]
     public void Handle_WhenAutoExtractDisabled_DoesNotExtract()
     {
