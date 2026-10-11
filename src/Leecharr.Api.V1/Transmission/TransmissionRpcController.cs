@@ -211,7 +211,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
 
         if (request == null || string.IsNullOrWhiteSpace(request.Method))
         {
-            return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = null });
+            return this.Ok(new TransmissionRpcResponse { Result = "parse error", Tag = null });
         }
 
         object tag = null;
