@@ -44,7 +44,7 @@ public class SystemDeveloperController : Controller
 
     private static readonly HashSet<string> SensitiveKeySubstrings = new(StringComparer.OrdinalIgnoreCase)
     {
-        "key", "password", "secret", "token", "credential", "auth", "hash",
+        "key", "password", "secret", "token", "credential", "auth", "hash", "pin",
     };
 
     private static readonly Regex CommandNameRegex = new(
