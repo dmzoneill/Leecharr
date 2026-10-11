@@ -16,4 +16,10 @@
     <PackageReference Include="NSubstitute" Version="6.2.0" />
     <PackageReference Include="FluentAssertions" Version="8.1.1" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="TestData\GeoIP2-Country-Test.mmdb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
