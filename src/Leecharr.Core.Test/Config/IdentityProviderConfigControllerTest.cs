@@ -144,6 +144,56 @@ public class IdentityProviderConfigControllerTest
     }
 
     [Test]
+    public void Create_WhenProviderIdAlreadyExists_ReturnsBadRequest()
+    {
+        this.providerService.GetByProviderId("okta").Returns(new IdentityProviderDefinition
+        {
+            Id = 1,
+            ProviderId = "Okta",
+            Name = "Okta SSO",
+        });
+
+        var resource = new IdentityProviderResource
+        {
+            ProviderId = "okta",
+            Name = "Duplicate Okta",
+        };
+
+        var result = this.controller.Create(resource);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        this.providerService.DidNotReceive().Add(Arg.Any<IdentityProviderDefinition>());
+    }
+
+    [Test]
+    public void Update_WhenProviderIdConflictsWithAnotherProvider_ReturnsBadRequest()
+    {
+        this.providerService.GetById(2).Returns(new IdentityProviderDefinition
+        {
+            Id = 2,
+            ProviderId = "auth0",
+            Name = "Auth0",
+        });
+        this.providerService.GetByProviderId("entra").Returns(new IdentityProviderDefinition
+        {
+            Id = 1,
+            ProviderId = "Entra",
+            Name = "Entra ID",
+        });
+
+        var resource = new IdentityProviderResource
+        {
+            ProviderId = "entra",
+            Name = "Auth0 renamed",
+        };
+
+        var result = this.controller.Update(2, resource);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        this.providerService.DidNotReceive().Update(Arg.Any<IdentityProviderDefinition>());
+    }
+
+    [Test]
     public void Update_WhenNull_ReturnsBadRequest()
     {
         var result = this.controller.Update(1, null!);

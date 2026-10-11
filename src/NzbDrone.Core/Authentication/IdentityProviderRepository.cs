@@ -25,7 +25,7 @@ public class IdentityProviderRepository : BasicRepository<IdentityProviderDefini
     {
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<IdentityProviderDefinition>(
-                "SELECT * FROM \"IdentityProviders\" WHERE LOWER(\"ProviderId\") = LOWER(@ProviderId)",
+                "SELECT * FROM \"IdentityProviders\" WHERE LOWER(\"ProviderId\") = LOWER(@ProviderId) ORDER BY \"Id\"",
                 new { ProviderId = providerId }));
     }
 }
