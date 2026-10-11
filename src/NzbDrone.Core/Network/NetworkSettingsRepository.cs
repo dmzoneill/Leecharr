@@ -19,6 +19,6 @@ public class NetworkSettingsRepository : BasicRepository<NetworkSettings>, INetw
 
     public NetworkSettings GetSettings()
     {
-        return this.All().FirstOrDefault() ?? new NetworkSettings();
+        return this.All().OrderByDescending(s => s.Id).FirstOrDefault() ?? new NetworkSettings();
     }
 }

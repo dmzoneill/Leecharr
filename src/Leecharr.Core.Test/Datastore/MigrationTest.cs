@@ -755,4 +755,58 @@ public class MigrationTest
         command.CommandText = "SELECT IsPrivate FROM DownloadHistory WHERE InfoHash = 'dddddddddddddddddddddddddddddddddddddddd';";
         Convert.ToInt32(command.ExecuteScalar()).Should().Be(1);
     }
+
+    [Test]
+    public void Migration052_DedupesNetworkSettingsAndEnforcesSingleton()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(51);
+        }
+
+        using (var seedConnection = new SqliteConnection(connectionString))
+        {
+            seedConnection.Open();
+            using var seed = seedConnection.CreateCommand();
+            seed.CommandText = @"
+                INSERT INTO NetworkSettings (BindInterface, EnableVpnKillSwitch, EnableUpnp, EnableNatPmp, ListenPort, RandomizePortOnLaunch, EnableProxy, ProxyType, ProxyPort, ProxyPeers, ProxyTrackers, ProxyIndexers, AnonymousMode, ClientEmulationPreset)
+                VALUES ('eth0', 0, 1, 1, 6881, 0, 0, 'SOCKS5', 1080, 1, 1, 1, 0, 'Leecharr');
+                INSERT INTO NetworkSettings (BindInterface, EnableVpnKillSwitch, EnableUpnp, EnableNatPmp, ListenPort, RandomizePortOnLaunch, EnableProxy, ProxyType, ProxyPort, ProxyPeers, ProxyTrackers, ProxyIndexers, AnonymousMode, ClientEmulationPreset)
+                VALUES ('tun0', 1, 1, 1, 51413, 0, 0, 'SOCKS5', 1080, 1, 1, 1, 0, 'Leecharr');";
+            seed.ExecuteNonQuery();
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(52);
+        }
+
+        using var verifyConnection = new SqliteConnection(connectionString);
+        verifyConnection.Open();
+
+        using var countCommand = verifyConnection.CreateCommand();
+        countCommand.CommandText = "SELECT COUNT(*) FROM NetworkSettings;";
+        Convert.ToInt32(countCommand.ExecuteScalar()).Should().Be(1);
+
+        using var bindCommand = verifyConnection.CreateCommand();
+        bindCommand.CommandText = "SELECT BindInterface FROM NetworkSettings;";
+        bindCommand.ExecuteScalar().Should().Be("tun0");
+
+        using var indexCommand = verifyConnection.CreateCommand();
+        indexCommand.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='IX_NetworkSettings_Singleton';";
+        Convert.ToInt32(indexCommand.ExecuteScalar()).Should().Be(1);
+    }
 }
