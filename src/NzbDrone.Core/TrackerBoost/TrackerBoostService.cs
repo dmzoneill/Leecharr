@@ -2309,7 +2309,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken, this.disposeCts.Token);
             using var resp = await this.httpClient.SendAsync(req, linkedCts.Token).ConfigureAwait(false);
-            return resp.IsSuccessStatusCode || resp.StatusCode == HttpStatusCode.BadRequest;
+            return resp.IsSuccessStatusCode
+                || resp.StatusCode == HttpStatusCode.BadRequest
+                || resp.StatusCode == HttpStatusCode.NotFound
+                || resp.StatusCode == HttpStatusCode.MethodNotAllowed;
         }
         catch (OperationCanceledException)
         {
