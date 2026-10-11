@@ -368,31 +368,73 @@ public class HadoukenRpcController : ControllerBase
                             targetHashes.Add(hashesElem.GetString());
                         }
 
-                        foreach (var targetHash in targetHashes)
+                        var performTorrents = targetHashes
+                            .Select(h => this.torrentService.GetByInfoHash(h))
+                            .Where(t => t != null)
+                            .ToList();
+
+                        switch (action)
                         {
-                            var t = this.torrentService.GetByInfoHash(targetHash);
-                            if (t != null)
-                            {
-                                switch (action)
+                            case "queueup":
+                                foreach (var t in performTorrents.OrderBy(t => t.QueuePosition))
                                 {
-                                    case "pause":
-                                        await this.torrentService.PauseAsync(t.Id);
-                                        break;
-                                    case "resume":
-                                    case "start":
-                                        await this.torrentService.ResumeAsync(t.Id);
-                                        break;
-                                    case "recheck":
-                                        await this.torrentService.ForceRecheckAsync(t.Id);
-                                        break;
-                                    case "remove":
-                                        await this.torrentService.DeleteAsync(t.Id, false);
-                                        break;
-                                    case "removedata":
-                                        await this.torrentService.DeleteAsync(t.Id, true);
-                                        break;
+                                    await this.torrentService.MoveQueueAsync(t.Id, "up");
                                 }
-                            }
+
+                                break;
+                            case "queuedown":
+                                foreach (var t in performTorrents.OrderByDescending(t => t.QueuePosition))
+                                {
+                                    await this.torrentService.MoveQueueAsync(t.Id, "down");
+                                }
+
+                                break;
+                            case "queuetop":
+                                for (var i = performTorrents.Count - 1; i >= 0; i--)
+                                {
+                                    await this.torrentService.MoveQueueAsync(performTorrents[i].Id, "top");
+                                }
+
+                                break;
+                            case "queuebottom":
+                                foreach (var t in performTorrents)
+                                {
+                                    await this.torrentService.MoveQueueAsync(t.Id, "bottom");
+                                }
+
+                                break;
+                            default:
+                                foreach (var t in performTorrents)
+                                {
+                                    switch (action)
+                                    {
+                                        case "pause":
+                                        case "stop":
+                                            await this.torrentService.PauseAsync(t.Id);
+                                            break;
+                                        case "resume":
+                                        case "start":
+                                        case "unpause":
+                                            await this.torrentService.ResumeAsync(t.Id);
+                                            break;
+                                        case "forcestart":
+                                            t.ForceStart = true;
+                                            await this.torrentService.UpdateAsync(t);
+                                            await this.torrentService.ResumeAsync(t.Id);
+                                            break;
+                                        case "recheck":
+                                            await this.torrentService.ForceRecheckAsync(t.Id);
+                                            break;
+                                        case "remove":
+                                            await this.torrentService.DeleteAsync(t.Id, false);
+                                            break;
+                                        case "removedata":
+                                            await this.torrentService.DeleteAsync(t.Id, true);
+                                            break;
+                                    }
+                                }
+
+                                break;
                         }
                     }
 
