@@ -132,6 +132,45 @@ public class HealthCheckTest
     }
 
     [Test]
+    public async Task NetworkBindingHealthCheck_ReturnsError_WhenBindingProbeUnhealthy()
+    {
+        var manager = Substitute.For<INetworkBindingManager>();
+        manager.ActiveProviderId.Returns("LinuxBindToDevice");
+        manager.ProbeProviderAsync("LinuxBindToDevice").Returns(Task.FromResult(new NetworkBindingHealthCheckResult
+        {
+            IsHealthy = false,
+            StatusMessage = "Linux SO_BINDTODEVICE probe failed: Protocol not available",
+        }));
+
+        var check = new NetworkBindingHealthCheck(manager);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Source.Should().Be("NetworkBindingHealth");
+        result.Message.Should().Contain("probe failed");
+    }
+
+    [Test]
+    public async Task NetworkBindingHealthCheck_ReturnsWarning_WhenBindingProbeReportsWarnings()
+    {
+        var manager = Substitute.For<INetworkBindingManager>();
+        manager.ActiveProviderId.Returns("LinuxBindToDevice");
+        manager.ProbeProviderAsync("LinuxBindToDevice").Returns(Task.FromResult(new NetworkBindingHealthCheckResult
+        {
+            IsHealthy = true,
+            StatusMessage = "OK",
+            Warnings = { "CAP_NET_RAW recommended for full interface lock" },
+        }));
+
+        var check = new NetworkBindingHealthCheck(manager);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Warning);
+        result.Source.Should().Be("NetworkBindingHealth");
+        result.Message.Should().Contain("CAP_NET_RAW");
+    }
+
+    [Test]
     public async Task HttpTransportHealthCheck_ReturnsOk_WhenHealthy()
     {
         var manager = Substitute.For<IHttpTransportManager>();
