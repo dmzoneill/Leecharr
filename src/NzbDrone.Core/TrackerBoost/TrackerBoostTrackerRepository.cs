@@ -1,9 +1,11 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dapper;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.TrackerBoost;
 
@@ -21,10 +23,48 @@ public class TrackerBoostTrackerRepository : BasicRepository<TrackerBoostTracker
             return null;
         }
 
+        var trimmed = url.Trim();
+        var canonical = TrackerAnnounceUrlCanonicalizer.Canonicalize(trimmed);
+
         return this.ExecuteWithRetry(connection =>
-            connection.QueryFirstOrDefault<TrackerBoostTracker>(
+        {
+            var direct = connection.QueryFirstOrDefault<TrackerBoostTracker>(
                 $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"Url\") = LOWER(@Url)",
-                new { Url = url.Trim() }));
+                new { Url = trimmed });
+            if (direct != null)
+            {
+                return direct;
+            }
+
+            if (!string.Equals(trimmed, canonical, StringComparison.OrdinalIgnoreCase))
+            {
+                direct = connection.QueryFirstOrDefault<TrackerBoostTracker>(
+                    $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"Url\") = LOWER(@Url)",
+                    new { Url = canonical });
+                if (direct != null)
+                {
+                    return direct;
+                }
+            }
+
+            if (!Uri.TryCreate(canonical, UriKind.Absolute, out var uri))
+            {
+                return null;
+            }
+
+            var port = uri.Port;
+            if (port <= 0)
+            {
+                port = uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? 443 : 80;
+            }
+
+            var candidates = connection.Query<TrackerBoostTracker>(
+                    $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"Host\") = LOWER(@Host) AND \"Port\" = @Port",
+                    new { Host = uri.Host, Port = port })
+                .ToList();
+
+            return candidates.FirstOrDefault(t => TrackerAnnounceUrlCanonicalizer.AreEquivalent(t.Url, trimmed));
+        });
     }
 
     public List<TrackerBoostTracker> GetAliveTrackers()

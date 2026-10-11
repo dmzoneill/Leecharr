@@ -2049,7 +2049,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             throw new ArgumentException("Tracker URL cannot be empty");
         }
 
-        var cleanUrl = url.Trim();
+        var cleanUrl = TrackerAnnounceUrlCanonicalizer.Canonicalize(url.Trim());
         if (!IsValidPublicTrackerUrl(cleanUrl))
         {
             this.logger.Warn("Refusing to add private or invalid tracker URL: {0}", cleanUrl);
