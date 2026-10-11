@@ -40,5 +40,5 @@ public interface IIndexerStatusService
 
     void ResetAll();
 
-    TimeSpan CalculateBackoff(int consecutiveFailures, int? statusCode = null);
+    TimeSpan CalculateBackoff(int consecutiveFailures, int? statusCode = null, TimeSpan? retryAfter = null);
 }

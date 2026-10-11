@@ -2130,6 +2130,24 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task SearchAsync_When429WithRetryAfter_ThrowsIndexerHttpExceptionWithRetryAfter()
+    {
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+            response.Headers.TryAddWithoutValidation("Retry-After", "3600");
+            return response;
+        });
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition { Name = "RateLimitedIndexer", Url = "http://indexer.local/api" };
+
+        var act = () => clientWithHandler.SearchAsync(indexer, "test");
+
+        await act.Should().ThrowAsync<IndexerHttpException>()
+            .Where(ex => ex.StatusCode == HttpStatusCode.TooManyRequests && ex.RetryAfter == TimeSpan.FromSeconds(3600));
+    }
+
+    [Test]
     public async Task SearchAsync_WhenXmlErrorPayload_ThrowsTorznabException()
     {
         var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
