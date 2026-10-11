@@ -19,6 +19,7 @@ public static class ContainerExtensions
     private static readonly HashSet<string> ExcludedTypeNames = new(StringComparer.Ordinal)
     {
         "Database",
+        "DynamicDownloadEngineProxy",
     };
 
     private static readonly HashSet<string> ExcludedInterfaceNames = new(StringComparer.Ordinal)
@@ -45,7 +46,7 @@ public static class ContainerExtensions
 
     public static void RegisterSingletonWithInterfaces<TImplementation>(
         this IContainer container,
-        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.AppendNotKeyed)
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
         where TImplementation : class
     {
         container.RegisterSingletonWithInterfaces(typeof(TImplementation), ifAlreadyRegistered);
@@ -54,15 +55,19 @@ public static class ContainerExtensions
     public static void RegisterSingletonWithInterfaces(
         this IContainer container,
         Type implementationType,
-        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.AppendNotKeyed)
+        IfAlreadyRegistered ifAlreadyRegistered = IfAlreadyRegistered.Replace)
     {
-        container.Register(implementationType, Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
+        var interfaces = GetServiceInterfaces(implementationType).Distinct().ToArray();
 
-        var interfaces = GetServiceInterfaces(implementationType);
+        if (interfaces.Length == 0)
+        {
+            container.Register(implementationType, Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
+            return;
+        }
 
         foreach (var iface in interfaces)
         {
-            container.RegisterMapping(iface, implementationType, ifAlreadyRegistered: ifAlreadyRegistered);
+            container.Register(iface, implementationType, Reuse.Singleton, ifAlreadyRegistered: ifAlreadyRegistered);
         }
     }
 
