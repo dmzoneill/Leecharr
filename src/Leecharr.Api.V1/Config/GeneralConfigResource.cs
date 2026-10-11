@@ -110,10 +110,31 @@ public static class GeneralConfigResourceMapper
             CsrfProtectionEnabled = config?.CsrfProtectionEnabled ?? true,
             HostHeaderValidationEnabled = config?.HostHeaderValidationEnabled ?? false,
             AllowedHosts = config?.AllowedHosts ?? string.Empty,
-            AllowedCorsOrigins = config?.AllowedCorsOrigins ?? fileProvider?.AllowedCorsOrigins ?? string.Empty,
-            AllowPrivateNetworkRequests = config?.AllowPrivateNetworkRequests ?? fileProvider?.AllowPrivateNetworkRequests ?? true,
-            AllowedSsrfHostnames = config?.AllowedSsrfHostnames ?? fileProvider?.AllowedSsrfHostnames ?? string.Empty,
-            AllowedSsrfSubnets = config?.AllowedSsrfSubnets ?? fileProvider?.AllowedSsrfSubnets ?? string.Empty,
+            AllowedCorsOrigins = GetConfigStringOrFileFallback(config?.AllowedCorsOrigins, fileProvider?.AllowedCorsOrigins),
+            AllowPrivateNetworkRequests = GetAllowPrivateNetworkRequests(config, fileProvider),
+            AllowedSsrfHostnames = GetConfigStringOrFileFallback(config?.AllowedSsrfHostnames, fileProvider?.AllowedSsrfHostnames),
+            AllowedSsrfSubnets = GetConfigStringOrFileFallback(config?.AllowedSsrfSubnets, fileProvider?.AllowedSsrfSubnets),
         };
+    }
+
+    private static string GetConfigStringOrFileFallback(string configValue, string fileValue)
+    {
+        return !string.IsNullOrWhiteSpace(configValue) ? configValue : fileValue ?? string.Empty;
+    }
+
+    private static bool GetAllowPrivateNetworkRequests(IConfigService config, IConfigFileProvider fileProvider)
+    {
+        if (config == null)
+        {
+            return fileProvider?.AllowPrivateNetworkRequests ?? true;
+        }
+
+        var raw = config.GetValue("AllowPrivateNetworkRequests", string.Empty);
+        if (string.IsNullOrEmpty(raw))
+        {
+            return fileProvider?.AllowPrivateNetworkRequests ?? true;
+        }
+
+        return config.GetValueBoolean("AllowPrivateNetworkRequests", true);
     }
 }
