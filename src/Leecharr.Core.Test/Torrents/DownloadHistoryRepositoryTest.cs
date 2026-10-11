@@ -365,6 +365,81 @@ public class DownloadHistoryRepositoryTest
     }
 
     [Test]
+    public void DeleteOlderThan_WhenTorrentStillInClient_KeepsRowEvenIfDateAddedIsOld()
+    {
+        var oldAdded = DateTime.UtcNow.AddDays(-90);
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Still seeding",
+            InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            TorrentId = 42,
+            Status = "Active",
+            DateAdded = oldAdded,
+        });
+
+        this.repository.DeleteOlderThan(DateTime.UtcNow.AddDays(-30));
+
+        this.repository.GetHistory().Should().HaveCount(1);
+    }
+
+    [Test]
+    public void DeleteOlderThan_WhenRemovedRecently_KeepsRowDespiteOldDateAdded()
+    {
+        var oldAdded = DateTime.UtcNow.AddDays(-90);
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Recently removed",
+            InfoHash = "cccccccccccccccccccccccccccccccccccccccc",
+            TorrentId = null,
+            Status = "Removed",
+            DateAdded = oldAdded,
+            DateRemoved = DateTime.UtcNow.AddDays(-1),
+        });
+
+        this.repository.DeleteOlderThan(DateTime.UtcNow.AddDays(-30));
+
+        this.repository.GetHistory().Should().HaveCount(1);
+    }
+
+    [Test]
+    public void DeleteOlderThan_WhenRemovedPastRetention_DeletesRow()
+    {
+        var oldAdded = DateTime.UtcNow.AddDays(-120);
+        var oldRemoved = DateTime.UtcNow.AddDays(-60);
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Old removal",
+            InfoHash = "dddddddddddddddddddddddddddddddddddddddd",
+            TorrentId = null,
+            Status = "Removed",
+            DateAdded = oldAdded,
+            DateRemoved = oldRemoved,
+        });
+
+        this.repository.DeleteOlderThan(DateTime.UtcNow.AddDays(-30));
+
+        this.repository.GetHistory().Should().BeEmpty();
+    }
+
+    [Test]
+    public void DeleteOlderThan_WhenOrphanedHistoryPastRetention_DeletesRow()
+    {
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Stale orphan",
+            InfoHash = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            TorrentId = null,
+            Status = "Completed",
+            DateAdded = DateTime.UtcNow.AddDays(-90),
+            DateCompleted = DateTime.UtcNow.AddDays(-60),
+        });
+
+        this.repository.DeleteOlderThan(DateTime.UtcNow.AddDays(-30));
+
+        this.repository.GetHistory().Should().BeEmpty();
+    }
+
+    [Test]
     public void GetHistory_OnPostgreSql_WithOffsetAndNoLimit_DoesNotEmitLimitMinusOne()
     {
         var database = Substitute.For<IDatabase>();

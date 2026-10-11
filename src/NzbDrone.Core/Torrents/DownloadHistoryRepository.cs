@@ -140,7 +140,14 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
     public void DeleteOlderThan(System.DateTime cutoffDate)
     {
         this.ExecuteWithRetry(connection =>
-            connection.Execute("DELETE FROM \"DownloadHistory\" WHERE \"DateAdded\" < @Cutoff", new { Cutoff = cutoffDate }));
+            connection.Execute(
+                @"DELETE FROM ""DownloadHistory""
+                  WHERE ""TorrentId"" IS NULL
+                    AND COALESCE(
+                      CASE WHEN ""Status"" = 'Removed' THEN ""DateRemoved"" END,
+                      CASE WHEN ""Status"" = 'Completed' THEN ""DateCompleted"" END,
+                      ""DateAdded"") < @Cutoff",
+                new { Cutoff = cutoffDate }));
     }
 
     public void DeleteAll()
