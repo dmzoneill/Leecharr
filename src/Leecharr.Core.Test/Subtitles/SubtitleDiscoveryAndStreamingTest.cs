@@ -1,6 +1,8 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using FluentAssertions;
 using Leecharr.Api.V1.Subtitles;
@@ -224,6 +226,87 @@ public class SubtitleDiscoveryAndStreamingTest
 
         var result = this.controller.GetSubtitleTrack(1, 10, "999");
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Test]
+    public void GetSubtitleTrack_WhenNumericTrackIdRequested_DoesNotMatchEarlierSubtitleFileId()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr-subtitle-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            const string englishSrt = "1\n00:00:01,000 --> 00:00:04,000\nEnglish line\n";
+            const string spanishSrt = "1\n00:00:01,000 --> 00:00:04,000\nSpanish line\n";
+            File.WriteAllText(Path.Combine(tempDir, "movie.en.srt"), englishSrt);
+            File.WriteAllText(Path.Combine(tempDir, "movie.es.srt"), spanishSrt);
+
+            var torrent = new Torrent { Id = 1, Name = "Test", SavePath = tempDir };
+            var videoFile = new TorrentFile { Id = 1, Path = "movie.mkv" };
+            var englishSubFile = new TorrentFile { Id = 2, Path = "movie.en.srt" };
+            var spanishSubFile = new TorrentFile { Id = 3, Path = "movie.es.srt" };
+
+            this.torrentService.Get(1).Returns(torrent);
+            this.torrentFileService.GetFiles(1).Returns(new List<TorrentFile>
+            {
+                videoFile,
+                englishSubFile,
+                spanishSubFile,
+            });
+
+            var result = this.controller.GetSubtitleTrack(1, 1, "2.vtt");
+            var content = result.Should().BeOfType<ContentResult>().Subject;
+
+            content.ContentType.Should().Be("text/vtt; charset=utf-8");
+            content.Content.Should().Contain("Spanish line");
+            content.Content.Should().NotContain("English line");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public void GetSubtitleTrack_WhenFirstTrackRequested_ReturnsMatchingSubtitle()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr-subtitle-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            const string englishSrt = "1\n00:00:01,000 --> 00:00:04,000\nEnglish line\n";
+            const string spanishSrt = "1\n00:00:01,000 --> 00:00:04,000\nSpanish line\n";
+            File.WriteAllText(Path.Combine(tempDir, "movie.en.srt"), englishSrt);
+            File.WriteAllText(Path.Combine(tempDir, "movie.es.srt"), spanishSrt);
+
+            var torrent = new Torrent { Id = 1, Name = "Test", SavePath = tempDir };
+            var videoFile = new TorrentFile { Id = 1, Path = "movie.mkv" };
+            var englishSubFile = new TorrentFile { Id = 2, Path = "movie.en.srt" };
+            var spanishSubFile = new TorrentFile { Id = 3, Path = "movie.es.srt" };
+
+            this.torrentService.Get(1).Returns(torrent);
+            this.torrentFileService.GetFiles(1).Returns(new List<TorrentFile>
+            {
+                videoFile,
+                englishSubFile,
+                spanishSubFile,
+            });
+
+            var result = this.controller.GetSubtitleTrack(1, 1, "1");
+            var content = result.Should().BeOfType<ContentResult>().Subject;
+
+            content.Content.Should().Contain("English line");
+            content.Content.Should().NotContain("Spanish line");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
     }
 
     [Test]
