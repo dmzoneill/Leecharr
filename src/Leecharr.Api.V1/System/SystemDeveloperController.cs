@@ -1258,7 +1258,7 @@ public class SystemDeveloperController : Controller
             {
                 using var conn = this.mainDatabase.OpenConnection();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT Key, Value FROM Config ORDER BY Key;";
+                cmd.CommandText = "SELECT \"Key\", \"Value\" FROM \"Config\" ORDER BY \"Key\";";
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
