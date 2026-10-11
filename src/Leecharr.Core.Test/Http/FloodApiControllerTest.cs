@@ -596,7 +596,7 @@ public class FloodApiControllerTest
     }
 
     [Test]
-    public async Task SetTags_WhenNoTagMatchesCategory_PreservesCategoryAndUpdatesLabels()
+    public async Task SetTags_WhenNoTagMatchesCategory_ClearsCategoryAndUpdatesLabels()
     {
         var torrent = new Torrent
         {
@@ -621,10 +621,10 @@ public class FloodApiControllerTest
         var result = await this.controller.SetTags(request);
         result.Should().BeOfType<OkObjectResult>();
 
-        await this.torrentService.DidNotReceive().SetCategoryAsync(Arg.Any<int>(), Arg.Any<string>());
+        await this.torrentService.Received(1).SetCategoryAsync(11, string.Empty);
         await this.torrentService.Received(1).UpdateAsync(Arg.Is<Torrent>(t =>
             t.Id == 11 &&
-            t.Category == "existing-cat" &&
+            t.Category == string.Empty &&
             t.Label == "tag1,tag2"));
     }
 
