@@ -99,8 +99,8 @@ public class DeveloperGitHubService : IDeveloperGitHubService
 
         result.Items = GetDefaultPullRequests(state);
         result.TotalCount = result.Items.Count;
-        MemoryCache[cacheKey] = (result, DateTime.UtcNow.AddMinutes(2));
-        return result;
+        result.UsedFallbackSnapshot = true;
+        return PublishFallbackOrCached(cacheKey, result);
     }
 
     public async Task<DeveloperGitHubListResult<DeveloperIssueItem>> GetIssuesAsync(string state = "all", CancellationToken cancellationToken = default)
@@ -171,8 +171,39 @@ public class DeveloperGitHubService : IDeveloperGitHubService
 
         result.Items = GetDefaultIssues(state);
         result.TotalCount = result.Items.Count;
-        MemoryCache[cacheKey] = (result, DateTime.UtcNow.AddMinutes(2));
-        return result;
+        result.UsedFallbackSnapshot = true;
+        return PublishFallbackOrCached(cacheKey, result);
+    }
+
+    private static DeveloperGitHubListResult<T> PublishFallbackOrCached<T>(string cacheKey, DeveloperGitHubListResult<T> fallback)
+    {
+        if (ShouldPublishFallbackCache<T>(cacheKey))
+        {
+            MemoryCache[cacheKey] = (fallback, DateTime.UtcNow.AddMinutes(2));
+        }
+
+        return GetValidCachedResult<T>(cacheKey) ?? fallback;
+    }
+
+    private static bool ShouldPublishFallbackCache<T>(string cacheKey)
+    {
+        if (!MemoryCache.TryGetValue(cacheKey, out var existing) || existing.Expiry <= DateTime.UtcNow)
+        {
+            return true;
+        }
+
+        var existingResult = (DeveloperGitHubListResult<T>)existing.Data;
+        return existingResult.UsedFallbackSnapshot;
+    }
+
+    private static DeveloperGitHubListResult<T> GetValidCachedResult<T>(string cacheKey)
+    {
+        if (MemoryCache.TryGetValue(cacheKey, out var cached) && cached.Expiry > DateTime.UtcNow)
+        {
+            return (DeveloperGitHubListResult<T>)cached.Data;
+        }
+
+        return null;
     }
 
     private static void AppendIssuesFromJson(string json, List<DeveloperIssueItem> items, int maxCount)
