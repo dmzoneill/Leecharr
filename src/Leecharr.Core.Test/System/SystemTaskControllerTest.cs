@@ -92,6 +92,56 @@ public class SystemTaskControllerTest
     }
 
     [Test]
+    public void GetTasks_WhenRunExceeds24Hours_ReportsTotalElapsedHours()
+    {
+        var lastStartTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var lastExecution = lastStartTime.AddHours(25);
+
+        this.taskManager.GetAll().Returns(new List<ScheduledTask>
+        {
+            new ScheduledTask
+            {
+                Id = 4,
+                TypeName = "BackupTask",
+                Interval = 60,
+                LastExecution = lastExecution,
+                LastStartTime = lastStartTime,
+            },
+        });
+
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var list = (controller.GetTasks().Result as OkObjectResult).Value as List<ScheduledTaskResource>;
+
+        list.Should().ContainSingle();
+        list[0].LastDuration.Should().Be("25:00:00");
+    }
+
+    [Test]
+    public void GetCommands_WhenEndBeforeStart_ReportsNegativeDuration()
+    {
+        var started = new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc);
+        var ended = started.AddHours(-1);
+        this.commandQueueManager.GetAll().Returns(new List<CommandModel>
+        {
+            new CommandModel
+            {
+                Id = 1,
+                Name = "TestCommand",
+                Status = CommandStatus.Completed,
+                QueuedAt = started.AddMinutes(-1),
+                StartedAt = started,
+                EndedAt = ended,
+            },
+        });
+
+        var controller = new SystemCommandController(this.commandQueueManager);
+        var list = (controller.GetCommands().Result as OkObjectResult).Value as List<CommandResource>;
+
+        list.Should().ContainSingle();
+        list[0].Duration.Should().Be("-01:00:00");
+    }
+
+    [Test]
     public void GetTasks_WhenTaskInProgress_ReportsLastCompletedDurationNotZero()
     {
         var lastExecution = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
