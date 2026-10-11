@@ -776,85 +776,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                     }
                 }
 
-                if (request.Arguments.TryGetValue("files-unwanted", out var unwantedVal) && unwantedVal.ValueKind == JsonValueKind.Array)
-                {
-                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                    foreach (var item in unwantedVal.EnumerateArray())
-                    {
-                        if (item.ValueKind == JsonValueKind.Number)
-                        {
-                            var idx = item.GetInt32();
-                            if (idx >= 0 && idx < files.Count)
-                            {
-                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 0);
-                            }
-                        }
-                    }
-                }
-
-                if (request.Arguments.TryGetValue("files-wanted", out var wantedVal) && wantedVal.ValueKind == JsonValueKind.Array)
-                {
-                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                    foreach (var item in wantedVal.EnumerateArray())
-                    {
-                        if (item.ValueKind == JsonValueKind.Number)
-                        {
-                            var idx = item.GetInt32();
-                            if (idx >= 0 && idx < files.Count)
-                            {
-                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
-                            }
-                        }
-                    }
-                }
-
-                if (request.Arguments.TryGetValue("priority-high", out var prioHighVal) && prioHighVal.ValueKind == JsonValueKind.Array)
-                {
-                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                    foreach (var item in prioHighVal.EnumerateArray())
-                    {
-                        if (item.ValueKind == JsonValueKind.Number)
-                        {
-                            var idx = item.GetInt32();
-                            if (idx >= 0 && idx < files.Count)
-                            {
-                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 4);
-                            }
-                        }
-                    }
-                }
-
-                if (request.Arguments.TryGetValue("priority-low", out var prioLowVal) && prioLowVal.ValueKind == JsonValueKind.Array)
-                {
-                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                    foreach (var item in prioLowVal.EnumerateArray())
-                    {
-                        if (item.ValueKind == JsonValueKind.Number)
-                        {
-                            var idx = item.GetInt32();
-                            if (idx >= 0 && idx < files.Count)
-                            {
-                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 2);
-                            }
-                        }
-                    }
-                }
-
-                if (request.Arguments.TryGetValue("priority-normal", out var prioNormVal) && prioNormVal.ValueKind == JsonValueKind.Array)
-                {
-                    var files = this.torrentFileService.GetFiles(t.Id).ToList();
-                    foreach (var item in prioNormVal.EnumerateArray())
-                    {
-                        if (item.ValueKind == JsonValueKind.Number)
-                        {
-                            var idx = item.GetInt32();
-                            if (idx >= 0 && idx < files.Count)
-                            {
-                                await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
-                            }
-                        }
-                    }
-                }
+                await this.ApplyTorrentFileSelectionAsync(t.Id, request.Arguments);
 
                 if (request.Arguments.TryGetValue("trackerList", out var trackerListVal))
                 {
@@ -1773,6 +1695,8 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 }
             }
 
+            await this.ApplyTorrentFileSelectionAsync(addedTorrent.Id, request.Arguments);
+
             var responseKey = isDuplicate ? "torrent-duplicate" : "torrent-added";
             return this.Ok(new TransmissionRpcResponse
             {
@@ -1786,6 +1710,94 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         }
 
         return this.Ok(new TransmissionRpcResponse { Result = "failed to add torrent", Tag = tag });
+    }
+
+    private async Task ApplyTorrentFileSelectionAsync(int torrentId, Dictionary<string, JsonElement> arguments)
+    {
+        if (arguments == null)
+        {
+            return;
+        }
+
+        if (arguments.TryGetValue("files-unwanted", out var unwantedVal) && unwantedVal.ValueKind == JsonValueKind.Array)
+        {
+            var files = this.torrentFileService.GetFiles(torrentId).ToList();
+            foreach (var item in unwantedVal.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Number)
+                {
+                    var idx = item.GetInt32();
+                    if (idx >= 0 && idx < files.Count)
+                    {
+                        await this.torrentFileService.SetPriorityAsync(files[idx].Id, 0);
+                    }
+                }
+            }
+        }
+
+        if (arguments.TryGetValue("files-wanted", out var wantedVal) && wantedVal.ValueKind == JsonValueKind.Array)
+        {
+            var files = this.torrentFileService.GetFiles(torrentId).ToList();
+            foreach (var item in wantedVal.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Number)
+                {
+                    var idx = item.GetInt32();
+                    if (idx >= 0 && idx < files.Count)
+                    {
+                        await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
+                    }
+                }
+            }
+        }
+
+        if (arguments.TryGetValue("priority-high", out var prioHighVal) && prioHighVal.ValueKind == JsonValueKind.Array)
+        {
+            var files = this.torrentFileService.GetFiles(torrentId).ToList();
+            foreach (var item in prioHighVal.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Number)
+                {
+                    var idx = item.GetInt32();
+                    if (idx >= 0 && idx < files.Count)
+                    {
+                        await this.torrentFileService.SetPriorityAsync(files[idx].Id, 4);
+                    }
+                }
+            }
+        }
+
+        if (arguments.TryGetValue("priority-low", out var prioLowVal) && prioLowVal.ValueKind == JsonValueKind.Array)
+        {
+            var files = this.torrentFileService.GetFiles(torrentId).ToList();
+            foreach (var item in prioLowVal.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Number)
+                {
+                    var idx = item.GetInt32();
+                    if (idx >= 0 && idx < files.Count)
+                    {
+                        await this.torrentFileService.SetPriorityAsync(files[idx].Id, 2);
+                    }
+                }
+            }
+        }
+
+        if (arguments.TryGetValue("priority-normal", out var prioNormVal) && prioNormVal.ValueKind == JsonValueKind.Array)
+        {
+            var files = this.torrentFileService.GetFiles(torrentId).ToList();
+            foreach (var item in prioNormVal.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Number)
+                {
+                    var idx = item.GetInt32();
+                    if (idx >= 0 && idx < files.Count)
+                    {
+                        await this.torrentFileService.SetPriorityAsync(files[idx].Id, 3);
+                    }
+                }
+            }
+        }
     }
 
     private List<int> ExtractIds(Dictionary<string, JsonElement> arguments, bool applyAllIfEmpty = false)
