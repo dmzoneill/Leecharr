@@ -1746,7 +1746,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         var port = client.Port > 0 ? client.Port : 8080;
         var scheme = client.UseSsl ? "https" : "http";
-        var baseUrl = $"{scheme}://{client.Host}:{port}";
+        var host = ProxyTunnelBindingProvider.FormatHostForAuthority(client.Host);
+        var baseUrl = $"{scheme}://{host}:{port}";
 
         var clientHttp = GetOrCreateClient(client, baseUrl);
 
