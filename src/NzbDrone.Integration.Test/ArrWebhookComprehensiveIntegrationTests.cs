@@ -147,6 +147,13 @@ public class ArrWebhookComprehensiveIntegrationTests : IntegrationTestBase
         dlResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var dlDoc = JsonDocument.Parse(await dlResp.Content.ReadAsStringAsync());
         dlDoc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
+        dlDoc.RootElement.GetProperty("updated").GetBoolean().Should().BeTrue();
+
+        var torrentRepo = (ITorrentRepository)GlobalSetup.Factory.Services.GetService(typeof(ITorrentRepository))!;
+        var afterRadarrDownload = torrentRepo.Get(this.testTorrent.Id);
+        afterRadarrDownload.Should().NotBeNull();
+        afterRadarrDownload!.IsImported.Should().BeTrue();
+        afterRadarrDownload.ImportedByArr.Should().Be("Radarr");
 
         // 3. Sonarr Grab & Download events
         var sonarrGrabPayload = new
@@ -173,6 +180,37 @@ public class ArrWebhookComprehensiveIntegrationTests : IntegrationTestBase
 
         var sonarrGrabResp = await this.PostJsonAsync("/api/v1/webhooks/sonarr", sonarrGrabPayload);
         sonarrGrabResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var sonarrDownloadPayload = new
+        {
+            eventType = "Download",
+            instanceName = "Sonarr-HD",
+            downloadId = ArrTorrentHash,
+            series = new
+            {
+                id = 15,
+                title = "Breaking Bad",
+                tvdbId = 81189,
+            },
+            episodeFile = new
+            {
+                id = 301,
+                relativePath = "Season 01/Breaking Bad - S01E01.mkv",
+                path = "/media/tv/Breaking Bad/Season 01/Breaking Bad - S01E01.mkv",
+            },
+        };
+
+        var sonarrDlResp = await this.PostJsonAsync("/api/v1/webhooks/sonarr", sonarrDownloadPayload);
+        sonarrDlResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var sonarrDlDoc = JsonDocument.Parse(await sonarrDlResp.Content.ReadAsStringAsync());
+        sonarrDlDoc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
+        sonarrDlDoc.RootElement.GetProperty("updated").GetBoolean().Should().BeTrue();
+
+        var afterSonarrDownload = torrentRepo.Get(this.testTorrent.Id);
+        afterSonarrDownload.Should().NotBeNull();
+        afterSonarrDownload!.IsImported.Should().BeTrue();
+        afterSonarrDownload.ImportedByArr.Should().Be("Sonarr");
+        afterSonarrDownload.ImportPath.Should().Be("/media/tv/Breaking Bad/Season 01/Breaking Bad - S01E01.mkv");
     }
 
     [Test]

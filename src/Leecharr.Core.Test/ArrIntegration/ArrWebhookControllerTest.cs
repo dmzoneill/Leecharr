@@ -144,6 +144,112 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
+    public async Task HandleSonarr_WhenDownloadEvent_UpdatesTorrentImportState()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Severance.S02E01.1080p.WEB-DL.mkv",
+            InfoHash = hash,
+            SavePath = "/downloads/Severance.S02E01.1080p.WEB-DL.mkv",
+            IsImported = false,
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Download",
+            InstanceName = "Sonarr-Main",
+            DownloadId = hash,
+            EpisodeFile = new ArrWebhookEpisodeFile
+            {
+                Id = 101,
+                Path = "/media/tv/Severance/Season 02/Severance - S02E01.mkv",
+                Quality = "WEBDL-1080p",
+            },
+            Series = new ArrWebhookSeries
+            {
+                Id = 42,
+                Title = "Severance",
+                Year = 2022,
+                TvdbId = 371980,
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 1 &&
+            t.IsImported == true &&
+            t.ImportedAt.HasValue &&
+            t.ImportPath == "/media/tv/Severance/Season 02/Severance - S02E01.mkv" &&
+            t.ImportedByArr == "Sonarr"));
+    }
+
+    [Test]
+    public async Task HandleRadarr_WhenDownloadEvent_UpdatesTorrentImportState()
+    {
+        var hash = "fedcba9876543210fedcba9876543210fedcba98";
+        var torrent = new Torrent
+        {
+            Id = 2,
+            Name = "Dune.Part.Two.2024.2160p.UHD.Remux.mkv",
+            InfoHash = hash,
+            SavePath = "/downloads/Dune.Part.Two.2024.2160p.UHD.Remux.mkv",
+            IsImported = false,
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Download",
+            InstanceName = "Radarr-4K",
+            DownloadId = hash,
+            MovieFile = new ArrWebhookMovieFile
+            {
+                Id = 202,
+                Path = "/media/movies/Dune Part Two (2024)/Dune Part Two (2024) [2160p].mkv",
+                Quality = "Remux-2160p",
+            },
+            Movie = new ArrWebhookMovie
+            {
+                Id = 99,
+                Title = "Dune: Part Two",
+                Year = 2024,
+                TmdbId = 693134,
+                ImdbId = "tt15239678",
+            },
+        };
+
+        var result = await this.controller.HandleRadarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 2 &&
+            t.IsImported == true &&
+            t.ImportedAt.HasValue &&
+            t.ImportedByArr == "Radarr"));
+    }
+
+    [Test]
     public async Task HandleRadarr_WhenUpgradeEvent_UpdatesTorrentImportState()
     {
         var hash = "fedcba9876543210fedcba9876543210fedcba98";

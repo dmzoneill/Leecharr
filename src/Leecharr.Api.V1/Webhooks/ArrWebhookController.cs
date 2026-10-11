@@ -908,6 +908,7 @@ public class ArrWebhookController : Controller
         }
 
         return string.Equals(eventType, "Import", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "Download", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "Upgrade", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "Rename", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "DownloadFolderImported", StringComparison.OrdinalIgnoreCase) ||
