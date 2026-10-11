@@ -1112,13 +1112,15 @@ public class SystemDeveloperController : Controller
                 if (!shouldDispatch)
                 {
                     logs.Add("[Simulator] Pipeline dispatch skipped per request configuration.");
+                    resultMessage = $"Webhook '{detectedEvent}' simulation parsed and verified successfully.";
                 }
                 else
                 {
-                    logs.Add("[Simulator] ArrWebhookController is not registered; running in standalone verification mode.");
+                    logs.Add("[Simulator] ArrWebhookController is not registered; pipeline dispatch could not run.");
+                    isSuccess = false;
+                    statusCode = 503;
+                    resultMessage = $"Webhook '{detectedEvent}' simulation parsed successfully, but pipeline dispatch failed because ArrWebhookController is not available.";
                 }
-
-                resultMessage = $"Webhook '{detectedEvent}' simulation parsed and verified successfully.";
             }
 
             sw.Stop();

@@ -196,7 +196,7 @@ public class SystemDeveloperWebhookSimulateTest
     }
 
     [Test]
-    public async Task SimulateWebhook_WhenArrWebhookControllerNull_RunsStandaloneVerification()
+    public async Task SimulateWebhook_WhenArrWebhookControllerNullAndDispatchRequested_ReportsPipelineDispatchFailure()
     {
         var standaloneController = new SystemDeveloperController(webhookStore: this.webhookStore);
 
@@ -209,23 +209,26 @@ public class SystemDeveloperWebhookSimulateTest
         };
 
         var result = await standaloneController.SimulateWebhook(request);
-        result.Result.Should().BeOfType<OkObjectResult>();
+        result.Result.Should().BeOfType<ObjectResult>();
 
-        var okResult = (OkObjectResult)result.Result!;
-        var response = okResult.Value as DeveloperWebhookSimulateResponse;
+        var objectResult = (ObjectResult)result.Result!;
+        objectResult.StatusCode.Should().Be(503);
+        var response = objectResult.Value as DeveloperWebhookSimulateResponse;
         response.Should().NotBeNull();
-        response!.Success.Should().BeTrue();
-        response.TraceLogs.Should().Contain(log => log.Contains("standalone verification mode"));
+        response!.Success.Should().BeFalse();
+        response.StatusCode.Should().Be(503);
+        response.TraceLogs.Should().Contain(log => log.Contains("pipeline dispatch could not run"));
+        response.Message.Should().Contain("pipeline dispatch failed");
 
         this.webhookStore.Received(1).Record(
             "Simulator",
             "MovieAdd",
             "127.0.0.1",
             "Leecharr-Developer-Sandbox/1.0",
-            200,
+            503,
             payload,
-            Arg.Is<string>(m => m.Contains("simulation parsed and verified successfully")),
-            true);
+            Arg.Is<string>(m => m.Contains("pipeline dispatch failed")),
+            false);
     }
 
     [Test]
