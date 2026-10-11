@@ -90,6 +90,7 @@ public class DynamicAiProxyTest
 
         this.configService = Substitute.For<IConfigService>();
         this.configService.GetValue("ActiveAiProvider", Arg.Any<string>()).Returns("RuleHeuristic");
+        this.configService.MalwareRiskThreshold.Returns(0.7);
 
         this.eventAggregator = Substitute.For<IEventAggregator>();
 
@@ -228,6 +229,28 @@ public class DynamicAiProxyTest
         var assessment = await this.proxy.AnalyzeMalwareRiskAsync("CleanRelease.1080p", new List<TorrentFile>());
         assessment.RiskLevel.Should().Be("Safe");
         assessment.IsSuspicious.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_AppliesConfiguredMalwareRiskThreshold()
+    {
+        this.configService.MalwareRiskThreshold.Returns(0.9);
+        this.ruleProvider.AnalyzeMalwareRiskAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<TorrentFile>>())
+            .Returns(Task.FromResult(new AiMalwareRiskAssessment
+            {
+                TorrentName = "Risky",
+                RiskScore = 0.6,
+                RiskLevel = "High",
+                IsSuspicious = true,
+            }));
+
+        var assessment = await this.proxy.AnalyzeMalwareRiskAsync("Risky", new List<TorrentFile>());
+        assessment.RiskScore.Should().Be(0.6);
+        assessment.IsSuspicious.Should().BeFalse();
+
+        this.configService.MalwareRiskThreshold.Returns(0.1);
+        var sensitive = await this.proxy.AnalyzeMalwareRiskAsync("Risky", new List<TorrentFile>());
+        sensitive.IsSuspicious.Should().BeTrue();
     }
 
     [Test]

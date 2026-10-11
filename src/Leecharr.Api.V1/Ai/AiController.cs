@@ -22,6 +22,7 @@ public class AiController : Controller
     private readonly ITorrentFileService torrentFileService;
     private readonly IDownloadEngine downloadEngine;
     private readonly ITrackerEntryRepository trackerRepo;
+    private readonly IAiMalwareAutoQuarantineService malwareAutoQuarantineService;
 
     public AiController(
         IAiService aiService,
@@ -29,7 +30,8 @@ public class AiController : Controller
         ITorrentService torrentService,
         ITorrentFileService torrentFileService,
         IDownloadEngine downloadEngine,
-        ITrackerEntryRepository trackerRepo)
+        ITrackerEntryRepository trackerRepo,
+        IAiMalwareAutoQuarantineService malwareAutoQuarantineService = null)
     {
         this.aiService = aiService;
         this.aiManager = aiManager;
@@ -37,6 +39,7 @@ public class AiController : Controller
         this.torrentFileService = torrentFileService;
         this.downloadEngine = downloadEngine;
         this.trackerRepo = trackerRepo;
+        this.malwareAutoQuarantineService = malwareAutoQuarantineService;
     }
 
     [HttpGet("status")]
@@ -150,6 +153,12 @@ public class AiController : Controller
         }
 
         var assessment = await this.aiService.AnalyzeMalwareRiskAsync(torrentName ?? "Unknown", files);
+
+        if (request.TorrentId.HasValue && this.malwareAutoQuarantineService != null)
+        {
+            await this.malwareAutoQuarantineService.TryAutoQuarantineAsync(request.TorrentId.Value, assessment);
+        }
+
         return this.Ok(assessment);
     }
 

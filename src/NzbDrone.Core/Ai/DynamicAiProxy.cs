@@ -223,7 +223,7 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             var result = await provider.AnalyzeMalwareRiskAsync(torrentName, files);
             if (result != null)
             {
-                return result;
+                return this.ApplyMalwareRiskPolicy(result);
             }
         }
         catch (Exception ex)
@@ -231,7 +231,13 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             this.logger.Debug(ex, "Active AI provider '{0}' failed to analyze malware risk, falling back to heuristic engine.", provider.ProviderId);
         }
 
-        return await this.defaultFallback.AnalyzeMalwareRiskAsync(torrentName, files);
+        var fallbackResult = await this.defaultFallback.AnalyzeMalwareRiskAsync(torrentName, files);
+        return this.ApplyMalwareRiskPolicy(fallbackResult);
+    }
+
+    private AiMalwareRiskAssessment ApplyMalwareRiskPolicy(AiMalwareRiskAssessment assessment)
+    {
+        return AiMalwareRiskPolicy.ApplyConfiguredThreshold(assessment, this.configService.MalwareRiskThreshold);
     }
 
     public async Task<string> GenerateChatResponseAsync(string userMessage, string systemContext = null)
