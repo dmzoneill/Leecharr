@@ -32,6 +32,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
     private bool isSleepInhibited;
     private uint osxAssertionId;
     private Process linuxInhibitProcess;
+    private WindowsSleepInhibitionWorker windowsSleepInhibitionWorker;
     private bool disposed;
 
     public PowerManagementService(IHostApplicationLifetime hostLifetime = null)
@@ -240,6 +241,8 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
             this.activeLeaseCount = 0;
         }
+
+        this.DisposeWindowsSleepInhibitionWorker();
     }
 
     [DllImport("powrprof.dll", SetLastError = true)]
@@ -355,44 +358,32 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
     private void ApplyWindowsSleepInhibition(bool inhibit)
     {
-        if (inhibit)
+        var worker = this.EnsureWindowsSleepInhibitionWorker();
+        var success = worker.Apply(inhibit);
+        if (!inhibit && !success)
         {
-            var flags = (uint)(ExecutionState.EsContinuous | ExecutionState.EsSystemRequired | ExecutionState.EsAwaymodeRequired);
-            uint result;
-            if (this.WindowsSetExecutionStateInvoker != null)
-            {
-                result = this.WindowsSetExecutionStateInvoker(flags);
-            }
-            else
-            {
-                result = SetThreadExecutionState(flags);
-                if (result == 0)
-                {
-                    flags = (uint)(ExecutionState.EsContinuous | ExecutionState.EsSystemRequired);
-                    result = SetThreadExecutionState(flags);
-                }
-            }
-
-            this.isSleepInhibited = result != 0;
+            this.logger.Trace("Failed to clear execution state flags on Windows sleep inhibition worker thread.");
         }
-        else
+
+        this.isSleepInhibited = inhibit && success;
+    }
+
+    private WindowsSleepInhibitionWorker EnsureWindowsSleepInhibitionWorker()
+    {
+        if (this.windowsSleepInhibitionWorker != null)
         {
-            var flags = (uint)ExecutionState.EsContinuous;
-            if (this.WindowsSetExecutionStateInvoker != null)
-            {
-                this.WindowsSetExecutionStateInvoker(flags);
-            }
-            else
-            {
-                var resetResult = SetThreadExecutionState(flags);
-                if (resetResult == 0)
-                {
-                    this.logger.Trace("Failed to clear execution state flags.");
-                }
-            }
-
-            this.isSleepInhibited = false;
+            return this.windowsSleepInhibitionWorker;
         }
+
+        var invoker = this.WindowsSetExecutionStateInvoker ?? (Func<uint, uint>)SetThreadExecutionState;
+        this.windowsSleepInhibitionWorker = new WindowsSleepInhibitionWorker(invoker);
+        return this.windowsSleepInhibitionWorker;
+    }
+
+    private void DisposeWindowsSleepInhibitionWorker()
+    {
+        this.windowsSleepInhibitionWorker?.Dispose();
+        this.windowsSleepInhibitionWorker = null;
     }
 
     private void ApplyOsxSleepInhibition(bool inhibit, string reason)
