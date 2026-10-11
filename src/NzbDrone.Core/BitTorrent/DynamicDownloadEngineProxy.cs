@@ -758,6 +758,11 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                     await engine.SetSequentialDownloadAsync(torrent.Id, true);
                 }
 
+                if (torrent.FirstLastPiecePriority)
+                {
+                    await engine.SetFirstLastPiecePriorityAsync(torrent.Id, true);
+                }
+
                 if (torrentBytes == null && this.trackerEntryRepository != null)
                 {
                     var extraTrackers = this.trackerEntryRepository.GetByTorrentId(torrent.Id)?

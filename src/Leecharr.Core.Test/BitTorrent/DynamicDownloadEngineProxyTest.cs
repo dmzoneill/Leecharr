@@ -323,6 +323,7 @@ public class DynamicDownloadEngineProxyTest
             InitialSeeding = true,
             IsPrivate = true,
             SequentialDownload = true,
+            FirstLastPiecePriority = true,
         };
 
         this.torrentRepository.All().Returns(new List<Torrent> { torrent });
@@ -342,6 +343,7 @@ public class DynamicDownloadEngineProxyTest
         await this.monoTorrentEngine.Received(1).SetSuperSeedingAsync(42, true);
         await this.monoTorrentEngine.Received(1).SetTorrentPrivateStatusAsync(42, true);
         await this.monoTorrentEngine.Received(1).SetSequentialDownloadAsync(42, true);
+        await this.monoTorrentEngine.Received(1).SetFirstLastPiecePriorityAsync(42, true);
     }
 
     [Test]
@@ -690,6 +692,60 @@ public class DynamicDownloadEngineProxyTest
 
         result.Success.Should().BeTrue();
         await this.libTorrentEngine.DidNotReceive().SetSequentialDownloadAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_AppliesFirstLastPiecePriority_WhenTorrentHasFirstLastPiecePriority()
+    {
+        var torrent = new Torrent
+        {
+            Id = 58,
+            Name = "First Last ISO",
+            InfoHash = "8888888888888888888888888888888888888888",
+            Status = TorrentStatus.Downloading,
+            FirstLastPiecePriority = true,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
+        await testProxy.StartAsync();
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.Received(1).SetFirstLastPiecePriorityAsync(58, true);
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_DoesNotApplyFirstLastPiecePriority_WhenTorrentFirstLastPiecePriorityIsFalse()
+    {
+        var torrent = new Torrent
+        {
+            Id = 59,
+            Name = "Standard ISO",
+            InfoHash = "9999999999999999999999999999999999999999",
+            Status = TorrentStatus.Downloading,
+            FirstLastPiecePriority = false,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
+        await testProxy.StartAsync();
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.DidNotReceive().SetFirstLastPiecePriorityAsync(Arg.Any<int>(), Arg.Any<bool>());
     }
 
     [Test]
