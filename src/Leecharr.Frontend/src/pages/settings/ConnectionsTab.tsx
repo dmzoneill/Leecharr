@@ -354,10 +354,18 @@ export function ConnectionsTab() {
               </span>
             )}
             {syncMutation.isSuccess && syncMutation.data && (
-              <span style={{ color: "var(--success)", fontSize: "0.85rem" }}>
+              <span
+                style={{
+                  color:
+                    syncMutation.data.success === false
+                      ? "var(--danger)"
+                      : "var(--success)",
+                  fontSize: "0.85rem",
+                }}
+              >
                 {syncMutation.data.syncedCount !== undefined ? (
                   <span>
-                    ✓{" "}
+                    {syncMutation.data.success === false ? "" : "✓ "}
                     {syncMutation.data.message ||
                       t("settingsTabs.connections.syncCompleteFraction", {
                         syncedCount: syncMutation.data.syncedCount,
