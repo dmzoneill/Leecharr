@@ -127,6 +127,8 @@ public class ArrConnectionController : Controller
             model.ApiKey = existing.ApiKey;
         }
 
+        ApplyExistingConnectionFields(model, existing, resource);
+
         var shouldUnregisterWebhook = (existing.WebhookEnabled && !model.WebhookEnabled) ||
                                         (existing.Enable && !model.Enable) ||
                                         (!string.Equals(existing.Url?.TrimEnd('/'), model.Url?.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
@@ -250,13 +252,20 @@ public class ArrConnectionController : Controller
 
     private static ArrConnectionResource ToResource(ArrConnectionDefinition model)
     {
+        var resolvedPublicUrl = ResolveExternalUrl(model.ExternalUrl, model.ArrType, model.Name);
         return new ArrConnectionResource
         {
             Id = model.Id,
             Name = model.Name,
             ArrType = model.ArrType,
+            Implementation = model.Implementation,
+            ConfigContract = model.ConfigContract,
+            Settings = model.Settings,
+            Priority = model.Priority,
+            AutoEnrichMetadata = model.AutoEnrichMetadata,
             Url = model.Url,
-            ExternalUrl = ResolveExternalUrl(model.ExternalUrl, model.ArrType, model.Name),
+            ExternalUrl = model.ExternalUrl,
+            PublicUrl = resolvedPublicUrl,
             ApiKey = string.IsNullOrEmpty(model.ApiKey) ? string.Empty : "********",
             Enabled = model.Enable,
             SyncEnabled = model.SyncEnabled,
@@ -272,14 +281,24 @@ public class ArrConnectionController : Controller
 
     private static ArrConnectionDefinition ToModel(ArrConnectionResource resource)
     {
+        var externalUrl = resource.ExternalUrl;
+        if (string.IsNullOrWhiteSpace(externalUrl) && !string.IsNullOrWhiteSpace(resource.PublicUrl))
+        {
+            externalUrl = resource.PublicUrl;
+        }
+
         return new ArrConnectionDefinition
         {
             Id = resource.Id,
             Name = resource.Name,
             ArrType = resource.ArrType ?? "Sonarr",
-            Implementation = resource.ArrType ?? "Sonarr",
+            Implementation = resource.Implementation ?? resource.ArrType ?? "Sonarr",
+            ConfigContract = resource.ConfigContract,
+            Settings = resource.Settings,
+            Priority = resource.Priority ?? 1,
+            AutoEnrichMetadata = resource.AutoEnrichMetadata ?? true,
             Url = resource.Url,
-            ExternalUrl = resource.ExternalUrl,
+            ExternalUrl = string.IsNullOrWhiteSpace(externalUrl) ? null : externalUrl.Trim(),
             ApiKey = resource.ApiKey,
             Enable = resource.Enabled,
             SyncEnabled = resource.SyncEnabled,
@@ -291,6 +310,87 @@ public class ArrConnectionController : Controller
             SyncCategories = resource.SyncCategories,
             SyncIntervalMinutes = resource.RefreshIntervalMinutes > 0 ? resource.RefreshIntervalMinutes : 15,
         };
+    }
+
+    private static void ApplyExistingConnectionFields(
+        ArrConnectionDefinition model,
+        ArrConnectionDefinition existing,
+        ArrConnectionResource resource)
+    {
+        if (resource.Priority.HasValue)
+        {
+            model.Priority = resource.Priority.Value;
+        }
+        else
+        {
+            model.Priority = existing.Priority;
+        }
+
+        if (resource.Settings != null)
+        {
+            model.Settings = resource.Settings;
+        }
+        else
+        {
+            model.Settings = existing.Settings;
+        }
+
+        if (!string.IsNullOrWhiteSpace(resource.ConfigContract))
+        {
+            model.ConfigContract = resource.ConfigContract;
+        }
+        else
+        {
+            model.ConfigContract = existing.ConfigContract;
+        }
+
+        if (resource.AutoEnrichMetadata.HasValue)
+        {
+            model.AutoEnrichMetadata = resource.AutoEnrichMetadata.Value;
+        }
+        else
+        {
+            model.AutoEnrichMetadata = existing.AutoEnrichMetadata;
+        }
+
+        if (!string.IsNullOrWhiteSpace(resource.Implementation))
+        {
+            model.Implementation = resource.Implementation;
+        }
+        else if (!string.IsNullOrWhiteSpace(existing.Implementation))
+        {
+            model.Implementation = existing.Implementation;
+        }
+
+        model.ExternalUrl = NormalizeExternalUrlForStorage(resource, existing);
+    }
+
+    public static string NormalizeExternalUrlForStorage(ArrConnectionResource resource, ArrConnectionDefinition existing)
+    {
+        var candidate = resource.ExternalUrl;
+        if (string.IsNullOrWhiteSpace(candidate) && !string.IsNullOrWhiteSpace(resource.PublicUrl))
+        {
+            candidate = resource.PublicUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return existing?.ExternalUrl;
+        }
+
+        var trimmed = candidate.Trim();
+        if (existing != null)
+        {
+            var resolved = ResolveExternalUrl(existing.ExternalUrl, existing.ArrType, existing.Name);
+            if (string.IsNullOrWhiteSpace(existing.ExternalUrl) &&
+                !string.IsNullOrWhiteSpace(resolved) &&
+                string.Equals(trimmed, resolved.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+        }
+
+        return trimmed;
     }
 
     public static bool IsValidTargetUrl(string targetUrl, out string errorMessage)
