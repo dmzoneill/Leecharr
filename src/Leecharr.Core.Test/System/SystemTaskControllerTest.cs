@@ -151,6 +151,8 @@ public class SystemTaskControllerTest
     [TestCase("SessionCleanup", typeof(NzbDrone.Core.Authentication.SessionCleanupCommand))]
     [TestCase("GeoIpUpdateTask", typeof(NzbDrone.Core.Network.GeoIp.GeoIpUpdateCommand))]
     [TestCase("GeoIpUpdate", typeof(NzbDrone.Core.Network.GeoIp.GeoIpUpdateCommand))]
+    [TestCase("AutomationScheduledTask", typeof(NzbDrone.Core.Automation.AutomationScheduledCommand))]
+    [TestCase("AutomationScheduled", typeof(NzbDrone.Core.Automation.AutomationScheduledCommand))]
     [TestCase("SyncArrTask", typeof(NzbDrone.Core.ArrIntegration.SyncArrCommand))]
     [TestCase("SyncArr", typeof(NzbDrone.Core.ArrIntegration.SyncArrCommand))]
     public void ExecuteTask_KnownTasks_PushesStronglyTypedCommand(string typeName, Type expectedCommandType)

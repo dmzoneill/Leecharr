@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Authentication;
+using NzbDrone.Core.Automation;
 using NzbDrone.Core.Backup;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Jobs;
@@ -216,7 +217,8 @@ public class SystemTaskController : Controller
                 string.Equals(clean, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(clean, "SessionCleanup", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(clean, "GeoIpUpdate", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(clean, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase);
+                string.Equals(clean, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(clean, "AutomationScheduled", StringComparison.OrdinalIgnoreCase);
     }
 
     private ActionResult DispatchTask(string typeName)
@@ -265,6 +267,10 @@ public class SystemTaskController : Controller
         else if (string.Equals(name, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new DownloadHistoryCleanupCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "AutomationScheduled", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new AutomationScheduledCommand(), CommandTrigger.Manual);
         }
         else if (string.Equals(name, "SyncArr", StringComparison.OrdinalIgnoreCase))
         {

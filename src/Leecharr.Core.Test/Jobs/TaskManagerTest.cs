@@ -33,7 +33,7 @@ public class TaskManagerTest
 
         var result = this.taskManager.GetAll();
 
-        result.Should().HaveCount(9);
+        result.Should().HaveCount(10);
         result.Select(t => t.TypeName).Should().BeEquivalentTo(new[]
         {
             "WatchFolderScanTask",
@@ -45,6 +45,7 @@ public class TaskManagerTest
             "BlocklistUpdateTask",
             "GeoIpUpdateTask",
             "DownloadHistoryCleanupTask",
+            "AutomationScheduledTask",
         });
 
         var watchFolder = result.First(t => t.TypeName == "WatchFolderScanTask");
@@ -92,11 +93,11 @@ public class TaskManagerTest
 
         var result = this.taskManager.GetAll();
 
-        result.Should().HaveCount(9);
+        result.Should().HaveCount(10);
         var watchFolder = result.First(t => t.TypeName == "WatchFolderScanTask");
         watchFolder.Interval.Should().Be(5); // Preserved user customization
 
-        this.scheduledTaskRepository.Received(8).Insert(Arg.Any<ScheduledTask>());
+        this.scheduledTaskRepository.Received(9).Insert(Arg.Any<ScheduledTask>());
     }
 
     [Test]
@@ -113,13 +114,14 @@ public class TaskManagerTest
             new() { Id = 7, TypeName = "BlocklistUpdateTask", Interval = 1440 },
             new() { Id = 8, TypeName = "GeoIpUpdateTask", Interval = 43200 },
             new() { Id = 9, TypeName = "DownloadHistoryCleanupTask", Interval = 1440 },
+            new() { Id = 10, TypeName = "AutomationScheduledTask", Interval = 15 },
         };
 
         this.scheduledTaskRepository.All().Returns(storedTasks);
 
         var result = this.taskManager.GetAll();
 
-        result.Should().HaveCount(9);
+        result.Should().HaveCount(10);
         this.scheduledTaskRepository.DidNotReceive().Insert(Arg.Any<ScheduledTask>());
     }
 
@@ -159,8 +161,8 @@ public class TaskManagerTest
 
         this.taskManager.Handle(new ApplicationStartedEvent());
 
-        storedTasks.Should().HaveCount(9);
-        this.scheduledTaskRepository.Received(9).Insert(Arg.Any<ScheduledTask>());
+        storedTasks.Should().HaveCount(10);
+        this.scheduledTaskRepository.Received(10).Insert(Arg.Any<ScheduledTask>());
     }
 
     [Test]
