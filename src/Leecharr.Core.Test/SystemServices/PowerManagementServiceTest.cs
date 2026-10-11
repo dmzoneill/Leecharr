@@ -501,36 +501,6 @@ public class PowerManagementServiceTest
     }
 
     [Test]
-    public void InhibitSleep_OnLinux_InvokesConfiguredInhibitProcessLauncher()
-    {
-        string capturedExecutable = null;
-        string[] capturedArgs = null;
-
-        var service = new PowerManagementService
-        {
-            TargetPlatformOverride = OSPlatform.Linux,
-            ContainerDetector = () => false,
-            LinuxInhibitProcessLauncher = (executable, args) =>
-            {
-                capturedExecutable = executable;
-                capturedArgs = args;
-                return new System.Diagnostics.Process();
-            },
-        };
-
-        using (service.InhibitSleep("Linux torrent download"))
-        {
-            service.IsSleepInhibited.Should().BeTrue();
-            capturedExecutable.Should().NotBeNullOrWhiteSpace();
-            capturedExecutable.Should().EndWith("systemd-inhibit");
-            capturedArgs.Should().Contain("--what=idle:sleep");
-            capturedArgs.Should().Contain("--why=Linux torrent download");
-        }
-
-        service.IsSleepInhibited.Should().BeFalse();
-    }
-
-    [Test]
     public void InhibitSleep_OnLinux_StartsAndStopsProcess()
     {
         string executedCommand = null;
