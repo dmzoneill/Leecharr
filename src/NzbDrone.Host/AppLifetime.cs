@@ -34,7 +34,9 @@ public class AppLifetime : IHostedService, IDisposable
     private Task rssLoopTask;
     private Task prowlarrLoopTask;
     private bool downloadStartedThisSession;
+    private readonly object sleepInhibitSync = new();
     private IDisposable activeSleepInhibitToken;
+    private volatile int isShuttingDown;
 
     public AppLifetime(
         IAppLifetimeServices services,
@@ -187,6 +189,7 @@ public class AppLifetime : IHostedService, IDisposable
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+        this.isShuttingDown = 1;
         this.logger.Info("Leecharr application shutting down...");
 
         try
@@ -254,8 +257,11 @@ public class AppLifetime : IHostedService, IDisposable
 
         try
         {
-            this.activeSleepInhibitToken?.Dispose();
-            this.activeSleepInhibitToken = null;
+            lock (this.sleepInhibitSync)
+            {
+                this.activeSleepInhibitToken?.Dispose();
+                this.activeSleepInhibitToken = null;
+            }
         }
         catch (Exception ex)
         {
@@ -295,8 +301,12 @@ public class AppLifetime : IHostedService, IDisposable
 
     public void Dispose()
     {
-        this.activeSleepInhibitToken?.Dispose();
-        this.activeSleepInhibitToken = null;
+        lock (this.sleepInhibitSync)
+        {
+            this.activeSleepInhibitToken?.Dispose();
+            this.activeSleepInhibitToken = null;
+        }
+
         this.cts?.Dispose();
     }
 
@@ -319,17 +329,26 @@ public class AppLifetime : IHostedService, IDisposable
                 if (hasDownloadingTasks)
                 {
                     this.downloadStartedThisSession = true;
-                    if (this.activeSleepInhibitToken == null && this.services.PowerManagementService != null)
+                    if (this.isShuttingDown == 0 && !token.IsCancellationRequested && this.services.PowerManagementService != null)
                     {
-                        this.activeSleepInhibitToken = this.services.PowerManagementService.InhibitSleep("Leecharr active torrent downloads in progress");
+                        lock (this.sleepInhibitSync)
+                        {
+                            if (this.isShuttingDown == 0 && this.activeSleepInhibitToken == null)
+                            {
+                                this.activeSleepInhibitToken = this.services.PowerManagementService.InhibitSleep("Leecharr active torrent downloads in progress");
+                            }
+                        }
                     }
                 }
                 else
                 {
-                    if (this.activeSleepInhibitToken != null)
+                    lock (this.sleepInhibitSync)
                     {
-                        this.activeSleepInhibitToken.Dispose();
-                        this.activeSleepInhibitToken = null;
+                        if (this.activeSleepInhibitToken != null)
+                        {
+                            this.activeSleepInhibitToken.Dispose();
+                            this.activeSleepInhibitToken = null;
+                        }
                     }
                 }
 
