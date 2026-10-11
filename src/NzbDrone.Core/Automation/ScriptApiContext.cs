@@ -132,7 +132,7 @@ public class ScriptApiContext : IDisposable
             return string.Empty;
         }
 
-        var trimmed = urlBase.Trim().TrimEnd('/');
+        var trimmed = urlBase.Trim().Trim('/');
         return string.IsNullOrEmpty(trimmed) ? string.Empty : "/" + trimmed;
     }
 

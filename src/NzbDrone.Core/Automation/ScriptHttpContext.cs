@@ -46,7 +46,9 @@ public class ScriptHttpContext : IDisposable
     public ScriptHttpContext(HttpMessageHandler handler, CookieContainer? cookieContainer = null, ScriptExecutionBudget? executionBudget = null)
     {
         this.CookieContainer = cookieContainer ?? new CookieContainer();
-        this.AllowInsecureTls = false;
+
+        // Custom handlers (unit tests) must receive HTTPS calls instead of a second real HttpClient.
+        this.AllowInsecureTls = true;
         this._executionBudget = executionBudget;
         this._client = new HttpClient(handler)
         {

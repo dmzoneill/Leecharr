@@ -81,7 +81,7 @@ public class ClientImportAndProxyTest
     public async Task QueryRemoteClientItemsAsync_WhenClientIsTransmission_DispatchesToTransmissionRpcEndpoint()
     {
         var requestedUrls = new List<string>();
-        var transmissionJson = "{\"arguments\":{\"torrents\":[{\"hashString\":\"2222222222222222222222222222222222222222\",\"name\":\"Transmission Torrent\",\"totalSize\":10000,\"percentDone\":1.0,\"status\":6,\"downloadDir\":\"/media\"}]}}";
+        var transmissionJson = "{\"result\":\"success\",\"arguments\":{\"torrents\":[{\"hashString\":\"2222222222222222222222222222222222222222\",\"name\":\"Transmission Torrent\",\"totalSize\":10000,\"percentDone\":1.0,\"status\":6,\"downloadDir\":\"/media\"}]}}";
 
         var handler = new MockHttpMessageHandler(req =>
         {
@@ -295,7 +295,7 @@ public class ClientImportAndProxyTest
                 secondCallSessionId = string.Join(",", values);
             }
 
-            var json = "{\"arguments\":{\"torrents\":[{\"hashString\":\"4444444444444444444444444444444444444444\",\"name\":\"Retried Torrent\",\"totalSize\":1024,\"percentDone\":0.5,\"downloadDir\":\"/data\"}]}}";
+            var json = "{\"result\":\"success\",\"arguments\":{\"torrents\":[{\"hashString\":\"4444444444444444444444444444444444444444\",\"name\":\"Retried Torrent\",\"totalSize\":1024,\"percentDone\":0.5,\"downloadDir\":\"/data\"}]}}";
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json"),
@@ -834,8 +834,9 @@ public class ClientImportAndProxyTest
             SavePath = "/mnt/storage/movies",
         };
 
+        var magnetUri = $"magnet:?xt=urn:btih:{hash}&dn={Uri.EscapeDataString("Target Movie")}";
         this.torrentService.AddFromMagnetAsync(
-            $"magnet:?xt=urn:btih:{hash}",
+            magnetUri,
             "custom-cat",
             "/mnt/storage/movies",
             false).Returns(Task.FromResult(addedTorrent));
@@ -851,7 +852,7 @@ public class ClientImportAndProxyTest
         resource.Category.Should().Be("custom-cat");
 
         await this.torrentService.Received(1).AddFromMagnetAsync(
-            $"magnet:?xt=urn:btih:{hash}",
+            magnetUri,
             "custom-cat",
             "/mnt/storage/movies",
             false);
@@ -924,8 +925,9 @@ public class ClientImportAndProxyTest
         this.torrentService.GetByInfoHash(hash1).Returns((Torrent)null!);
         this.torrentService.GetByInfoHash(hash2).Returns(new Torrent { Id = 200, InfoHash = hash2 });
 
+        var magnetUri1 = $"magnet:?xt=urn:btih:{hash1}&dn={Uri.EscapeDataString("Torrent 1")}";
         this.torrentService.AddFromMagnetAsync(
-            $"magnet:?xt=urn:btih:{hash1}",
+            magnetUri1,
             "cat1",
             "/path1",
             false).Returns(Task.FromResult(new Torrent { Id = 201, InfoHash = hash1 }));
@@ -949,13 +951,13 @@ public class ClientImportAndProxyTest
         syncResult.TotalCount.Should().Be(2);
 
         await this.torrentService.Received(1).AddFromMagnetAsync(
-            $"magnet:?xt=urn:btih:{hash1}",
+            magnetUri1,
             "cat1",
             "/path1",
             false);
 
         await this.torrentService.DidNotReceive().AddFromMagnetAsync(
-            $"magnet:?xt=urn:btih:{hash2}",
+            Arg.Is<string>(m => m.StartsWith($"magnet:?xt=urn:btih:{hash2}", StringComparison.OrdinalIgnoreCase)),
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<bool>());
@@ -999,10 +1001,18 @@ public class ClientImportAndProxyTest
         this.repository.Get(11).Returns(client);
         this.torrentService.GetByInfoHash(Arg.Any<string>()).Returns((Torrent)null!);
 
-        this.torrentService.AddFromMagnetAsync($"magnet:?xt=urn:btih:{hash1}", Arg.Any<string>(), Arg.Any<string>(), false)
+        this.torrentService.AddFromMagnetAsync(
+                Arg.Is<string>(m => m.StartsWith($"magnet:?xt=urn:btih:{hash1}", StringComparison.OrdinalIgnoreCase)),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                false)
             .Throws(new InvalidOperationException("Torrent engine failure on hash1"));
 
-        this.torrentService.AddFromMagnetAsync($"magnet:?xt=urn:btih:{hash2}", Arg.Any<string>(), Arg.Any<string>(), false)
+        this.torrentService.AddFromMagnetAsync(
+                Arg.Is<string>(m => m.StartsWith($"magnet:?xt=urn:btih:{hash2}", StringComparison.OrdinalIgnoreCase)),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                false)
             .Returns(Task.FromResult(new Torrent { Id = 202, InfoHash = hash2 }));
 
         var controller = new DownloadClientController(this.repository, this.torrentService, http);
@@ -1015,7 +1025,8 @@ public class ClientImportAndProxyTest
         var syncResult = okResult!.Value as SyncResultResource;
         syncResult.Should().NotBeNull();
         syncResult!.SyncedCount.Should().Be(1);
-        syncResult.Skipped.Should().Be(1);
+        syncResult.Failed.Should().Be(1);
+        syncResult.Skipped.Should().Be(0);
     }
 
     [Test]
@@ -1238,7 +1249,10 @@ public class ClientImportAndProxyTest
         var handler = new MockHttpMessageHandler(req =>
         {
             capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
-            return new HttpResponseMessage(HttpStatusCode.OK);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\"}", Encoding.UTF8, "application/json"),
+            };
         });
 
         using var http = new HttpClient(handler);

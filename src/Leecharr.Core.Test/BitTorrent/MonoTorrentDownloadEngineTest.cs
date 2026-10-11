@@ -2606,9 +2606,8 @@ public class MonoTorrentDownloadEngineTest
 
         await act.Should().NotThrowAsync();
 
-        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
-            e.Torrent.Id == 104 &&
-            e.Torrent.Status == TorrentStatus.Seeding));
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentDownloadCompletedEvent>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<FileMoveFailedEvent>(e => e.Torrent.Id == 104));
 
         task.Manager.SavePath.Should().Be(this.testIncompleteDir);
         task.SavePath.Should().Be(this.testIncompleteDir);
@@ -2648,10 +2647,8 @@ public class MonoTorrentDownloadEngineTest
         task.WorkingPath.Should().Be(this.testIncompleteDir);
         task.IsFilesMovedToCompleted.Should().BeFalse();
 
-        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
-            e.Torrent.Id == 150 &&
-            e.Torrent.SavePath == this.testIncompleteDir &&
-            e.Torrent.Status == TorrentStatus.Seeding));
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentDownloadCompletedEvent>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<FileMoveFailedEvent>(e => e.Torrent.Id == 150));
     }
 
     [Test]
@@ -2691,10 +2688,8 @@ public class MonoTorrentDownloadEngineTest
         task.WorkingPath.Should().Be(this.testIncompleteDir);
         task.IsFilesMovedToCompleted.Should().BeFalse();
 
-        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
-            e.Torrent.Id == 151 &&
-            e.Torrent.SavePath == this.testIncompleteDir &&
-            e.Torrent.Status == TorrentStatus.Seeding));
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentDownloadCompletedEvent>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<FileMoveFailedEvent>(e => e.Torrent.Id == 151));
     }
 
     [Test]
@@ -2729,10 +2724,8 @@ public class MonoTorrentDownloadEngineTest
         task.WorkingPath.Should().Be(this.testIncompleteDir);
         task.IsFilesMovedToCompleted.Should().BeFalse();
 
-        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
-            e.Torrent.Id == 152 &&
-            e.Torrent.SavePath == this.testIncompleteDir &&
-            e.Torrent.Status == TorrentStatus.Seeding));
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentDownloadCompletedEvent>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<FileMoveFailedEvent>(e => e.Torrent.Id == 152));
     }
 
     [Test]
