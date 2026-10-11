@@ -209,7 +209,7 @@ public class SystemDatabaseController : Controller
                     var cols = new List<string>();
                     while (infoReader.Read())
                     {
-                        cols.Add(infoReader.GetString(2));
+                        cols.Add(infoReader.IsDBNull(2) ? "(expression)" : infoReader.GetString(2));
                     }
 
                     tableSchema.Indexes.Add(new DatabaseIndexResource
