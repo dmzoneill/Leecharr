@@ -88,6 +88,26 @@ public class IndexerResourceSerializationAndTest
     }
 
     [Test]
+    public void Categories_Deserializes_From_NestedIntArray()
+    {
+        var json = @"{ ""name"": ""Test"", ""categories"": [[5000], 5030] }";
+        var res = JsonSerializer.Deserialize<IndexerResource>(json, JsonOptions);
+
+        res.Should().NotBeNull();
+        res!.Categories.Should().Equal(5000, 5030);
+    }
+
+    [Test]
+    public void Categories_Deserializes_From_ObjectArray_IgnoresObjects()
+    {
+        var json = @"{ ""name"": ""Test"", ""categories"": [{ ""id"": 5000 }, 5030] }";
+        var res = JsonSerializer.Deserialize<IndexerResource>(json, JsonOptions);
+
+        res.Should().NotBeNull();
+        res!.Categories.Should().Equal(5030);
+    }
+
+    [Test]
     public void IndexerType_AliasBindsToImplementation()
     {
         var json = @"{ ""name"": ""Test"", ""indexerType"": ""Prowlarr"" }";
