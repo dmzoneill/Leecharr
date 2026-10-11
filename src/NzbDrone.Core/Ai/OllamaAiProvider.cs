@@ -70,13 +70,30 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
         var env = Environment.GetEnvironmentVariable("OLLAMA_HOST");
         if (!string.IsNullOrWhiteSpace(env))
         {
-            return env.TrimEnd('/');
+            return NormalizeOllamaBaseUrl(env);
         }
 
         var url = !string.IsNullOrWhiteSpace(this.configService?.OllamaHost)
             ? this.configService.OllamaHost
             : this.configService?.GetValue("OllamaUrl", "http://127.0.0.1:11434") ?? "http://127.0.0.1:11434";
-        return url.TrimEnd('/');
+        return NormalizeOllamaBaseUrl(url);
+    }
+
+    private static string NormalizeOllamaBaseUrl(string url)
+    {
+        var trimmed = url.Trim().TrimEnd('/');
+        if (trimmed.Length == 0)
+        {
+            return trimmed;
+        }
+
+        if (!trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            && !trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = "http://" + trimmed;
+        }
+
+        return trimmed;
     }
 
     private string GetModelName()
