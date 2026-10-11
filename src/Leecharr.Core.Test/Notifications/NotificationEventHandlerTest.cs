@@ -6,6 +6,9 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Configuration;
@@ -505,6 +508,40 @@ public class NotificationEventHandlerTest
             "/scripts/seed_goal.sh",
             torrent,
             "OnSeedGoalReached");
+    }
+
+    [Test]
+    public async Task Handle_TorrentSeedGoalReachedEvent_WhenScriptReturnsFalse_LogsFailure()
+    {
+        var memoryTarget = new MemoryTarget("notification-script-fail-log")
+        {
+            Layout = "${level}|${message}",
+        };
+        var configuration = new LoggingConfiguration();
+        configuration.AddRule(LogLevel.Error, LogLevel.Error, memoryTarget);
+        LogManager.Configuration = configuration;
+
+        try
+        {
+            this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition>());
+            this.configService.OnSeedGoalReachedScript.Returns("/scripts/failing.sh");
+            this.customScriptService.ExecuteScriptAsync("/scripts/failing.sh", Arg.Any<Torrent>(), "OnSeedGoalReached", Arg.Any<string>())
+                .Returns(Task.FromResult(false));
+
+            var torrent = new Torrent { Id = 99, Name = "Fail Script Torrent" };
+            this.handler.Handle(new TorrentSeedGoalReachedEvent(torrent));
+
+            await Task.Delay(100);
+
+            memoryTarget.Logs.Should().Contain(log =>
+                log.Contains("Error|", StringComparison.Ordinal) &&
+                log.Contains("Custom script failed for event 'OnSeedGoalReached'", StringComparison.Ordinal) &&
+                log.Contains("/scripts/failing.sh", StringComparison.Ordinal));
+        }
+        finally
+        {
+            LogManager.Configuration = null;
+        }
     }
 
     [Test]

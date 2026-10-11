@@ -75,17 +75,7 @@ public class NotificationEventHandler :
         if (this.configService?.ScriptTorrentAddedEnabled == true &&
             !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentAddedFilename))
         {
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await this.customScriptService.ExecuteScriptAsync(this.configService.ScriptTorrentAddedFilename, message.Torrent, "OnGrab").ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "Error executing ScriptTorrentAdded script");
-                }
-            });
+            this.QueueCustomScriptExecution(this.configService.ScriptTorrentAddedFilename, message.Torrent, "OnGrab");
         }
     }
 
@@ -100,33 +90,13 @@ public class NotificationEventHandler :
 
         if (!string.IsNullOrWhiteSpace(this.configService?.OnDownloadCompleteScript))
         {
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await this.customScriptService.ExecuteScriptAsync(this.configService.OnDownloadCompleteScript, message.Torrent, "OnDownloadComplete").ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "Error executing OnDownloadComplete script");
-                }
-            });
+            this.QueueCustomScriptExecution(this.configService.OnDownloadCompleteScript, message.Torrent, "OnDownloadComplete");
         }
 
         if (this.configService?.ScriptTorrentDoneEnabled == true &&
             !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneFilename))
         {
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await this.customScriptService.ExecuteScriptAsync(this.configService.ScriptTorrentDoneFilename, message.Torrent, "OnDownloadComplete").ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "Error executing ScriptTorrentDone script");
-                }
-            });
+            this.QueueCustomScriptExecution(this.configService.ScriptTorrentDoneFilename, message.Torrent, "OnDownloadComplete");
         }
     }
 
@@ -205,33 +175,13 @@ public class NotificationEventHandler :
 
         if (!string.IsNullOrWhiteSpace(this.configService?.OnSeedGoalReachedScript))
         {
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await this.customScriptService.ExecuteScriptAsync(this.configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached").ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "Error executing OnSeedGoalReached script");
-                }
-            });
+            this.QueueCustomScriptExecution(this.configService.OnSeedGoalReachedScript, message.Torrent, "OnSeedGoalReached");
         }
 
         if (this.configService?.ScriptTorrentDoneSeedingEnabled == true &&
             !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneSeedingFilename))
         {
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await this.customScriptService.ExecuteScriptAsync(this.configService.ScriptTorrentDoneSeedingFilename, message.Torrent, "OnSeedGoalReached").ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "Error executing ScriptTorrentDoneSeeding script");
-                }
-            });
+            this.QueueCustomScriptExecution(this.configService.ScriptTorrentDoneSeedingFilename, message.Torrent, "OnSeedGoalReached");
         }
     }
 
@@ -387,17 +337,7 @@ public class NotificationEventHandler :
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
                 var (scriptPath, scriptArgs) = CustomScriptService.ParseSettings(notif.Settings);
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await this.customScriptService.ExecuteScriptAsync(scriptPath, null, eventType, scriptArgs).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Error executing custom script for {0}", eventType);
-                    }
-                });
+                this.QueueCustomScriptExecution(scriptPath, null, eventType, scriptArgs);
             }
             else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
             {
@@ -538,17 +478,7 @@ public class NotificationEventHandler :
             if (string.Equals(notif.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
             {
                 var (scriptPath, scriptArgs) = CustomScriptService.ParseSettings(notif.Settings);
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await this.customScriptService.ExecuteScriptAsync(scriptPath, torrent, eventType, scriptArgs).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Error executing custom script for {0}", eventType);
-                    }
-                });
+                this.QueueCustomScriptExecution(scriptPath, torrent, eventType, scriptArgs);
             }
             else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
             {
@@ -583,5 +513,29 @@ public class NotificationEventHandler :
                 });
             }
         }
+    }
+
+    private void QueueCustomScriptExecution(string scriptPath, Torrent torrent, string eventType, string arguments = null)
+    {
+        if (string.IsNullOrWhiteSpace(scriptPath))
+        {
+            return;
+        }
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                var success = await this.customScriptService.ExecuteScriptAsync(scriptPath, torrent, eventType, arguments).ConfigureAwait(false);
+                if (!success)
+                {
+                    this.logger.Error("Custom script failed for event '{0}' (path: {1})", eventType, scriptPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error executing custom script for {0}", eventType);
+            }
+        });
     }
 }

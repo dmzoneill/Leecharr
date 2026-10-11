@@ -708,7 +708,15 @@ public class CustomScriptService : ICustomScriptService
                 this.logger.Warn("Custom script stderr: {0}", stderr.Trim());
             }
 
-            this.logger.Info("Custom script '{0}' completed with exit code: {1}", resolvedScriptPath, process.ExitCode);
+            if (process.ExitCode == 0)
+            {
+                this.logger.Info("Custom script '{0}' completed successfully", resolvedScriptPath);
+            }
+            else
+            {
+                this.logger.Error("Custom script '{0}' failed with exit code: {1}", resolvedScriptPath, process.ExitCode);
+            }
+
             return process.ExitCode == 0;
         }
         catch (Exception ex)
