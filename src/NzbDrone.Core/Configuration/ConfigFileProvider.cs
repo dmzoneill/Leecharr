@@ -259,7 +259,34 @@ public class ConfigFileProvider : IConfigFileProvider
     private bool GetValueBool(string key, bool defaultValue)
     {
         var value = this.GetValue(key, null);
-        return value != null && bool.TryParse(value, out var result) ? result : defaultValue;
+        return value != null && TryParseConfigBool(value, out var result) ? result : defaultValue;
+    }
+
+    private static bool TryParseConfigBool(string value, out bool result)
+    {
+        if (bool.TryParse(value, out result))
+        {
+            return true;
+        }
+
+        if (string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "on", StringComparison.OrdinalIgnoreCase))
+        {
+            result = true;
+            return true;
+        }
+
+        if (string.Equals(value, "0", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "no", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "off", StringComparison.OrdinalIgnoreCase))
+        {
+            result = false;
+            return true;
+        }
+
+        result = default;
+        return false;
     }
 
     private T GetValueEnum<T>(string key, T defaultValue)
