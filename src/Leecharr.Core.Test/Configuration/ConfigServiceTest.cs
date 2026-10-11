@@ -317,4 +317,29 @@ public class ConfigServiceTest
         uuids.Should().OnlyContain(u => u == uuids.First());
         this.store.Count(c => c.Key.Equals("InstanceUuid", StringComparison.OrdinalIgnoreCase)).Should().Be(1);
     }
+
+    [Test]
+    public void ScriptTorrentDoneEnabled_WhenFlagUnset_MatchesFilenamePresence()
+    {
+        this.service.ScriptTorrentDoneEnabled.Should().BeFalse();
+
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "ScriptTorrentDoneFilename", "/scripts/done.sh" },
+        });
+
+        this.service.ScriptTorrentDoneEnabled.Should().BeTrue();
+    }
+
+    [Test]
+    public void ScriptTorrentDoneEnabled_WhenFlagStored_UsesStoredValue()
+    {
+        this.service.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "ScriptTorrentDoneFilename", "/scripts/done.sh" },
+            { "ScriptTorrentDoneEnabled", false },
+        });
+
+        this.service.ScriptTorrentDoneEnabled.Should().BeFalse();
+    }
 }

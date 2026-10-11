@@ -294,11 +294,11 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                             { "blocklist-size", this.blocklistService?.TotalRulesLoaded ?? 0 },
                             { "blocklist-url", this.configService.BlocklistUrl ?? string.Empty },
                             { "script-torrent-done-filename", this.configService.ScriptTorrentDoneFilename ?? string.Empty },
-                            { "script-torrent-done-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneFilename) },
+                            { "script-torrent-done-enabled", this.configService.ScriptTorrentDoneEnabled },
                             { "script-torrent-added-filename", this.configService.ScriptTorrentAddedFilename ?? string.Empty },
-                            { "script-torrent-added-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentAddedFilename) },
+                            { "script-torrent-added-enabled", this.configService.ScriptTorrentAddedEnabled },
                             { "script-torrent-done-seeding-filename", this.configService.ScriptTorrentDoneSeedingFilename ?? string.Empty },
-                            { "script-torrent-done-seeding-enabled", !string.IsNullOrWhiteSpace(this.configService.ScriptTorrentDoneSeedingFilename) },
+                            { "script-torrent-done-seeding-enabled", this.configService.ScriptTorrentDoneSeedingEnabled },
                         },
             Tag = tag,
         });
@@ -487,14 +487,29 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 updates["ScriptTorrentDoneFilename"] = doneFile.GetString();
             }
 
+            if (request.Arguments.TryGetValue("script-torrent-done-enabled", out var doneEnabled))
+            {
+                updates["ScriptTorrentDoneEnabled"] = SafeGetBoolean(doneEnabled);
+            }
+
             if (request.Arguments.TryGetValue("script-torrent-added-filename", out var addedFile) && addedFile.ValueKind == JsonValueKind.String)
             {
                 updates["ScriptTorrentAddedFilename"] = addedFile.GetString();
             }
 
+            if (request.Arguments.TryGetValue("script-torrent-added-enabled", out var addedEnabled))
+            {
+                updates["ScriptTorrentAddedEnabled"] = SafeGetBoolean(addedEnabled);
+            }
+
             if (request.Arguments.TryGetValue("script-torrent-done-seeding-filename", out var seedingFile) && seedingFile.ValueKind == JsonValueKind.String)
             {
                 updates["ScriptTorrentDoneSeedingFilename"] = seedingFile.GetString();
+            }
+
+            if (request.Arguments.TryGetValue("script-torrent-done-seeding-enabled", out var seedingEnabled))
+            {
+                updates["ScriptTorrentDoneSeedingEnabled"] = SafeGetBoolean(seedingEnabled);
             }
 
             if (updates.Count > 0)

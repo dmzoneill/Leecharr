@@ -970,6 +970,64 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_SessionSet_SavesScriptTorrentDoneEnabledWithoutClearingFilename()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse("false");
+        args["script-torrent-done-enabled"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            d.ContainsKey("ScriptTorrentDoneEnabled") && (bool)d["ScriptTorrentDoneEnabled"] == false));
+    }
+
+    [Test]
+    public async Task HandleRpc_SessionGet_ReturnsStoredScriptEnabledFlags()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.ScriptTorrentDoneFilename.Returns("/scripts/done.sh");
+        this.configService.ScriptTorrentDoneEnabled.Returns(false);
+        this.configService.ScriptTorrentAddedFilename.Returns("/scripts/added.sh");
+        this.configService.ScriptTorrentAddedEnabled.Returns(true);
+        this.configService.ScriptTorrentDoneSeedingFilename.Returns("/scripts/seeding.sh");
+        this.configService.ScriptTorrentDoneSeedingEnabled.Returns(false);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-get",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+
+        var sessionArgs = response!.Arguments as Dictionary<string, object>;
+        sessionArgs.Should().NotBeNull();
+        sessionArgs!["script-torrent-done-filename"].Should().Be("/scripts/done.sh");
+        sessionArgs["script-torrent-done-enabled"].Should().Be(false);
+        sessionArgs["script-torrent-added-enabled"].Should().Be(true);
+        sessionArgs["script-torrent-done-seeding-enabled"].Should().Be(false);
+    }
+
+    [Test]
     public async Task HandleRpc_TorrentGet_WithRecentlyActive_ReturnsActiveAndRemoved()
     {
         var context = new DefaultHttpContext();
