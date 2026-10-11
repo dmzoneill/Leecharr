@@ -555,4 +555,64 @@ public class DiskProviderTest
         total.Should().NotBeNull();
         total.Should().BeGreaterThan(0);
     }
+
+    [Test]
+    public void GetFiles_WhenRecursive_DoesNotFollowDirectorySymlinks()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "leecharr-outside-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(outsideDir);
+            File.WriteAllText(Path.Combine(outsideDir, "secret.txt"), "outside");
+            File.WriteAllText(Path.Combine(this.tempDir, "inside.txt"), "inside");
+
+            var escapeLink = Path.Combine(this.tempDir, "escape");
+            Directory.CreateSymbolicLink(escapeLink, outsideDir);
+
+            var files = this.diskProvider.GetFiles(this.tempDir, recursive: true);
+
+            files.Should().ContainSingle(f => Path.GetFileName(f) == "inside.txt");
+            files.Should().NotContain(f => f.Contains("secret.txt", StringComparison.Ordinal));
+        }
+        catch (IOException)
+        {
+            Assert.Pass("Symlink creation not permitted in this environment");
+        }
+        finally
+        {
+            if (Directory.Exists(outsideDir))
+            {
+                Directory.Delete(outsideDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public void GetFolderSize_WhenDirectorySymlinkPresent_DoesNotCountTargetFiles()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "leecharr-outside-size-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(outsideDir);
+            File.WriteAllBytes(Path.Combine(outsideDir, "secret.dat"), new byte[500]);
+            File.WriteAllBytes(Path.Combine(this.tempDir, "local.dat"), new byte[100]);
+
+            Directory.CreateSymbolicLink(Path.Combine(this.tempDir, "escape"), outsideDir);
+
+            var size = this.diskProvider.GetFolderSize(this.tempDir);
+
+            size.Should().Be(100);
+        }
+        catch (IOException)
+        {
+            Assert.Pass("Symlink creation not permitted in this environment");
+        }
+        finally
+        {
+            if (Directory.Exists(outsideDir))
+            {
+                Directory.Delete(outsideDir, true);
+            }
+        }
+    }
 }

@@ -228,6 +228,19 @@ public class DiskProvider : IDiskProvider
 
     public IEnumerable<string> GetDirectories(string path) => Directory.GetDirectories(path);
 
+    private static EnumerationOptions CreateRecursiveEnumerationOptions()
+    {
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        };
+
+        // .NET 10 no longer includes ReparsePoint in the default skip set; directory symlinks must not be followed.
+        options.AttributesToSkip |= FileAttributes.ReparsePoint;
+        return options;
+    }
+
     public IEnumerable<string> GetFiles(string path, bool recursive)
     {
         if (!recursive)
@@ -235,11 +248,7 @@ public class DiskProvider : IDiskProvider
             return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly);
         }
 
-        var options = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-        };
+        var options = CreateRecursiveEnumerationOptions();
 
         try
         {
@@ -260,11 +269,7 @@ public class DiskProvider : IDiskProvider
         }
 
         long size = 0;
-        var options = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-        };
+        var options = CreateRecursiveEnumerationOptions();
 
         try
         {

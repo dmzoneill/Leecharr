@@ -724,6 +724,11 @@ public class StoragePathService : IStoragePathService
             {
                 foreach (var d in dirs)
                 {
+                    if (IsDirectoryReparsePoint(d))
+                    {
+                        continue;
+                    }
+
                     this.ApplyUnixPermissions(d, dirMode, fileMode);
                 }
             }
