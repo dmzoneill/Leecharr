@@ -28,6 +28,7 @@ public class DeveloperQualityService : IDeveloperQualityService
     private static readonly object CacheLock = new();
     private static DeveloperQualityReport _cachedReport;
     private static DateTime _cacheExpiry = DateTime.MinValue;
+    private static Task<DeveloperQualityReport> _refreshTask;
 
     private readonly HttpClient _httpClient;
     private readonly Logger _logger;
@@ -44,19 +45,45 @@ public class DeveloperQualityService : IDeveloperQualityService
         {
             _cachedReport = null;
             _cacheExpiry = DateTime.MinValue;
+            _refreshTask = null;
         }
     }
 
     public async Task<DeveloperQualityReport> GetQualityReportAsync(CancellationToken cancellationToken = default)
     {
+        Task<DeveloperQualityReport> refreshTask;
         lock (CacheLock)
         {
             if (_cachedReport != null && _cacheExpiry > DateTime.UtcNow)
             {
                 return _cachedReport;
             }
+
+            refreshTask = _refreshTask;
+            if (refreshTask == null)
+            {
+                _refreshTask = refreshTask = FetchQualityReportAsync(cancellationToken);
+            }
         }
 
+        try
+        {
+            return await refreshTask;
+        }
+        finally
+        {
+            lock (CacheLock)
+            {
+                if (ReferenceEquals(_refreshTask, refreshTask))
+                {
+                    _refreshTask = null;
+                }
+            }
+        }
+    }
+
+    private async Task<DeveloperQualityReport> FetchQualityReportAsync(CancellationToken cancellationToken)
+    {
         var report = new DeveloperQualityReport
         {
             ProjectName = "Leecharr",
@@ -72,11 +99,50 @@ public class DeveloperQualityService : IDeveloperQualityService
 
         lock (CacheLock)
         {
-            _cachedReport = report;
-            _cacheExpiry = DateTime.UtcNow.Add(CacheDuration);
+            if (ShouldPublishCachedReport(report))
+            {
+                _cachedReport = report;
+                _cacheExpiry = DateTime.UtcNow.Add(CacheDuration);
+            }
+
+            return _cachedReport ?? report;
+        }
+    }
+
+    private static bool ShouldPublishCachedReport(DeveloperQualityReport incoming)
+    {
+        if (_cachedReport == null || _cacheExpiry <= DateTime.UtcNow)
+        {
+            return true;
         }
 
-        return report;
+        return GetReportSourceScore(incoming) >= GetReportSourceScore(_cachedReport);
+    }
+
+    private static int GetReportSourceScore(DeveloperQualityReport report)
+    {
+        if (report == null)
+        {
+            return 0;
+        }
+
+        var score = 0;
+        if (!report.UsedFallbackQualityGate)
+        {
+            score += 2;
+        }
+
+        if (!report.UsedFallbackPipelines)
+        {
+            score += 2;
+        }
+
+        if (report.QualityGate.Conditions.Count > 0)
+        {
+            score += 1;
+        }
+
+        return score;
     }
 
     private async Task PopulateSonarQualityGateAsync(DeveloperQualityReport report, CancellationToken cancellationToken)
@@ -342,6 +408,7 @@ public class DeveloperQualityService : IDeveloperQualityService
 
     private static void SetFallbackQualityGate(DeveloperQualityReport report)
     {
+        report.UsedFallbackQualityGate = true;
         report.QualityGate.Status = "OK";
         report.Metrics.Coverage = 75.0;
         report.Metrics.NewCodeCoverage = 82.8;
@@ -357,6 +424,7 @@ public class DeveloperQualityService : IDeveloperQualityService
 
     private static void SetFallbackPipelines(DeveloperQualityReport report)
     {
+        report.UsedFallbackPipelines = true;
         report.RecentPipelines = new List<QualityPipelineRun>
         {
             new() { Name = "SonarCloud Analysis", Status = "completed", Conclusion = "success", RunNumber = 85, CreatedAt = DateTime.UtcNow.AddHours(-1) },
