@@ -109,11 +109,12 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IFallbackAwareAiProvider
             }
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var response = await this.httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
+            using var response = await this.httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
             sw.Stop();
 
             if (response.IsSuccessStatusCode)
             {
+                _ = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
                 return new AiHealthResult
                 {
                     IsHealthy = true,
@@ -124,7 +125,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IFallbackAwareAiProvider
                 };
             }
 
-            var errorBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var errorBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             return new AiHealthResult
             {
                 IsHealthy = false,
