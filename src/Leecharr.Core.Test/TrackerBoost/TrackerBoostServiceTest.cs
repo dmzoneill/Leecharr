@@ -662,6 +662,26 @@ public class TrackerBoostServiceTest
     }
 
     [Test]
+    public void TrackerBoostOptimizationTask_StartLoop_RestartsAfterPriorLoopCompleted()
+    {
+        var mockService = Substitute.For<ITrackerBoostService>();
+        mockService.GetSettings().Returns(new TrackerBoostSettings { IntervalMinutes = 120 });
+        mockService.RunOptimizationCycleAsync().Returns(Task.CompletedTask);
+
+        var task = new TrackerBoostOptimizationTask(mockService);
+        var loopTaskField = typeof(TrackerBoostOptimizationTask).GetField("loopTask", BindingFlags.NonPublic | BindingFlags.Instance);
+        loopTaskField!.SetValue(task, Task.CompletedTask);
+
+        task.StartLoop();
+
+        var restartedLoop = (Task)loopTaskField.GetValue(task)!;
+        restartedLoop.Should().NotBeSameAs(Task.CompletedTask);
+        restartedLoop.IsCompleted.Should().BeFalse();
+
+        task.Dispose();
+    }
+
+    [Test]
     public void InjectIntoDownloadClients_ReturnsZero_WhenNoClientsConfigured()
     {
         var result = this.service.InjectIntoDownloadClients("0123456789abcdef0123456789abcdef01234567", new[] { "udp://tracker.opentrackr.org:1337/announce" });

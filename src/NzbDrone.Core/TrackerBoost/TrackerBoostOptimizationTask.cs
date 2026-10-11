@@ -11,6 +11,9 @@ namespace NzbDrone.Core.TrackerBoost;
 
 public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, IDisposable
 {
+    private const int DefaultIntervalMinutes = 120;
+    private static readonly TimeSpan SettingsReadFailureRetryDelay = TimeSpan.FromMinutes(1);
+
     private readonly ITrackerBoostService trackerBoostService;
     private readonly Logger logger;
     private readonly SemaphoreSlim executionLock = new(1, 1);
@@ -31,10 +34,13 @@ public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, ID
 
     public void StartLoop()
     {
-        if (this.loopTask == null)
+        var existing = this.loopTask;
+        if (existing != null && !existing.IsCompleted)
         {
-            this.loopTask = Task.Run(this.RunOptimizationLoopAsync, this.cts.Token);
+            return;
         }
+
+        this.loopTask = Task.Run(this.RunOptimizationLoopAsync, this.cts.Token);
     }
 
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
@@ -103,34 +109,74 @@ public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, ID
 
     private async Task RunOptimizationLoopAsync()
     {
-        // Initial delay shortly after startup
         try
         {
-            await Task.Delay(TimeSpan.FromSeconds(5), this.cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-
-        // Run initial cycle
-        await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
-
-        while (!this.cts.IsCancellationRequested)
-        {
-            var settings = this.trackerBoostService.GetSettings();
-            var intervalMinutes = Math.Max(1, settings?.IntervalMinutes ?? 120);
-
             try
             {
-                await Task.Delay(TimeSpan.FromMinutes(intervalMinutes), this.cts.Token).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(5), this.cts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
-                break;
+                return;
             }
 
+            await this.RunScheduledCycleAsync().ConfigureAwait(false);
+
+            while (!this.cts.IsCancellationRequested)
+            {
+                try
+                {
+                    var settings = this.trackerBoostService.GetSettings();
+                    var intervalMinutes = Math.Max(1, settings?.IntervalMinutes ?? DefaultIntervalMinutes);
+
+                    await Task.Delay(TimeSpan.FromMinutes(intervalMinutes), this.cts.Token).ConfigureAwait(false);
+                    await this.RunScheduledCycleAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(
+                        ex,
+                        "TrackerBoost scheduled optimization loop hit an error; retrying after {0} minute(s)",
+                        SettingsReadFailureRetryDelay.TotalMinutes);
+
+                    try
+                    {
+                        await Task.Delay(SettingsReadFailureRetryDelay, this.cts.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            this.logger.Trace(ex, "TrackerBoost background optimization loop was cancelled");
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Unexpected error in TrackerBoost background optimization loop");
+        }
+    }
+
+    private async Task RunScheduledCycleAsync()
+    {
+        try
+        {
             await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // ExecuteAsync already logs cycle failures; keep the periodic loop running.
         }
     }
 }
