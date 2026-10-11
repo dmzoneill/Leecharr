@@ -951,7 +951,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                     "id", "hashString", "name", "status", "percentDone",
                     "rateDownload", "rateUpload", "peersConnected", "peersSendingToUs",
                     "peersGettingFromUs", "totalSize", "downloadedEver", "uploadedEver",
-                    "pieceCount", "pieces", "peers",
+                    "pieceCount", "pieces", "peers", "availability",
                 };
 
                 var response = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
@@ -1003,6 +1003,18 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                             if (item.TryGetProperty("peersGettingFromUs", out var leechers))
                             {
                                 task.ConnectedLeechers = leechers.GetInt32();
+                            }
+
+                            if (item.TryGetProperty("availability", out var pieceAvailability) && pieceAvailability.ValueKind == JsonValueKind.Array)
+                            {
+                                var availability = new int[pieceAvailability.GetArrayLength()];
+                                var index = 0;
+                                foreach (var piece in pieceAvailability.EnumerateArray())
+                                {
+                                    availability[index++] = (int)Math.Round(piece.GetDouble());
+                                }
+
+                                task.PieceAvailability = availability;
                             }
 
                             if (item.TryGetProperty("peers", out var peersArray) && peersArray.ValueKind == JsonValueKind.Array)

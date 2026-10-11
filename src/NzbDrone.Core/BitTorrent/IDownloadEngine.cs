@@ -145,22 +145,16 @@ public interface IDownloadTask
     {
         get
         {
+            var availabilityList = this.PieceAvailability;
+            if (availabilityList != null && availabilityList.Length > 0)
+            {
+                return TorrentResourceMetrics.ComputeAverageSwarmAvailability(availabilityList);
+            }
+
             var metrics = this.GetResourceMetrics();
             if (metrics != null)
             {
                 return metrics.SwarmAvailability;
-            }
-
-            var availabilityList = this.PieceAvailability;
-            if (availabilityList != null && availabilityList.Length > 0)
-            {
-                long sum = 0;
-                for (var i = 0; i < availabilityList.Length; i++)
-                {
-                    sum += availabilityList[i];
-                }
-
-                return Math.Round((double)sum / availabilityList.Length, 2);
             }
 
             return null;

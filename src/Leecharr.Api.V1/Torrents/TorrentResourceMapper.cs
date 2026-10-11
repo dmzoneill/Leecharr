@@ -105,7 +105,7 @@ public static class TorrentResourceMapper
         double? availability = null;
         if (task != null)
         {
-            availability = task.Metrics?.SwarmAvailability ?? task.SwarmAvailability ?? task.GetResourceMetrics()?.SwarmAvailability;
+            availability = task.SwarmAvailability ?? task.Metrics?.SwarmAvailability ?? task.GetResourceMetrics()?.SwarmAvailability;
             if (availability == null && task.PieceAvailability != null && task.PieceAvailability.Length > 0)
             {
                 long sum = 0;

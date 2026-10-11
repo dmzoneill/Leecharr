@@ -1,5 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
+
 namespace NzbDrone.Core.BitTorrent;
 
 public class TorrentResourceMetrics
@@ -90,6 +92,22 @@ public class TorrentResourceMetrics
     public long EstimatedMemoryBufferBytes { get; set; }
 
     public double SwarmAvailability { get; set; }
+
+    public static double ComputeAverageSwarmAvailability(int[] availabilityList)
+    {
+        if (availabilityList == null || availabilityList.Length == 0)
+        {
+            return 0;
+        }
+
+        long sum = 0;
+        for (var i = 0; i < availabilityList.Length; i++)
+        {
+            sum += availabilityList[i];
+        }
+
+        return Math.Round((double)sum / availabilityList.Length, 2);
+    }
 
     public double Ratio { get; set; }
 
