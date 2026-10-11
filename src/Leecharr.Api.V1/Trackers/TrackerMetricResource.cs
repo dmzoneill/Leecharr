@@ -109,7 +109,7 @@ public static class TrackerMetricResourceMapper
 
         var successRate = model.TotalAnnounces > 0
             ? Math.Round((double)model.SuccessfulAnnounces / model.TotalAnnounces * 100.0, 1)
-            : 100.0;
+            : 0.0;
 
         var ratio = model.TotalDownloaded > 0
             ? Math.Round((double)model.TotalUploaded / model.TotalDownloaded, 3)
