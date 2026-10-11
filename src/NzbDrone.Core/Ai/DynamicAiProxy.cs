@@ -24,6 +24,7 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
     private readonly RuleHeuristicAiProvider defaultFallback = new();
 
     private IAiEngineProvider activeProvider;
+    private long configSavedSwitchGeneration;
     private bool disposed;
 
     public string ActiveProviderId => Volatile.Read(ref this.activeProvider)?.ProviderId ?? "RuleHeuristic";
@@ -95,7 +96,12 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
         return await provider.ProbeHealthAsync();
     }
 
-    public async Task<bool> SwitchProviderAsync(string providerId)
+    public Task<bool> SwitchProviderAsync(string providerId)
+    {
+        return this.SwitchProviderAsync(providerId, null);
+    }
+
+    private async Task<bool> SwitchProviderAsync(string providerId, long? configSavedGeneration)
     {
         if (string.IsNullOrWhiteSpace(providerId))
         {
@@ -128,6 +134,14 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
                 return false;
             }
 
+            if (configSavedGeneration.HasValue && !this.IsConfigSavedSwitchCurrent(configSavedGeneration.Value, providerId))
+            {
+                this.logger.Debug(
+                    "Skipping stale AI provider switch to '{0}' after health probe (superseded ConfigSavedEvent).",
+                    providerId);
+                return true;
+            }
+
             var previousProvider = Volatile.Read(ref this.activeProvider);
             Volatile.Write(ref this.activeProvider, targetProvider);
 
@@ -156,6 +170,17 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
         }
 
         return success;
+    }
+
+    private bool IsConfigSavedSwitchCurrent(long generation, string expectedProviderId)
+    {
+        if (generation != Volatile.Read(ref this.configSavedSwitchGeneration))
+        {
+            return false;
+        }
+
+        var desiredInConfig = this.configService?.ActiveAiProvider;
+        return string.Equals(desiredInConfig, expectedProviderId, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<AiParsedRelease> ParseReleaseAsync(string releaseName)
@@ -299,14 +324,16 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
         if (!string.IsNullOrWhiteSpace(desiredId) &&
             !string.Equals(this.ActiveProviderId, desiredId, StringComparison.OrdinalIgnoreCase))
         {
+            var generation = Interlocked.Increment(ref this.configSavedSwitchGeneration);
+            var capturedDesiredId = desiredId;
             Task.Run(async () =>
             {
                 try
                 {
-                    var switched = await this.SwitchProviderAsync(desiredId);
-                    if (!switched)
+                    var switched = await this.SwitchProviderAsync(capturedDesiredId, generation);
+                    if (!switched && generation == Volatile.Read(ref this.configSavedSwitchGeneration))
                     {
-                        this.logger.Warn("Failed to switch AI provider on ConfigSavedEvent to '{0}'. Reverting ActiveAiProvider config setting to '{1}'.", desiredId, this.ActiveProviderId);
+                        this.logger.Warn("Failed to switch AI provider on ConfigSavedEvent to '{0}'. Reverting ActiveAiProvider config setting to '{1}'.", capturedDesiredId, this.ActiveProviderId);
                         this.configService.SaveConfigDictionary(new Dictionary<string, object>
                         {
                             { "ActiveAiProvider", this.ActiveProviderId },
@@ -315,7 +342,7 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Error(ex, "Failed to switch active AI provider on ConfigSavedEvent to {0}", desiredId);
+                    this.logger.Error(ex, "Failed to switch active AI provider on ConfigSavedEvent to {0}", capturedDesiredId);
                 }
             });
         }

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -298,5 +299,49 @@ public class DynamicAiProxyTest
 
         this.proxy.ActiveProviderId.Should().Be("RuleHeuristic");
         this.configService.Received().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveAiProvider"] == "RuleHeuristic"));
+    }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_SkipsStaleSwitch_WhenNewerSaveWins()
+    {
+        var onnxProbe = new TaskCompletionSource<AiHealthResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.onnxProvider.ProbeHealthAsync().Returns(onnxProbe.Task);
+
+        this.configService.ActiveAiProvider.Returns("OnnxLocal");
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        this.configService.ActiveAiProvider.Returns("Ollama");
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        await Task.Delay(200);
+        this.proxy.ActiveProviderId.Should().Be("Ollama");
+
+        onnxProbe.TrySetResult(new AiHealthResult { IsHealthy = true, StatusMessage = "OK" });
+        await Task.Delay(200);
+
+        this.proxy.ActiveProviderId.Should().Be("Ollama");
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveAiProvider"] == "OnnxLocal"));
+    }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_DoesNotRevertConfig_WhenStaleSwitchFailsAfterNewerSave()
+    {
+        var onnxProbe = new TaskCompletionSource<AiHealthResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.onnxProvider.ProbeHealthAsync().Returns(onnxProbe.Task);
+
+        this.configService.ActiveAiProvider.Returns("OnnxLocal");
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        this.configService.ActiveAiProvider.Returns("Ollama");
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        await Task.Delay(200);
+        this.proxy.ActiveProviderId.Should().Be("Ollama");
+
+        onnxProbe.TrySetResult(new AiHealthResult { IsHealthy = false, StatusMessage = "Unavailable" });
+        await Task.Delay(200);
+
+        this.proxy.ActiveProviderId.Should().Be("Ollama");
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (string)d["ActiveAiProvider"] == "RuleHeuristic"));
     }
 }
