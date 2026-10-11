@@ -877,6 +877,30 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
     }
 
+    public async Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-set", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                        ["isPrivate"] = isPrivate,
+                    });
+                    this.logger.Info("Transmission: Updated BEP 27 settings for {0} (IsPrivate: {1})", task.InfoHash, isPrivate);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting private status in Transmission for {0}", torrentId);
+            }
+        }
+    }
+
     public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))

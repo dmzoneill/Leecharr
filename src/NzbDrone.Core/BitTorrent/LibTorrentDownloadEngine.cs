@@ -827,6 +827,26 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
+    public async Task SetTorrentPrivateStatusAsync(int torrentId, bool isPrivate)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                await this.SendRpcRequestAsync("set_torrent_private", new Dictionary<string, object>
+                {
+                    ["info_hash"] = task.InfoHash,
+                    ["is_private"] = isPrivate,
+                });
+                this.logger.Info("libtorrent: Updated BEP 27 settings for {0} (IsPrivate: {1})", task.InfoHash, isPrivate);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting private status in libtorrent for {0}", torrentId);
+            }
+        }
+    }
+
     public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
