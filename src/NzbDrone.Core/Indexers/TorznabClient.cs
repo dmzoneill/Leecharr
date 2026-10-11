@@ -1187,9 +1187,20 @@ public class TorznabClient : ITorznabClient
             }
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
-            var caps = this.ParseCapabilitiesXml(xml);
-            CapabilitiesCache[cacheKey] = (caps, DateTime.UtcNow.Add(CapabilitiesTtl));
-            return caps;
+            if (AntiBotChallengeDetector.IsChallenge(response.StatusCode, xml, response))
+            {
+                this.logger.Warn("Torznab capabilities response from {0} is an AntiBot / Cloudflare challenge page.", indexer.Name);
+                return new TorznabCapabilities();
+            }
+
+            if (this.TryParseCacheableCapabilities(xml, out var caps))
+            {
+                CapabilitiesCache[cacheKey] = (caps, DateTime.UtcNow.Add(CapabilitiesTtl));
+                return caps;
+            }
+
+            this.logger.Warn("Torznab capabilities response from {0} was not a valid caps document; skipping cache.", indexer.Name);
+            return this.ParseCapabilitiesXml(xml);
         }
         catch (OperationCanceledException)
         {
@@ -1206,6 +1217,51 @@ public class TorznabClient : ITorznabClient
         }
     }
 
+    internal bool TryParseCacheableCapabilities(string xml, out TorznabCapabilities capabilities)
+    {
+        capabilities = null;
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return false;
+        }
+
+        if (AntiBotChallengeDetector.IsChallenge(xml))
+        {
+            return false;
+        }
+
+        try
+        {
+            var doc = SafeParseXml(xml);
+            var root = doc.Root;
+            if (root == null)
+            {
+                return false;
+            }
+
+            if (doc.Descendants().Any(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            var capsElem = root.Name.LocalName.Equals("caps", StringComparison.OrdinalIgnoreCase)
+                ? root
+                : FindDescendant(root, "caps");
+            if (capsElem == null)
+            {
+                return false;
+            }
+
+            capabilities = this.ParseCapabilitiesXml(xml);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Torznab capabilities response is not cacheable.");
+            return false;
+        }
+    }
+
     public TorznabCapabilities ParseCapabilitiesXml(string xml)
     {
         var capabilities = new TorznabCapabilities();
@@ -1214,9 +1270,26 @@ public class TorznabClient : ITorznabClient
             return capabilities;
         }
 
+        if (AntiBotChallengeDetector.IsChallenge(xml))
+        {
+            return capabilities;
+        }
+
         try
         {
             var doc = SafeParseXml(xml);
+
+            var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
+            if (errorElem != null)
+            {
+                var codeStr = GetAttributeValue(errorElem, "code");
+                var description = WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? errorElem.Value);
+                this.logger.Warn(
+                    "Torznab capabilities XML contains error code {0}: {1}",
+                    codeStr ?? "unknown",
+                    description);
+                return capabilities;
+            }
 
             var root = doc.Root;
             if (root == null)
@@ -1392,12 +1465,16 @@ public class TorznabClient : ITorznabClient
                     return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
                 }
 
-                if (capsContent.Contains("<caps", StringComparison.OrdinalIgnoreCase))
+                if (this.TryParseCacheableCapabilities(capsContent, out var caps))
                 {
-                    var caps = this.ParseCapabilitiesXml(capsContent);
                     var cacheKey = GetCapabilitiesCacheKey(indexer.Url, indexer.ApiKey);
                     CapabilitiesCache[cacheKey] = (caps, DateTime.UtcNow.Add(CapabilitiesTtl));
                     return TorznabTestResult.Ok(caps);
+                }
+
+                if (capsContent.Contains("<caps", StringComparison.OrdinalIgnoreCase))
+                {
+                    return TorznabTestResult.Fail("Torznab capabilities document could not be parsed.");
                 }
             }
 

@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [v2.3.2](https://github.com/dmzoneill/Leecharr/releases/tag/v2.3.2) - 2026-10-09
 
 ### 🐛 Bug Fixes
+- fix(indexers): do not cache invalid Torznab capabilities responses (#1460)
 - fix(ci): repair qB tracker mapping and live download telemetry
 - fix(style): editorconfig indent on network binding and ffprobe
 - fix(ci): restore main build and lint after swarm drain batch
