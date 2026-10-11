@@ -792,11 +792,13 @@ public class NzbgetRpcController : ControllerBase
             nzbgetCats.Add(c.Name);
         }
 
+        var downloadDir = this.configService.DownloadDir ?? "/downloads";
         var catIndex = 1;
         foreach (var cat in nzbgetCats)
         {
             configItems.Add(new { Name = $"Category{catIndex}.Name", Value = cat });
-            configItems.Add(new { Name = $"Category{catIndex}.DestDir", Value = global::System.IO.Path.Combine(this.configService.DownloadDir ?? "/downloads", cat) });
+            var defaultDestDir = global::System.IO.Path.Combine(downloadDir, cat);
+            configItems.Add(new { Name = $"Category{catIndex}.DestDir", Value = this.categoryService.GetSavePathForCategory(cat, defaultDestDir) });
             catIndex++;
         }
 

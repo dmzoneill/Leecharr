@@ -945,6 +945,64 @@ public class NzbgetRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_Config_CategoryDestDir_UsesCategorySavePath()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        this.configService.DownloadDir.Returns("/downloads");
+        this.categoryService.GetAll().Returns(new List<Category> { new() { Name = "tv", SavePath = "/data/tv" } });
+        this.categoryService
+            .GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>())
+            .Returns(call =>
+            {
+                var categoryName = call.ArgAt<string>(0);
+                var defaultPath = call.ArgAt<string>(1);
+                return string.Equals(categoryName, "tv", StringComparison.OrdinalIgnoreCase)
+                    ? "/data/tv"
+                    : defaultPath;
+            });
+
+        var request = new NzbgetRequest { Method = "config", Id = 191 };
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var items = doc.RootElement.GetProperty("result");
+
+        string tvDestDir = null;
+        for (var i = 0; i < items.GetArrayLength(); i++)
+        {
+            var name = items[i].GetProperty("Name").GetString();
+            if (name == null || !name.EndsWith(".Name", StringComparison.Ordinal) || !name.StartsWith("Category", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!string.Equals(items[i].GetProperty("Value").GetString(), "tv", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var indexPrefix = name[..name.IndexOf('.', StringComparison.Ordinal)];
+            for (var j = i + 1; j < items.GetArrayLength(); j++)
+            {
+                if (items[j].GetProperty("Name").GetString() == $"{indexPrefix}.DestDir")
+                {
+                    tvDestDir = items[j].GetProperty("Value").GetString();
+                    break;
+                }
+            }
+
+            break;
+        }
+
+        tvDestDir.Should().Be("/data/tv");
+        this.categoryService.Received().GetSavePathForCategory("tv", "/downloads/tv");
+    }
+
+    [Test]
     public async Task HandleRpc_EditQueue_WithVariousCommandsAndParameterExtraction()
     {
         var context = new DefaultHttpContext();
