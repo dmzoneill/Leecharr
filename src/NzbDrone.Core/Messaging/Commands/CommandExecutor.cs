@@ -209,6 +209,16 @@ public class CommandExecutor : ICommandExecutor
                 }
             }
 
+            if (command.Id != 0)
+            {
+                var latest = this.repository?.Get(command.Id);
+                if (latest?.Status == CommandStatus.Cancelled)
+                {
+                    command.Status = CommandStatus.Cancelled;
+                    command.Message = latest.Message ?? command.Message ?? "Command execution cancelled.";
+                }
+            }
+
             command.EndedAt = DateTime.UtcNow;
             this.SafeUpdate(command);
 

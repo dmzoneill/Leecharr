@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System.Collections.Generic;
+using System.Threading;
 
 namespace NzbDrone.Core.Messaging.Commands;
 
@@ -20,4 +21,8 @@ public interface IManageCommandQueue
     void FailStaleCommands();
 
     bool Cancel(int id);
+
+    CancellationToken LinkExecutionCancellation(int commandId, CancellationToken shutdownToken);
+
+    void UnlinkExecutionCancellation(int commandId);
 }

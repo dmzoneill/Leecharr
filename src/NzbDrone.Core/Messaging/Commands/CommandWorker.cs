@@ -86,14 +86,19 @@ public class CommandWorker : BackgroundService
                     var task = Task.Run(
                         async () =>
                         {
+                            var executionToken = stoppingToken;
+                            if (command.Id != 0)
+                            {
+                                executionToken = this.commandQueue.LinkExecutionCancellation(command.Id, stoppingToken);
+                            }
+
                             try
                             {
-                                await this.commandExecutor.ExecuteAsync(command, stoppingToken);
+                                await this.commandExecutor.ExecuteAsync(command, executionToken);
                             }
-                            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                            catch (OperationCanceledException) when (executionToken.IsCancellationRequested)
                             {
-                                // Expected when CommandWorker is shutting down or cancelled via stoppingToken
-                                this.logger.Trace("Command {0} execution cancelled during shutdown", command.Name);
+                                this.logger.Trace("Command {0} execution cancelled", command.Name);
                             }
                             catch (Exception ex)
                             {
@@ -101,6 +106,11 @@ public class CommandWorker : BackgroundService
                             }
                             finally
                             {
+                                if (command.Id != 0)
+                                {
+                                    this.commandQueue.UnlinkExecutionCancellation(command.Id);
+                                }
+
                                 if (command.Id != 0)
                                 {
                                     this.activeCommandIds.TryRemove(command.Id, out _);

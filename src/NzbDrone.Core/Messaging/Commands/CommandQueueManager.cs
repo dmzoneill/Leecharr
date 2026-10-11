@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -14,6 +15,7 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
     private readonly ICommandRepository repository;
     private readonly Logger logger;
     private readonly Timer cleanupTimer;
+    private readonly ConcurrentDictionary<int, CancellationTokenSource> runningCancellations = new();
 
     public CommandQueueManager(ICommandRepository repository)
     {
@@ -136,12 +138,69 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
             return false;
         }
 
+        var wasRunning = command.Status == CommandStatus.Running;
+
         command.Status = CommandStatus.Cancelled;
         command.EndedAt = DateTime.UtcNow;
         command.Message = "Command was cancelled by user.";
         this.repository.Update(command);
         this.logger.Info("Command {0} (ID: {1}) was cancelled", command.Name, command.Id);
+
+        if (wasRunning)
+        {
+            this.SignalExecutionCancellation(id);
+        }
+
         return true;
+    }
+
+    public CancellationToken LinkExecutionCancellation(int commandId, CancellationToken shutdownToken)
+    {
+        if (commandId == 0)
+        {
+            return shutdownToken;
+        }
+
+        var linked = CancellationTokenSource.CreateLinkedTokenSource(shutdownToken);
+        this.runningCancellations.AddOrUpdate(
+            commandId,
+            linked,
+            (_, existing) =>
+            {
+                existing.Dispose();
+                return linked;
+            });
+
+        return linked.Token;
+    }
+
+    public void UnlinkExecutionCancellation(int commandId)
+    {
+        if (commandId == 0)
+        {
+            return;
+        }
+
+        if (this.runningCancellations.TryRemove(commandId, out var cts))
+        {
+            cts.Dispose();
+        }
+    }
+
+    private void SignalExecutionCancellation(int commandId)
+    {
+        if (this.runningCancellations.TryRemove(commandId, out var cts))
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            cts.Dispose();
+        }
     }
 
     private void CleanupOldCommands()
@@ -154,5 +213,13 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
     public void Dispose()
     {
         this.cleanupTimer?.Dispose();
+
+        foreach (var entry in this.runningCancellations)
+        {
+            if (this.runningCancellations.TryRemove(entry.Key, out var cts))
+            {
+                cts.Dispose();
+            }
+        }
     }
 }

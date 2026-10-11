@@ -301,6 +301,99 @@ public class CommandExecutorTest
     }
 
     [Test]
+    public async Task CommandWorker_CancelRunningCommand_SignalsLinkedExecutionToken()
+    {
+        var repository = Substitute.For<ICommandRepository>();
+        var queue = new CommandQueueManager(repository);
+
+        var commandModel = new CommandModel
+        {
+            Id = 6,
+            Name = "Slow",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        var queuedOnce = true;
+        repository.GetByStatus(CommandStatus.Queued).Returns(_ =>
+        {
+            if (!queuedOnce)
+            {
+                return Array.Empty<CommandModel>();
+            }
+
+            queuedOnce = false;
+            return new[] { commandModel };
+        });
+
+        repository.Get(6).Returns(_ => commandModel);
+
+        var capturedToken = default(CancellationToken);
+        var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var commandExecutor = Substitute.For<ICommandExecutor>();
+        commandExecutor.ExecuteAsync(Arg.Any<CommandModel>(), Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                capturedToken = callInfo.Arg<CancellationToken>();
+                commandModel.Status = CommandStatus.Running;
+                executionStarted.TrySetResult();
+                await Task.Delay(Timeout.Infinite, capturedToken);
+            });
+
+        var worker = new CommandWorker(queue, commandExecutor);
+
+        using var workerCts = new CancellationTokenSource();
+        await worker.StartAsync(workerCts.Token);
+
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        capturedToken.CanBeCanceled.Should().BeTrue();
+
+        queue.Cancel(6).Should().BeTrue();
+        await Task.Delay(50);
+        capturedToken.IsCancellationRequested.Should().BeTrue();
+
+        workerCts.Cancel();
+        await worker.StopAsync(CancellationToken.None);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WhenCancelCommitsBeforeFinalPersist_KeepsCancelledStatus()
+    {
+        var commandModel = new CommandModel
+        {
+            Id = 50,
+            Name = "SampleTest",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        var handler = new SampleTestCommandHandler();
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
+
+        var getCalls = 0;
+        this.repository.Get(50).Returns(_ =>
+        {
+            getCalls++;
+            if (getCalls == 1)
+            {
+                return new CommandModel { Id = 50, Status = CommandStatus.Queued };
+            }
+
+            return new CommandModel
+            {
+                Id = 50,
+                Status = CommandStatus.Cancelled,
+                Message = "Command was cancelled by user.",
+            };
+        });
+
+        await this.executor.ExecuteAsync(commandModel);
+
+        commandModel.Status.Should().Be(CommandStatus.Cancelled);
+        commandModel.Message.Should().Be("Command was cancelled by user.");
+    }
+
+    [Test]
     public async Task CommandWorker_ExecutesCommandsConcurrently_UpToMaxConcurrency()
     {
         var runningCount = 0;
