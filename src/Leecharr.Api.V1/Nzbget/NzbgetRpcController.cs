@@ -835,15 +835,90 @@ public class NzbgetRpcController : ControllerBase
         t.Status == TorrentStatus.Completed ||
         t.Status == TorrentStatus.Seeding;
 
+    private static bool IsFileComplete(TorrentFile file) =>
+        file.Size > 0
+            ? file.BytesCompleted >= file.Size
+            : file.Progress >= 1.0;
+
+    private static bool IsQueueTorrent(Torrent t) =>
+        t.Status == TorrentStatus.Downloading ||
+        t.Status == TorrentStatus.Queued ||
+        t.Status == TorrentStatus.Paused ||
+        t.Status == TorrentStatus.Checking ||
+        t.Status == TorrentStatus.QueuedForChecking ||
+        t.Status == TorrentStatus.Error ||
+        t.Status == TorrentStatus.Stalled ||
+        (t.Status == TorrentStatus.Stopped && !IsComplete(t));
+
+    private static string MapListGroupStatus(Torrent t)
+    {
+        if (t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
+        {
+            return "PAUSED";
+        }
+
+        if (t.Status == TorrentStatus.Queued ||
+            t.Status == TorrentStatus.Checking ||
+            t.Status == TorrentStatus.QueuedForChecking ||
+            t.Status == TorrentStatus.Error)
+        {
+            return "QUEUED";
+        }
+
+        return "DOWNLOADING";
+    }
+
+    private static string MapListFileStatus(Torrent torrent, TorrentFile file)
+    {
+        if (IsFileComplete(file))
+        {
+            return "FINISHED";
+        }
+
+        if (torrent == null)
+        {
+            return "DOWNLOADING";
+        }
+
+        if (torrent.Status == TorrentStatus.Paused ||
+            torrent.Status == TorrentStatus.Stopped ||
+            file.Priority == 0)
+        {
+            return "PAUSED";
+        }
+
+        if (torrent.Status == TorrentStatus.Queued ||
+            torrent.Status == TorrentStatus.Checking ||
+            torrent.Status == TorrentStatus.QueuedForChecking ||
+            torrent.Status == TorrentStatus.Error)
+        {
+            return "QUEUED";
+        }
+
+        return "DOWNLOADING";
+    }
+
+    private List<TorrentFile> GetTorrentFiles(int torrentId)
+    {
+        if (this.torrentFileService == null || torrentId <= 0)
+        {
+            return new List<TorrentFile>();
+        }
+
+        return this.torrentFileService.GetFiles(torrentId)?.ToList() ?? new List<TorrentFile>();
+    }
+
     private List<object> GetListGroups()
     {
         return this.torrentService.GetAll()
-            .Where(t => t.Status == TorrentStatus.Downloading ||
-                        t.Status == TorrentStatus.Queued ||
-                        t.Status == TorrentStatus.Paused ||
-                        (t.Status == TorrentStatus.Stopped && !IsComplete(t)))
+            .Where(IsQueueTorrent)
             .Select(t =>
             {
+                var files = this.GetTorrentFiles(t.Id);
+                var hasFiles = files.Count > 0;
+                var pausedBytes = hasFiles
+                    ? files.Where(f => f.Priority == 0).Sum(f => Math.Max(0L, f.Size))
+                    : 0L;
                 var totalMb = (int)(t.TotalSize / (1024 * 1024));
                 var remMb = (int)((t.TotalSize - t.Downloaded) / (1024 * 1024));
                 var totalLo = (int)(t.TotalSize & 0xFFFFFFFF);
@@ -851,6 +926,13 @@ public class NzbgetRpcController : ControllerBase
                 var remBytes = Math.Max(0, t.TotalSize - t.Downloaded);
                 var remLo = (int)(remBytes & 0xFFFFFFFF);
                 var remHi = (int)(remBytes >> 32);
+                var pausedMb = (int)(pausedBytes / (1024 * 1024));
+                var pausedLo = (int)(pausedBytes & 0xFFFFFFFF);
+                var pausedHi = (int)(pausedBytes >> 32);
+                var fileCount = hasFiles ? files.Count : 1;
+                var remainingFileCount = hasFiles ? files.Count(f => !IsFileComplete(f)) : (IsComplete(t) ? 0 : 1);
+                var pausedFileCount = hasFiles ? files.Count(f => f.Priority == 0) : 0;
+                var activeDownloads = t.Status == TorrentStatus.Downloading && remainingFileCount > 0 ? 1 : 0;
 
                 return (object)new
                 {
@@ -863,18 +945,18 @@ public class NzbgetRpcController : ControllerBase
                     Category = t.Category ?? string.Empty,
                     FileSizeMB = totalMb,
                     RemainingSizeMB = remMb,
-                    PausedSizeMB = 0,
+                    PausedSizeMB = pausedMb,
                     FileSizeLo = totalLo,
                     FileSizeHi = totalHi,
                     RemainingSizeLo = remLo,
                     RemainingSizeHi = remHi,
-                    PausedSizeLo = 0,
-                    PausedSizeHi = 0,
-                    FileCount = 1,
-                    RemainingFileCount = 1,
-                    PausedFileCount = 0,
-                    Status = (t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped) ? "PAUSED" : "DOWNLOADING",
-                    ActiveDownloads = 1,
+                    PausedSizeLo = pausedLo,
+                    PausedSizeHi = pausedHi,
+                    FileCount = fileCount,
+                    RemainingFileCount = remainingFileCount,
+                    PausedFileCount = pausedFileCount,
+                    Status = MapListGroupStatus(t),
+                    ActiveDownloads = activeDownloads,
                     Parameters = Array.Empty<object>(),
                 };
             }).ToList();
@@ -921,17 +1003,22 @@ public class NzbgetRpcController : ControllerBase
             var files = this.torrentFileService.GetFiles(nzbId)?.ToList();
             if (files != null && files.Count > 0)
             {
-                return files.Select(f => (object)new
+                var torrent = this.torrentService.Get(nzbId);
+                return files.Select(f =>
                 {
-                    ID = f.Id,
-                    NZBID = nzbId,
-                    FileName = f.Path ?? string.Empty,
-                    FileSizeLo = (int)(f.Size & 0xFFFFFFFF),
-                    FileSizeHi = (int)(f.Size >> 32),
-                    RemainingSizeLo = (int)((f.Size - f.BytesCompleted) & 0xFFFFFFFF),
-                    RemainingSizeHi = (int)((f.Size - f.BytesCompleted) >> 32),
-                    Progress = (int)(f.Progress * 1000),
-                    Status = "FINISHED",
+                    var remainingBytes = Math.Max(0L, f.Size - f.BytesCompleted);
+                    return (object)new
+                    {
+                        ID = f.Id,
+                        NZBID = nzbId,
+                        FileName = f.Path ?? string.Empty,
+                        FileSizeLo = (int)(f.Size & 0xFFFFFFFF),
+                        FileSizeHi = (int)(f.Size >> 32),
+                        RemainingSizeLo = (int)(remainingBytes & 0xFFFFFFFF),
+                        RemainingSizeHi = (int)(remainingBytes >> 32),
+                        Progress = (int)(f.Progress * 1000),
+                        Status = MapListFileStatus(torrent, f),
+                    };
                 }).ToList();
             }
         }
