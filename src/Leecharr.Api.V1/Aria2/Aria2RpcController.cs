@@ -1127,22 +1127,22 @@ public class Aria2RpcController : ControllerBase
         return (
             all.Sum(t => t.DownloadSpeed).ToString(),
             all.Sum(t => t.UploadSpeed).ToString(),
-            all.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding).ToString(),
-            all.Count(t => t.Status == TorrentStatus.Queued).ToString(),
-            all.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped).ToString());
+            all.Count(t => IsAria2ActiveStatus(t.Status)).ToString(),
+            all.Count(t => IsAria2WaitingStatus(t.Status)).ToString(),
+            all.Count(t => IsAria2StoppedStatus(t.Status)).ToString());
     }
 
     private List<Torrent> GetActiveTorrents()
     {
         return this.torrentService.GetAll()
-            .Where(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding)
+            .Where(t => IsAria2ActiveStatus(t.Status))
             .ToList();
     }
 
     private List<Torrent> GetWaitingTorrents(int offset, int num)
     {
         var waitingList = this.torrentService.GetAll()
-            .Where(t => t.Status == TorrentStatus.Queued)
+            .Where(t => IsAria2WaitingStatus(t.Status))
             .ToList();
         return SliceList(waitingList, offset, num);
     }
@@ -1150,10 +1150,19 @@ public class Aria2RpcController : ControllerBase
     private List<Torrent> GetStoppedTorrents(int offset, int num)
     {
         var stoppedList = this.torrentService.GetAll()
-            .Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped)
+            .Where(t => IsAria2StoppedStatus(t.Status))
             .ToList();
         return SliceList(stoppedList, offset, num);
     }
+
+    private static bool IsAria2ActiveStatus(TorrentStatus status) =>
+        status is TorrentStatus.Downloading or TorrentStatus.Seeding;
+
+    private static bool IsAria2WaitingStatus(TorrentStatus status) =>
+        status is TorrentStatus.Queued or TorrentStatus.Paused or TorrentStatus.Checking or TorrentStatus.QueuedForChecking;
+
+    private static bool IsAria2StoppedStatus(TorrentStatus status) =>
+        status is TorrentStatus.Stopped or TorrentStatus.Completed or TorrentStatus.Error or TorrentStatus.Stalled;
 
     private async Task<string> AddTorrentBase64Async(string base64, string savePath = null, bool isPaused = false)
     {
@@ -1756,7 +1765,9 @@ public class Aria2RpcController : ControllerBase
             TorrentStatus.Seeding => "active",
             TorrentStatus.Paused => "paused",
             TorrentStatus.Stopped => t.Progress >= 1.0 || t.DateCompleted.HasValue ? "complete" : "paused",
+            TorrentStatus.Completed => "complete",
             TorrentStatus.Error => "error",
+            TorrentStatus.Stalled => "paused",
             _ => "waiting",
         };
     }
