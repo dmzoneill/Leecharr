@@ -96,6 +96,51 @@ public class EmbeddedTrackerServiceTest
     }
 
     [Test]
+    public void ProcessAnnounce_V2InfoHashBytes_AcceptsThirtyTwoByteHash()
+    {
+        var infoHash = new byte[32];
+        for (var i = 0; i < infoHash.Length; i++)
+        {
+            infoHash[i] = (byte)(i + 1);
+        }
+
+        var request = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.2.100"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Left = 0,
+            Compact = true,
+        };
+
+        var resp = this.trackerService.ProcessAnnounce(request);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("failure reason").Should().BeFalse();
+        ((BEncodedNumber)dict["complete"]).Number.Should().Be(1);
+    }
+
+    [Test]
+    public void ProcessAnnounce_V2InfoHashHex_AcceptsSixtyFourCharacterHash()
+    {
+        var infoHashHex = string.Concat(Enumerable.Range(0, 32).Select(i => (i + 1).ToString("X2")));
+
+        var request = new TrackerAnnounceRequest
+        {
+            InfoHashHex = infoHashHex,
+            RemoteIp = IPAddress.Parse("192.168.2.101"),
+            Port = 6882,
+            PeerIdBytes = new byte[20],
+            Left = 500,
+        };
+
+        var resp = this.trackerService.ProcessAnnounce(request);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("failure reason").Should().BeFalse();
+        ((BEncodedNumber)dict["incomplete"]).Number.Should().Be(1);
+    }
+
+    [Test]
     public void ProcessAnnounce_StoppedEvent_RemovesPeerAndPrunesEmptySwarm()
     {
         var infoHash = new byte[20];
@@ -194,7 +239,8 @@ public class EmbeddedTrackerServiceTest
     [TestCase(10)]
     [TestCase(19)]
     [TestCase(21)]
-    [TestCase(32)]
+    [TestCase(31)]
+    [TestCase(33)]
     public void ProcessAnnounce_InvalidInfoHash_InvalidByteLength_ReturnsFailure(int byteLength)
     {
         var infoHash = new byte[byteLength];
@@ -213,7 +259,7 @@ public class EmbeddedTrackerServiceTest
         var bytes = this.trackerService.ProcessAnnounce(req);
         var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
         dict.ContainsKey("failure reason").Should().BeTrue();
-        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("must be exactly 20 bytes");
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("must be exactly 20 or 32 bytes");
     }
 
     [TestCase("1234")]
@@ -231,7 +277,7 @@ public class EmbeddedTrackerServiceTest
         var bytes = this.trackerService.ProcessAnnounce(req);
         var dict = (BEncodedDictionary)BEncodedValue.Decode(bytes);
         dict.ContainsKey("failure reason").Should().BeTrue();
-        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("must be exactly 40 characters");
+        ((BEncodedString)dict["failure reason"]).Text.Should().Contain("must be exactly 40 or 64 characters");
     }
 
     [Test]
