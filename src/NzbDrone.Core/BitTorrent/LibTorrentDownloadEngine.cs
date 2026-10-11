@@ -958,6 +958,18 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                                 task.ConnectedLeechers = peers.GetInt32();
                             }
 
+                            if (item.TryGetProperty("piece_availability", out var pieceAvailability) && pieceAvailability.ValueKind == JsonValueKind.Array)
+                            {
+                                var availability = new int[pieceAvailability.GetArrayLength()];
+                                var index = 0;
+                                foreach (var piece in pieceAvailability.EnumerateArray())
+                                {
+                                    availability[index++] = piece.GetInt32();
+                                }
+
+                                task.PieceAvailability = availability;
+                            }
+
                             if (item.TryGetProperty("peers", out var peersArray) && peersArray.ValueKind == JsonValueKind.Array)
                             {
                                 var peerList = new List<PeerInfo>();

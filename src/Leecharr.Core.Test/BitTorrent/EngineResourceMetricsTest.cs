@@ -140,6 +140,20 @@ public class EngineResourceMetricsTest
     }
 
     [Test]
+    public void LibTorrentDownloadTask_GetResourceMetrics_WithPieceAvailability_ComputesSwarmAvailability()
+    {
+        var task = new LibTorrentDownloadTask(22, "hash-lib3", "LibTorrent Availability", 4096)
+        {
+            PieceAvailability = new[] { 2, 2, 4, 4 },
+        };
+
+        var metrics = task.GetResourceMetrics();
+
+        metrics.SwarmAvailability.Should().Be(3.0);
+        task.SwarmAvailability.Should().Be(3.0);
+    }
+
+    [Test]
     public void LibTorrentDownloadTask_GetResourceMetrics_DefaultConstructor_InitializesNonNullCategoryAndStatus()
     {
         var task = new LibTorrentDownloadTask(20, "hash-lib", "LibTorrent Download", 4096);

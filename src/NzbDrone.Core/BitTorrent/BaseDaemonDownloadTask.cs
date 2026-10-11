@@ -76,23 +76,29 @@ public abstract class BaseDaemonDownloadTask : IDownloadTask
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Required by IDownloadTask interface")]
     public int[] PieceAvailability { get; set; } = Array.Empty<int>();
 
-    public TorrentResourceMetrics GetResourceMetrics() => new()
+    public TorrentResourceMetrics GetResourceMetrics()
     {
-        TorrentId = this.TorrentId,
-        InfoHash = this.InfoHash ?? string.Empty,
-        Name = this.Name ?? string.Empty,
-        Category = this.Category ?? string.Empty,
-        Status = this.Status.ToString() ?? "Stopped",
-        Progress = this.Progress,
-        TotalBytes = this.TotalSize,
-        DownloadedPayload = this.DownloadedBytes,
-        UploadedPayload = this.UploadedBytes,
-        PayloadDownloadSpeed = this.DownloadSpeed,
-        PayloadUploadSpeed = this.UploadSpeed,
-        ConnectedSeeds = this.ConnectedSeeders,
-        ConnectedLeechers = this.ConnectedLeechers,
-        ConnectedPeers = this.ConnectedSeeders + this.ConnectedLeechers,
-    };
+        var swarmAvailability = TorrentResourceMetrics.ComputeAverageSwarmAvailability(this.PieceAvailability);
+
+        return new TorrentResourceMetrics
+        {
+            TorrentId = this.TorrentId,
+            InfoHash = this.InfoHash ?? string.Empty,
+            Name = this.Name ?? string.Empty,
+            Category = this.Category ?? string.Empty,
+            Status = this.Status.ToString() ?? "Stopped",
+            Progress = this.Progress,
+            TotalBytes = this.TotalSize,
+            DownloadedPayload = this.DownloadedBytes,
+            UploadedPayload = this.UploadedBytes,
+            PayloadDownloadSpeed = this.DownloadSpeed,
+            PayloadUploadSpeed = this.UploadSpeed,
+            ConnectedSeeds = this.ConnectedSeeders,
+            ConnectedLeechers = this.ConnectedLeechers,
+            ConnectedPeers = this.ConnectedSeeders + this.ConnectedLeechers,
+            SwarmAvailability = swarmAvailability,
+        };
+    }
 
     public IReadOnlyList<PeerInfo> GetPeers()
     {

@@ -404,6 +404,12 @@ class LibTorrentManager:
                 except Exception:
                     pass
 
+                piece_availability = []
+                try:
+                    piece_availability = [int(x) for x in h.piece_availability()]
+                except Exception:
+                    pass
+
                 state_str = str(st.state).lower()
                 if "." in state_str:
                     state_str = state_str.split(".")[-1]
@@ -432,6 +438,7 @@ class LibTorrentManager:
                         "num_seeds": int(st.num_seeds),
                         "num_peers": int(st.num_peers),
                         "peers": peer_list,
+                        "piece_availability": piece_availability,
                     }
                 )
         return torrents
