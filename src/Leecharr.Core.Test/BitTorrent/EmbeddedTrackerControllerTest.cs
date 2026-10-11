@@ -312,6 +312,63 @@ public class EmbeddedTrackerControllerTest
     }
 
     [Test]
+    public void Announce_WhenLocalEndpointDoesNotMatchBindAddress_ReturnsNotFound()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.TrackerBindAddress.Returns("192.168.1.10");
+
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
+
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = IPAddress.Loopback;
+        httpContext.Connection.LocalIpAddress = IPAddress.Loopback;
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = customController.Announce();
+        result.Should().BeOfType<NotFoundResult>();
+        this.trackerService.DidNotReceive().ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>());
+    }
+
+    [Test]
+    public void Announce_WhenLocalEndpointMatchesBindAddress_ProcessesRequest()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.TrackerBindAddress.Returns("127.0.0.1");
+
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
+
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = IPAddress.Loopback;
+        httpContext.Connection.LocalIpAddress = IPAddress.Loopback;
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = customController.Announce();
+        result.Should().BeOfType<FileContentResult>();
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>());
+    }
+
+    [Test]
+    public void Scrape_WhenLocalEndpointDoesNotMatchBindAddress_ReturnsNotFound()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.TrackerBindAddress.Returns("192.168.1.10");
+
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
+
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Connection.LocalIpAddress = IPAddress.Loopback;
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = customController.Scrape();
+        result.Should().BeOfType<NotFoundResult>();
+        this.trackerService.DidNotReceive().ProcessScrape(Arg.Any<List<byte[]>>());
+    }
+
+    [Test]
     public void Announce_WhenOriginatingLocally_AllowsLoopbackForwardedHeaders()
     {
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();

@@ -49,6 +49,11 @@ public class EmbeddedTrackerController : ControllerBase
     [HttpGet("/announce")]
     public ActionResult Announce()
     {
+        if (!this.IsHttpTrackerRequestOnBindAddress())
+        {
+            return this.NotFound();
+        }
+
         var rawQuery = this.Request.QueryString.Value;
         var remoteIp = this.HttpContext.Connection.RemoteIpAddress;
         if (remoteIp != null && remoteIp.IsIPv4MappedToIPv6)
@@ -96,6 +101,11 @@ public class EmbeddedTrackerController : ControllerBase
     [HttpGet("/scrape")]
     public ActionResult Scrape()
     {
+        if (!this.IsHttpTrackerRequestOnBindAddress())
+        {
+            return this.NotFound();
+        }
+
         var rawQuery = this.Request.QueryString.Value;
         var hashes = ParseScrapeQuery(rawQuery);
 
@@ -474,6 +484,17 @@ public class EmbeddedTrackerController : ControllerBase
         }
 
         return true;
+    }
+
+    private bool IsHttpTrackerRequestOnBindAddress()
+    {
+        var bindAddress = this.configService?.TrackerBindAddress;
+        if (string.IsNullOrWhiteSpace(bindAddress))
+        {
+            return true;
+        }
+
+        return TrackerBindAddressHelper.IsHttpRequestAllowed(bindAddress, this.HttpContext.Connection.LocalIpAddress);
     }
 
     private string GetTrustedProxies()

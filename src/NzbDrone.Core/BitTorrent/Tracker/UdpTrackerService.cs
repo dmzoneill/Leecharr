@@ -62,16 +62,7 @@ public class UdpTrackerService : IUdpTrackerService
             }
 
             var port = this.configService?.TrackerUdpPort ?? 6969;
-            var bindAddressStr = this.configService?.TrackerBindAddress;
-            var bindAddress = IPAddress.Any;
-
-            if (!string.IsNullOrWhiteSpace(bindAddressStr) && bindAddressStr != "0.0.0.0" && bindAddressStr != "*")
-            {
-                if (IPAddress.TryParse(bindAddressStr, out var parsed))
-                {
-                    bindAddress = parsed;
-                }
-            }
+            var bindAddress = TrackerBindAddressHelper.ResolveBindAddress(this.configService?.TrackerBindAddress);
 
             try
             {
