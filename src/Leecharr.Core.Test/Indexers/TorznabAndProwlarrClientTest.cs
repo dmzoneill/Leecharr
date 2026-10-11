@@ -100,9 +100,9 @@ public class TorznabAndProwlarrClientTest
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps>
     <categories>
-        <category id=""7000"" name=""Books">
-            <category id=""7010"" name=""Books/Ebook"/>
-            <category id=""7020"" name=""Books/Audiobook"/>
+        <category id=""7000"" name=""Books"">
+            <category id=""7010"" name=""Books/Ebook""/>
+            <category id=""7020"" name=""Books/Audiobook""/>
         </category>
     </categories>
 </caps>";
