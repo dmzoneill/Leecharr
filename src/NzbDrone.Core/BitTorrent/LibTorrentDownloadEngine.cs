@@ -747,10 +747,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             sessionArgs["force_proxy"] = false;
         }
 
-        if (!string.IsNullOrWhiteSpace(this.configService?.DhtBootstrapNodes))
+        if (DhtPolicy.ShouldAutoBootstrap(this.configService) && !string.IsNullOrWhiteSpace(this.configService?.DhtBootstrapNodes))
         {
             sessionArgs["dht_bootstrap_nodes"] = this.configService.DhtBootstrapNodes;
         }
+
+        LibTorrentDhtSettingsMapper.ApplyToSessionArgs(this.configService, sessionArgs);
 
         if (this.configService?.MaxGlobalConnections > 0)
         {

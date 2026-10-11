@@ -241,7 +241,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        if (bootstrapNodes && this.configService.EnableDht && !this.configService.AnonymousMode && !this.IsProxyActive())
+        if (bootstrapNodes && DhtPolicy.ShouldAutoBootstrap(this.configService) && this.configService.EnableDht && !this.configService.AnonymousMode && !this.IsProxyActive())
         {
             await this.ConfigureDhtBootstrapNodesAsync().ConfigureAwait(false);
         }
@@ -637,6 +637,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         ConfigureGlobalMonoTorrentDefaults(peerIdPrefix, userAgent, this.configService.AnonymousMode);
         MonoTorrentProtocolExtensionConfigurator.Apply(this.configService);
+        MonoTorrentDhtConfigurator.ApplyStatic(this.configService);
 
         var webProxy = this.GetConfiguredWebProxy();
         if (webProxy is WebProxy wp)
@@ -742,7 +743,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 try
                 {
-                    await this.ConfigureDhtBootstrapNodesAsync().ConfigureAwait(false);
+                    MonoTorrentDhtConfigurator.ApplyEngine(this.configService, this.GetDhtEngine());
+                    if (DhtPolicy.ShouldAutoBootstrap(this.configService))
+                    {
+                        await this.ConfigureDhtBootstrapNodesAsync().ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -5265,7 +5270,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     internal async Task<int> ConfigureDhtBootstrapNodesAsync()
     {
-        if (this.engine == null || !this.configService.EnableDht || this.configService.AnonymousMode || this.IsProxyActive())
+        if (this.engine == null || !DhtPolicy.ShouldAutoBootstrap(this.configService) || !this.configService.EnableDht || this.configService.AnonymousMode || this.IsProxyActive())
         {
             return 0;
         }
@@ -5380,6 +5385,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         MonoTorrentProtocolExtensionConfigurator.Apply(this.configService);
+        MonoTorrentDhtConfigurator.ApplyStatic(this.configService);
+        MonoTorrentDhtConfigurator.ApplyEngine(this.configService, this.GetDhtEngine());
 
         var baseMaxPerTorrent = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50;
         var currentPiecePickerStrategy = this.configService.PiecePickerStrategy ?? string.Empty;

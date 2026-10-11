@@ -213,6 +213,8 @@ public class LibTorrentDownloadEngineTest
         paramsObj.GetProperty("enable_dht").GetBoolean().Should().BeTrue();
         paramsObj.GetProperty("anonymous_mode").GetBoolean().Should().BeFalse();
         paramsObj.GetProperty("dht_bootstrap_nodes").GetString().Should().Be("router.bittorrent.com:6881,dht.transmissionbt.com:6881");
+        paramsObj.GetProperty("dht_bucket_size").GetInt32().Should().BeGreaterThan(0);
+        paramsObj.GetProperty("dht_max_queries_per_second").GetInt32().Should().BeGreaterThan(0);
         paramsObj.GetProperty("connections_limit").GetInt32().Should().Be(250);
     }
 
