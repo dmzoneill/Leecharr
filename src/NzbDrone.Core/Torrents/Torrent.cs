@@ -78,7 +78,7 @@ public class Torrent : ModelBase
 
     public int TargetSeedTimeMinutes { get; set; }
 
-    public string ShareLimitAction { get; set; } = "Pause";
+    public string ShareLimitAction { get; set; } = "Default";
 
     public int Threshold { get; set; } = 1;
 
