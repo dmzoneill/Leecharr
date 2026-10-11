@@ -879,6 +879,7 @@ public class TorznabClient : ITorznabClient
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to parse Torznab XML feed.");
+            throw new TorznabException("Failed to parse Torznab XML feed.", ex);
         }
 
         return results;

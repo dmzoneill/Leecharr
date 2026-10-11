@@ -1482,13 +1482,12 @@ public class TorznabClientComprehensiveIntegrationTests : IntegrationTestBase
     }
 
     [Test]
-    public void ParseTorznabFeedXml_HandlesMalformedXml_ReturnsEmptyListWithoutCrashing()
+    public void ParseTorznabFeedXml_ThrowsTorznabException_OnMalformedXml()
     {
         var client = new TorznabClient(this.configService);
 
-        var results = client.ParseTorznabFeedXml("<rss><channel><item><title>Unclosed");
-        results.Should().NotBeNull();
-        results.Should().BeEmpty();
+        Action act = () => client.ParseTorznabFeedXml("<rss><channel><item><title>Unclosed");
+        act.Should().Throw<TorznabException>().WithMessage("*Failed to parse Torznab XML feed.*");
     }
 
     [Test]
