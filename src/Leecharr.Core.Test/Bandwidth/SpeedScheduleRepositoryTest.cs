@@ -114,6 +114,43 @@ public class SpeedScheduleRepositoryTest
     }
 
     [Test]
+    public void GetEnabled_OrdersEqualPriorityById()
+    {
+        var firstInserted = new SpeedSchedule
+        {
+            Name = "First",
+            Days = 127,
+            StartTime = "00:00:00",
+            EndTime = "23:59:59",
+            MaxDownloadSpeed = 1000,
+            MaxUploadSpeed = 500,
+            IsEnabled = true,
+            Priority = 0,
+        };
+        var secondInserted = new SpeedSchedule
+        {
+            Name = "Second",
+            Days = 127,
+            StartTime = "00:00:00",
+            EndTime = "23:59:59",
+            MaxDownloadSpeed = 2000,
+            MaxUploadSpeed = 1000,
+            IsEnabled = true,
+            Priority = 0,
+        };
+
+        this.repository.Insert(firstInserted);
+        this.repository.Insert(secondInserted);
+
+        var result = this.repository.GetEnabled().ToList();
+
+        result.Should().HaveCount(2);
+        result[0].Id.Should().BeLessThan(result[1].Id);
+        result[0].Name.Should().Be("First");
+        result[1].Name.Should().Be("Second");
+    }
+
+    [Test]
     public void GetEnabled_WhenNoneEnabled_ReturnsEmpty()
     {
         var disabledSchedule = new SpeedSchedule
