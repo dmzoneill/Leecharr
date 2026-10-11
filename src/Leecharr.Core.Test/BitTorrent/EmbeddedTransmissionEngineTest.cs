@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -396,6 +397,150 @@ public class EmbeddedTransmissionEngineTest
 
         var act = async () => await engine.MoveTorrentFilesAsync(42, "/new/save/path", moveFiles: true);
         await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Test]
+    public async Task RemoveTrackersAsync_WhenAnnounceMatches_SendsIntegerTrackerIds()
+    {
+        var torrentSetBodies = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99,\"name\":\"Test\"}}}"),
+                };
+            }
+
+            if (method == "torrent-get")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrents\":[{\"trackers\":[{\"id\":3,\"announce\":\"http://tracker.example.com/announce\"}]}]}}"),
+                };
+            }
+
+            if (method == "torrent-set")
+            {
+                torrentSetBodies.Add(body);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+        await engine.RemoveTrackersAsync(42, new[] { "http://tracker.example.com/announce" });
+
+        torrentSetBodies.Should().HaveCount(1);
+        using var setDoc = JsonDocument.Parse(torrentSetBodies[0]);
+        var trackerRemove = setDoc.RootElement.GetProperty("arguments").GetProperty("trackerRemove");
+        trackerRemove.GetArrayLength().Should().Be(1);
+        trackerRemove[0].GetInt32().Should().Be(3);
+    }
+
+    [Test]
+    public async Task RemoveTrackersAsync_WhenAnnounceDoesNotMatch_DoesNotSendTrackerRemoveRpc()
+    {
+        var torrentSetBodies = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            if (method == "torrent-get")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrents\":[{\"trackers\":[{\"id\":3,\"announce\":\"http://other.example.com/announce\"}]}]}}"),
+                };
+            }
+
+            if (method == "torrent-set")
+            {
+                torrentSetBodies.Add(body);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+        await engine.RemoveTrackersAsync(42, new[] { "http://tracker.example.com/announce" });
+
+        torrentSetBodies.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task RemoveTrackersAsync_WhenTrailingSlashDiffers_StillResolvesTrackerId()
+    {
+        var torrentSetBodies = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            if (method == "torrent-get")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrents\":[{\"trackers\":[{\"id\":5,\"announce\":\"http://tracker.example.com/announce\"}]}]}}"),
+                };
+            }
+
+            if (method == "torrent-set")
+            {
+                torrentSetBodies.Add(body);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+        await engine.RemoveTrackersAsync(42, new[] { "http://tracker.example.com/announce/" });
+
+        torrentSetBodies.Should().HaveCount(1);
+        using var setDoc = JsonDocument.Parse(torrentSetBodies[0]);
+        setDoc.RootElement.GetProperty("arguments").GetProperty("trackerRemove")[0].GetInt32().Should().Be(5);
     }
 
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)

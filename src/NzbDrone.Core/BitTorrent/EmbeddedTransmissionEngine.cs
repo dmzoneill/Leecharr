@@ -685,7 +685,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                                     {
                                         var announce = trackerObj.TryGetProperty("announce", out var a) ? a.GetString() : null;
                                         var tId = trackerObj.TryGetProperty("id", out var idProp) ? idProp.GetInt32() : -1;
-                                        if (tId >= 0 && announce != null && nonIntTrackers.Contains(announce))
+                                        if (tId >= 0 && announce != null && nonIntTrackers.Any(requested => TrackerAnnouncesMatch(requested, announce)))
                                         {
                                             trackerIdsToRemove.Add(tId);
                                         }
@@ -701,14 +701,6 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                         {
                             ["ids"] = rpcIds,
                             ["trackerRemove"] = trackerIdsToRemove.Distinct().ToArray(),
-                        });
-                    }
-                    else
-                    {
-                        await this.SendRpcRequestAsync("torrent-set", new Dictionary<string, object>
-                        {
-                            ["ids"] = rpcIds,
-                            ["trackerRemove"] = trackerList.ToArray(),
                         });
                     }
                 }
@@ -1139,6 +1131,29 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
 
         return list;
+    }
+
+    private static bool TrackerAnnouncesMatch(string requested, string announce)
+    {
+        if (string.IsNullOrWhiteSpace(requested) || string.IsNullOrWhiteSpace(announce))
+        {
+            return false;
+        }
+
+        if (string.Equals(requested, announce, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return string.Equals(
+            NormalizeTrackerAnnounce(requested),
+            NormalizeTrackerAnnounce(announce),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeTrackerAnnounce(string announce)
+    {
+        return announce.TrimEnd('/');
     }
 
     private static string GetRpcUrl()
