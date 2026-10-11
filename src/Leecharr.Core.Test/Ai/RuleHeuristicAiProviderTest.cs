@@ -89,6 +89,18 @@ public class RuleHeuristicAiProviderTest
     }
 
     [Test]
+    public async Task ProcessNaturalLanguageSearchAsync_AltSeasonEpisodeToken_ParsesEpisodeAndStripsFromTitle()
+    {
+        var result = await this.provider.ProcessNaturalLanguageSearchAsync("buffy 1x02 1080p");
+
+        result.Category.Should().Be("tv");
+        result.Season.Should().Be(1);
+        result.Episode.Should().Be(2);
+        result.Resolution.Should().Be("1080p");
+        result.CleanTitle.Should().Be("buffy");
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_TvEpisode_ParsesCorrectly()
     {
         var release = "Breaking.Bad.S05E16.Felina.1080p.WEB-DL.DD5.1.H.264-NTb";
