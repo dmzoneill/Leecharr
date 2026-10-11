@@ -278,6 +278,10 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
             {
                 success = await active.ExtractAsync(archiveFilePath, targetDir, password, passwordCandidates, cancellationToken);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Active extractor '{0}' failed for '{1}' with exception.", active.ProviderId, archiveFilePath);
@@ -296,6 +300,10 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
                         {
                             this.logger.Info("SharpCompress fallback extraction succeeded for '{0}'.", archiveFilePath);
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
