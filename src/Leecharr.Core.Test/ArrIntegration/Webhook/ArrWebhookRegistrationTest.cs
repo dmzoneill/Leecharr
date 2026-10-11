@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
@@ -467,6 +468,57 @@ public class ArrWebhookRegistrationTest
         using var doc = JsonDocument.Parse(postBody!);
         var fields = doc.RootElement.GetProperty("fields");
         GetFieldValue(fields, "url").Should().Be("http://[2001:db8::10]:7889/api/v1/webhook/arr");
+    }
+
+    [Test]
+    public void RegisterDownloadClient_WhenWhisparr_IncludesMovieCategoryInPostBody()
+    {
+        var requests = new List<HttpRequestMessage>();
+        string postBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                postBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 88}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Whisparr",
+            Url = "http://whisparr:6969",
+            ApiKey = "whisparr-key",
+            Enable = true,
+            EnableAutomaticAdd = true,
+            WebhookHost = "leecharr.local",
+        };
+
+        registration.RegisterDownloadClient(conn).Should().BeTrue();
+
+        requests.Should().HaveCount(2);
+        requests[1].RequestUri!.ToString().Should().Be("http://whisparr:6969/api/v3/downloadclient");
+
+        postBody.Should().NotBeNullOrEmpty();
+        using var doc = JsonDocument.Parse(postBody);
+        GetFieldValue(doc.RootElement.GetProperty("fields"), "movieCategory").Should().Be("whisparr");
     }
 
     [Test]

@@ -460,6 +460,11 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             return ("bookCategory", !string.IsNullOrWhiteSpace(connection.Category) ? connection.Category : "books");
         }
 
+        if (string.Equals(arrType, "Whisparr", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("movieCategory", !string.IsNullOrWhiteSpace(connection.Category) ? connection.Category : "whisparr");
+        }
+
         return (null, null);
     }
 
