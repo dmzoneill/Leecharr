@@ -817,7 +817,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public async Task HandleGeneric_WithProwlarr_TriggersSyncAllAsync()
+    public async Task HandleGeneric_WithProwlarrNonSyncEvent_DoesNotTriggerSyncAllAsync()
     {
         this.prowlarrSyncService.SyncAllAsync().Returns(Task.FromResult(2));
         var payload = new ArrWebhookPayload
@@ -833,9 +833,32 @@ public class ArrWebhookControllerTest
         var res = okResult!.Value as ArrWebhookResult;
         res.Should().NotBeNull();
         res!.Success.Should().BeTrue();
-        res.Updated.Should().BeTrue();
+        res.Updated.Should().BeFalse();
 
-        await this.prowlarrSyncService.Received(1).SyncAllAsync();
+        await this.prowlarrSyncService.DidNotReceive().SyncAllAsync();
+    }
+
+    [Test]
+    public async Task HandleProwlarr_WhenIndexerFailure_DoesNotTriggerSyncAllAsync()
+    {
+        this.prowlarrSyncService.SyncAllAsync().Returns(Task.FromResult(3));
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "IndexerFailure",
+            InstanceName = "Prowlarr",
+        };
+
+        var result = await this.controller.HandleProwlarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeFalse();
+        res.Message.Should().Contain("no matching torrent");
+
+        await this.prowlarrSyncService.DidNotReceive().SyncAllAsync();
     }
 
     [TestCase("IndexerSync")]

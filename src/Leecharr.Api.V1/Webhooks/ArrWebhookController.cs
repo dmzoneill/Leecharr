@@ -140,7 +140,7 @@ public class ArrWebhookController : Controller
                 return this.Ok(testResult);
             }
 
-            if (string.Equals(arrType, "Prowlarr", StringComparison.OrdinalIgnoreCase) || IsProwlarrIndexerEvent(eventType))
+            if (IsProwlarrIndexerEvent(eventType))
             {
                 var syncedCount = 0;
                 if (this.prowlarrSyncService != null)

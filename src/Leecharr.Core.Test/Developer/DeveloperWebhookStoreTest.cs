@@ -290,4 +290,26 @@ public class SystemDeveloperWebhookSimulateTest
         response.Should().NotBeNull();
         response!.TraceLogs.Should().Contain(log => log.Contains("ArrType: 'Whisparr'"));
     }
+
+    [Test]
+    public async Task SimulateWebhook_WhenIndexerFailureWithoutArrType_DoesNotInferProwlarr()
+    {
+        var payload = "{\"eventType\":\"IndexerFailure\",\"indexer\":\"PublicFlakyTracker\",\"failureReason\":\"HTTP 504\"}";
+        var request = new DeveloperWebhookSimulateRequest
+        {
+            EventType = "IndexerFailure",
+            PayloadJson = payload,
+            DispatchToPipeline = true,
+        };
+
+        var result = await this.controller.SimulateWebhook(request);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result.Result!;
+        var response = okResult.Value as DeveloperWebhookSimulateResponse;
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.TraceLogs.Should().Contain(log => log.Contains("ArrType: 'Arr'"));
+        response.TraceLogs.Should().NotContain(log => log.Contains("ArrType: 'Prowlarr'"));
+    }
 }
