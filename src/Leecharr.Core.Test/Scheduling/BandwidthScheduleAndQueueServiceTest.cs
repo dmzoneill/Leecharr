@@ -363,25 +363,25 @@ public class BandwidthScheduleAndQueueServiceTest
         task2.TorrentId.Returns(202);
         task2.Status.Returns(TorrentStatus.Downloading);
 
+        var t1 = new CoreTorrent { Id = 201, Status = TorrentStatus.Downloading };
+        var t2 = new CoreTorrent { Id = 202, Status = TorrentStatus.Downloading };
+
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { task1, task2 });
-        this.torrentRepository.All().Returns(new List<CoreTorrent>
-        {
-            new() { Id = 201, Status = TorrentStatus.Downloading },
-            new() { Id = 202, Status = TorrentStatus.Downloading },
-        });
+        this.downloadEngine.GetTask(201).Returns(task1);
+        this.downloadEngine.GetTask(202).Returns(task2);
+        this.torrentRepository.All().Returns(new List<CoreTorrent> { t1, t2 });
+        this.torrentRepository.Get(201).Returns(t1);
+        this.torrentRepository.Get(202).Returns(t2);
 
         await this.speedScheduler.ApplyCurrentLimitsAsync();
         this.speedScheduler.WasPausedByScheduler.Should().BeTrue();
 
+        // User manually paused torrent 202 while scheduler was paused
+        this.speedScheduler.RevokeSchedulerResume(202);
+        t2.Status = TorrentStatus.Paused;
+
         // 2. Transition out of pause (revert to normal limits)
         this.speedScheduleRepository.GetEnabled().Returns(new List<SpeedSchedule>());
-
-        // User manually changed Torrent 202 status to Paused while scheduler was paused
-        var t1 = new CoreTorrent { Id = 201, Status = TorrentStatus.Downloading };
-        var t2 = new CoreTorrent { Id = 202, Status = TorrentStatus.Paused };
-        this.torrentRepository.Get(201).Returns(t1);
-        this.torrentRepository.Get(202).Returns(t2);
-
         await this.speedScheduler.ApplyCurrentLimitsAsync();
 
         this.speedScheduler.WasPausedByScheduler.Should().BeFalse();
