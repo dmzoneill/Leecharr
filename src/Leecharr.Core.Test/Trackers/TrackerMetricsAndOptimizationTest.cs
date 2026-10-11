@@ -854,4 +854,28 @@ public class TrackerMetricsAndOptimizationTest
         var deleteResult = controller.Delete(1);
         deleteResult.Should().BeOfType<OkObjectResult>();
     }
+
+    [Test]
+    public void GetSummary_WhenHourlyPeerAggregateExceedsInt32_Max_ReturnsHourlyHistory()
+    {
+        var now = DateTime.UtcNow;
+        var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc);
+        var bucketKey = currentHour.ToString("yyyy-MM-dd HH:00:00");
+        var perSnapshot = (int.MaxValue / 2) + 1;
+        var expectedTotal = (long)perSnapshot * 2;
+
+        this.snapshotRepository.GetHourlyAggregatedMetrics(Arg.Any<DateTime>()).Returns(_ => new List<HourlyTrackerMetricPoint>
+        {
+            new()
+            {
+                Bucket = bucketKey,
+                PeersDiscovered = expectedTotal,
+            },
+        });
+
+        var summary = this.metricService.GetSummary();
+
+        summary.HourlyHistory.Should().NotBeNullOrEmpty();
+        summary.HourlyHistory.Should().Contain(h => h.PeersDiscovered == expectedTotal);
+    }
 }
