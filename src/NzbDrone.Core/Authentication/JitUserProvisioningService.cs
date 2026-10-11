@@ -90,7 +90,7 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         User matchedUser = null;
         if (!string.IsNullOrEmpty(profile.Email))
         {
-            matchedUser = this.userRepository.FindByEmail(profile.Email);
+            matchedUser = this.userRepository.FindByEmailForProvider(profile.Email, profile.ProviderId);
         }
 
         if (matchedUser == null && !string.IsNullOrEmpty(profile.Username))

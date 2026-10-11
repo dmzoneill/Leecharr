@@ -11,6 +11,8 @@ public interface IUserRepository : IBasicRepository<User>
 
     User FindByEmail(string email);
 
+    User FindByEmailForProvider(string email, string providerId);
+
     User FindByIdentifier(Guid identifier);
 
     User FindByExternalId(string providerId, string externalSubjectId);

@@ -101,6 +101,15 @@ public class UserService : IUserService
             throw new InvalidOperationException($"User with username '{username}' already exists.");
         }
 
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var existingEmail = this.userRepository.FindByEmail(email);
+            if (existingEmail != null)
+            {
+                throw new InvalidOperationException($"User with email '{email.Trim()}' already exists.");
+            }
+        }
+
         var passwordHash = this.HashPassword(password, out var salt, this.defaultIterations);
         var effectiveRoles = roles ?? (this.HasAnyUsers() ? new List<string> { "User" } : new List<string> { "Admin" });
 
@@ -143,6 +152,15 @@ public class UserService : IUserService
 
     public User Update(User user)
     {
+        if (!string.IsNullOrWhiteSpace(user.Email))
+        {
+            var existingEmail = this.userRepository.FindByEmail(user.Email);
+            if (existingEmail != null && existingEmail.Id != user.Id)
+            {
+                throw new InvalidOperationException($"User with email '{user.Email.Trim()}' already exists.");
+            }
+        }
+
         user.UpdatedAt = DateTime.UtcNow;
         this.userRepository.Update(user);
         this.userSessionRepository?.DeleteByUserId(user.Id);
