@@ -236,6 +236,53 @@ public class ConfigFileProviderTest
     }
 
     [Test]
+    public void GetValueBool_SupportsOneAndZeroEnvironmentValues()
+    {
+        try
+        {
+            Environment.SetEnvironmentVariable("LEECHARR_AUTHENTICATION_ENABLED", "1");
+            Environment.SetEnvironmentVariable("LEECHARR_ALLOW_PRIVATE_NETWORK_REQUESTS", "0");
+            Environment.SetEnvironmentVariable("LEECHARR_ENABLE_SSL", "0");
+            Environment.SetEnvironmentVariable("LEECHARR_REDIRECT_HTTP_TO_HTTPS", "1");
+            Environment.SetEnvironmentVariable("LEECHARR_TERMINAL_ACCESS_ENABLED", "0");
+
+            var provider = new ConfigFileProvider(this.appFolderInfo);
+
+            provider.AuthenticationEnabled.Should().BeTrue();
+            provider.AllowPrivateNetworkRequests.Should().BeFalse();
+            provider.EnableSsl.Should().BeFalse();
+            provider.RedirectHttpToHttps.Should().BeTrue();
+            provider.TerminalAccessEnabled.Should().BeFalse();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LEECHARR_AUTHENTICATION_ENABLED", null);
+            Environment.SetEnvironmentVariable("LEECHARR_ALLOW_PRIVATE_NETWORK_REQUESTS", null);
+            Environment.SetEnvironmentVariable("LEECHARR_ENABLE_SSL", null);
+            Environment.SetEnvironmentVariable("LEECHARR_REDIRECT_HTTP_TO_HTTPS", null);
+            Environment.SetEnvironmentVariable("LEECHARR_TERMINAL_ACCESS_ENABLED", null);
+        }
+    }
+
+    [Test]
+    public void GetValueBool_SupportsOneAndZeroConfigXmlValues()
+    {
+        var configFile = Path.Combine(this.tempDir, "config.xml");
+        var xDoc = new XDocument(
+            new XElement(
+                "Config",
+                new XElement("ApiKey", "test-key-123"),
+                new XElement("AuthenticationEnabled", "1"),
+                new XElement("AllowPrivateNetworkRequests", "0")));
+        xDoc.Save(configFile);
+
+        var provider = new ConfigFileProvider(this.appFolderInfo);
+
+        provider.AuthenticationEnabled.Should().BeTrue();
+        provider.AllowPrivateNetworkRequests.Should().BeFalse();
+    }
+
+    [Test]
     public void AuthenticationRequired_WhenAuthenticationEnabledFalse_DefaultsToDisabledForLocalAddresses()
     {
         var provider = new ConfigFileProvider(this.appFolderInfo);
