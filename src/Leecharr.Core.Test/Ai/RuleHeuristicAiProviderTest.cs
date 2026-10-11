@@ -419,6 +419,37 @@ public class RuleHeuristicAiProviderTest
     }
 
     [Test]
+    public async Task AnalyzeMalwareRiskAsync_TinyVideoInVideoNamedTorrent_ReturnsMedium()
+    {
+        var files = new List<TorrentFile>
+        {
+            new() { Path = "Movie.2024.1080p/sample.mkv", Size = 100_000 },
+        };
+
+        var assessment = await this.provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p", files);
+
+        assessment.RiskLevel.Should().Be("Medium");
+        assessment.RiskScore.Should().Be(0.25);
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_TinyAudioInVideoNamedTorrent_StaysSafe()
+    {
+        var files = new List<TorrentFile>
+        {
+            new() { Path = "Movie.2024.1080p/score.flac", Size = 100_000 },
+            new() { Path = "Album.1080p.BluRay/track.mp3", Size = 200_000 },
+            new() { Path = "Some Movie Soundtrack/theme.aac", Size = 80_000 },
+        };
+
+        var assessment = await this.provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p.BluRay", files);
+
+        assessment.RiskLevel.Should().Be("Safe");
+        assessment.RiskScore.Should().Be(0);
+        assessment.ThreatReasons.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_TitlesWithEmbeddedNumbersAndYears_PreservesNumericTitleAndExtractsReleaseYear()
     {
         // Wonder Woman 1984 (2020)

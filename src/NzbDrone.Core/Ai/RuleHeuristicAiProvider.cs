@@ -23,6 +23,11 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         ".exe", ".scr", ".bat", ".cmd", ".vbs", ".js", ".pif", ".ps1", ".msi", ".com", ".hta", ".lnk", ".dll", ".wsf", ".jar", ".cpl", ".iso",
     };
 
+    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".ts", ".m2ts",
+    };
+
     private static readonly HashSet<string> MediaExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".ts", ".m2ts",
@@ -746,13 +751,13 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
                 threatReasons.Add($"Potential fake codec or archive password trap found: '{fileName}'.");
             }
 
-            // 4. Suspiciously tiny media files (< 500 KB for video)
-            if (MediaExtensions.Contains(ext) && file.Size > 0 && file.Size < 500 * 1024)
+            // 4. Suspiciously tiny video files (< 500 KB for video)
+            if (VideoExtensions.Contains(ext) && file.Size > 0 && file.Size < 500 * 1024)
             {
                 if (Regex.IsMatch(torrentName, @"(?i)\b(1080p|2160p|720p|bluray|web-dl|movie)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
                 {
                     riskScore += 0.25;
-                    threatReasons.Add($"Media file '{fileName}' has suspiciously low file size ({file.Size / 1024} KB).");
+                    threatReasons.Add($"Video file '{fileName}' has suspiciously low file size ({file.Size / 1024} KB).");
                 }
             }
         }
