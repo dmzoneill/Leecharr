@@ -636,6 +636,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var peerIdPrefix = this.configService.AnonymousMode ? string.Empty : wireIdentity.PeerIdPrefix;
 
         ConfigureGlobalMonoTorrentDefaults(peerIdPrefix, userAgent, this.configService.AnonymousMode);
+        MonoTorrentProtocolExtensionConfigurator.Apply(this.configService);
 
         var webProxy = this.GetConfiguredWebProxy();
         if (webProxy is WebProxy wp)
@@ -1183,13 +1184,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             else if (isProxyActive)
             {
                 torrentSettingsBuilder.AllowDht = false;
-                torrentSettingsBuilder.AllowPeerExchange = this.configService.EnablePex;
+                torrentSettingsBuilder.AllowPeerExchange = ProtocolExtensionPolicy.IsUtPexEnabled(this.configService);
                 this.logger.Info("Proxy leak prevention active for torrent {0}: DHT disabled", torrent.Name);
             }
             else
             {
                 torrentSettingsBuilder.AllowDht = this.configService.EnableDht;
-                torrentSettingsBuilder.AllowPeerExchange = this.configService.EnablePex;
+                torrentSettingsBuilder.AllowPeerExchange = ProtocolExtensionPolicy.IsUtPexEnabled(this.configService);
             }
 
             TorrentManager manager = null;
@@ -3024,7 +3025,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             else
             {
                 settingsBuilder.AllowDht = this.configService.EnableDht;
-                settingsBuilder.AllowPeerExchange = this.configService.EnablePex;
+                settingsBuilder.AllowPeerExchange = ProtocolExtensionPolicy.IsUtPexEnabled(this.configService);
             }
 
             await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
@@ -4960,6 +4961,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     public void CheckTrackerHealth()
     {
         this.CheckDiskSpaceHealth();
+        MonoTorrentPeerExchangeScheduler.Tick(this.engine, this.configService);
 
         foreach (var task in this.tasks.Values)
         {
@@ -4998,8 +5000,6 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         var baseMaxPerTorrent = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50;
-        var enablePex = this.configService.EnablePex;
-
         foreach (var task in this.tasks.Values)
         {
             if (task.Manager == null)
@@ -5009,7 +5009,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             try
             {
-                var allowPex = !task.IsPrivate && enablePex;
+                var allowPex = ProtocolExtensionPolicy.AllowPeerExchange(this.configService, task.IsPrivate);
                 var swarmMetrics = task.BuildSwarmPeerMetrics(this.configService.SwarmPeerAnalysisDepth);
                 var maxPerTorrent = this.clientBehaviorSimulation.GetEffectivePerTorrentConnections(baseMaxPerTorrent, swarmMetrics);
                 var currentSettings = task.Manager.Settings;
@@ -5379,8 +5379,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        MonoTorrentProtocolExtensionConfigurator.Apply(this.configService);
+
         var baseMaxPerTorrent = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50;
-        var enablePex = this.configService.EnablePex;
         var currentPiecePickerStrategy = this.configService.PiecePickerStrategy ?? string.Empty;
         var piecePickerChangedToSequential = !string.Equals(this.lastAppliedPiecePickerStrategy, currentPiecePickerStrategy, StringComparison.OrdinalIgnoreCase) &&
                                             string.Equals(currentPiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase);
@@ -5393,7 +5394,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 try
                 {
-                    var allowPex = !task.IsPrivate && enablePex;
+                    var allowPex = ProtocolExtensionPolicy.AllowPeerExchange(this.configService, task.IsPrivate);
                     var currentSettings = task.Manager.Settings;
                     var swarmMetrics = task.BuildSwarmPeerMetrics(this.configService.SwarmPeerAnalysisDepth);
                     var maxPerTorrent = this.clientBehaviorSimulation.GetEffectivePerTorrentConnections(baseMaxPerTorrent, swarmMetrics);
