@@ -92,12 +92,8 @@ public class AutomationEventService :
 
     public void Handle(TorrentSeedGoalReachedEvent message)
     {
-        if (message?.Torrent == null)
-        {
-            return;
-        }
-
-        _ = DispatchTrigger(AutomationTrigger.RatioReached, message.Torrent);
+        // Seed-goal notifications use TorrentSeedGoalReachedEvent; automation uses
+        // TorrentRatioReachedEvent and TorrentSeedingTimeReachedEvent separately.
     }
 
     public void Handle(TorrentRatioReachedEvent message)
