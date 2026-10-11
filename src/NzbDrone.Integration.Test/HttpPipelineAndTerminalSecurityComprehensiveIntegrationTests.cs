@@ -407,11 +407,15 @@ public class HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests : Inte
             "/signalr/connect",
             "/transmission/rpc",
             "/jsonrpc",
+            "/xmlrpc",
             "/aria2",
             "/nzbget",
             "/hadouken",
             "/sabnzbd",
             "/gui",
+            "/client/connection-test",
+            "/nzbget:secret/jsonrpc",
+            "/nzbget:secret/xmlrpc",
         };
 
         foreach (var path in apiPaths)
@@ -454,11 +458,15 @@ public class HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests : Inte
             "/signalr/connect",
             "/transmission/rpc",
             "/jsonrpc",
+            "/xmlrpc",
             "/aria2",
             "/nzbget",
             "/hadouken",
             "/sabnzbd",
             "/gui",
+            "/client/connection-test",
+            "/nzbget:secret/jsonrpc",
+            "/nzbget:secret/xmlrpc",
         };
 
         foreach (var path in apiPaths)

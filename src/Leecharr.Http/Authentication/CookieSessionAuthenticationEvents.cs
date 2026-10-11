@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -83,10 +84,36 @@ public class CookieSessionAuthenticationEvents : CookieAuthenticationEvents
                path.StartsWithSegments("/plugins") ||
                path.StartsWithSegments("/webapi") ||
                path.StartsWithSegments("/jsonrpc") ||
+               path.StartsWithSegments("/xmlrpc") ||
                path.StartsWithSegments("/nzbget") ||
                path.StartsWithSegments("/hadouken") ||
                path.StartsWithSegments("/sabnzbd") ||
                path.StartsWithSegments("/aria2") ||
-               path.StartsWithSegments("/nzbvortex");
+               path.StartsWithSegments("/nzbvortex") ||
+               path.StartsWithSegments("/client/connection-test") ||
+               IsNzbgetCredentialInPath(path);
+    }
+
+    private static bool IsNzbgetCredentialInPath(PathString path)
+    {
+        if (!path.HasValue)
+        {
+            return false;
+        }
+
+        var segments = path.Value.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length != 2)
+        {
+            return false;
+        }
+
+        var endpoint = segments[1];
+        if (!string.Equals(endpoint, "jsonrpc", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(endpoint, "xmlrpc", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return segments[0].Contains(':', StringComparison.Ordinal);
     }
 }
