@@ -407,10 +407,56 @@ class LibTorrentManager:
         if "enable_lsd" in params:
             settings["enable_lsd"] = bool(params["enable_lsd"])
 
+        dht_applied = self._apply_dht_settings(params)
+
         if settings:
             with self.lock:
                 self.session.apply_settings(settings)
+        if dht_applied or settings:
+            return {"status": "settings_applied"}
         return {"status": "settings_applied"}
+
+    def _apply_dht_settings(self, params):
+        dht_keys = (
+            "dht_routing_table_size",
+            "dht_announcement_interval",
+            "dht_bootstrap_timeout",
+            "dht_query_timeout",
+            "dht_max_nodes",
+            "dht_bucket_size",
+            "dht_concurrent_queries",
+            "dht_auto_bootstrap",
+            "dht_rate_limit_enabled",
+            "dht_max_queries_per_second",
+        )
+        if not any(key in params for key in dht_keys):
+            return False
+
+        ds = lt.dht_settings()
+        if "dht_bucket_size" in params:
+            ds.max_peers_reply = max(1, int(params["dht_bucket_size"]))
+        if "dht_max_nodes" in params:
+            ds.max_dht_items = max(1, int(params["dht_max_nodes"]))
+        if "dht_concurrent_queries" in params:
+            ds.search_branching = max(1, int(params["dht_concurrent_queries"]))
+        if "dht_query_timeout" in params:
+            ds.block_timeout = max(1, int(params["dht_query_timeout"]))
+        if "dht_bootstrap_timeout" in params:
+            ds.item_lifetime = max(1, int(params["dht_bootstrap_timeout"]))
+        if "dht_routing_table_size" in params:
+            ds.extended_routing_table = int(params["dht_routing_table_size"]) >= 400
+        if "dht_rate_limit_enabled" in params or "dht_max_queries_per_second" in params:
+            enabled = bool(params.get("dht_rate_limit_enabled", True))
+            if enabled:
+                ds.block_ratelimit = max(1, int(params.get("dht_max_queries_per_second", 30)))
+            else:
+                ds.block_ratelimit = 0
+        if "dht_auto_bootstrap" in params:
+            ds.read_only = not bool(params["dht_auto_bootstrap"])
+
+        with self.lock:
+            self.session.set_dht_settings(ds)
+        return True
 
     def set_torrent_limits(self, params):
         h = self.find_handle(params.get("info_hash"))
