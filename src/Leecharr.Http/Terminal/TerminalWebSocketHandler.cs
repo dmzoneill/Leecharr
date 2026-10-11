@@ -16,6 +16,7 @@ namespace Leecharr.Http.Terminal;
 
 public static class TerminalWebSocketHandler
 {
+    private const int MaxIncomingWebSocketMessageBytes = 10 * 1024 * 1024;
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     public static bool IsAuthorized(HttpContext context, IConfigFileProvider configFileProvider)
     {
@@ -263,11 +264,32 @@ public static class TerminalWebSocketHandler
                 {
                     using var ms = new MemoryStream();
                     WebSocketReceiveResult result;
+                    var messageTooLarge = false;
                     do
                     {
                         result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
                         if (result.MessageType == WebSocketMessageType.Close)
                         {
+                            break;
+                        }
+
+                        if (ms.Length + result.Count > MaxIncomingWebSocketMessageBytes)
+                        {
+                            messageTooLarge = true;
+                            Logger.Warn(
+                                "Terminal WebSocket message exceeded {0} byte limit (at least {1} bytes in current message)",
+                                MaxIncomingWebSocketMessageBytes,
+                                ms.Length + result.Count);
+
+                            while (!result.EndOfMessage)
+                            {
+                                result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+                                if (result.MessageType == WebSocketMessageType.Close)
+                                {
+                                    break;
+                                }
+                            }
+
                             break;
                         }
 
@@ -277,6 +299,19 @@ public static class TerminalWebSocketHandler
 
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
+                        break;
+                    }
+
+                    if (messageTooLarge)
+                    {
+                        if (webSocket.State == WebSocketState.Open)
+                        {
+                            await webSocket.CloseAsync(
+                                WebSocketCloseStatus.MessageTooBig,
+                                "Incoming message exceeds size limit",
+                                CancellationToken.None);
+                        }
+
                         break;
                     }
 
