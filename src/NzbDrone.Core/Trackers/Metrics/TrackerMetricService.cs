@@ -7,7 +7,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using NLog;
+using Npgsql;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
@@ -85,38 +87,47 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
 
             foreach (var t in torrents)
             {
-                if (!string.IsNullOrWhiteSpace(t.TrackerUrl))
+                if (string.IsNullOrWhiteSpace(t.TrackerUrl))
                 {
-                    this.GetOrCreateMetric(t.TrackerUrl);
-                    var key = $"{t.TrackerUrl}_{t.Id}";
-                    this.lastSeenBytes.TryAdd(key, (t.Uploaded, t.Downloaded));
+                    continue;
+                }
+
+                try
+                {
+                    lock (this.syncLock)
+                    {
+                        this.GetOrCreateMetric(t.TrackerUrl);
+                        var key = $"{t.TrackerUrl}_{t.Id}";
+                        this.lastSeenBytes.TryAdd(key, (t.Uploaded, t.Downloaded));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed seeding tracker metric baseline for torrent {TorrentId}", t.Id);
                 }
             }
 
             foreach (var entry in trackerEntries)
             {
-                if (!string.IsNullOrWhiteSpace(entry.Url))
+                if (string.IsNullOrWhiteSpace(entry.Url))
                 {
-                    var metric = this.GetOrCreateMetric(entry.Url);
-                    if (metric != null && metric.TotalAnnounces == 0 && entry.TotalAnnounces > 0)
+                    continue;
+                }
+
+                try
+                {
+                    lock (this.syncLock)
                     {
-                        metric.TotalAnnounces = entry.TotalAnnounces;
-                        metric.SuccessfulAnnounces = entry.SuccessfulAnnounces;
-                        metric.FailedAnnounces = Math.Max(0, entry.TotalAnnounces - entry.SuccessfulAnnounces);
-                        metric.LastAnnounce = entry.LastAnnounce;
-                        metric.LastSeeders = entry.Seeders;
-                        metric.LastLeechers = entry.Leechers;
-                        if (entry.LastResponseTime > 0)
-                        {
-                            metric.LastResponseTimeMs = entry.LastResponseTime;
-                            metric.AvgResponseTimeMs = entry.LastResponseTime;
-                        }
+                        this.GetOrCreateMetric(entry.Url);
+                        this.ApplyTrackerEntrySeedCounters(entry);
 
-                        this.metricRepository.Update(metric);
+                        var key = $"{entry.Url}_{entry.TorrentId}";
+                        this.lastSeenBytes.AddOrUpdate(key, (0, entry.Downloaded), (k, old) => (old.Uploaded, Math.Max(old.Downloaded, (long)entry.Downloaded)));
                     }
-
-                    var key = $"{entry.Url}_{entry.TorrentId}";
-                    this.lastSeenBytes.AddOrUpdate(key, (0, entry.Downloaded), (k, old) => (old.Uploaded, Math.Max(old.Downloaded, (long)entry.Downloaded)));
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed seeding tracker metric from entry for torrent {TorrentId}", entry.TorrentId);
                 }
             }
         }
@@ -124,6 +135,34 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
         {
             this.logger.Debug(ex, "Failed initializing tracker metrics from existing records");
         }
+    }
+
+    private void ApplyTrackerEntrySeedCounters(TrackerEntry entry)
+    {
+        if (entry == null || string.IsNullOrWhiteSpace(entry.Url) || entry.TotalAnnounces <= 0)
+        {
+            return;
+        }
+
+        var metric = this.metricRepository.FindByUrl(entry.Url.Trim());
+        if (metric == null || metric.TotalAnnounces != 0)
+        {
+            return;
+        }
+
+        metric.TotalAnnounces = entry.TotalAnnounces;
+        metric.SuccessfulAnnounces = entry.SuccessfulAnnounces;
+        metric.FailedAnnounces = Math.Max(0, entry.TotalAnnounces - entry.SuccessfulAnnounces);
+        metric.LastAnnounce = entry.LastAnnounce;
+        metric.LastSeeders = entry.Seeders;
+        metric.LastLeechers = entry.Leechers;
+        if (entry.LastResponseTime > 0)
+        {
+            metric.LastResponseTimeMs = entry.LastResponseTime;
+            metric.AvgResponseTimeMs = entry.LastResponseTime;
+        }
+
+        this.metricRepository.Update(metric);
     }
 
     public TrackerMetric RecordAnnounce(
@@ -626,7 +665,18 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
             FirstSeen = DateTime.UtcNow,
         };
 
-        return this.metricRepository.Insert(metric);
+        try
+        {
+            return this.metricRepository.Insert(metric);
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            return this.metricRepository.FindByUrl(trimmed);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "23505")
+        {
+            return this.metricRepository.FindByUrl(trimmed);
+        }
     }
 
     private static (string Host, string Domain, string Protocol, int Port) ParseTrackerUrl(string url)

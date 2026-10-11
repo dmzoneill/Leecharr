@@ -580,6 +580,100 @@ public class TrackerMetricsAndOptimizationTest
     }
 
     [Test]
+    public void SeedFromExistingTrackers_DoesNotOverwriteLiveAnnounceCounts()
+    {
+        var trackerUrl = "http://live.tracker.com:80/announce";
+
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = 1,
+            Url = trackerUrl,
+            TotalAnnounces = 12,
+            SuccessfulAnnounces = 10,
+            LastResponseTime = 95,
+            Downloaded = 1500,
+        });
+
+        this.metricService.RecordAnnounce(
+            trackerUrl,
+            torrentId: 1,
+            uploaded: 100,
+            downloaded: 200,
+            left: 0,
+            responseTimeMs: 50,
+            success: true,
+            seeders: 1,
+            leechers: 0,
+            peersCount: 1);
+
+        this.metricService.SeedFromExistingTrackers();
+
+        var metric = this.storedMetrics.First(m => m.TrackerUrl == trackerUrl);
+        metric.TotalAnnounces.Should().Be(1);
+        metric.SuccessfulAnnounces.Should().Be(1);
+        metric.TotalUploaded.Should().Be(100);
+    }
+
+    [Test]
+    public void SeedFromExistingTrackers_ContinuesWhenInsertHitsUniqueConstraint()
+    {
+        var firstUrl = "udp://first.tracker.org:1337/announce";
+        var secondUrl = "http://second.tracker.com:80/announce";
+        var racedMetric = new TrackerMetric
+        {
+            Id = 99,
+            TrackerUrl = firstUrl,
+            Status = "Working",
+        };
+
+        this.storedTorrents.Add(new Torrent
+        {
+            Id = 1,
+            TrackerUrl = firstUrl,
+            Uploaded = 1000,
+            Downloaded = 500,
+        });
+
+        this.storedTorrents.Add(new Torrent
+        {
+            Id = 2,
+            TrackerUrl = secondUrl,
+            Uploaded = 2000,
+            Downloaded = 1000,
+        });
+
+        var firstUrlLookups = 0;
+        this.metricRepository.FindByUrl(Arg.Any<string>()).Returns(ci =>
+        {
+            var url = ci.Arg<string>()?.Trim();
+            if (string.Equals(url, firstUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                firstUrlLookups++;
+                return firstUrlLookups == 1 ? null : racedMetric;
+            }
+
+            return this.storedMetrics.FirstOrDefault(m => string.Equals(m.TrackerUrl, url, StringComparison.OrdinalIgnoreCase));
+        });
+
+        this.metricRepository.Insert(Arg.Any<TrackerMetric>()).Returns(ci =>
+        {
+            var metric = ci.Arg<TrackerMetric>();
+            if (string.Equals(metric.TrackerUrl, firstUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new Microsoft.Data.Sqlite.SqliteException("UNIQUE constraint failed", 19);
+            }
+
+            metric.Id = this.storedMetrics.Count + 1;
+            this.storedMetrics.Add(metric);
+            return metric;
+        });
+
+        this.metricService.SeedFromExistingTrackers();
+
+        this.storedMetrics.Should().Contain(m => m.TrackerUrl == secondUrl);
+    }
+
+    [Test]
     public void PruneSnapshots_CallsRepositoryPruneOlderThan()
     {
         var cutoff = DateTime.UtcNow.AddDays(-7);
