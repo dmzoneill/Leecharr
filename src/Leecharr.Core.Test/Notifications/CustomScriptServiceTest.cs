@@ -228,6 +228,47 @@ public class CustomScriptServiceTest
     }
 
     [Test]
+    public void ParseShebangLine_ParsesEnvAndDirectInterpreters()
+    {
+        CustomScriptService.ParseShebangLine("#!/usr/bin/env bash").FileName.Should().Be("bash");
+        CustomScriptService.ParseShebangLine("#!/bin/bash").FileName.Should().Be("/bin/bash");
+        CustomScriptService.ParseShebangLine("#!/bin/sh -e").PrefixArguments.Should().ContainInOrder("-e");
+        CustomScriptService.ParseShebangLine("not a shebang").FileName.Should().BeNull();
+    }
+
+    [Test]
+    public void ResolveInterpreter_ForShScriptWithBashShebang_UsesBashInterpreter()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var scriptPath = Path.Combine(this.tempDirectory, "bash_syntax.sh");
+        File.WriteAllText(scriptPath, "#!/usr/bin/env bash\nexit 0\n");
+
+        var (file, args) = CustomScriptService.ResolveInterpreter(scriptPath, "-v");
+        file.Should().Be("bash");
+        args.Should().ContainInOrder(scriptPath, "-v");
+    }
+
+    [Test]
+    public async Task ExecuteScriptAsync_WhenShScriptUsesBashSyntax_HonorsShebang()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var script = "#!/usr/bin/env bash\nif [[ -n \"x\" ]]; then exit 0; else exit 1; fi\n";
+        var scriptPath = Path.Combine(this.tempDirectory, "bash_brackets.sh");
+        File.WriteAllText(scriptPath, script);
+
+        var result = await this.service.ExecuteScriptAsync(scriptPath, new Torrent { Id = 1 }, "OnDownloadComplete");
+        result.Should().BeTrue();
+    }
+
+    [Test]
     public void Constructor_WithConfigService_SetsCustomScriptTimeout()
     {
         var configService = NSubstitute.Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
