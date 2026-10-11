@@ -5,8 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Threading;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Network.Vpn;
 
@@ -20,11 +22,11 @@ public class NetworkStatus
 
     public int ListenPort { get; set; } = 7889;
 
-    public bool PortOpen { get; set; } = true;
+    public bool PortOpen { get; set; }
 
     public string ActiveInterface { get; set; } = "Auto";
 
-    public bool UpnpAvailable { get; set; } = true;
+    public bool UpnpAvailable { get; set; }
 
     public bool ProxyEnabled { get; set; }
 
@@ -62,6 +64,7 @@ public class NetworkStatusService : INetworkStatusService
     private readonly IConfigService configService;
     private readonly INatPmpPortMapperService natPmpPortMapperService;
     private readonly IVpnKillSwitchService vpnKillSwitchService;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger;
 
     public NetworkStatusService(
@@ -69,13 +72,15 @@ public class NetworkStatusService : INetworkStatusService
         IConfigFileProvider configFileProvider,
         IConfigService configService = null,
         INatPmpPortMapperService natPmpPortMapperService = null,
-        IVpnKillSwitchService vpnKillSwitchService = null)
+        IVpnKillSwitchService vpnKillSwitchService = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.externalIpService = externalIpService;
         this.configFileProvider = configFileProvider;
         this.configService = configService;
         this.natPmpPortMapperService = natPmpPortMapperService;
         this.vpnKillSwitchService = vpnKillSwitchService;
+        this.safeHttpClientService = safeHttpClientService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -118,39 +123,57 @@ public class NetworkStatusService : INetworkStatusService
                 });
             }
         }
-        else
-        {
-            portMappings.Add(new PortMappingInfo
-            {
-                InternalPort = port,
-                ExternalPort = port,
-                Protocol = "TCP",
-                Description = "Leecharr Web UI & API",
-                IsActive = true,
-            });
-            portMappings.Add(new PortMappingInfo
-            {
-                InternalPort = btPort,
-                ExternalPort = btPort,
-                Protocol = "TCP/UDP",
-                Description = "BitTorrent Peer Swarm & DHT",
-                IsActive = true,
-            });
-        }
+
+        var boundInterfaceForGateway = !string.IsNullOrWhiteSpace(boundInterface) && !string.Equals(boundInterface, "Auto", StringComparison.OrdinalIgnoreCase)
+            ? boundInterface
+            : null;
+        var natGateway = NatPmpPortMapperService.DiscoverDefaultGateway(boundInterfaceForGateway);
+        var upnpAvailable = portMappings.Count > 0 || natGateway != null;
+        var portOpen = this.IsBitTorrentPortOpen(btPort);
 
         return new NetworkStatus
         {
             LocalIp = primaryLocal,
             ExternalIp = externalIp,
             ListenPort = port,
-            PortOpen = true,
+            PortOpen = portOpen,
             ActiveInterface = activeInterface,
-            UpnpAvailable = this.configService?.UpnpEnabled ?? true,
+            UpnpAvailable = upnpAvailable,
             ProxyEnabled = this.configService?.ProxyType != null && this.configService.ProxyType != "none",
             VpnKillSwitchActive = this.vpnKillSwitchService?.IsFailClosedActive ?? false,
             LocalAddresses = localAddresses,
             PortMappings = portMappings,
         };
+    }
+
+    private bool IsBitTorrentPortOpen(int btPort)
+    {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            return false;
+        }
+
+        if (btPort < 1 || btPort > 65535)
+        {
+            return false;
+        }
+
+        var httpClient = this.safeHttpClientService ?? new SafeHttpClientService();
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = httpClient.DownloadStringDirectAsync(
+                $"https://portcheck.transmissionbt.com/{btPort}",
+                TimeSpan.FromSeconds(5),
+                cts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
+
+            return !string.IsNullOrWhiteSpace(response) && (response.Trim() == "1" || response.Contains('1'));
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "BitTorrent port check failed for port {0}", btPort);
+            return false;
+        }
     }
 
     public List<string> GetLocalAddresses()

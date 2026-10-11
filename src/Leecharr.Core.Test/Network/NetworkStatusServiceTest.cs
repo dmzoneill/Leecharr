@@ -1,12 +1,15 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.PortMapping;
 
@@ -19,6 +22,7 @@ public class NetworkStatusServiceTest
     private IConfigFileProvider configFileProvider = null!;
     private IConfigService configService = null!;
     private INatPmpPortMapperService natPmpPortMapperService = null!;
+    private ISafeHttpClientService safeHttpClientService = null!;
 
     [SetUp]
     public void SetUp()
@@ -27,11 +31,17 @@ public class NetworkStatusServiceTest
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.configService = Substitute.For<IConfigService>();
         this.natPmpPortMapperService = Substitute.For<INatPmpPortMapperService>();
+        this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
 
         this.configFileProvider.Port.Returns(7889);
         this.configService.ListeningPort.Returns(51413);
         this.configService.BindInterface.Returns("Auto");
+        this.configService.UpnpEnabled.Returns(true);
         this.externalIpService.CachedIp.Returns("203.0.113.10");
+        this.externalIpService.GetExternalIpAsync().Returns(Task.FromResult("203.0.113.10"));
+        this.safeHttpClientService
+            .DownloadStringDirectAsync(Arg.Any<string>(), Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult("0"));
     }
 
     [Test]
@@ -45,7 +55,8 @@ public class NetworkStatusServiceTest
             this.externalIpService,
             this.configFileProvider,
             this.configService,
-            this.natPmpPortMapperService);
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
 
         var status = service.GetStatus();
 
@@ -54,7 +65,7 @@ public class NetworkStatusServiceTest
     }
 
     [Test]
-    public void GetStatus_WithoutActiveNatPmpMappings_ReturnsFallbackPortMappings()
+    public void GetStatus_WithoutActiveNatPmpMappings_ReturnsNoFabricatedPortMappings()
     {
         this.natPmpPortMapperService.ActiveMappings.Returns(new List<ActivePortMapping>());
 
@@ -62,19 +73,56 @@ public class NetworkStatusServiceTest
             this.externalIpService,
             this.configFileProvider,
             this.configService,
-            this.natPmpPortMapperService);
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
 
         var status = service.GetStatus();
 
         status.Should().NotBeNull();
-        status.PortMappings.Should().HaveCount(2);
-        status.PortMappings[0].InternalPort.Should().Be(7889);
-        status.PortMappings[0].ExternalPort.Should().Be(7889);
-        status.PortMappings[0].Protocol.Should().Be("TCP");
+        status.PortMappings.Should().BeEmpty();
+        status.PortOpen.Should().BeFalse();
+        status.UpnpAvailable.Should().Be(NatPmpPortMapperService.DiscoverDefaultGateway() != null);
+    }
 
-        status.PortMappings[1].InternalPort.Should().Be(51413);
-        status.PortMappings[1].ExternalPort.Should().Be(51413);
-        status.PortMappings[1].Protocol.Should().Be("TCP/UDP");
+    [Test]
+    public void GetStatus_WhenPortCheckReturnsOpen_SetsPortOpenTrue()
+    {
+        this.natPmpPortMapperService.ActiveMappings.Returns(new List<ActivePortMapping>());
+        this.safeHttpClientService
+            .DownloadStringDirectAsync("https://portcheck.transmissionbt.com/51413", Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult("1"));
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
+
+        var status = service.GetStatus();
+
+        status.PortOpen.Should().BeTrue();
+    }
+
+    [Test]
+    public void GetStatus_WhenUpnpEnabledInConfig_DoesNotForceUpnpAvailableTrue()
+    {
+        this.configService.UpnpEnabled.Returns(true);
+        this.natPmpPortMapperService.ActiveMappings.Returns(new List<ActivePortMapping>());
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
+
+        var status = service.GetStatus();
+
+        if (NatPmpPortMapperService.DiscoverDefaultGateway() == null)
+        {
+            status.UpnpAvailable.Should().BeFalse();
+        }
     }
 
     [Test]
@@ -106,7 +154,8 @@ public class NetworkStatusServiceTest
             this.externalIpService,
             this.configFileProvider,
             this.configService,
-            this.natPmpPortMapperService);
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
 
         var status = service.GetStatus();
 
@@ -137,7 +186,8 @@ public class NetworkStatusServiceTest
             this.configFileProvider,
             this.configService,
             this.natPmpPortMapperService,
-            vpnKillSwitchService);
+            vpnKillSwitchService,
+            safeHttpClientService: this.safeHttpClientService);
 
         var status = service.GetStatus();
 
@@ -156,7 +206,8 @@ public class NetworkStatusServiceTest
             this.configFileProvider,
             this.configService,
             this.natPmpPortMapperService,
-            vpnKillSwitchService);
+            vpnKillSwitchService,
+            safeHttpClientService: this.safeHttpClientService);
 
         var status = service.GetStatus();
 
@@ -172,7 +223,8 @@ public class NetworkStatusServiceTest
             this.configFileProvider,
             this.configService,
             this.natPmpPortMapperService,
-            vpnKillSwitchService: null);
+            vpnKillSwitchService: null,
+            safeHttpClientService: this.safeHttpClientService);
 
         var status = service.GetStatus();
 
