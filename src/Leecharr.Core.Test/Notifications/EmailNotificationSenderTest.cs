@@ -197,4 +197,13 @@ public class EmailNotificationSenderTest
         var act = () => EmailNotificationSender.SendEmailNotification(string.Empty, "Test", null, null, new { Message = "Test" });
         act.Should().Throw<ArgumentException>();
     }
+
+    [TestCase(465, true, true)]
+    [TestCase(465, false, false)]
+    [TestCase(587, true, false)]
+    [TestCase(25, true, false)]
+    public void RequiresImplicitSsl_IdentifiesSmtpsPort(int port, bool useSsl, bool expected)
+    {
+        EmailNotificationSender.RequiresImplicitSsl(useSsl, port).Should().Be(expected);
+    }
 }
