@@ -427,6 +427,13 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
         return false;
     }
 
+    private static string NormalizeAudioCodecKey(string codec)
+    {
+        return codec
+            .Replace("-", string.Empty, StringComparison.Ordinal)
+            .Replace(" ", string.Empty, StringComparison.Ordinal);
+    }
+
     private static int GetAudioCodecScore(string codec)
     {
         if (string.IsNullOrWhiteSpace(codec))
@@ -434,7 +441,11 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             return 0;
         }
 
-        if (codec.Contains("TrueHD", StringComparison.OrdinalIgnoreCase) || codec.Contains("Atmos", StringComparison.OrdinalIgnoreCase))
+        var normalized = NormalizeAudioCodecKey(codec);
+
+        if (codec.Contains("TrueHD", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("Atmos", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("MLP FBA", StringComparison.OrdinalIgnoreCase))
         {
             return 50;
         }
@@ -444,7 +455,9 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             return 46;
         }
 
-        if (codec.Contains("DTS-HD", StringComparison.OrdinalIgnoreCase))
+        if (codec.Contains("DTS-HD", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("DTS XLL", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("DTSXLL", StringComparison.OrdinalIgnoreCase))
         {
             return 45;
         }
@@ -457,9 +470,11 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
         }
 
         if (codec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("E-AC-3", StringComparison.OrdinalIgnoreCase) ||
             codec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase) ||
             codec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
-            codec.Contains("EAC3", StringComparison.OrdinalIgnoreCase))
+            codec.Contains("EAC3", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("EAC3", StringComparison.OrdinalIgnoreCase))
         {
             return 25;
         }
@@ -469,10 +484,15 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             return 20;
         }
 
-        if (codec.Contains("AC3", StringComparison.OrdinalIgnoreCase) ||
+        if (codec.Contains("AC-3", StringComparison.OrdinalIgnoreCase) ||
+            codec.Contains("AC3", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("AC3", StringComparison.OrdinalIgnoreCase) ||
             codec.Contains("Dolby Digital", StringComparison.OrdinalIgnoreCase))
         {
-            return 15;
+            if (!normalized.Contains("EAC3", StringComparison.OrdinalIgnoreCase))
+            {
+                return 15;
+            }
         }
 
         if (codec.Contains("Opus", StringComparison.OrdinalIgnoreCase))

@@ -358,4 +358,148 @@ sleep 300
         info.Should().NotBeNull();
         info!.Resolution.Should().Be("480p");
     }
+
+    [Test]
+    public void ParseMediaInfoJson_WhenAc3FormatWithoutCommercialName_KeepsSurroundTrackOverLaterAac()
+    {
+        var json = """
+        {
+            "media": {
+                "track": [
+                    {
+                        "@type": "General",
+                        "Format": "Matroska"
+                    },
+                    {
+                        "@type": "Audio",
+                        "Format": "AC-3",
+                        "Channels": "6",
+                        "SamplingRate": "48000"
+                    },
+                    {
+                        "@type": "Audio",
+                        "Format": "AAC",
+                        "Channels": "2",
+                        "SamplingRate": "48000",
+                        "Title": "Director commentary"
+                    }
+                ]
+            }
+        }
+        """;
+
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioCodec.Should().Be("AC-3");
+        info.AudioChannels.Should().Be("5.1");
+        info.AudioSampleRate.Should().Be(48000);
+    }
+
+    [Test]
+    public void ParseMediaInfoJson_WhenEAc3FormatWithoutCommercialName_KeepsSurroundTrackOverLaterOpus()
+    {
+        var json = """
+        {
+            "media": {
+                "track": [
+                    {
+                        "@type": "General",
+                        "Format": "Matroska"
+                    },
+                    {
+                        "@type": "Audio",
+                        "Format": "E-AC-3",
+                        "Channels": "6",
+                        "SamplingRate": "48000"
+                    },
+                    {
+                        "@type": "Audio",
+                        "Format": "Opus",
+                        "Channels": "2",
+                        "SamplingRate": "48000"
+                    }
+                ]
+            }
+        }
+        """;
+
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioCodec.Should().Be("E-AC-3");
+        info.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
+    public void ParseMediaInfoJson_WhenMlpFbaWithoutCommercialName_KeepsTrueHdOverLaterAac()
+    {
+        var json = """
+        {
+            "media": {
+                "track": [
+                    {
+                        "@type": "General",
+                        "Format": "Matroska"
+                    },
+                    {
+                        "@type": "Audio",
+                        "Format": "MLP FBA 16-ch",
+                        "Channels": "8",
+                        "SamplingRate": "48000",
+                        "BitDepth": "24"
+                    },
+                    {
+                        "@type": "Audio",
+                        "Format": "AAC",
+                        "Channels": "2",
+                        "SamplingRate": "48000"
+                    }
+                ]
+            }
+        }
+        """;
+
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioCodec.Should().Be("MLP FBA 16-ch");
+        info.AudioChannels.Should().Be("7.1");
+        info.AudioBitDepth.Should().Be(24);
+    }
+
+    [Test]
+    public void ParseMediaInfoJson_WhenDtsXllWithoutCommercialName_KeepsDtsHdOverLaterMp3()
+    {
+        var json = """
+        {
+            "media": {
+                "track": [
+                    {
+                        "@type": "General",
+                        "Format": "Matroska"
+                    },
+                    {
+                        "@type": "Audio",
+                        "Format": "DTS XLL",
+                        "Channels": "6",
+                        "SamplingRate": "48000"
+                    },
+                    {
+                        "@type": "Audio",
+                        "Format": "MPEG Audio",
+                        "Channels": "2",
+                        "SamplingRate": "48000"
+                    }
+                ]
+            }
+        }
+        """;
+
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioCodec.Should().Be("DTS XLL");
+        info.AudioChannels.Should().Be("5.1");
+    }
 }
