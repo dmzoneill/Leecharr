@@ -56,7 +56,20 @@ public class DownloadClientSyncController : Controller
             {
                 try
                 {
-                    var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.httpClient, this.safeHttpClientService);
+                    var queryResult = await DownloadClientRemoteQuery.QueryRemoteClientItemsDetailedAsync(client, this.httpClient, this.safeHttpClientService);
+                    if (!queryResult.IsSuccess)
+                    {
+                        failedClients++;
+                        this.logger.Warn(
+                            "Failed to sync download client {0} ({1}:{2}): {3}",
+                            client.Name,
+                            client.Host,
+                            client.Port,
+                            queryResult.ErrorMessage);
+                        continue;
+                    }
+
+                    var items = queryResult.Items;
                     totalDiscovered += items.Count;
 
                     foreach (var item in items)
@@ -107,16 +120,21 @@ public class DownloadClientSyncController : Controller
                 }
             }
 
+            var success = failedClients == 0;
+            var message = success
+                ? $"Download client sync completed successfully ({syncedCount} torrent(s) imported)."
+                : $"Download client sync completed with {failedClients} client failure(s) ({syncedCount} torrent(s) imported).";
+
             return this.Ok(new SyncResultResource
             {
-                Success = true,
+                Success = success,
                 SyncedCount = syncedCount,
                 TotalCount = totalDiscovered,
                 Added = syncedCount,
                 Skipped = Math.Max(0, totalDiscovered - syncedCount - failedTorrents),
                 FailedCount = failedTorrents,
                 Failed = failedClients,
-                Message = $"Download client sync completed successfully ({syncedCount} torrent(s) imported).",
+                Message = message,
             });
         }
         finally

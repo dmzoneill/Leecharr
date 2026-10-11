@@ -204,9 +204,57 @@ public class DownloadClientSyncControllerTest
         okResult.Should().NotBeNull();
         var result = okResult!.Value as SyncResultResource;
         result.Should().NotBeNull();
-        result!.Success.Should().BeTrue();
+        result!.Success.Should().BeFalse();
         result.SyncedCount.Should().Be(0);
         result.TotalCount.Should().Be(0);
+        result.Failed.Should().Be(1);
+        result.Message.Should().Contain("1 client failure");
+    }
+
+    [Test]
+    public async Task Sync_WhenQbittorrentLoginFails_ReportsClientFailure()
+    {
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v2/auth/login", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("Fails.", System.Text.Encoding.UTF8, "text/plain"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", System.Text.Encoding.UTF8, "application/json"),
+            };
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient);
+
+        var clientDef = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "qBit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Username = "admin",
+            Password = "wrong",
+            Enable = true,
+        };
+        this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition> { clientDef });
+
+        var actionResult = await controller.Sync();
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var result = okResult!.Value as SyncResultResource;
+        result.Should().NotBeNull();
+        result!.Success.Should().BeFalse();
+        result.Failed.Should().Be(1);
+        result.SyncedCount.Should().Be(0);
     }
 
     [Test]
