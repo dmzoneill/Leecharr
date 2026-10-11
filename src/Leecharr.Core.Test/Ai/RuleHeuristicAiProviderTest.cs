@@ -404,6 +404,21 @@ public class RuleHeuristicAiProviderTest
     }
 
     [Test]
+    public async Task AnalyzeMalwareRiskAsync_DangerousTorrentNameWithoutFiles_ReturnsHigh()
+    {
+        var names = new[] { "payload.exe", "payload.ps1", "payload.js", "payload.vbs", "movie.mp4.ps1", "invoice.lnk" };
+
+        foreach (var name in names)
+        {
+            var assessment = await this.provider.AnalyzeMalwareRiskAsync(name, Array.Empty<TorrentFile>());
+
+            assessment.RiskLevel.Should().Be("High", because: name);
+            assessment.RiskScore.Should().Be(0.5, because: name);
+            assessment.ThreatReasons.Should().Contain("Torrent payload itself is named as a standalone executable/script.", because: name);
+        }
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_TitlesWithEmbeddedNumbersAndYears_PreservesNumericTitleAndExtractsReleaseYear()
     {
         // Wonder Woman 1984 (2020)
