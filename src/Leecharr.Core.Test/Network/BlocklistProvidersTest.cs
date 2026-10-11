@@ -395,6 +395,23 @@ public class BlocklistProvidersTest
         provider.IsIpBlocked("10.5.5.5").Should().BeTrue();
     }
 
+    [Test]
+    public async Task RadixTreeBlocklistProvider_MixedRules_TracksIpv4AndIpv6RuleCountsSeparately()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+        var loaded = await provider.LoadRulesAsync(new[]
+        {
+            "192.168.0.0/24",
+            "10.0.0.1",
+            "2001:db8::/32",
+        });
+
+        loaded.Should().Be(3);
+        provider.Ipv4RuleCount.Should().Be(2);
+        provider.Ipv6RuleCount.Should().Be(1);
+        provider.RuleCount.Should().Be(3);
+    }
+
     private class TestableLinuxIpSetBlocklistProvider : LinuxIpSetBlocklistProvider
     {
         private readonly Func<string, string, Task<(int ExitCode, string StdOut, string StdErr)>> commandExecutor;

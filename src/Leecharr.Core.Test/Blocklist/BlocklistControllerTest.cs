@@ -35,6 +35,8 @@ public class BlocklistControllerTest
         this.configService.BlocklistUpdateIntervalHours.Returns(48);
 
         this.blocklistService.TotalRulesLoaded.Returns(1500);
+        this.blocklistService.Ipv4RulesLoaded.Returns(1500);
+        this.blocklistService.Ipv6RulesLoaded.Returns(0);
 
         this.controller = new BlocklistController(
             this.configService,
@@ -67,9 +69,31 @@ public class BlocklistControllerTest
     }
 
     [Test]
+    public void GetBlocklist_WhenMixedIpv4AndIpv6Rules_ReturnsSeparateCounts()
+    {
+        this.blocklistService.TotalRulesLoaded.Returns(150);
+        this.blocklistService.Ipv4RulesLoaded.Returns(100);
+        this.blocklistService.Ipv6RulesLoaded.Returns(50);
+
+        var actionResult = this.controller.GetBlocklist();
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var resource = okResult!.Value as BlocklistResource;
+        resource.Should().NotBeNull();
+        resource!.Ipv4RuleCount.Should().Be(100);
+        resource.Ipv6RuleCount.Should().Be(50);
+        resource.TotalRuleCount.Should().Be(150);
+        resource.RuleCount.Should().Be(150);
+    }
+
+    [Test]
     public void GetBlocklist_WhenZeroRulesLoaded_ReturnsIdleSyncStatus()
     {
         this.blocklistService.TotalRulesLoaded.Returns(0);
+        this.blocklistService.Ipv4RulesLoaded.Returns(0);
+        this.blocklistService.Ipv6RulesLoaded.Returns(0);
 
         var actionResult = this.controller.GetBlocklist();
 
@@ -273,6 +297,8 @@ public class BlocklistControllerTest
     {
         this.configService.BlocklistEnabled.Returns(false);
         this.blocklistService.TotalRulesLoaded.Returns(350);
+        this.blocklistService.Ipv4RulesLoaded.Returns(350);
+        this.blocklistService.Ipv6RulesLoaded.Returns(0);
 
         var actionResult = await this.controller.SyncBlocklistAsync(CancellationToken.None);
 
@@ -296,6 +322,8 @@ public class BlocklistControllerTest
     {
         this.updateService.UpdateRulesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(0));
         this.blocklistService.TotalRulesLoaded.Returns(350);
+        this.blocklistService.Ipv4RulesLoaded.Returns(350);
+        this.blocklistService.Ipv6RulesLoaded.Returns(0);
 
         var actionResult = await this.controller.SyncBlocklistAsync(CancellationToken.None);
 
@@ -317,6 +345,8 @@ public class BlocklistControllerTest
         this.updateService.UpdateRulesAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException<int>(new InvalidOperationException("Connection refused by peer.")));
         this.blocklistService.TotalRulesLoaded.Returns(800);
+        this.blocklistService.Ipv4RulesLoaded.Returns(800);
+        this.blocklistService.Ipv6RulesLoaded.Returns(0);
 
         var actionResult = await this.controller.SyncBlocklistAsync(CancellationToken.None);
 

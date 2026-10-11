@@ -20,6 +20,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
     private RadixNode ipv4Root = new();
     private RadixNode ipv6Root = new();
     private int ruleCount;
+    private int ipv4RuleCount;
+    private int ipv6RuleCount;
 
     public string ProviderId => "RadixTree";
 
@@ -32,6 +34,10 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
     public BlocklistCapabilities Capabilities => BlocklistCapabilities.IPv4 | BlocklistCapabilities.IPv6 | BlocklistCapabilities.Cidr | BlocklistCapabilities.LiveAutoRefresh;
 
     public int RuleCount => this.ruleCount;
+
+    public int Ipv4RuleCount => this.ipv4RuleCount;
+
+    public int Ipv6RuleCount => this.ipv6RuleCount;
 
     public RadixTreeBlocklistProvider()
     {
@@ -88,6 +94,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         var newIpv4Root = new RadixNode();
         var newIpv6Root = new RadixNode();
         var added = 0;
+        var ipv4Added = 0;
+        var ipv6Added = 0;
 
         foreach (var rawLine in rules)
         {
@@ -102,9 +110,18 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
                 continue;
             }
 
-            if (TryParseRangeLine(line, newIpv4Root, newIpv6Root))
+            if (TryParseRangeLine(line, newIpv4Root, newIpv6Root, out var rangeIsIpv6))
             {
                 added++;
+                if (rangeIsIpv6)
+                {
+                    ipv6Added++;
+                }
+                else
+                {
+                    ipv4Added++;
+                }
+
                 continue;
             }
 
@@ -117,11 +134,13 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             {
                 InsertIpv4(newIpv4Root, ip, prefixLength);
                 added++;
+                ipv4Added++;
             }
             else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
             {
                 InsertIpv6(newIpv6Root, ip, prefixLength);
                 added++;
+                ipv6Added++;
             }
         }
 
@@ -130,6 +149,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             Volatile.Write(ref this.ipv4Root, newIpv4Root);
             Volatile.Write(ref this.ipv6Root, newIpv6Root);
             this.ruleCount = added;
+            this.ipv4RuleCount = ipv4Added;
+            this.ipv6RuleCount = ipv6Added;
         }
 
         this.logger.Info("Loaded {0} IP blocklist rules into Radix Trie.", added);
@@ -143,6 +164,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             Volatile.Write(ref this.ipv4Root, new RadixNode());
             Volatile.Write(ref this.ipv6Root, new RadixNode());
             this.ruleCount = 0;
+            this.ipv4RuleCount = 0;
+            this.ipv6RuleCount = 0;
         }
     }
 
@@ -428,8 +451,10 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         return false;
     }
 
-    private static bool TryParseRangeLine(string line, RadixNode ipv4Root, RadixNode ipv6Root)
+    private static bool TryParseRangeLine(string line, RadixNode ipv4Root, RadixNode ipv6Root, out bool isIpv6)
     {
+        isIpv6 = false;
+
         var hyphenIdx = line.IndexOf('-');
         if (hyphenIdx < 0)
         {
@@ -473,6 +498,7 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             }
 
             InsertIpv4Range(ipv4Root, startNum, endNum);
+            isIpv6 = false;
             return true;
         }
 
@@ -494,6 +520,7 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             }
 
             InsertIpv6Range(ipv6Root, startNum, endNum);
+            isIpv6 = true;
             return true;
         }
 

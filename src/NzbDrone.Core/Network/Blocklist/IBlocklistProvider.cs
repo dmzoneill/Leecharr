@@ -19,6 +19,10 @@ public interface IBlocklistProvider
 
     int RuleCount { get; }
 
+    int Ipv4RuleCount { get; }
+
+    int Ipv6RuleCount { get; }
+
     Task<BlocklistHealthResult> ProbeHealthAsync();
 
     bool IsIpBlocked(string ipAddress);

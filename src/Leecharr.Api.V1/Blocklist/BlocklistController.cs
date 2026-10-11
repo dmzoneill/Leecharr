@@ -147,6 +147,8 @@ public class BlocklistController : Controller
     private BlocklistResource BuildResource()
     {
         var totalRules = this.blocklistService.TotalRulesLoaded;
+        var ipv4Rules = this.blocklistService.Ipv4RulesLoaded;
+        var ipv6Rules = this.blocklistService.Ipv6RulesLoaded;
         var intervalHours = this.configService.BlocklistUpdateIntervalHours;
         var intervalDays = Math.Max(1, intervalHours / 24);
 
@@ -156,8 +158,8 @@ public class BlocklistController : Controller
             Url = this.configService.BlocklistUrl,
             AutoUpdateEnabled = this.configService.BlocklistAutoUpdateEnabled,
             AutoUpdateIntervalDays = intervalDays,
-            Ipv4RuleCount = totalRules,
-            Ipv6RuleCount = 0,
+            Ipv4RuleCount = ipv4Rules,
+            Ipv6RuleCount = ipv6Rules,
             TotalRuleCount = totalRules,
             RuleCount = totalRules,
             LastUpdatedUtc = DateTime.UtcNow,

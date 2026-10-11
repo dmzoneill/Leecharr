@@ -35,6 +35,10 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
 
     public int RuleCount => this.inMemoryTrie.RuleCount;
 
+    public int Ipv4RuleCount => this.inMemoryTrie.Ipv4RuleCount;
+
+    public int Ipv6RuleCount => this.inMemoryTrie.Ipv6RuleCount;
+
     public bool IsKernelOffloadActive => this.isKernelOffloadActive;
 
     public LinuxIpSetBlocklistProvider(IDiskProvider diskProvider)
