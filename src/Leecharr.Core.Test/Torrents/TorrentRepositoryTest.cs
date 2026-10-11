@@ -170,6 +170,23 @@ public class TorrentRepositoryTest
     }
 
     [Test]
+    public void GetByCategory_IsCaseInsensitive()
+    {
+        this.repository.Insert(new Torrent
+        {
+            Name = "Case Torrent",
+            InfoHash = "3333333333333333333333333333333333333333",
+            Category = "TV",
+            DateAdded = DateTime.UtcNow,
+        });
+
+        var torrents = this.repository.GetByCategory("tv").ToList();
+
+        torrents.Should().HaveCount(1);
+        torrents[0].Name.Should().Be("Case Torrent");
+    }
+
+    [Test]
     public async Task Insert_WhenMultipleConcurrentInsertsWithoutQueuePosition_AssignsSequentialUniqueQueuePositions()
     {
         var tasks = Enumerable.Range(1, 20).Select(i => Task.Run(() =>
