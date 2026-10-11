@@ -54,7 +54,7 @@ public class PtyTerminalService : IPtyTerminalService
         var clampedCols = Math.Clamp(cols, 10, 500);
         var clampedRows = Math.Clamp(rows, 5, 200);
 
-        if (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3") || File.Exists("/usr/local/bin/python3"))
+        if (PtyProcessSession.TryResolvePython3(out _))
         {
             try
             {
