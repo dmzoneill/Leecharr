@@ -405,6 +405,44 @@ public class TorznabAndProwlarrClientTest
         query.Should().Contain("cat=4000%2c4010%2c4020%2c4030%2c4040%2c4050%2c4060%2c4070");
     }
 
+    [Test]
+    public async Task SearchAsync_EncodesSearchTypeBeforeMergingQueryParams()
+    {
+        HttpRequestMessage capturedRequest = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(@"<rss version=""2.0""><channel></channel></rss>"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var client = new TorznabClient(httpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 6,
+            Name = "InjectTracker",
+            Url = "https://indexer.inject/api",
+        };
+
+        var criteria = new TorznabSearchCriteria
+        {
+            Query = "test",
+            SearchType = "search&limit=1",
+        };
+
+        await client.SearchAsync(indexer, criteria);
+
+        capturedRequest.Should().NotBeNull();
+        var query = capturedRequest.RequestUri!.Query;
+
+        query.Should().Contain("t=search%26limit%3D1", "Ampersands in search type must be encoded so MergeQueryParams cannot inject extra keys");
+        query.Should().NotContain("&limit=1&", "Injected limit parameter must not appear as a separate query key");
+    }
+
     #endregion
 
     #region Result Pagination

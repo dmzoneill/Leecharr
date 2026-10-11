@@ -317,7 +317,7 @@ public class TorznabClient : ITorznabClient
                                 : "search"))));
 
             var effectiveLimit = this.ResolveEffectiveLimit(indexer, criteria.Limit);
-            var queryParams = $"t={mode}&limit={effectiveLimit}&offset={criteria.Offset}";
+            var queryParams = $"t={Uri.EscapeDataString(mode)}&limit={effectiveLimit}&offset={criteria.Offset}";
 
             if (!string.IsNullOrWhiteSpace(criteria.Query))
             {
