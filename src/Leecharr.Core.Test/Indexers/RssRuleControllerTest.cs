@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -273,5 +274,18 @@ public class RssRuleControllerTest
 
         result.Result.Should().BeOfType<OkObjectResult>();
         await this.rssSyncService.Received(1).SyncRssFeedsAsync();
+    }
+
+    [Test]
+    public async Task SyncRss_WhenSyncThrows_ReturnsInternalServerErrorWithoutExceptionDetails()
+    {
+        this.rssSyncService.SyncRssFeedsAsync().Returns<Task<int>>(_ => throw new InvalidOperationException("indexer secret failure"));
+
+        var result = await this.controller.SyncRss();
+
+        result.Result.Should().BeOfType<ObjectResult>();
+        var objectResult = result.Result as ObjectResult;
+        objectResult!.StatusCode.Should().Be(500);
+        objectResult.Value.Should().BeEquivalentTo(new { success = false, message = "Failed to run RSS sync." });
     }
 }
