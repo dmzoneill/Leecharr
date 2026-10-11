@@ -32,6 +32,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 {
     private static readonly string[] TrackerFields = ["trackers"];
     private static readonly string[] FileFields = ["files"];
+    private static readonly string[] PeerFields = ["peers"];
 
     private readonly IConfigService configService;
     private readonly IStoragePathService storagePathService;
@@ -1199,7 +1200,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             var getResp = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
             {
                 ["ids"] = rpcIds,
-                ["fields"] = new[] { "peers" },
+                ["fields"] = PeerFields,
             });
 
             if (!getResp.TryGetValue("arguments", out var argsObj) || argsObj is not JsonElement args)

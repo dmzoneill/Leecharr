@@ -510,7 +510,6 @@ public class UdpTrackerService : IUdpTrackerService
                     this.connectionIds.TryRemove(item.Key, out _);
                 }
             }
-
         }
     }
 
