@@ -126,12 +126,34 @@ public class RuleHeuristicAiProviderTest
         transportStream.Quality.Should().BeNull();
         transportStream.Resolution.Should().Be("1080p");
         transportStream.Year.Should().Be(2020);
+        transportStream.ReleaseGroup.Should().Be("GROUP");
 
         var bluRayWithTsContainer = await this.provider.ParseReleaseAsync("Movie.2020.1080p.BluRay.x264-GROUP.ts");
         bluRayWithTsContainer.Quality.Should().Be("1080p BluRay");
+        bluRayWithTsContainer.ReleaseGroup.Should().Be("GROUP");
 
         var teleSync = await this.provider.ParseReleaseAsync("Movie.2020.CAM.TeleSync.x264-GROUP");
         teleSync.Quality.Should().Be("TeleSync");
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_DottedGroupsAndMediaExtensions_ParsesReleaseGroup()
+    {
+        var bracketYts = await this.provider.ParseReleaseAsync("Movie.2020.1080p.BluRay.x264-[YTS.MX]");
+        bracketYts.ReleaseGroup.Should().Be("YTS.MX");
+        bracketYts.Quality.Should().Be("1080p BluRay");
+        bracketYts.CleanTitle.Should().Be("Movie");
+
+        var hyphenYts = await this.provider.ParseReleaseAsync("Movie.2020.1080p.BluRay.x264-YTS.MX");
+        hyphenYts.ReleaseGroup.Should().Be("YTS.MX");
+
+        var mkvGroup = await this.provider.ParseReleaseAsync("Movie.2020.1080p.BluRay.x264-GROUP.mkv");
+        mkvGroup.ReleaseGroup.Should().Be("GROUP");
+        mkvGroup.Quality.Should().Be("1080p BluRay");
+
+        var mp4Group = await this.provider.ParseReleaseAsync("Movie.2020.1080p.WEB-DL.x264-NTb.mp4");
+        mp4Group.ReleaseGroup.Should().Be("NTb");
+        mp4Group.Quality.Should().Be("WEB-DL");
     }
 
     [Test]
