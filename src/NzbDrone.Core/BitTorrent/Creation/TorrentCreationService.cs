@@ -14,6 +14,8 @@ using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
+using NzbDrone.Core.Exceptions;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.BitTorrent.Creation;
 
@@ -113,7 +115,18 @@ public class TorrentCreationService : ITorrentCreationService
             var fileSource = new TorrentFileSource(request.Path, ignoreHidden: true);
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                fileSource.TorrentName = request.Name;
+                try
+                {
+                    fileSource.TorrentName = TorrentPathValidator.SanitizeTorrentName(request.Name);
+                }
+                catch (InvalidTorrentFileException ex)
+                {
+                    return new TorrentCreationResult
+                    {
+                        Success = false,
+                        ErrorMessage = ex.Message,
+                    };
+                }
             }
 
             var creator = new TorrentCreator
