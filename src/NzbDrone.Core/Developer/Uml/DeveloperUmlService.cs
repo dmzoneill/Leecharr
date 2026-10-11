@@ -43,6 +43,14 @@ public class DeveloperUmlService : IDeveloperUmlService
         var diagramType = (options.DiagramType ?? "class").ToLowerInvariant();
         var subsystem = (options.Subsystem ?? "all").ToLowerInvariant();
 
+        if (!Subsystems.Contains(subsystem))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options),
+                subsystem,
+                $"Unknown subsystem '{subsystem}'. Valid values: {string.Join(", ", Subsystems)}.");
+        }
+
         return diagramType switch
         {
             "di" => GenerateDependencyInjectionDiagram(subsystem),
@@ -190,45 +198,123 @@ public class DeveloperUmlService : IDeveloperUmlService
 
     private static DeveloperUmlDiagramResult GenerateStateDiagram(string subsystem)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("stateDiagram-v2");
-
-        if (subsystem == "trackers")
+        var transitions = subsystem switch
         {
-            sb.AppendLine("    [*] --> Unknown");
-            sb.AppendLine("    Unknown --> Announcing: Initial Announce");
-            sb.AppendLine("    Announcing --> Working: HTTP/UDP 200 Received");
-            sb.AppendLine("    Announcing --> Failed: Timeout / Connection Refused");
-            sb.AppendLine("    Working --> Announcing: Interval Reached");
-            sb.AppendLine("    Working --> Scraping: Scrape Cycle");
-            sb.AppendLine("    Scraping --> Working: Seeders/Leechers Updated");
-            sb.AppendLine("    Failed --> Announcing: Retry Backoff Interval");
-            sb.AppendLine("    Working --> Disabled: User Toggled Off");
-            sb.AppendLine("    Disabled --> Announcing: User Enabled");
-        }
-        else
-        {
-            sb.AppendLine("    [*] --> Queued: Download Queued / Link Added");
-            sb.AppendLine("    Queued --> Downloading: Engine Allocates Stream");
-            sb.AppendLine("    Downloading --> Checking: Pieces Verification");
-            sb.AppendLine("    Checking --> Seeding: Hash Integrity Passed");
-            sb.AppendLine("    Downloading --> Paused: User Pause / Speed Schedule");
-            sb.AppendLine("    Paused --> Downloading: User Resume");
-            sb.AppendLine("    Downloading --> Error: Disk Fault / Transport Failure");
-            sb.AppendLine("    Error --> Queued: Auto-Retry Recovered");
-            sb.AppendLine("    Seeding --> Stopped: Complete");
-            sb.AppendLine("    Stopped --> [*]: Removed");
-        }
-
-        return new DeveloperUmlDiagramResult
-        {
-            DiagramType = "state",
-            Subsystem = subsystem,
-            Title = $"Lifecycle State Machine — {subsystem.ToUpperInvariant()}",
-            MermaidCode = sb.ToString(),
-            NodeCount = 8,
-            EdgeCount = 10
+            "trackers" => new[]
+            {
+                "[*] --> Unknown",
+                "Unknown --> Announcing: Initial Announce",
+                "Announcing --> Working: HTTP/UDP 200 Received",
+                "Announcing --> Failed: Timeout / Connection Refused",
+                "Working --> Announcing: Interval Reached",
+                "Working --> Scraping: Scrape Cycle",
+                "Scraping --> Working: Seeders/Leechers Updated",
+                "Failed --> Announcing: Retry Backoff Interval",
+                "Working --> Disabled: User Toggled Off",
+                "Disabled --> Announcing: User Enabled"
+            },
+            "torrents" => new[]
+            {
+                "[*] --> Queued: Download Queued / Link Added",
+                "Queued --> Downloading: Engine Allocates Stream",
+                "Downloading --> Checking: Pieces Verification",
+                "Checking --> Seeding: Hash Integrity Passed",
+                "Downloading --> Paused: User Pause / Speed Schedule",
+                "Paused --> Downloading: User Resume",
+                "Downloading --> Error: Disk Fault / Transport Failure",
+                "Error --> Queued: Auto-Retry Recovered",
+                "Seeding --> Stopped: Complete",
+                "Stopped --> [*]: Removed"
+            },
+            "indexers" => new[]
+            {
+                "[*] --> Idle",
+                "Idle --> Fetching: RSS / Torznab Poll",
+                "Fetching --> Parsing: HTTP 200",
+                "Fetching --> Backoff: Timeout / 429",
+                "Parsing --> Ready: Releases Indexed",
+                "Parsing --> Backoff: Parse Error",
+                "Backoff --> Fetching: Cooldown Elapsed",
+                "Ready --> Fetching: Sync Interval",
+                "Ready --> Disabled: User Disabled",
+                "Disabled --> Idle: Re-enabled"
+            },
+            "authentication" => new[]
+            {
+                "[*] --> Anonymous",
+                "Anonymous --> Authenticating: Login / API Key",
+                "Authenticating --> Authenticated: Credentials Valid",
+                "Authenticating --> Failed: Invalid Credentials",
+                "Failed --> Authenticating: Retry",
+                "Authenticated --> Expired: Session TTL",
+                "Expired --> Authenticating: Refresh Token",
+                "Authenticated --> Anonymous: Logout",
+                "Failed --> Locked: Brute Force Threshold",
+                "Locked --> Anonymous: Admin Unlock"
+            },
+            "automation" => new[]
+            {
+                "[*] --> Idle",
+                "Idle --> Armed: Script Enabled",
+                "Armed --> Executing: Torrent Event Fired",
+                "Executing --> Completed: Script Exit 0",
+                "Executing --> Failed: Script Error / Timeout",
+                "Failed --> Armed: Manual Reset",
+                "Completed --> Armed: Next Event",
+                "Armed --> Idle: Script Disabled"
+            },
+            "notifications" => new[]
+            {
+                "[*] --> Queued",
+                "Queued --> Rendering: Template Build",
+                "Rendering --> Sending: Provider Dispatch",
+                "Sending --> Delivered: HTTP 2xx",
+                "Sending --> Retrying: Transient Failure",
+                "Retrying --> Sending: Backoff Elapsed",
+                "Sending --> Failed: Max Retries",
+                "Failed --> Queued: Manual Resend",
+                "Delivered --> [*]"
+            },
+            "network" => new[]
+            {
+                "[*] --> Offline",
+                "Offline --> Resolving: DNS Lookup",
+                "Resolving --> Connecting: Socket Open",
+                "Connecting --> Online: TLS / Handshake OK",
+                "Connecting --> Blocked: Firewall / BIND Deny",
+                "Online --> Throttled: Rate Limit",
+                "Throttled --> Online: Window Reset",
+                "Online --> Offline: Interface Down",
+                "Blocked --> Offline: Policy Reset"
+            },
+            "storage" => new[]
+            {
+                "[*] --> Scanning",
+                "Scanning --> Available: Free Space OK",
+                "Scanning --> LowSpace: Threshold Crossed",
+                "LowSpace --> Critical: Quota Exceeded",
+                "Critical --> Quarantine: Auto-Quarantine",
+                "Available --> Relocating: Path Migration",
+                "Relocating --> Available: Move Complete",
+                "LowSpace --> Available: Cleanup Freed Space",
+                "Critical --> Available: Emergency Purge",
+                "Quarantine --> Available: Manual Release"
+            },
+            "all" => new[]
+            {
+                "[*] --> Bootstrapping",
+                "Bootstrapping --> Running: Host Started",
+                "Running --> Degraded: Subsystem Fault",
+                "Degraded --> Running: Recovery",
+                "Running --> Maintenance: Config Reload",
+                "Maintenance --> Running: Reload Complete",
+                "Running --> ShuttingDown: Stop Signal",
+                "ShuttingDown --> [*]"
+            },
+            _ => Array.Empty<string>()
         };
+
+        return BuildStateDiagramResult(subsystem, transitions);
     }
 
     private static DeveloperUmlDiagramResult GenerateApiTopologyDiagram(string subsystem)
@@ -243,6 +329,7 @@ public class DeveloperUmlService : IDeveloperUmlService
 
         var controllers = apiAssembly.GetTypes()
             .Where(t => t.Name.EndsWith("Controller", StringComparison.Ordinal) && !t.IsAbstract)
+            .Where(t => MatchesApiSubsystem(t, subsystem))
             .OrderBy(t => t.Name)
             .Take(15)
             .ToList();
@@ -262,7 +349,7 @@ public class DeveloperUmlService : IDeveloperUmlService
         {
             DiagramType = "api",
             Subsystem = subsystem,
-            Title = "API Controller Route Topology",
+            Title = $"API Controller Route Topology — {subsystem.ToUpperInvariant()}",
             MermaidCode = sb.ToString(),
             NodeCount = nodeCount,
             EdgeCount = edgeCount
@@ -329,9 +416,117 @@ public class DeveloperUmlService : IDeveloperUmlService
             "automation" => ns.Contains("Automation") || name.Contains("Script"),
             "notifications" => ns.Contains("Notification") || name.Contains("Webhook"),
             "network" => ns.Contains("Network") || ns.Contains("Binding") || name.Contains("Ip"),
-            "storage" => ns.Contains("Storage") || ns.Contains("Datastore") || name.Contains("Disk"),
-            _ => true
+            "storage" => ns.Contains("Storage") || ns.Contains("Datastore") || name.Contains("Disk")
+                || ns.Contains("FileBrowser") || ns.Contains("DiskSpace") || ns.Contains("Backup"),
+            _ => false
         };
+    }
+
+    private static bool MatchesApiSubsystem(Type controller, string subsystem)
+    {
+        if (subsystem == "all")
+        {
+            return true;
+        }
+
+        if (MatchesSubsystem(controller, subsystem))
+        {
+            return true;
+        }
+
+        var ns = controller.Namespace ?? string.Empty;
+
+        return subsystem switch
+        {
+            "torrents" => ns.Contains(".BitTorrent") || ns.Contains(".Torrents") || ns.Contains(".Seeding")
+                || ns.Contains(".Peers") || ns.Contains(".Deluge") || ns.Contains(".QBittorrent")
+                || ns.Contains(".RTorrent") || ns.Contains(".Hadouken") || ns.Contains(".Flood")
+                || ns.Contains(".Aria2") || ns.Contains(".Freebox") || ns.Contains(".Sabnzbd")
+                || ns.Contains(".Nzbget") || ns.Contains(".DownloadClients"),
+            "trackers" => ns.Contains(".Tracker"),
+            "indexers" => ns.Contains(".Indexers"),
+            "authentication" => ns.Contains(".Auth"),
+            "automation" => ns.Contains(".Automation"),
+            "notifications" => ns.Contains(".Notifications"),
+            "network" => ns.Contains(".Network"),
+            "storage" => ns.Contains(".DiskSpace") || ns.Contains(".FileBrowser") || ns.Contains(".Backup"),
+            _ => false
+        };
+    }
+
+    private static DeveloperUmlDiagramResult BuildStateDiagramResult(string subsystem, string[] transitions)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("stateDiagram-v2");
+        foreach (var transition in transitions)
+        {
+            sb.AppendLine($"    {transition}");
+        }
+
+        var mermaidCode = sb.ToString();
+        var (nodeCount, edgeCount) = MeasureStateDiagram(mermaidCode);
+
+        return new DeveloperUmlDiagramResult
+        {
+            DiagramType = "state",
+            Subsystem = subsystem,
+            Title = $"Lifecycle State Machine — {subsystem.ToUpperInvariant()}",
+            MermaidCode = mermaidCode,
+            NodeCount = nodeCount,
+            EdgeCount = edgeCount
+        };
+    }
+
+    private static (int NodeCount, int EdgeCount) MeasureStateDiagram(string mermaidCode)
+    {
+        var states = new HashSet<string>(StringComparer.Ordinal);
+        var edgeCount = 0;
+
+        foreach (var rawLine in mermaidCode.Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (!line.Contains("-->", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            edgeCount++;
+            var parts = line.Split("-->", 2, StringSplitOptions.TrimEntries);
+            if (parts.Length != 2)
+            {
+                continue;
+            }
+
+            var from = ExtractStateName(parts[0]);
+            var to = ExtractStateName(parts[1]);
+            if (!string.IsNullOrEmpty(from))
+            {
+                states.Add(from);
+            }
+
+            if (!string.IsNullOrEmpty(to))
+            {
+                states.Add(to);
+            }
+        }
+
+        return (states.Count, edgeCount);
+    }
+
+    private static string ExtractStateName(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token) || token == "[*]")
+        {
+            return null;
+        }
+
+        var colonIndex = token.IndexOf(':');
+        if (colonIndex >= 0)
+        {
+            token = token[..colonIndex].Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(token) ? null : token;
     }
 
     private static string SanitizeIdentifier(string name)
