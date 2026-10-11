@@ -238,9 +238,9 @@ public class NetworkConfigController : ConfigController<NetworkConfigResource>
             resource.ProxyPassword = this.configService.ProxyPassword;
         }
 
-        var iface = !string.IsNullOrWhiteSpace(resource.BindInterface)
-            ? resource.BindInterface
-            : resource.NetworkInterfaceBinding ?? string.Empty;
+        var iface = BindInterfaceConfigHelper.GetEffectiveBindInterface(
+            resource.BindInterface,
+            resource.NetworkInterfaceBinding);
         resource.BindInterface = iface;
         resource.NetworkInterfaceBinding = iface;
 

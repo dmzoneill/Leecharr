@@ -484,6 +484,20 @@ public class ConfigResourceMappersTest
     }
 
     [Test]
+    public void ConfigResourceMappers_ToResource_WhenBindKeysDiverge_UseNetworkInterfaceBinding()
+    {
+        this.configService.BindInterface.Returns("eth0");
+        this.configService.NetworkInterfaceBinding.Returns("wg0");
+
+        var networkResource = NetworkConfigResourceMapper.ToResource(this.configService);
+        var bitTorrentResource = BitTorrentConfigResourceMapper.ToResource(this.configService);
+
+        networkResource.BindInterface.Should().Be("wg0");
+        networkResource.NetworkInterfaceBinding.Should().Be("wg0");
+        bitTorrentResource.NetworkInterfaceBinding.Should().Be("wg0");
+    }
+
+    [Test]
     public async Task NetworkConfigController_SaveConfig_WhenMaskedPassword_RestoresOriginalPassword()
     {
         this.configService.ProxyPassword.Returns("real_secret_vpn_pw");
