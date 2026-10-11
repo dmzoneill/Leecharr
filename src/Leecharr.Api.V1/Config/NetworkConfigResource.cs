@@ -54,9 +54,7 @@ public static class NetworkConfigResourceMapper
 {
     public static NetworkConfigResource ToResource(IConfigService model)
     {
-        var effectiveInterface = !string.IsNullOrWhiteSpace(model.BindInterface)
-            ? model.BindInterface
-            : model.NetworkInterfaceBinding;
+        var effectiveInterface = BindInterfaceConfigHelper.GetEffectiveBindInterface(model);
 
         return new NetworkConfigResource
         {

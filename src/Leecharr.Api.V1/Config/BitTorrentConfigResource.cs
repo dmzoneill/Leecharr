@@ -202,9 +202,7 @@ public static class BitTorrentConfigResourceMapper
             AutoShutdownAction = model.AutoShutdownAction,
             AutoShutdownCondition = model.AutoShutdownCondition,
 
-            NetworkInterfaceBinding = !string.IsNullOrWhiteSpace(model.NetworkInterfaceBinding)
-                ? model.NetworkInterfaceBinding
-                : model.BindInterface,
+            NetworkInterfaceBinding = BindInterfaceConfigHelper.GetEffectiveBindInterface(model),
             MaxConnectionsPerIp = model.MaxConnectionsPerIp,
             MaximumHalfOpenConnections = model.MaximumHalfOpenConnections,
             AnonymousMode = model.AnonymousMode,
