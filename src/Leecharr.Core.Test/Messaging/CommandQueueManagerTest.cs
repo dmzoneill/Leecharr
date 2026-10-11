@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -201,5 +202,30 @@ public class CommandQueueManagerTest
 
         result.Should().BeEquivalentTo(queued);
         this.repository.Received(1).GetByStatus(CommandStatus.Queued);
+    }
+
+    [Test]
+    public void Cancel_WhenRunning_SignalsLinkedExecutionCancellation()
+    {
+        var running = new CommandModel
+        {
+            Id = 77,
+            Name = "Backup",
+            Status = CommandStatus.Running,
+        };
+
+        this.repository.Get(77).Returns(running);
+
+        using var shutdown = new CancellationTokenSource();
+        var executionToken = this.commandQueueManager.LinkExecutionCancellation(77, shutdown.Token);
+
+        var cancelled = false;
+        executionToken.Register(() => cancelled = true);
+
+        this.commandQueueManager.Cancel(77).Should().BeTrue();
+
+        cancelled.Should().BeTrue();
+        running.Status.Should().Be(CommandStatus.Cancelled);
+        this.repository.Received(1).Update(running);
     }
 }
