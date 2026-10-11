@@ -530,7 +530,7 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
                 maxSize >>= 1;
             }
 
-            var prefixLength = 128 - BitOperations.Log2(maxSize);
+            var prefixLength = 128 - Log2UInt128(maxSize);
             BinaryPrimitives.WriteUInt128BigEndian(bytes, start);
             InsertIpv6(root, new IPAddress(bytes), prefixLength);
             start += maxSize;
@@ -555,6 +555,16 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         }
 
         return baseAddress & (UInt128.Zero - baseAddress);
+    }
+
+    private static int Log2UInt128(UInt128 value)
+    {
+        if (value <= ulong.MaxValue)
+        {
+            return BitOperations.Log2((ulong)value);
+        }
+
+        return 64 + BitOperations.Log2((ulong)(value >> 64));
     }
 
     private static bool TryExtractStartIp(string candidate, out IPAddress startIp, out string name)
