@@ -21,15 +21,16 @@ public static class NzbDroneLogger
         var consoleLevel = LogLevel.Info;
         if (startupContext != null)
         {
-            if (startupContext.Args.TryGetValue("log-level", out var levelArg))
+            if (startupContext.Args.TryGetValue("log-level", out var levelArg) &&
+                !string.IsNullOrWhiteSpace(levelArg))
             {
-                if (levelArg.Equals("debug", StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    consoleLevel = LogLevel.Debug;
+                    consoleLevel = LogLevel.FromString(levelArg);
                 }
-                else if (levelArg.Equals("trace", StringComparison.OrdinalIgnoreCase))
+                catch (ArgumentException)
                 {
-                    consoleLevel = LogLevel.Trace;
+                    // Unrecognized --log-level; keep default console level.
                 }
             }
             else if (startupContext.Flags.Contains("d") || startupContext.Flags.Contains("debug"))

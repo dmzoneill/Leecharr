@@ -77,6 +77,28 @@ public class NzbDroneLoggerTest
         consoleRules.Any(r => r.Levels.Contains(LogLevel.Debug)).Should().BeTrue();
     }
 
+    [TestCase("error", LogLevel.Error)]
+    [TestCase("warn", LogLevel.Warn)]
+    [TestCase("off", LogLevel.Off)]
+    public void Register_WithLogLevelArg_ConfiguresConsoleLevel(string levelArg, LogLevel expectedLevel)
+    {
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(this.tempAppDataFolder);
+        var startupContext = new StartupContext(new[] { "--log-level=" + levelArg });
+
+        NzbDroneLogger.Register(startupContext, appFolderInfo);
+
+        var config = LogManager.Configuration;
+        config.Should().NotBeNull();
+
+        var consoleTarget = config.FindTargetByName<ColoredConsoleTarget>("console");
+        consoleTarget.Should().NotBeNull();
+
+        var consoleRules = config.LoggingRules.Where(r => r.Targets.Contains(consoleTarget)).ToList();
+        consoleRules.Should().NotBeEmpty();
+        consoleRules.Any(r => r.Levels.Contains(expectedLevel)).Should().BeTrue();
+    }
+
     [Test]
     public void Reconfigure_UpdatesLoggingRules()
     {
