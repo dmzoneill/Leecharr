@@ -12,6 +12,7 @@ interface QualityGateMetric {
 interface QualityOverviewMetrics {
   coverage: number;
   newCodeCoverage: number;
+  newCodeDuplicationDensity: number;
   duplicationDensity: number;
   bugs: number;
   vulnerabilities: number;
