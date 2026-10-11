@@ -371,6 +371,46 @@ function renderMarkdownContent(
   return elements;
 }
 
+const pastedFileSizeSuffixRegex =
+  /\s*[(\[-]?(\d+(?:\.\d+)?)\s*(KB|MB|GB|TB|bytes)\)?$/i;
+
+function humanSizeToBytes(value: number, unit: string): number {
+  switch (unit.toUpperCase()) {
+    case "BYTES":
+      return Math.round(value);
+    case "KB":
+      return Math.round(value * 1024);
+    case "MB":
+      return Math.round(value * 1024 * 1024);
+    case "GB":
+      return Math.round(value * 1024 * 1024 * 1024);
+    case "TB":
+      return Math.round(value * 1024 * 1024 * 1024 * 1024);
+    default:
+      return 0;
+  }
+}
+
+function parsePastedMalwareFileLine(line: string): {
+  path: string;
+  sizeBytes: number;
+} {
+  let clean = line.replace(/^\d+[\.\)]\s+/, "");
+  let sizeBytes = 0;
+
+  const sizeMatch = clean.match(pastedFileSizeSuffixRegex);
+  if (sizeMatch) {
+    sizeBytes = humanSizeToBytes(
+      parseFloat(sizeMatch[1]),
+      sizeMatch[2],
+    );
+    clean = clean.replace(pastedFileSizeSuffixRegex, "");
+  }
+
+  clean = clean.replace(/\t.*/, "").trim();
+  return { path: clean, sizeBytes };
+}
+
 export const AiCopilotDrawer: React.FC = () => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState<boolean>(() => {
@@ -669,23 +709,20 @@ export const AiCopilotDrawer: React.FC = () => {
       }
     }
 
-    // Clean file names: strip list numbers (e.g. "1. "), trailing sizes (e.g. "(1.2 GB)" or "- 500 KB"), etc.
-    const cleanFileNames = fileLines
-      .map((line) => {
-        let clean = line.replace(/^\d+[\.\)]\s+/, "");
-        clean = clean.replace(
-          /\s*[(\[-]?\d+(?:\.\d+)?\s*(?:[KMGTP]B|bytes)\)?$/i, // NOSONAR
-          "",
-        );
-        clean = clean.replace(/\t.*/, "");
-        return clean.trim();
-      })
-      .filter(Boolean);
+    const parsedFiles = fileLines
+      .map((line) => parsePastedMalwareFileLine(line))
+      .filter((entry) => entry.path.length > 0);
+    const cleanFileNames = parsedFiles.map((entry) => entry.path);
+    const fileSizes = parsedFiles.map((entry) => entry.sizeBytes);
 
     malwareMutation.mutate(
       {
         torrentName: torrentName || "Sample",
         fileNames: cleanFileNames.length > 0 ? cleanFileNames : rawLines,
+        fileSizes:
+          cleanFileNames.length > 0
+            ? fileSizes
+            : rawLines.map(() => 0),
       },
       {
         onSuccess: (data) => setSecurityResult(data),
