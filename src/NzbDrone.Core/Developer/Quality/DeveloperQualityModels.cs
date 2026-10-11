@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace NzbDrone.Core.Developer.Quality;
 
@@ -90,4 +91,7 @@ public class DeveloperQualityReport
     public bool UsedFallbackQualityGate { get; set; }
 
     public bool UsedFallbackPipelines { get; set; }
+
+    [JsonIgnore]
+    public bool QualityGateStatusFromSonarApi { get; set; }
 }

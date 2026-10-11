@@ -134,6 +134,7 @@ public class DeveloperQualityService : IDeveloperQualityService
                 if (doc.RootElement.TryGetProperty("projectStatus", out var ps))
                 {
                     report.QualityGate.Status = ps.TryGetProperty("status", out var s) ? s.GetString() ?? "OK" : "OK";
+                    report.QualityGateStatusFromSonarApi = true;
                     if (ps.TryGetProperty("conditions", out var conds) && conds.ValueKind == JsonValueKind.Array)
                     {
                         foreach (var c in conds.EnumerateArray())
@@ -197,6 +198,9 @@ public class DeveloperQualityService : IDeveloperQualityService
 
                         switch (key)
                         {
+                            case "alert_status" when !report.QualityGateStatusFromSonarApi && !string.IsNullOrWhiteSpace(val):
+                                report.QualityGate.Status = val;
+                                break;
                             case "coverage" when double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out var c):
                                 report.Metrics.Coverage = c;
                                 break;
