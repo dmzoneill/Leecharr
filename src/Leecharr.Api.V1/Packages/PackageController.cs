@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Security;
 using System.Text;
@@ -57,7 +58,7 @@ public class PackageController : Controller
         CancellationToken cancellationToken = default)
     {
         var idList = ParseTorrentIds(torrentIds, this.Request?.Query?["torrentIds"] ?? StringValues.Empty);
-        return await this.ExecuteExportAsync(idList, includePayload, cancellationToken);
+        return this.ExecuteExport(idList, includePayload);
     }
 
     [HttpPost("export")]
@@ -80,10 +81,10 @@ public class PackageController : Controller
         }
 
         var payload = request?.IncludePayload ?? includePayload ?? false;
-        return await this.ExecuteExportAsync(idList, payload, cancellationToken);
+        return this.ExecuteExport(idList, payload);
     }
 
-    private async Task<IActionResult> ExecuteExportAsync(List<int> idList, bool includePayload, CancellationToken cancellationToken)
+    private IActionResult ExecuteExport(List<int> idList, bool includePayload)
     {
         if (idList.Count == 0)
         {
@@ -118,23 +119,33 @@ public class PackageController : Controller
         }
 
         var filename = DeterminePackageFileName(existingTorrents);
-        var memoryStream = new MemoryStream();
+        var torrentIds = existingTorrents.Select(t => t.Id).ToList();
+        var pipe = new Pipe();
+        var cancellationToken = this.HttpContext?.RequestAborted ?? CancellationToken.None;
+        _ = this.WritePackageExportToPipeAsync(pipe.Writer, torrentIds, includePayload, cancellationToken);
 
+        return this.File(pipe.Reader.AsStream(), "application/x-leecharr-package", filename);
+    }
+
+    private async Task WritePackageExportToPipeAsync(
+        PipeWriter writer,
+        List<int> torrentIds,
+        bool includePayload,
+        CancellationToken cancellationToken)
+    {
         try
         {
+            await using var outputStream = writer.AsStream(leaveOpen: true);
             await this.packageExportService.ExportPackageAsync(
-                memoryStream,
-                existingTorrents.Select(t => t.Id),
+                outputStream,
+                torrentIds,
                 includePayload,
                 cancellationToken);
-
-            memoryStream.Position = 0;
-            return this.File(memoryStream, "application/x-leecharr-package", filename);
+            await writer.CompleteAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            await memoryStream.DisposeAsync();
-            throw;
+            await writer.CompleteAsync(ex);
         }
     }
 

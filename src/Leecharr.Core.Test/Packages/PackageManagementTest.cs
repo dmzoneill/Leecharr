@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Formats.Tar;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Security;
 using System.Text;
 using System.Text.Json;
@@ -502,6 +503,45 @@ public class PackageManagementTest
 
         var result = await controller.ExportPost(request);
         result.Should().BeOfType<FileStreamResult>();
+    }
+
+    [Test]
+    public async Task PackageController_Export_StreamsThroughPipeWithoutBufferingEntireArchive()
+    {
+        var torrent = new Torrent { Id = 8, Name = "Streaming Export Torrent" };
+        this.torrentService.Get(8).Returns(torrent);
+
+        var mockExport = Substitute.For<IPackageExportService>();
+        mockExport.ExportPackageAsync(
+                Arg.Any<Stream>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var target = callInfo.ArgAt<Stream>(0);
+                await target.WriteAsync(new byte[] { 1, 2, 3 });
+            });
+
+        var httpContext = new DefaultHttpContext();
+        var controller = new PackageController(mockExport, this.torrentService)
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
+        };
+        var responseBody = new MemoryStream();
+
+        var result = await controller.Export("8", includePayload: true);
+        var fileResult = result.Should().BeOfType<FileStreamResult>().Subject;
+        fileResult.FileStream.Should().NotBeNull();
+
+        await fileResult.FileStream.CopyToAsync(responseBody);
+
+        responseBody.ToArray().Should().Equal(new byte[] { 1, 2, 3 });
+        await mockExport.Received(1).ExportPackageAsync(
+            Arg.Any<Stream>(),
+            Arg.Is<IEnumerable<int>>(ids => ids.SequenceEqual(new[] { 8 })),
+            true,
+            httpContext.RequestAborted);
     }
 
     [Test]
