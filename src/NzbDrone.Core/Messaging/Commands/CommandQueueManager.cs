@@ -47,12 +47,6 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
         command.Trigger = trigger;
 
         var body = command.ToJson();
-        var existing = this.repository.FindExisting(command.Name, body);
-        if (existing != null)
-        {
-            this.logger.Debug("Command {0} is already {1}, returning existing command {2}", command.Name, existing.Status, existing.Id);
-            return existing;
-        }
 
         this.logger.Trace("Publishing {0}", command.Name);
 
@@ -65,20 +59,17 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
             Trigger = (int)trigger,
         };
 
-        this.repository.Insert(model);
+        var result = this.repository.FindOrInsert(command.Name, body, model);
+        if (!ReferenceEquals(result, model))
+        {
+            this.logger.Debug("Command {0} is already {1}, returning existing command {2}", command.Name, result.Status, result.Id);
+        }
 
-        return model;
+        return result;
     }
 
     public CommandModel PushRaw(string name, string body, CommandTrigger trigger = CommandTrigger.Manual)
     {
-        var existing = this.repository.FindExisting(name, body);
-        if (existing != null)
-        {
-            this.logger.Debug("Command {0} is already {1}, returning existing command {2}", name, existing.Status, existing.Id);
-            return existing;
-        }
-
         this.logger.Trace("Publishing raw command {0}", name);
 
         var model = new CommandModel
@@ -90,8 +81,13 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
             Trigger = (int)trigger,
         };
 
-        this.repository.Insert(model);
-        return model;
+        var result = this.repository.FindOrInsert(name, body, model);
+        if (!ReferenceEquals(result, model))
+        {
+            this.logger.Debug("Command {0} is already {1}, returning existing command {2}", name, result.Status, result.Id);
+        }
+
+        return result;
     }
 
     public IEnumerable<CommandModel> GetAll()
