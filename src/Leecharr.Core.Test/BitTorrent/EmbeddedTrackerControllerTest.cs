@@ -268,12 +268,14 @@ public class EmbeddedTrackerControllerTest
     {
         var configService = Substitute.For<IConfigService>();
         configService.GetValue("TrackerTrustedProxies", string.Empty).Returns("10.0.0.0/24");
+        this.ConfigureHttpTracker(configService, 6969);
 
         var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
 
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
         httpContext.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.5");
+        httpContext.Connection.LocalPort = 6969;
         httpContext.Request.Headers["X-Forwarded-For"] = "203.0.113.10";
         customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
@@ -292,12 +294,14 @@ public class EmbeddedTrackerControllerTest
     {
         var configService = Substitute.For<IConfigService>();
         configService.GetValue("TrackerTrustedProxies", string.Empty).Returns("10.0.0.0/24");
+        this.ConfigureHttpTracker(configService, 6969);
 
         var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
 
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
         httpContext.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.5");
+        httpContext.Connection.LocalPort = 6969;
         httpContext.Request.Headers["X-Forwarded-For"] = "127.0.0.1";
         customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
@@ -317,6 +321,7 @@ public class EmbeddedTrackerControllerTest
     {
         var configService = Substitute.For<IConfigService>();
         configService.TrackerBindAddress.Returns("192.168.1.10");
+        this.ConfigureHttpTracker(configService, 6969);
 
         var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
 
@@ -324,6 +329,7 @@ public class EmbeddedTrackerControllerTest
         httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
         httpContext.Connection.RemoteIpAddress = IPAddress.Loopback;
         httpContext.Connection.LocalIpAddress = IPAddress.Loopback;
+        httpContext.Connection.LocalPort = 6969;
         customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
         var result = customController.Announce();
@@ -336,6 +342,7 @@ public class EmbeddedTrackerControllerTest
     {
         var configService = Substitute.For<IConfigService>();
         configService.TrackerBindAddress.Returns("127.0.0.1");
+        this.ConfigureHttpTracker(configService, 6969);
 
         var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
 
@@ -343,6 +350,7 @@ public class EmbeddedTrackerControllerTest
         httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
         httpContext.Connection.RemoteIpAddress = IPAddress.Loopback;
         httpContext.Connection.LocalIpAddress = IPAddress.Loopback;
+        httpContext.Connection.LocalPort = 6969;
         customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
         this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
@@ -357,11 +365,13 @@ public class EmbeddedTrackerControllerTest
     {
         var configService = Substitute.For<IConfigService>();
         configService.TrackerBindAddress.Returns("192.168.1.10");
+        this.ConfigureHttpTracker(configService, 6969);
 
         var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
 
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpContext.Connection.LocalIpAddress = IPAddress.Loopback;
+        httpContext.Connection.LocalPort = 6969;
         customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
         var result = customController.Scrape();
@@ -393,6 +403,7 @@ public class EmbeddedTrackerControllerTest
     {
         var configService = Substitute.For<IConfigService>();
         configService.TrackerRateLimitPerMinute.Returns(2);
+        this.ConfigureHttpTracker(configService, 6969);
         var rateLimiter = new TrackerClientRateLimiter();
         var customController = new EmbeddedTrackerController(this.trackerService, configService: configService, rateLimiter: rateLimiter);
         var query = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
@@ -404,6 +415,7 @@ public class EmbeddedTrackerControllerTest
             var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
             httpContext.Request.QueryString = query;
             httpContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.1");
+            httpContext.Connection.LocalPort = 6969;
             customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
             customController.Announce().Should().BeOfType<FileContentResult>();
         }
@@ -411,6 +423,7 @@ public class EmbeddedTrackerControllerTest
         var limitedContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         limitedContext.Request.QueryString = query;
         limitedContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.1");
+        limitedContext.Connection.LocalPort = 6969;
         customController.ControllerContext = new ControllerContext { HttpContext = limitedContext };
 
         var result = customController.Announce();
@@ -425,6 +438,7 @@ public class EmbeddedTrackerControllerTest
     {
         var configService = Substitute.For<IConfigService>();
         configService.TrackerRateLimitPerMinute.Returns(1);
+        this.ConfigureHttpTracker(configService, 6969);
         var rateLimiter = new TrackerClientRateLimiter();
         var customController = new EmbeddedTrackerController(this.trackerService, configService: configService, rateLimiter: rateLimiter);
 
@@ -432,11 +446,13 @@ public class EmbeddedTrackerControllerTest
 
         var firstContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         firstContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.2");
+        firstContext.Connection.LocalPort = 6969;
         customController.ControllerContext = new ControllerContext { HttpContext = firstContext };
         customController.Scrape().Should().BeOfType<FileContentResult>();
 
         var limitedContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         limitedContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.2");
+        limitedContext.Connection.LocalPort = 6969;
         customController.ControllerContext = new ControllerContext { HttpContext = limitedContext };
 
         var result = customController.Scrape();
@@ -444,5 +460,32 @@ public class EmbeddedTrackerControllerTest
         var file = (FileContentResult)result;
         Encoding.UTF8.GetString(file.FileContents).Should().Contain("Rate limit exceeded.");
         this.trackerService.Received(1).ProcessScrape(Arg.Any<List<byte[]>>());
+    }
+
+    [Test]
+    public void Announce_WhenHttpTrackerDisabled_ReturnsNotFound()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.TrackerServerEnabled.Returns(true);
+        configService.TrackerHttpEnabled.Returns(false);
+        configService.TrackerHttpPort.Returns(6969);
+
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = IPAddress.Loopback;
+        httpContext.Connection.LocalPort = 6969;
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = customController.Announce();
+        result.Should().BeOfType<NotFoundResult>();
+        this.trackerService.DidNotReceive().ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>());
+    }
+
+    private void ConfigureHttpTracker(IConfigService configService, int port)
+    {
+        configService.TrackerServerEnabled.Returns(true);
+        configService.TrackerHttpEnabled.Returns(true);
+        configService.TrackerHttpPort.Returns(port);
     }
 }

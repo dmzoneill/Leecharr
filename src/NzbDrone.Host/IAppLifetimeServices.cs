@@ -48,6 +48,8 @@ public interface IAppLifetimeServices
 
     IUdpTrackerService UdpTrackerService { get; }
 
+    IHttpTrackerService HttpTrackerService { get; }
+
     IAppFolderInfo AppFolderInfo { get; }
 
     ICategoryService CategoryService { get; }

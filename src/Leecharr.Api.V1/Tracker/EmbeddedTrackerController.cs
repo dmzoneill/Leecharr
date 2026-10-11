@@ -27,6 +27,7 @@ public class EmbeddedTrackerController : ControllerBase
     private readonly ITrustedNetworkService trustedNetworkService;
     private readonly IConfigService configService;
     private readonly ITrackerClientRateLimiter rateLimiter;
+    private readonly IEmbeddedTrackerHttpProcessor httpProcessor;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private static readonly char[] GenreSeparators = [',', ';'];
 
@@ -37,7 +38,8 @@ public class EmbeddedTrackerController : ControllerBase
         ITorrentMediaMetadataRepository mediaMetadataRepository = null,
         ITrustedNetworkService trustedNetworkService = null,
         IConfigService configService = null,
-        ITrackerClientRateLimiter rateLimiter = null)
+        ITrackerClientRateLimiter rateLimiter = null,
+        IEmbeddedTrackerHttpProcessor httpProcessor = null)
     {
         this.trackerService = trackerService;
         this.torrentRepository = torrentRepository;
@@ -46,52 +48,44 @@ public class EmbeddedTrackerController : ControllerBase
         this.trustedNetworkService = trustedNetworkService ?? new TrustedNetworkService();
         this.configService = configService;
         this.rateLimiter = rateLimiter ?? new TrackerClientRateLimiter();
+        this.httpProcessor = httpProcessor
+            ?? new EmbeddedTrackerHttpProcessor(trackerService, configService, rateLimiter, this.trustedNetworkService);
     }
 
     [AllowAnonymous]
     [HttpGet("/announce")]
     public ActionResult Announce()
     {
-        if (!this.IsHttpTrackerRequestOnBindAddress())
+        if (!this.ShouldAcceptHttpTrackerOnThisEndpoint())
         {
             return this.NotFound();
         }
 
-        var rawQuery = this.Request.QueryString.Value;
-        var remoteIp = this.ResolveRemoteIp();
-        var rateLimited = this.RateLimitResponseIfNeeded(remoteIp);
-        if (rateLimited != null)
+        var response = this.httpProcessor.ProcessAnnounce(this.BuildHttpRequest());
+        if (response.IsNotFound)
         {
-            return rateLimited;
+            return this.NotFound();
         }
 
-        var announceRequest = ParseAnnounceQuery(rawQuery, remoteIp);
-
-        var responseBytes = this.trackerService.ProcessAnnounce(announceRequest);
-        return this.File(responseBytes, "text/plain");
+        return this.File(response.Body, response.ContentType);
     }
 
     [AllowAnonymous]
     [HttpGet("/scrape")]
     public ActionResult Scrape()
     {
-        if (!this.IsHttpTrackerRequestOnBindAddress())
+        if (!this.ShouldAcceptHttpTrackerOnThisEndpoint())
         {
             return this.NotFound();
         }
 
-        var remoteIp = this.ResolveRemoteIp();
-        var rateLimited = this.RateLimitResponseIfNeeded(remoteIp);
-        if (rateLimited != null)
+        var response = this.httpProcessor.ProcessScrape(this.BuildHttpRequest());
+        if (response.IsNotFound)
         {
-            return rateLimited;
+            return this.NotFound();
         }
 
-        var rawQuery = this.Request.QueryString.Value;
-        var hashes = ParseScrapeQuery(rawQuery);
-
-        var responseBytes = this.trackerService.ProcessScrape(hashes);
-        return this.File(responseBytes, "text/plain");
+        return this.File(response.Body, response.ContentType);
     }
 
     [Authorize]
@@ -246,7 +240,30 @@ public class EmbeddedTrackerController : ControllerBase
         return this.Ok(result);
     }
 
-    private static TrackerAnnounceRequest ParseAnnounceQuery(string rawQuery, IPAddress remoteIp)
+    private bool ShouldAcceptHttpTrackerOnThisEndpoint()
+    {
+        var localPort = this.HttpContext.Connection.LocalPort;
+        if (!TrackerHttpEndpointPolicy.ShouldAcceptOnLocalPort(this.configService, localPort))
+        {
+            return false;
+        }
+
+        return this.IsHttpTrackerRequestOnBindAddress();
+    }
+
+    private EmbeddedTrackerHttpRequest BuildHttpRequest()
+    {
+        return new EmbeddedTrackerHttpRequest
+        {
+            RawQuery = this.Request.QueryString.Value,
+            RemoteIp = this.HttpContext.Connection.RemoteIpAddress,
+            LocalIp = this.HttpContext.Connection.LocalIpAddress,
+            ForwardedFor = this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) ? forwardedFor.ToString() : null,
+            RealIp = this.Request.Headers.TryGetValue("X-Real-IP", out var realIp) ? realIp.ToString() : null,
+        };
+    }
+
+    internal static TrackerAnnounceRequest ParseAnnounceQuery(string rawQuery, IPAddress remoteIp)
     {
         if (remoteIp != null && remoteIp.IsIPv4MappedToIPv6)
         {
@@ -393,7 +410,7 @@ public class EmbeddedTrackerController : ControllerBase
         return request;
     }
 
-    private static List<byte[]> ParseScrapeQuery(string rawQuery)
+    internal static List<byte[]> ParseScrapeQuery(string rawQuery)
     {
         var list = new List<byte[]>();
         if (string.IsNullOrWhiteSpace(rawQuery))
@@ -467,32 +484,32 @@ public class EmbeddedTrackerController : ControllerBase
         return true;
     }
 
-    private IPAddress ResolveRemoteIp()
+    internal static IPAddress ResolveRemoteIp(
+        EmbeddedTrackerHttpRequest request,
+        ITrustedNetworkService trustedNetworkService,
+        IConfigService configService)
     {
-        var remoteIp = this.HttpContext.Connection.RemoteIpAddress;
+        var remoteIp = request.RemoteIp;
         if (remoteIp != null && remoteIp.IsIPv4MappedToIPv6)
         {
             remoteIp = remoteIp.MapToIPv4();
         }
 
-        var trustedCidrs = this.GetTrustedProxies();
-        if (remoteIp != null && (IPAddress.IsLoopback(remoteIp) || this.trustedNetworkService.IsTrustedProxy(remoteIp, trustedCidrs)))
+        var trustedCidrs = GetTrustedProxies(configService);
+        if (remoteIp != null && (IPAddress.IsLoopback(remoteIp) || trustedNetworkService.IsTrustedProxy(remoteIp, trustedCidrs)))
         {
             IPAddress candidateIp = null;
-            if (this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) && !string.IsNullOrWhiteSpace(forwardedFor))
+            if (!string.IsNullOrWhiteSpace(request.ForwardedFor))
             {
-                var firstIp = forwardedFor.ToString().Split(',')[0].Trim();
+                var firstIp = request.ForwardedFor.Split(',')[0].Trim();
                 if (IPAddress.TryParse(firstIp, out var parsedFwd))
                 {
                     candidateIp = parsedFwd.IsIPv4MappedToIPv6 ? parsedFwd.MapToIPv4() : parsedFwd;
                 }
             }
-            else if (this.Request.Headers.TryGetValue("X-Real-IP", out var realIp) && !string.IsNullOrWhiteSpace(realIp))
+            else if (!string.IsNullOrWhiteSpace(request.RealIp) && IPAddress.TryParse(request.RealIp.Trim(), out var parsedReal))
             {
-                if (IPAddress.TryParse(realIp.ToString().Trim(), out var parsedReal))
-                {
-                    candidateIp = parsedReal.IsIPv4MappedToIPv6 ? parsedReal.MapToIPv4() : parsedReal;
-                }
+                candidateIp = parsedReal.IsIPv4MappedToIPv6 ? parsedReal.MapToIPv4() : parsedReal;
             }
 
             if (candidateIp != null)
@@ -508,51 +525,59 @@ public class EmbeddedTrackerController : ControllerBase
         return remoteIp;
     }
 
-    private ActionResult RateLimitResponseIfNeeded(IPAddress clientIp)
+    internal static EmbeddedTrackerHttpResponse RateLimitResponseIfNeeded(
+        IPAddress clientIp,
+        IConfigService configService,
+        ITrackerClientRateLimiter rateLimiter)
     {
-        var limit = this.configService?.TrackerRateLimitPerMinute ?? 0;
-        if (clientIp != null && this.rateLimiter.IsRateLimited(clientIp, limit))
+        var limit = configService?.TrackerRateLimitPerMinute ?? 0;
+        if (clientIp != null && rateLimiter.IsRateLimited(clientIp, limit))
         {
-            return this.File(TrackerProtocolEncoding.BuildFailure("Rate limit exceeded."), "text/plain");
+            return EmbeddedTrackerHttpResponse.Plain(TrackerProtocolEncoding.BuildFailure("Rate limit exceeded."));
         }
 
         return null;
     }
 
-    private bool IsHttpTrackerRequestOnBindAddress()
+    internal static bool IsHttpTrackerRequestOnBindAddress(IConfigService configService, IPAddress localIpAddress)
     {
-        var bindAddress = this.configService?.TrackerBindAddress;
+        var bindAddress = configService?.TrackerBindAddress;
         if (string.IsNullOrWhiteSpace(bindAddress))
         {
             return true;
         }
 
-        return TrackerBindAddressHelper.IsHttpRequestAllowed(bindAddress, this.HttpContext.Connection.LocalIpAddress);
+        return TrackerBindAddressHelper.IsHttpRequestAllowed(bindAddress, localIpAddress);
     }
 
-    private string GetTrustedProxies()
+    private bool IsHttpTrackerRequestOnBindAddress()
     {
-        var cidrs = this.configService?.GetValue("TrackerTrustedProxies", string.Empty);
-        if (!string.IsNullOrWhiteSpace(cidrs))
-        {
-            return cidrs;
-        }
-
-        cidrs = this.configService?.GetValue("ForwardAuthTrustedProxies", string.Empty);
-        if (!string.IsNullOrWhiteSpace(cidrs))
-        {
-            return cidrs;
-        }
-
-        return this.configService?.GetValue("TrustedProxies", string.Empty) ?? string.Empty;
+        return IsHttpTrackerRequestOnBindAddress(this.configService, this.HttpContext.Connection.LocalIpAddress);
     }
 
-    private static bool IsLoopbackOrLinkLocal(IPAddress ip)
+    internal static string GetTrustedProxies(IConfigService configService)
+    {
+        var cidrs = configService?.GetValue("TrackerTrustedProxies", string.Empty);
+        if (!string.IsNullOrWhiteSpace(cidrs))
+        {
+            return cidrs;
+        }
+
+        cidrs = configService?.GetValue("ForwardAuthTrustedProxies", string.Empty);
+        if (!string.IsNullOrWhiteSpace(cidrs))
+        {
+            return cidrs;
+        }
+
+        return configService?.GetValue("TrustedProxies", string.Empty) ?? string.Empty;
+    }
+
+    internal static bool IsLoopbackOrLinkLocal(IPAddress ip)
     {
         return ClientIpResolver.IsLoopbackOrLinkLocal(ip);
     }
 
-    private static bool IsPrivateNetwork(IPAddress ip)
+    internal static bool IsPrivateNetwork(IPAddress ip)
     {
         if (ip == null || IPAddress.IsLoopback(ip))
         {

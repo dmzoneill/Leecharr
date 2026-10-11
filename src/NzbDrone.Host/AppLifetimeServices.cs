@@ -36,6 +36,7 @@ public class AppLifetimeServices : IAppLifetimeServices
         IQueueManagerService queueManagerService = null,
         IPowerManagementService powerManagementService = null,
         IUdpTrackerService udpTrackerService = null,
+        IHttpTrackerService httpTrackerService = null,
         IAppFolderInfo appFolderInfo = null,
         ICategoryService categoryService = null,
         IProwlarrSyncService prowlarrSyncService = null,
@@ -57,6 +58,7 @@ public class AppLifetimeServices : IAppLifetimeServices
         this.QueueManagerService = queueManagerService;
         this.PowerManagementService = powerManagementService ?? new PowerManagementService();
         this.UdpTrackerService = udpTrackerService;
+        this.HttpTrackerService = httpTrackerService;
         this.AppFolderInfo = appFolderInfo;
         this.CategoryService = categoryService;
         this.ProwlarrSyncService = prowlarrSyncService;
@@ -91,6 +93,8 @@ public class AppLifetimeServices : IAppLifetimeServices
     public IPowerManagementService PowerManagementService { get; }
 
     public IUdpTrackerService UdpTrackerService { get; }
+
+    public IHttpTrackerService HttpTrackerService { get; }
 
     public IAppFolderInfo AppFolderInfo { get; }
 
