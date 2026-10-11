@@ -261,6 +261,46 @@ public class GeoIpProvidersTest
         callCount.Should().Be(0);
     }
 
+    [TestCase("2001:db8::1", "2001:db8::1")]
+    [TestCase("2001:DB8::1", "2001:db8::1")]
+    public void OnlineApi_FormatIpAddressForUrlPath_PreservesIpv6Colons(string input, string expected)
+    {
+        OnlineApiGeoIpProvider.FormatIpAddressForUrlPath(input).Should().Be(expected);
+    }
+
+    [Test]
+    public async Task OnlineApi_LookupAsync_WithIpv6_UsesLiteralAddressInRequestUrl()
+    {
+        var requestUrl = string.Empty;
+        var jsonResponse = """
+            {
+                "status": "success",
+                "country": "United States",
+                "countryCode": "US",
+                "city": "New York",
+                "query": "2001:4860:4860::8888"
+            }
+            """;
+
+        using var handler = new TestHttpMessageHandler(request =>
+        {
+            requestUrl = request.RequestUri?.ToString() ?? string.Empty;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(jsonResponse),
+            };
+        });
+        using var httpClient = new HttpClient(handler);
+        using var provider = new OnlineApiGeoIpProvider(httpClient, ownsHttpClient: false);
+
+        var result = await provider.LookupAsync("2001:4860:4860::8888");
+
+        result.Should().NotBeNull();
+        result.CountryCode.Should().Be("US");
+        requestUrl.Should().Contain("/json/2001:4860:4860::8888");
+        requestUrl.Should().NotContain("%3A");
+    }
+
     [Test]
     public async Task OnlineApi_LookupAsync_WithPublicIp_ParsesSuccessfulResponse()
     {
