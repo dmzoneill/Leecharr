@@ -1016,11 +1016,16 @@ public static class NotificationPayloadBuilder
             var rawTitle = $"Leecharr: {eventType}";
             var rawMessage = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ExtractMessage(genericPayload, eventType);
 
+            var (pushoverPriority, retry, expire, device, pushoverSound) = ExtractPushoverSettings(settings);
+            var priority = PushoverSettingsSpecifyPriority(settings)
+                ? pushoverPriority
+                : ResolvePushoverPriority(eventType);
+
             var payloadDict = new Dictionary<string, object>
             {
                 ["title"] = Truncate(rawTitle, 250),
                 ["message"] = Truncate(rawMessage, 1024),
-                ["priority"] = ResolvePushoverPriority(eventType),
+                ["priority"] = priority,
             };
 
             if (!string.IsNullOrEmpty(token))
@@ -1033,9 +1038,21 @@ public static class NotificationPayloadBuilder
                 payloadDict["user"] = user;
             }
 
-            if (!string.IsNullOrWhiteSpace(sound))
+            if (!string.IsNullOrWhiteSpace(device))
             {
-                payloadDict["sound"] = sound;
+                payloadDict["device"] = device;
+            }
+
+            if (priority == 2)
+            {
+                payloadDict["retry"] = retry;
+                payloadDict["expire"] = expire;
+            }
+
+            var effectiveSound = !string.IsNullOrWhiteSpace(pushoverSound) ? pushoverSound : sound;
+            if (!string.IsNullOrWhiteSpace(effectiveSound))
+            {
+                payloadDict["sound"] = effectiveSound;
             }
 
             return payloadDict;
@@ -1208,6 +1225,31 @@ public static class NotificationPayloadBuilder
         }
 
         return 5;
+    }
+
+    internal static bool PushoverSettingsSpecifyPriority(string settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings))
+        {
+            return false;
+        }
+
+        var trimmed = settings.Trim();
+        if (trimmed.StartsWith('{'))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                return doc.RootElement.TryGetProperty("priority", out _);
+            }
+            catch (JsonException ex)
+            {
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
+                return false;
+            }
+        }
+
+        return Regex.IsMatch(trimmed, @"(?:^|[&?])(?:priority|Priority)=", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
     }
 
     internal static int ResolvePushoverPriority(string eventType)
