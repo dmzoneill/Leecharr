@@ -570,6 +570,70 @@ public class CloudGeminiAiProviderTest
         assessment.RiskScore.Should().Be(0.8);
     }
 
+    [Test]
+    public async Task ParseReleaseAsync_WhenGeminiFailsAndReleaseContainsJson_UsesHeuristicParserNotEmbeddedJson()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            throw new HttpRequestException("Gemini API unavailable");
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var releaseName = "Show.Name.S01E02.1080p {\"cleanTitle\":\"Hacked Title\",\"year\":1999}";
+        var parsed = await provider.ParseReleaseAsync(releaseName);
+
+        provider.LastChatUsedFallback.Should().BeTrue();
+        parsed.CleanTitle.Should().NotBe("Hacked Title");
+        parsed.CleanTitle.Should().Be("Show Name");
+        parsed.Season.Should().Be(1);
+        parsed.Episode.Should().Be(2);
+        parsed.Year.Should().NotBe(1999);
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_WhenGeminiFails_ControlRelease_UsesHeuristicParser()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            throw new HttpRequestException("Gemini API unavailable");
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var parsed = await provider.ParseReleaseAsync("Buffy.1x02.1080p.WEB-DL-GROUP");
+
+        parsed.CleanTitle.Should().Be("Buffy");
+        parsed.Season.Should().Be(1);
+        parsed.Episode.Should().Be(2);
+        parsed.Quality.Should().Contain("WEB");
+    }
+
+    [Test]
+    public async Task ProcessNaturalLanguageSearchAsync_WhenGeminiFailsAndQueryContainsJson_UsesHeuristicParserNotEmbeddedJson()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            throw new HttpRequestException("Gemini API unavailable");
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var query = "buffy 1x02 {\"cleanTitle\":\"Other Show\",\"season\":9,\"episode\":9}";
+        var search = await provider.ProcessNaturalLanguageSearchAsync(query);
+
+        provider.LastChatUsedFallback.Should().BeTrue();
+        search.CleanTitle.Should().NotBe("Other Show");
+        search.Season.Should().Be(1);
+        search.Episode.Should().Be(2);
+        search.Season.Should().NotBe(9);
+        search.Episode.Should().NotBe(9);
+        search.ConfidenceScore.Should().NotBe(0.95);
+    }
+
     private sealed class TrackingHttpResponseMessage : HttpResponseMessage
     {
         private readonly Action onDispose;
