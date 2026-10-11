@@ -16,6 +16,8 @@ namespace NzbDrone.Core.Ai;
 
 public class RuleHeuristicAiProvider : IAiEngineProvider
 {
+    private const string ReleaseGroupOptionalMediaExtensionPattern = @"(?:(?i)\.(?:mkv|mp4|avi|mov|wmv|flv|webm|m4v|ts|m2ts|flac|mp3|aac|wav|alac|ogg|m4a))?$";
+
     private static readonly HashSet<string> DangerousExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".exe", ".scr", ".bat", ".cmd", ".vbs", ".js", ".pif", ".ps1", ".msi", ".com", ".hta", ".lnk", ".dll", ".wsf", ".jar", ".cpl", ".iso",
@@ -41,7 +43,6 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
     private static readonly Regex DynamicRangeRegex = new(@"(?i)\b(?<hdr>DV|Dolby\s*Vision|HDR10\+|HDR10|HDR|HLG|SDR)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex EditionRegex = new(@"(?i)\b(?<edition>Extended(?:\s*Cut)?|Director'?s\s*Cut|Unrated|IMAX(?:\s*Enhanced)?|Theatrical|Remastered|Criterion)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex LanguageRegex = new(@"(?i)\b(?<lang>Multi(?:-?Audio)?|Dual(?:-?Audio)?|VOSTFR|TRUEFRENCH|VFF|Castellano|Latino|ENG(?:LISH)?|FRENCH|FRA|FRE|GER(?:MAN)?|DEU|SPANISH|SPA|ESP|ITA(?:LIAN)?|JAP(?:ANESE)?|JPN|KOR(?:EAN)?|CHI(?:NESE)?|ZHO|HIN(?:DI)?|POR(?:TUGUESE)?|DUT(?:CH)?|NLD|POL(?:ISH)?|SWE(?:DISH)?|NOR(?:WEGIAN)?|UKR(?:AINIAN)?|TUR(?:KISH)?|ARA(?:BIC)?|RUS(?:SIAN)?)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
-    private const string ReleaseGroupOptionalMediaExtensionPattern = @"(?:(?i)\.(?:mkv|mp4|avi|mov|wmv|flv|webm|m4v|ts|m2ts|flac|mp3|aac|wav|alac|ogg|m4a))?$";
 
     private static readonly Regex ReleaseGroupRegex = new($@"(?:-(?<group>[A-Za-z0-9.]+)|\[(?<group>[A-Za-z0-9.]+)\]){ReleaseGroupOptionalMediaExtensionPattern}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
 
