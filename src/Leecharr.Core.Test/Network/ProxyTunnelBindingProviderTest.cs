@@ -712,11 +712,10 @@ public class ProxyTunnelBindingProviderTest
             using var client = await proxyListener.AcceptTcpClientAsync();
             using var stream = client.GetStream();
 
-            // 1. Read Greeting: [0x05, 0x02, 0x00, 0x02]
-            var greeting = new byte[4];
-            await stream.ReadExactlyAsync(greeting, 0, 4);
-            greeting[0].Should().Be(0x05);
-            greeting[1].Should().Be(0x02);
+            // 1. Read Greeting: [0x05, 0x01, 0x02] (username/password only)
+            var greeting = new byte[3];
+            await stream.ReadExactlyAsync(greeting, 0, 3);
+            greeting.Should().BeEquivalentTo(new byte[] { 0x05, 0x01, 0x02 });
 
             // Respond with Username/Password Auth (0x02)
             await stream.WriteAsync(new byte[] { 0x05, 0x02 });
@@ -806,8 +805,9 @@ public class ProxyTunnelBindingProviderTest
             using var client = await proxyListener.AcceptTcpClientAsync();
             using var stream = client.GetStream();
 
-            var greeting = new byte[4];
-            await stream.ReadExactlyAsync(greeting, 0, 4);
+            var greeting = new byte[3];
+            await stream.ReadExactlyAsync(greeting, 0, 3);
+            greeting.Should().BeEquivalentTo(new byte[] { 0x05, 0x01, 0x02 });
 
             await stream.WriteAsync(new byte[] { 0x05, 0x02 });
 
@@ -866,6 +866,48 @@ public class ProxyTunnelBindingProviderTest
             var reply = new byte[4];
             await stream.ReadExactlyAsync(reply, 0, 4);
             Encoding.ASCII.GetString(reply).Should().Be("OKAY");
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Socks5_WhenCredentialsConfigured_AndProxySelectsNoAuth_ThrowsInvalidOperationException()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var greeting = new byte[3];
+            await stream.ReadExactlyAsync(greeting, 0, 3);
+            greeting.Should().BeEquivalentTo(new byte[] { 0x05, 0x01, 0x02 });
+
+            await stream.WriteAsync(new byte[] { 0x05, 0x00 });
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("socks5");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+            config.ProxyAuthEnabled.Returns(true);
+            config.ProxyUsername.Returns("user");
+            config.ProxyPassword.Returns("pass");
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            var act = async () => await provider.ConnectTunnelAsync("target.tracker.org", 6969);
+
+            await act.Should().ThrowAsync<InvalidOperationException>()
+                .WithMessage("*does not match configured credentials*");
         }
         finally
         {

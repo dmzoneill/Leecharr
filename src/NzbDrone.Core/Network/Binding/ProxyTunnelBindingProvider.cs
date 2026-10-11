@@ -330,9 +330,9 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         var hasAuth = !string.IsNullOrEmpty(username);
 
         // 1. Send SOCKS5 Greeting
-        // [0x05 (version), NMETHODS, 0x00 (no auth), 0x02 (user/pass if configured)]
+        // When credentials are configured, offer only RFC 1929 user/pass (0x02).
         var greeting = hasAuth
-            ? new byte[] { 0x05, 0x02, 0x00, 0x02 }
+            ? new byte[] { 0x05, 0x01, 0x02 }
             : new byte[] { 0x05, 0x01, 0x00 };
 
         await stream.WriteAsync(greeting, cancellationToken);
@@ -351,6 +351,12 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         if (selectedMethod == 0xFF)
         {
             throw new InvalidOperationException("SOCKS5 proxy rejected all authentication methods.");
+        }
+
+        if (hasAuth && selectedMethod == 0x00)
+        {
+            throw new InvalidOperationException(
+                "SOCKS5 proxy selected no authentication, which does not match configured credentials.");
         }
 
         // 2. Authentication subnegotiation (RFC 1929) if required
