@@ -75,6 +75,21 @@ public class ManagedSocketBindingProviderTest
     }
 
     [Test]
+    public void SelectIpAddress_WhenGivenGlobalAndUniqueLocalIPv6_PrioritizesGlobalIPv6()
+    {
+        var addresses = new[]
+        {
+            IPAddress.Parse("fc00::1"),
+            IPAddress.Parse("2001:db8::5"),
+        };
+
+        var selected = ManagedSocketBindingProvider.SelectIpAddress(addresses, 5, AddressFamily.InterNetworkV6);
+
+        selected.Should().NotBeNull();
+        selected.Should().Be(IPAddress.Parse("2001:db8::5"));
+    }
+
+    [Test]
     public void SelectIpAddress_WhenGivenGlobalAndLinkLocalIPv6_PrioritizesGlobalIPv6()
     {
         var addresses = new[]

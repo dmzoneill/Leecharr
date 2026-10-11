@@ -172,6 +172,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
             return addrList.FirstOrDefault(a =>
                 !a.IsIPv6LinkLocal &&
                 !a.IsIPv6SiteLocal &&
+                !a.IsIPv6UniqueLocal &&
                 !a.IsIPv6Multicast &&
                 !IPAddress.IsLoopback(a) &&
                 !a.Equals(IPAddress.IPv6Any) &&
@@ -197,6 +198,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         {
             return !address.IsIPv6LinkLocal &&
                 !address.IsIPv6SiteLocal &&
+                !address.IsIPv6UniqueLocal &&
                 !address.IsIPv6Multicast &&
                 !IPAddress.IsLoopback(address) &&
                 !address.Equals(IPAddress.IPv6Any) &&
