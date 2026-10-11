@@ -515,6 +515,6 @@ public class Startup
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
             }
-        });
+        }).AllowAnonymous();
     }
 }
