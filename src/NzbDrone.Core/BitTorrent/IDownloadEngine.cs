@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NzbDrone.Core.Torrents;
 
@@ -90,6 +91,10 @@ public interface IDownloadEngine
     }
 
     Task<EngineHealthCheckResult> ProbeHealthAsync() => Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
+
+    Task RecheckNetworkInterfacesAsync(bool forceRebind, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    Task ClearDhtCacheAsync(bool bootstrapNodes, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
 public interface IDownloadTask

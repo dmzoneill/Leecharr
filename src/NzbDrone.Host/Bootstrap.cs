@@ -80,6 +80,7 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<NzbDrone.Core.Developer.DeveloperWebhookStore>();
         container.RegisterSingletonWithInterfaces<NzbDrone.Core.Developer.Testing.DeveloperTestRunner>();
         container.RegisterSingletonWithInterfaces<NzbDrone.Core.Developer.Diagnostics.DeveloperDiagnosticsService>();
+        container.RegisterSingletonWithInterfaces<NzbDrone.Core.Notifications.NotificationEndpointTester>();
         container.RegisterSingletonWithInterfaces<NzbDrone.Core.Developer.Repl.DeveloperReplService>();
         container.RegisterSingletonWithInterfaces<NzbDrone.Core.Developer.Debugger.DeveloperDebuggerService>();
 

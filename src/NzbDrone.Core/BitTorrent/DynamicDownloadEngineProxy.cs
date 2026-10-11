@@ -617,6 +617,22 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public void CheckDiskSpaceHealth()
         => this.GetActiveOrMigratingEngine()?.CheckDiskSpaceHealth();
 
+    public Task RecheckNetworkInterfacesAsync(bool forceRebind, CancellationToken cancellationToken = default)
+    {
+        var engine = this.GetActiveOrMigratingEngine();
+        return engine != null
+            ? engine.RecheckNetworkInterfacesAsync(forceRebind, cancellationToken)
+            : Task.CompletedTask;
+    }
+
+    public Task ClearDhtCacheAsync(bool bootstrapNodes, CancellationToken cancellationToken = default)
+    {
+        var engine = this.GetActiveOrMigratingEngine();
+        return engine != null
+            ? engine.ClearDhtCacheAsync(bootstrapNodes, cancellationToken)
+            : Task.CompletedTask;
+    }
+
     public void Dispose()
     {
         if (!this.disposed)

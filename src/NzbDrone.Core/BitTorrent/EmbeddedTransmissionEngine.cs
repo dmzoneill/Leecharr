@@ -82,6 +82,12 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         return Task.FromResult(string.IsNullOrWhiteSpace(targetVersion) || targetVersion.StartsWith("4."));
     }
 
+    public Task RecheckNetworkInterfacesAsync(bool forceRebind, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    public Task ClearDhtCacheAsync(bool bootstrapNodes, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
     public TorrentEngineCapabilities Capabilities { get; } = new()
