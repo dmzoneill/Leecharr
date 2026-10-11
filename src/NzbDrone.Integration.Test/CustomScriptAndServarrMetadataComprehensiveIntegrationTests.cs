@@ -44,6 +44,6 @@ public class CustomScriptAndServarrMetadataComprehensiveIntegrationTests : Integ
         provider.Capabilities.SupportsMusic.Should().BeTrue();
 
         var health = await provider.ProbeHealthAsync();
-        health.IsHealthy.Should().BeTrue();
+        health.IsHealthy.Should().BeFalse();
     }
 }

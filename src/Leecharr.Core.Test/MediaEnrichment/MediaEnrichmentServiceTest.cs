@@ -690,13 +690,13 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     }
 
     [Test]
-    public async Task TvdbProvider_ProbeHealthAsync_ReturnsHealthy()
+    public async Task TvdbProvider_ProbeHealthAsync_WhenApiKeyAndArrMissing_ReturnsUnhealthy()
     {
         var provider = new TvdbMetadataProvider();
         var health = await provider.ProbeHealthAsync();
 
         health.Should().NotBeNull();
-        health.IsHealthy.Should().BeTrue();
+        health.IsHealthy.Should().BeFalse();
     }
 
     [TestCase("Show.S1E01", "Show", "TV")]

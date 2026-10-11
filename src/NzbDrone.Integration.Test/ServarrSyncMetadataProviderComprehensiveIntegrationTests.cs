@@ -107,7 +107,7 @@ public class ServarrSyncMetadataProviderComprehensiveIntegrationTests : Integrat
             // 2. Health and Capabilities
             var health = await provider.ProbeHealthAsync();
             health.IsHealthy.Should().BeTrue();
-            health.StatusMessage.Should().Contain("Arr instances configured");
+            health.StatusMessage.Should().Contain("reachable");
 
             provider.Capabilities.SupportsMovies.Should().BeTrue();
             provider.Capabilities.SupportsTvSeries.Should().BeTrue();
