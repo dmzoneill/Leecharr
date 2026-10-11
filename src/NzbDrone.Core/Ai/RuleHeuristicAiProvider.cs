@@ -757,8 +757,9 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             }
         }
 
-        // Check torrent name anomalies
-        if (Regex.IsMatch(torrentName, @"(?i)\.(exe|scr|bat|cmd)$", RegexOptions.None, TimeSpan.FromSeconds(2)))
+        // Check torrent name anomalies (align with DangerousExtensions used for file paths)
+        var torrentBaseName = Path.GetFileName(torrentName.Trim());
+        if (DangerousExtensions.Contains(Path.GetExtension(torrentBaseName)))
         {
             riskScore += 0.5;
             threatReasons.Add("Torrent payload itself is named as a standalone executable/script.");
