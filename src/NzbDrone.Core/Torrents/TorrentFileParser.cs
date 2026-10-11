@@ -272,7 +272,7 @@ public class TorrentFileParser : ITorrentFileParser
                     }
 
                     var fileLength = fileLengthNum.Value;
-                    rawTotalSize += fileLength;
+                    var fileByteOffset = AccumulateFileLength(fileLength, ref rawTotalSize, ref currentByteOffset);
 
                     if (!IsPaddingFile(file, relativeFilePath))
                     {
@@ -280,11 +280,9 @@ public class TorrentFileParser : ITorrentFileParser
                         {
                             Path = relativeFilePath,
                             Size = fileLength,
-                            ByteOffset = currentByteOffset,
+                            ByteOffset = fileByteOffset,
                         });
                     }
-
-                    currentByteOffset += fileLength;
                 }
             }
             else
@@ -299,7 +297,7 @@ public class TorrentFileParser : ITorrentFileParser
                     throw new InvalidTorrentFileException("File length cannot be negative.");
                 }
 
-                rawTotalSize += lengthNum.Value;
+                AccumulateFileLength(lengthNum.Value, ref rawTotalSize, ref currentByteOffset);
 
                 if (!IsPaddingFile(info, sanitizedTorrentName))
                 {
@@ -312,24 +310,26 @@ public class TorrentFileParser : ITorrentFileParser
                 }
             }
 
-            result.TotalSize = result.Files.Sum(f => f.Size);
+            result.TotalSize = SumFileSizes(result.Files);
 
             if (hasV1Pieces)
             {
                 if (rawTotalSize > 0)
                 {
-                    var expectedPieceCount = (int)Math.Ceiling((double)rawTotalSize / result.PieceLength);
+                    var expectedPieceCount = CalculatePieceCount(rawTotalSize, result.PieceLength);
                     if (result.PieceCount != expectedPieceCount)
                     {
                         throw new InvalidTorrentFileException("Piece count does not match total file size.");
                     }
                 }
+                else if (rawTotalSize < 0)
+                {
+                    throw new InvalidTorrentFileException("Total file size exceeds maximum supported value.");
+                }
             }
             else
             {
-                result.PieceCount = result.TotalSize > 0 && result.PieceLength > 0
-                    ? (int)Math.Ceiling((double)result.TotalSize / result.PieceLength)
-                    : 0;
+                result.PieceCount = CalculatePieceCount(result.TotalSize, result.PieceLength);
             }
 
             return result;
@@ -552,7 +552,7 @@ public class TorrentFileParser : ITorrentFileParser
                 }
 
                 var fileLength = fileLengthNum.Value;
-                rawTotalSize += fileLength;
+                var fileByteOffset = AccumulateFileLength(fileLength, ref rawTotalSize, ref currentByteOffset);
 
                 if (!IsPaddingFile(fileMeta, relativeFilePath))
                 {
@@ -560,11 +560,9 @@ public class TorrentFileParser : ITorrentFileParser
                     {
                         Path = relativeFilePath,
                         Size = fileLength,
-                        ByteOffset = currentByteOffset,
+                        ByteOffset = fileByteOffset,
                     });
                 }
-
-                currentByteOffset += fileLength;
             }
             else
             {
@@ -573,6 +571,56 @@ public class TorrentFileParser : ITorrentFileParser
                 TraverseFileTree(childDict, nextPath, files, depth + 1, maxDepth, ref rawTotalSize, ref currentByteOffset);
             }
         }
+    }
+
+    private static long AccumulateFileLength(long fileLength, ref long rawTotalSize, ref long currentByteOffset)
+    {
+        if (fileLength > long.MaxValue - rawTotalSize || fileLength > long.MaxValue - currentByteOffset)
+        {
+            throw new InvalidTorrentFileException("Total file size exceeds maximum supported value.");
+        }
+
+        var fileByteOffset = currentByteOffset;
+        rawTotalSize += fileLength;
+        currentByteOffset += fileLength;
+        return fileByteOffset;
+    }
+
+    private static long SumFileSizes(List<ParsedTorrentFile> files)
+    {
+        long total = 0;
+        foreach (var file in files)
+        {
+            if (file.Size > long.MaxValue - total)
+            {
+                throw new InvalidTorrentFileException("Total file size exceeds maximum supported value.");
+            }
+
+            total += file.Size;
+        }
+
+        return total;
+    }
+
+    private static int CalculatePieceCount(long totalSize, int pieceLength)
+    {
+        if (totalSize <= 0 || pieceLength <= 0)
+        {
+            return 0;
+        }
+
+        if (totalSize > long.MaxValue - pieceLength + 1)
+        {
+            throw new InvalidTorrentFileException("Total file size exceeds maximum supported value.");
+        }
+
+        var pieceCountLong = (totalSize + pieceLength - 1) / pieceLength;
+        if (pieceCountLong > int.MaxValue)
+        {
+            throw new InvalidTorrentFileException("Total file size exceeds maximum supported value.");
+        }
+
+        return (int)pieceCountLong;
     }
 
     private static void ExtractAnnounceList(BList announceList, List<List<string>> targetList)

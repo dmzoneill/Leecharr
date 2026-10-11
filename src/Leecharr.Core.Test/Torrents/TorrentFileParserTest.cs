@@ -813,4 +813,76 @@ public class TorrentFileParserTest
 
         parsed.TotalSize.Should().Be(15000);
     }
+
+    private static byte[] CreateV2TorrentBytes(params (long Length, string Name)[] files)
+    {
+        var fileTree = new BEncodedDictionary();
+        foreach (var (length, name) in files)
+        {
+            var fileMeta = new BEncodedDictionary
+            {
+                { "length", new BEncodedNumber(length) },
+                { "pieces root", new BEncodedString(new byte[32]) },
+            };
+            var fileEntry = new BEncodedDictionary
+            {
+                { string.Empty, fileMeta },
+            };
+            fileTree.Add(name, fileEntry);
+        }
+
+        var infoDict = new BEncodedDictionary
+        {
+            { "meta version", new BEncodedNumber(2) },
+            { "name", new BEncodedString("V2OverflowTorrent") },
+            { "piece length", new BEncodedNumber(16384) },
+            { "file tree", fileTree },
+        };
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "announce", new BEncodedString("http://tracker.example.com/announce") },
+            { "info", infoDict },
+        };
+
+        return rootDict.Encode();
+    }
+
+    [Test]
+    public void Parse_WhenV2FileLengthExceedsSupportedTotal_ThrowsInvalidTorrentFileException()
+    {
+        var bytes = CreateV2TorrentBytes((long.MaxValue, "huge.bin"));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*Total file size exceeds maximum supported value.*");
+    }
+
+    [Test]
+    public void Parse_WhenV2FileLengthsOverflowTotalSize_ThrowsInvalidTorrentFileException()
+    {
+        var bytes = CreateV2TorrentBytes(
+            (long.MaxValue, "a.bin"),
+            (2, "b.bin"));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*Total file size exceeds maximum supported value.*");
+    }
+
+    [Test]
+    public void Parse_WhenV1MultiFileLengthsOverflowTotalSize_ThrowsInvalidTorrentFileException()
+    {
+        var bytes = CreateMultiFileTorrentBytes(
+            "OverflowTorrent",
+            (long.MaxValue, new[] { "a.bin" }),
+            (2, new[] { "b.bin" }));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*Total file size exceeds maximum supported value.*");
+    }
 }
