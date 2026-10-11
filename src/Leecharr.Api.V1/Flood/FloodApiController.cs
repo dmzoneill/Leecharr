@@ -735,11 +735,9 @@ public class FloodApiController : ControllerBase, IActionFilter
                 var t = this.torrentService.GetByInfoHash(hash);
                 if (t != null)
                 {
-                    if (matchedCategory != null)
-                    {
-                        await this.torrentService.SetCategoryAsync(t.Id, matchedCategory);
-                        t.Category = matchedCategory;
-                    }
+                    var categoryToSet = matchedCategory ?? string.Empty;
+                    await this.torrentService.SetCategoryAsync(t.Id, categoryToSet);
+                    t.Category = categoryToSet;
 
                     t.Label = labelString;
                     await this.torrentService.UpdateAsync(t);
