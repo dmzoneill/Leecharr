@@ -28,7 +28,6 @@ public class DeveloperQualityService : IDeveloperQualityService
     private static readonly object CacheLock = new();
     private static DeveloperQualityReport _cachedReport;
     private static DateTime _cacheExpiry = DateTime.MinValue;
-    private static Task<DeveloperQualityReport> _refreshTask;
 
     private readonly HttpClient _httpClient;
     private readonly Logger _logger;
@@ -45,45 +44,19 @@ public class DeveloperQualityService : IDeveloperQualityService
         {
             _cachedReport = null;
             _cacheExpiry = DateTime.MinValue;
-            _refreshTask = null;
         }
     }
 
     public async Task<DeveloperQualityReport> GetQualityReportAsync(CancellationToken cancellationToken = default)
     {
-        Task<DeveloperQualityReport> refreshTask;
         lock (CacheLock)
         {
             if (_cachedReport != null && _cacheExpiry > DateTime.UtcNow)
             {
                 return _cachedReport;
             }
-
-            refreshTask = _refreshTask;
-            if (refreshTask == null)
-            {
-                _refreshTask = refreshTask = FetchQualityReportAsync(cancellationToken);
-            }
         }
 
-        try
-        {
-            return await refreshTask;
-        }
-        finally
-        {
-            lock (CacheLock)
-            {
-                if (ReferenceEquals(_refreshTask, refreshTask))
-                {
-                    _refreshTask = null;
-                }
-            }
-        }
-    }
-
-    private async Task<DeveloperQualityReport> FetchQualityReportAsync(CancellationToken cancellationToken)
-    {
         var report = new DeveloperQualityReport
         {
             ProjectName = "Leecharr",
