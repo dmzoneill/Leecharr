@@ -73,6 +73,8 @@ public class MonoTorrentDownloadEngineTest
         this.configService.MaxUploadSlots.Returns(4);
         this.configService.EnableDht.Returns(true);
         this.configService.EnablePex.Returns(true);
+        this.configService.ExtensionUtPex.Returns(true);
+        this.configService.ExtensionUtMetadata.Returns(true);
         this.configService.EnableBep27PrivateTorrents.Returns(true);
         this.configService.EnableIncompleteDir.Returns(true);
         this.configService.AutoStart.Returns(true);
@@ -1205,6 +1207,30 @@ public class MonoTorrentDownloadEngineTest
         task.Should().NotBeNull();
         task.IsPrivate.Should().BeTrue();
         task.Manager.Settings.AllowDht.Should().BeFalse();
+        task.Manager.Settings.AllowPeerExchange.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenExtensionUtPexDisabled_DisablesPexEvenWhenEnablePexTrue()
+    {
+        this.configService.EnablePex.Returns(true);
+        this.configService.ExtensionUtPex.Returns(false);
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("no_ut_pex.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 12,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "no_ut_pex.iso",
+            IsPrivate = false,
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
         task.Manager.Settings.AllowPeerExchange.Should().BeFalse();
     }
 
