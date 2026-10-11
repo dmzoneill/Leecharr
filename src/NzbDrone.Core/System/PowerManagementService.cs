@@ -24,6 +24,9 @@ public class PowerManagementService : IPowerManagementService, IDisposable
     }
 
     private static readonly string[] WindowsShutdownArgs = ["/s", "/t", "60", "/c", "Leecharr completed queue"];
+    private static readonly string[] OsxShutdownScriptArgs = ["-e", "tell app \"System Events\" to shut down"];
+    private static readonly string[] OsxSleepNowArgs = ["sleepnow"];
+    private static readonly string[] OsxHibernateModeArgs = ["hibernatemode", "25"];
     private readonly IHostApplicationLifetime hostLifetime;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly object lockObj = new();
@@ -619,17 +622,17 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         switch (action)
         {
             case PowerAction.Shutdown:
-                return await this.RunProcessAsync("osascript", new[] { "-e", "tell app \"System Events\" to shut down" });
+                return await this.RunProcessAsync("osascript", OsxShutdownScriptArgs);
             case PowerAction.Suspend:
-                return await this.RunProcessAsync("pmset", new[] { "sleepnow" });
+                return await this.RunProcessAsync("pmset", OsxSleepNowArgs);
             case PowerAction.Hibernate:
                 // sleepnow alone keeps RAM powered under the default safe-sleep hibernatemode.
-                if (!await this.RunProcessAsync("pmset", new[] { "hibernatemode", "25" }))
+                if (!await this.RunProcessAsync("pmset", OsxHibernateModeArgs))
                 {
                     return false;
                 }
 
-                return await this.RunProcessAsync("pmset", new[] { "sleepnow" });
+                return await this.RunProcessAsync("pmset", OsxSleepNowArgs);
             default:
                 return false;
         }

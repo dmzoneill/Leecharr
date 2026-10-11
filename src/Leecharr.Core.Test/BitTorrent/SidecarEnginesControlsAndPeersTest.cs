@@ -249,7 +249,7 @@ public class SidecarEnginesControlsAndPeersTest
 
         await engine.AddTorrentAsync(new Torrent { Id = 11, InfoHash = "cc", Name = "C", TotalSize = 100 });
         await engine.AddTorrentAsync(new Torrent { Id = 12, InfoHash = "dd", Name = "D", TotalSize = 100 });
-        engine.GetTask(12)!.Status = TorrentStatus.Paused;
+        await engine.PauseTorrentAsync(12);
 
         await engine.PauseAllAsync();
 
