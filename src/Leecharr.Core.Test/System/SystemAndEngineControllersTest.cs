@@ -697,7 +697,6 @@ public class LogControllerTest
     [TestCase("Fatal")]
     [TestCase("all")]
     [TestCase(null)]
-    [TestCase("invalid_level_string")]
     public void GetLogs_ParsesLogLevelsWithoutThrowing(string level)
     {
         var testTarget = new TestRingBufferTarget();
@@ -707,6 +706,21 @@ public class LogControllerTest
         var result = this.controller.GetLogs(level: level, count: 50);
 
         result.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [TestCase("invalid_level_string")]
+    [TestCase("Eror")]
+    public void GetLogs_WithUnrecognizedLevel_ReturnsBadRequest(string level)
+    {
+        var testTarget = new TestRingBufferTarget();
+        testTarget.AddLog(LogLevel.Trace, "Leecharr.Test", "Should not be returned");
+        RingBufferTarget.Instance = testTarget;
+
+        var result = this.controller.GetLogs(level: level, count: 50);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        var bad = (BadRequestObjectResult)result.Result!;
+        bad.Value.Should().Be($"Unrecognized log level '{level}'.");
     }
 
     [Test]
