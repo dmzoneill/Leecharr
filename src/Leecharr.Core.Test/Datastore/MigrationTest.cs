@@ -624,4 +624,75 @@ public class MigrationTest
         command.CommandText = "SELECT IsImported FROM Torrents WHERE InfoHash = 'cccccccccccccccccccccccccccccccccccccccc';";
         Convert.ToInt32(command.ExecuteScalar()).Should().Be(1);
     }
+
+    [Test]
+    public void Migration047_BackfillsArrConnectionWebhookAndAutoAddToFalse()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(37);
+        }
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            connection.Open();
+            using var seed = connection.CreateCommand();
+            seed.CommandText = @"
+                INSERT INTO ArrConnectionDefinitions (Name, Implementation, Url, ApiKey, ArrType)
+                VALUES ('legacy-sonarr', 'Sonarr', 'http://localhost:8989', 'test-key', 'sonarr');";
+            seed.ExecuteNonQuery();
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(38);
+        }
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            connection.Open();
+            using var check = connection.CreateCommand();
+            check.CommandText = "SELECT EnableAutomaticAdd, WebhookEnabled FROM ArrConnectionDefinitions WHERE Name = 'legacy-sonarr';";
+            using var reader = check.ExecuteReader();
+            reader.Read().Should().BeTrue();
+            Convert.ToInt32(reader.GetValue(0)).Should().Be(0);
+            Convert.ToInt32(reader.GetValue(1)).Should().Be(0);
+
+            using var simulateOldMigration = connection.CreateCommand();
+            simulateOldMigration.CommandText = @"
+                UPDATE ArrConnectionDefinitions
+                SET EnableAutomaticAdd = 1, WebhookEnabled = 1
+                WHERE Name = 'legacy-sonarr';";
+            simulateOldMigration.ExecuteNonQuery();
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(47);
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT EnableAutomaticAdd, WebhookEnabled FROM ArrConnectionDefinitions WHERE Name = 'legacy-sonarr';";
+        using var result = command.ExecuteReader();
+        result.Read().Should().BeTrue();
+        Convert.ToInt32(result.GetValue(0)).Should().Be(0);
+        Convert.ToInt32(result.GetValue(1)).Should().Be(0);
+    }
 }

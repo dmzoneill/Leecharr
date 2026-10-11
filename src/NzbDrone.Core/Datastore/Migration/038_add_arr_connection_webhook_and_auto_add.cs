@@ -10,8 +10,8 @@ public class AddArrConnectionWebhookAndAutoAdd : NzbDroneMigrationBase
     public override void Up()
     {
         this.Alter.Table("ArrConnectionDefinitions")
-            .AddColumn("EnableAutomaticAdd").AsBoolean().NotNullable().WithDefaultValue(true)
-            .AddColumn("WebhookEnabled").AsBoolean().NotNullable().WithDefaultValue(true)
+            .AddColumn("EnableAutomaticAdd").AsBoolean().NotNullable().WithDefaultValue(false)
+            .AddColumn("WebhookEnabled").AsBoolean().NotNullable().WithDefaultValue(false)
             .AddColumn("WebhookHost").AsString().Nullable()
             .AddColumn("Category").AsString().Nullable()
             .AddColumn("SavePath").AsString().Nullable();
