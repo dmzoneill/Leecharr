@@ -54,15 +54,18 @@ public static class TorrentResourceMapper
             return null;
         }
 
-        var isInactive = model.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+        var statusForActivity = task?.Status ?? model.Status;
+        var isInactive = statusForActivity is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
 
         var progress = model.Progress;
         var downloaded = model.Downloaded;
+        var uploaded = model.Uploaded;
         var downloadSpeed = isInactive ? 0 : model.DownloadSpeed;
         var uploadSpeed = isInactive ? 0 : model.UploadSpeed;
         var seeders = isInactive ? 0 : model.Seeders;
         var leechers = isInactive ? 0 : model.Leechers;
         var totalSize = model.TotalSize;
+        var eta = isInactive ? 0 : model.Eta;
         var status = model.Status.ToString().ToLowerInvariant();
 
         if (task != null)
@@ -96,10 +99,35 @@ public static class TorrentResourceMapper
                 downloaded = task.DownloadedBytes;
             }
 
+            if (task.UploadedBytes >= 0)
+            {
+                uploaded = task.UploadedBytesIsLifetimeTotal
+                    ? Math.Max(model.Uploaded, task.UploadedBytes)
+                    : Math.Max(model.Uploaded, model.Uploaded + task.UploadedBytes);
+            }
+
+            if (!isInactive && downloadSpeed > 0 && progress < 1.0 && eta <= 0)
+            {
+                var remainingBytes = totalSize > 0
+                    ? Math.Max(0, totalSize - (long)Math.Round(totalSize * progress, MidpointRounding.AwayFromZero))
+                    : Math.Max(0, totalSize - downloaded);
+                if (remainingBytes > 0)
+                {
+                    eta = remainingBytes / downloadSpeed;
+                }
+            }
+
             if (task.Status != TorrentStatus.Downloading || model.Status != TorrentStatus.Checking)
             {
                 status = task.Status.ToString().ToLowerInvariant();
             }
+        }
+
+        var ratio = model.Ratio;
+        var ratioDivisor = downloaded > 0 ? downloaded : (totalSize > 0 ? totalSize : 0);
+        if (ratioDivisor > 0)
+        {
+            ratio = (double)uploaded / ratioDivisor;
         }
 
         double? availability = null;
@@ -133,12 +161,12 @@ public static class TorrentResourceMapper
             IsPrivate = model.IsPrivate,
             Status = status,
             Downloaded = downloaded,
-            Uploaded = model.Uploaded,
-            Ratio = model.Ratio,
+            Uploaded = uploaded,
+            Ratio = ratio,
             Progress = progress,
             DownloadSpeed = downloadSpeed,
             UploadSpeed = uploadSpeed,
-            Eta = isInactive ? 0 : model.Eta,
+            Eta = eta,
             Seeders = seeders,
             Leechers = leechers,
             Availability = availability,

@@ -160,6 +160,48 @@ public class TorrentResourceMapperTest
     }
 
     [Test]
+    public void ToResource_WhenSavedStatusIsInactiveButTaskIsDownloading_UsesLiveTelemetry()
+    {
+        var torrent = new Torrent
+        {
+            Id = 299,
+            Name = "Stale Queued Row",
+            Status = TorrentStatus.Queued,
+            Progress = 0,
+            Downloaded = 0,
+            DownloadSpeed = 0,
+            UploadSpeed = 0,
+            Seeders = 0,
+            Leechers = 0,
+            Eta = 0,
+            TotalSize = 100_000,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Progress.Returns(0.5);
+        mockTask.DownloadedBytes.Returns(50_000);
+        mockTask.DownloadSpeed.Returns(10_000);
+        mockTask.UploadSpeed.Returns(2_000);
+        mockTask.ConnectedSeeders.Returns(12);
+        mockTask.ConnectedLeechers.Returns(8);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        mockTask.UploadedBytes.Returns(5_000);
+        mockTask.UploadedBytesIsLifetimeTotal.Returns(true);
+
+        var resource = TorrentResourceMapper.ToResource(torrent, task: mockTask);
+
+        resource.Should().NotBeNull();
+        resource.Status.Should().Be("downloading");
+        resource.DownloadSpeed.Should().Be(10_000);
+        resource.UploadSpeed.Should().Be(2_000);
+        resource.Seeders.Should().Be(12);
+        resource.Leechers.Should().Be(8);
+        resource.Uploaded.Should().Be(5_000);
+        resource.Ratio.Should().BeApproximately(0.1, 0.0001);
+        resource.Eta.Should().Be(5);
+    }
+
+    [Test]
     public void ToResource_WithActiveDownloadTask_OverridesTelemetryFromTask()
     {
         var torrent = new Torrent
