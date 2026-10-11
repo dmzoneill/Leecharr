@@ -84,8 +84,17 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            sql.Append(" AND (LOWER(\"Title\") LIKE @Query OR LOWER(\"InfoHash\") LIKE @Query OR LOWER(\"V2InfoHash\") LIKE @Query OR LOWER(\"PrimaryTracker\") LIKE @Query OR LOWER(\"IndexerName\") LIKE @Query OR LOWER(\"Source\") LIKE @Query OR LOWER(\"Trackers\") LIKE @Query OR LOWER(\"DataJson\") LIKE @Query)");
-            parameters.Add("Query", $"%{query.Trim().ToLowerInvariant()}%");
+            var escapeClause = " ESCAPE '\\'";
+            if (this.database.DatabaseType == DatabaseType.PostgreSQL)
+            {
+                sql.Append($" AND (\"Title\" ILIKE @Query{escapeClause} OR \"InfoHash\" ILIKE @Query{escapeClause} OR \"V2InfoHash\" ILIKE @Query{escapeClause} OR \"PrimaryTracker\" ILIKE @Query{escapeClause} OR \"IndexerName\" ILIKE @Query{escapeClause} OR \"Source\" ILIKE @Query{escapeClause} OR \"Trackers\" ILIKE @Query{escapeClause} OR \"DataJson\" ILIKE @Query{escapeClause})");
+                parameters.Add("Query", SqlLikeHelper.BuildContainsPattern(query, lowercaseQuery: false));
+            }
+            else
+            {
+                sql.Append($" AND (unicode_lower(\"Title\") LIKE @Query{escapeClause} OR unicode_lower(\"InfoHash\") LIKE @Query{escapeClause} OR unicode_lower(\"V2InfoHash\") LIKE @Query{escapeClause} OR unicode_lower(\"PrimaryTracker\") LIKE @Query{escapeClause} OR unicode_lower(\"IndexerName\") LIKE @Query{escapeClause} OR unicode_lower(\"Source\") LIKE @Query{escapeClause} OR unicode_lower(\"Trackers\") LIKE @Query{escapeClause} OR unicode_lower(\"DataJson\") LIKE @Query{escapeClause})");
+                parameters.Add("Query", SqlLikeHelper.BuildContainsPattern(query, lowercaseQuery: true));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(status) && !string.Equals(status, "all", System.StringComparison.OrdinalIgnoreCase))

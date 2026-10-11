@@ -2,6 +2,7 @@
 
 using System;
 using System.Data;
+using Microsoft.Data.Sqlite;
 
 namespace NzbDrone.Core.Datastore;
 
@@ -30,6 +31,11 @@ public class Database : IDatabase
 
             if (this.DatabaseType == DatabaseType.SQLite)
             {
+                if (connection is SqliteConnection sqliteConnection)
+                {
+                    sqliteConnection.CreateFunction("unicode_lower", (string value) => value?.ToLowerInvariant());
+                }
+
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = $"PRAGMA busy_timeout = {this.busyTimeout}; PRAGMA wal_autocheckpoint = 1000; PRAGMA cache_size = -64000; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;";
                 cmd.ExecuteNonQuery();

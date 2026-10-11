@@ -175,6 +175,82 @@ public class DownloadHistoryRepositoryTest
     }
 
     [Test]
+    public void GetHistory_WithQuery_TreatsUnderscoreAndPercentAsLiterals()
+    {
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Release_With_Underscores",
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            Status = "Active",
+            DateAdded = DateTime.UtcNow.AddMinutes(-10),
+        });
+
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "ReleaseWithoutUnderscores",
+            InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Status = "Active",
+            DateAdded = DateTime.UtcNow.AddMinutes(-5),
+        });
+
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Complete 100% Pack",
+            InfoHash = "cccccccccccccccccccccccccccccccccccccccc",
+            Status = "Active",
+            DateAdded = DateTime.UtcNow.AddMinutes(-1),
+        });
+
+        var underscoreMatches = this.repository.GetHistory(query: "_");
+        underscoreMatches.Should().ContainSingle();
+        underscoreMatches[0].Title.Should().Be("Release_With_Underscores");
+
+        var percentMatches = this.repository.GetHistory(query: "100%");
+        percentMatches.Should().ContainSingle();
+        percentMatches[0].Title.Should().Be("Complete 100% Pack");
+    }
+
+    [Test]
+    public void GetHistory_WithQuery_MatchesUnicodeTitlesCaseInsensitively()
+    {
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "\u00c5m\u00e5l.2024.Nordic",
+            InfoHash = "dddddddddddddddddddddddddddddddddddddddd",
+            Status = "Active",
+            DateAdded = DateTime.UtcNow,
+        });
+
+        var upperMatch = this.repository.GetHistory(query: "\u00c5M\u00c5L");
+        upperMatch.Should().ContainSingle();
+
+        var lowerMatch = this.repository.GetHistory(query: "\u00e5m\u00e5l");
+        lowerMatch.Should().ContainSingle();
+    }
+
+    [Test]
+    public void GetHistory_OnPostgreSql_WithQuery_UsesILikeWithEscape()
+    {
+        var database = Substitute.For<IDatabase>();
+        database.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var connection = Substitute.For<System.Data.IDbConnection>();
+        database.OpenConnection().Returns(connection);
+
+        var command = Substitute.For<System.Data.IDbCommand>();
+        var dataReader = Substitute.For<System.Data.IDataReader>();
+        connection.CreateCommand().Returns(command);
+        command.ExecuteReader(Arg.Any<System.Data.CommandBehavior>()).Returns(dataReader);
+        dataReader.Read().Returns(false);
+
+        var pgRepo = new DownloadHistoryRepository(database);
+        pgRepo.GetHistory(query: "100%");
+
+        command.CommandText.Should().Contain("ILIKE @Query ESCAPE");
+        command.CommandText.Should().NotContain("LOWER(");
+    }
+
+    [Test]
     public void GetHistory_WithStatusAndLimit_FiltersProperly()
     {
         this.repository.Insert(new DownloadHistory
