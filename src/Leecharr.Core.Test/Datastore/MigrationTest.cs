@@ -518,4 +518,52 @@ public class MigrationTest
         columns.Should().Contain("Threshold");
         columns.Should().Contain("SmallTorrentLimit");
     }
+
+    [Test]
+    public void Migration045_BackfillsPauseShareLimitActionToDefault()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(44);
+        }
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            connection.Open();
+            using var seed = connection.CreateCommand();
+            seed.CommandText = @"
+                INSERT INTO Torrents (Name, InfoHash, DateAdded, ShareLimitAction)
+                VALUES ('pause-torrent', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', datetime('now'), 'Pause'),
+                       ('remove-torrent', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', datetime('now'), 'Remove');";
+            seed.ExecuteNonQuery();
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(45);
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT ShareLimitAction FROM Torrents WHERE InfoHash = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';";
+        command.ExecuteScalar().Should().Be("Default");
+
+        command.CommandText = "SELECT ShareLimitAction FROM Torrents WHERE InfoHash = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';";
+        command.ExecuteScalar().Should().Be("Remove");
+    }
 }

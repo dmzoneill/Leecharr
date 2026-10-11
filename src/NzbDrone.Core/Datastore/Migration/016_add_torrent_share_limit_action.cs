@@ -10,7 +10,7 @@ public class AddTorrentShareLimitAction : NzbDroneMigrationBase
     public override void Up()
     {
         this.Alter.Table("Torrents")
-            .AddColumn("ShareLimitAction").AsString().NotNullable().WithDefaultValue("Pause");
+            .AddColumn("ShareLimitAction").AsString().NotNullable().WithDefaultValue("Default");
     }
 
     public override void Down()

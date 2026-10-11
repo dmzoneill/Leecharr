@@ -12,10 +12,10 @@ namespace Leecharr.Core.Test.Torrents;
 public class ShareLimitActionTest
 {
     [Test]
-    public void Torrent_DefaultsShareLimitActionToPause()
+    public void Torrent_DefaultsShareLimitActionToDefault()
     {
         var torrent = new Torrent();
-        torrent.ShareLimitAction.Should().Be("Pause");
+        torrent.ShareLimitAction.Should().Be("Default");
     }
 
     [Test]
