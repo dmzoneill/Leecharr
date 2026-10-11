@@ -596,6 +596,58 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void Inspect_Mp4WithAc3Dac3Box_Detects51FromAcmodDespiteStereoChannelCount()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+        var videoEntry = CreateVisualSampleEntry("hvc1", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var dac3 = CreateMp4Box("dac3", new byte[] { 0x10, 0x3C });
+        var audioEntry = CreateAudioSampleEntryWithExtraBox("ac-3", 2, 16, 48000, dac3);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video_51_ac3_dac3.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.AudioCodec.Should().Be("AC3 / Dolby Digital");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
+    public void Inspect_Mp4WithEac3Dec3Box_Detects51FromAcmodDespiteStereoChannelCount()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+        var videoEntry = CreateVisualSampleEntry("hvc1", 1920, 1080);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var dec3 = CreateMp4Box("dec3", new byte[] { 0x00, 0x00, 0x01, 0x03, 0xC0 });
+        var audioEntry = CreateAudioSampleEntryWithExtraBox("ec-3", 2, 16, 48000, dec3);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        var moov = CreateMoovBox(videoTrak, audioTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "video_51_eac3_dec3.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.AudioCodec.Should().Be("E-AC3 / Dolby Digital Plus");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
     public void Inspect_Mp4WithFlacSurround_DetectsFlacAnd5Point1Channels()
     {
         var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
@@ -2490,6 +2542,28 @@ public class TagLibInspectorProviderTest
         ms.WriteByte((byte)((srFixed >> 16) & 0xFF));
         ms.WriteByte((byte)((srFixed >> 8) & 0xFF));
         ms.WriteByte((byte)(srFixed & 0xFF));
+
+        var payload = ms.ToArray();
+        return CreateMp4Box(format, payload);
+    }
+
+    private static byte[] CreateAudioSampleEntryWithExtraBox(string format, ushort channels, ushort sampleSize, uint sampleRate, byte[] extraBox)
+    {
+        using var ms = new MemoryStream();
+        ms.Write(new byte[6], 0, 6);
+        ms.Write(new byte[] { 0, 1 }, 0, 2);
+        ms.Write(new byte[8], 0, 8);
+        ms.WriteByte((byte)(channels >> 8));
+        ms.WriteByte((byte)(channels & 0xFF));
+        ms.WriteByte((byte)(sampleSize >> 8));
+        ms.WriteByte((byte)(sampleSize & 0xFF));
+        ms.Write(new byte[4], 0, 4);
+        var srFixed = sampleRate << 16;
+        ms.WriteByte((byte)(srFixed >> 24));
+        ms.WriteByte((byte)((srFixed >> 16) & 0xFF));
+        ms.WriteByte((byte)((srFixed >> 8) & 0xFF));
+        ms.WriteByte((byte)(srFixed & 0xFF));
+        ms.Write(extraBox, 0, extraBox.Length);
 
         var payload = ms.ToArray();
         return CreateMp4Box(format, payload);

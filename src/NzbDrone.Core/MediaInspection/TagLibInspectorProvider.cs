@@ -966,6 +966,139 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         };
     }
 
+    private static int GetAc3ChannelCountFromAcmodLfeon(int acmod, int lfeon)
+    {
+        if (acmod < 0 || acmod > 7)
+        {
+            return 0;
+        }
+
+        ReadOnlySpan<byte> ac3Channels = stackalloc byte[] { 2, 1, 2, 3, 3, 4, 4, 5 };
+        return ac3Channels[acmod] + (lfeon != 0 ? 1 : 0);
+    }
+
+    private ref struct Mp4BitReader
+    {
+        private readonly byte[] data;
+        private readonly int end;
+        private int bytePos;
+        private int bitPos;
+
+        public Mp4BitReader(byte[] data, int offset, int length)
+        {
+            this.data = data;
+            this.bytePos = offset;
+            this.end = offset + length;
+            this.bitPos = 0;
+        }
+
+        public int Read(int count)
+        {
+            var result = 0;
+            for (var i = 0; i < count; i++)
+            {
+                if (this.bytePos >= this.end)
+                {
+                    return result;
+                }
+
+                var bit = (this.data[this.bytePos] >> (7 - this.bitPos)) & 1;
+                result = (result << 1) | bit;
+                this.bitPos++;
+                if (this.bitPos == 8)
+                {
+                    this.bitPos = 0;
+                    this.bytePos++;
+                }
+            }
+
+            return result;
+        }
+    }
+
+    private static bool TryParseDac3Payload(byte[] data, int offset, int length, out int channelCount)
+    {
+        channelCount = 0;
+        if (length < 2)
+        {
+            return false;
+        }
+
+        var reader = new Mp4BitReader(data, offset, length);
+        _ = reader.Read(2);
+        _ = reader.Read(5);
+        _ = reader.Read(3);
+        var acmod = reader.Read(3);
+        var lfeon = reader.Read(1);
+        channelCount = GetAc3ChannelCountFromAcmodLfeon(acmod, lfeon);
+        return channelCount > 0;
+    }
+
+    private static bool TryParseDec3Payload(byte[] data, int offset, int length, out int channelCount)
+    {
+        channelCount = 0;
+        if (length < 2)
+        {
+            return false;
+        }
+
+        var reader = new Mp4BitReader(data, offset, length);
+        _ = reader.Read(13);
+        var numIndSub = reader.Read(3);
+        _ = reader.Read(4);
+
+        for (var i = 0; i <= numIndSub; i++)
+        {
+            if (i > 0)
+            {
+                _ = reader.Read(9);
+            }
+
+            _ = reader.Read(2);
+            _ = reader.Read(5);
+            _ = reader.Read(3);
+            var acmod = reader.Read(3);
+            var lfeon = reader.Read(1);
+            channelCount = GetAc3ChannelCountFromAcmodLfeon(acmod, lfeon);
+            if (channelCount > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetMp4Ac3ChannelCount(byte[] data, int childOffset, int childLimit, out int channelCount)
+    {
+        channelCount = 0;
+        while (childOffset + 8 <= childLimit && childOffset + 8 <= data.Length)
+        {
+            var cSize = ((uint)data[childOffset] << 24) | ((uint)data[childOffset + 1] << 16) | ((uint)data[childOffset + 2] << 8) | data[childOffset + 3];
+            if (cSize < 8 || childOffset + cSize > childLimit)
+            {
+                break;
+            }
+
+            var cType = Encoding.ASCII.GetString(data, childOffset + 4, 4);
+            var payloadOffset = childOffset + 8;
+            var payloadLength = (int)cSize - 8;
+            if (cType == "dac3" && TryParseDac3Payload(data, payloadOffset, payloadLength, out channelCount))
+            {
+                return true;
+            }
+
+            if (cType == "dec3" && TryParseDec3Payload(data, payloadOffset, payloadLength, out channelCount))
+            {
+                return true;
+            }
+
+            childOffset += (int)cSize;
+        }
+
+        return false;
+    }
+
     private static void FinalizeMatroskaInfo(byte[] header, MediaContainerInfo info, ref EbmlParserContext context, string fileName)
     {
         FinalizeHdrFormat(header, info, ref context);
@@ -2873,6 +3006,16 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             if (sampleSize > 0)
             {
                 bitDepth = sampleSize;
+            }
+        }
+
+        if (entrySize > 36)
+        {
+            var childOffset = entryOffset + 36;
+            var childLimit = entryOffset + (int)entrySize;
+            if (TryGetMp4Ac3ChannelCount(data, childOffset, childLimit, out var ac3ChannelCount))
+            {
+                channels = FormatAudioChannels(ac3ChannelCount);
             }
         }
 
