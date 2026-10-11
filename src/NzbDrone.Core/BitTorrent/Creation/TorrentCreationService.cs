@@ -141,6 +141,7 @@ public class TorrentCreationService : ITorrentCreationService
                 creator.PieceLength = TorrentCreator.RecommendedPieceSize(fileSource.Files);
             }
 
+            var addedTrackerFromTiers = false;
             if (request.TrackerTiers != null && request.TrackerTiers.Count > 0)
             {
                 foreach (var tier in request.TrackerTiers)
@@ -157,6 +158,7 @@ public class TorrentCreationService : ITorrentCreationService
 
                     if (cleanTier.Count > 0)
                     {
+                        addedTrackerFromTiers = true;
                         if (string.IsNullOrEmpty(creator.Announce))
                         {
                             creator.Announce = cleanTier[0];
@@ -166,7 +168,8 @@ public class TorrentCreationService : ITorrentCreationService
                     }
                 }
             }
-            else if (request.Trackers != null && request.Trackers.Count > 0)
+
+            if (!addedTrackerFromTiers && request.Trackers != null && request.Trackers.Count > 0)
             {
                 var cleanTrackers = request.Trackers
                     .Where(t => !string.IsNullOrWhiteSpace(t))
