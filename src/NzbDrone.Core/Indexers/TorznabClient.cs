@@ -349,6 +349,12 @@ public class TorznabClient : ITorznabClient
                                 ? "book"
                                 : "search"))));
 
+            var searchCaps = GetEffectiveSearchCapabilities(indexer);
+            if (searchCaps != null)
+            {
+                mode = ConstrainSearchMode(mode, searchCaps);
+            }
+
             var effectiveLimit = this.ResolveEffectiveLimit(indexer, criteria.Limit);
             var queryParams = $"t={Uri.EscapeDataString(mode)}&limit={effectiveLimit}&offset={criteria.Offset}";
 
@@ -1445,6 +1451,153 @@ public class TorznabClient : ITorznabClient
         var cleanUrl = (url ?? string.Empty).Trim().TrimEnd('/');
         var cleanKey = (apiKey ?? string.Empty).Trim();
         return $"{cleanUrl}|{cleanKey}";
+    }
+
+    internal static TorznabCapabilities GetEffectiveSearchCapabilities(IndexerDefinition indexer)
+    {
+        if (indexer == null)
+        {
+            return null;
+        }
+
+        TorznabCapabilities cached = null;
+        if (!string.IsNullOrWhiteSpace(indexer.Url))
+        {
+            var cacheKey = GetCapabilitiesCacheKey(indexer.Url, indexer.ApiKey);
+            if (CapabilitiesCache.TryGetValue(cacheKey, out var cachedEntry) &&
+                cachedEntry.ExpiresAt > DateTime.UtcNow &&
+                cachedEntry.Caps != null)
+            {
+                cached = cachedEntry.Caps;
+            }
+        }
+
+        IndexerSettings settings = null;
+        if (!string.IsNullOrWhiteSpace(indexer.Settings))
+        {
+            try
+            {
+                settings = indexer.Settings.FromJson<IndexerSettings>();
+            }
+            catch (Exception ex)
+            {
+                StaticLogger.Warn(ex, "Failed to deserialize indexer settings for search capabilities");
+            }
+        }
+
+        if (!ShouldApplySearchCapabilityFlags(settings, cached))
+        {
+            return null;
+        }
+
+        var effective = cached != null
+            ? new TorznabCapabilities
+            {
+                SupportsSearch = cached.SupportsSearch,
+                SupportsTvSearch = cached.SupportsTvSearch,
+                SupportsMovieSearch = cached.SupportsMovieSearch,
+                SupportsMusicSearch = cached.SupportsMusicSearch,
+                SupportsBookSearch = cached.SupportsBookSearch,
+            }
+            : new TorznabCapabilities();
+
+        if (settings != null)
+        {
+            effective.SupportsSearch = settings.SupportsSearch;
+            effective.SupportsTvSearch = settings.SupportsTvSearch;
+            effective.SupportsMovieSearch = settings.SupportsMovieSearch;
+            effective.SupportsMusicSearch = settings.SupportsMusicSearch;
+            effective.SupportsBookSearch = settings.SupportsBookSearch;
+        }
+
+        return effective;
+    }
+
+    internal static bool ShouldApplySearchCapabilityFlags(IndexerSettings settings, TorznabCapabilities cached)
+    {
+        if (cached != null)
+        {
+            return true;
+        }
+
+        if (settings == null)
+        {
+            return false;
+        }
+
+        if (settings.CapabilitiesVerified)
+        {
+            return true;
+        }
+
+        if (!settings.SupportsSearch)
+        {
+            return true;
+        }
+
+        if (settings.SupportsTvSearch || settings.SupportsMovieSearch || settings.SupportsMusicSearch || settings.SupportsBookSearch)
+        {
+            return true;
+        }
+
+        return (settings.SupportedTvParams?.Count ?? 0) > 0
+            || (settings.SupportedMovieParams?.Count ?? 0) > 0
+            || (settings.SupportedMusicParams?.Count ?? 0) > 0
+            || (settings.SupportedBookParams?.Count ?? 0) > 0;
+    }
+
+    internal static string NormalizeTorznabSearchMode(string mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            return "search";
+        }
+
+        var normalized = mode.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "tv-search" => "tvsearch",
+            "movie-search" => "movie",
+            "music-search" => "music",
+            "audio-search" => "music",
+            "book-search" => "book",
+            _ => normalized,
+        };
+    }
+
+    internal static bool IsSearchModeSupported(string mode, TorznabCapabilities caps)
+    {
+        if (caps == null)
+        {
+            return true;
+        }
+
+        mode = NormalizeTorznabSearchMode(mode);
+        return mode switch
+        {
+            "tvsearch" => caps.SupportsTvSearch,
+            "movie" => caps.SupportsMovieSearch,
+            "music" => caps.SupportsMusicSearch,
+            "book" => caps.SupportsBookSearch,
+            "search" => caps.SupportsSearch,
+            _ => caps.SupportsSearch,
+        };
+    }
+
+    internal static string ConstrainSearchMode(string mode, TorznabCapabilities caps)
+    {
+        mode = NormalizeTorznabSearchMode(mode);
+        if (IsSearchModeSupported(mode, caps))
+        {
+            return mode;
+        }
+
+        if (caps != null && caps.SupportsSearch)
+        {
+            return "search";
+        }
+
+        return mode;
     }
 
     internal static XAttribute FindAttribute(XElement elem, string localName)

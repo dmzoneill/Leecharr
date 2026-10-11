@@ -1523,6 +1523,56 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task SearchAsync_WhenTvSearchDisabledInVerifiedSettings_UsesGenericSearchMode()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var settingsJson = System.Text.Json.JsonSerializer.Serialize(new IndexerSettings
+        {
+            CapabilitiesVerified = true,
+            SupportsSearch = true,
+            SupportsTvSearch = false,
+            SupportsMovieSearch = true,
+        });
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "NoTv",
+            Url = "https://tracker.local/api",
+            ApiKey = "key",
+            Settings = settingsJson,
+        };
+
+        await customClient.SearchAsync(
+            indexer,
+            query: "Breaking Bad",
+            season: 5,
+            ep: 14,
+            tvdbId: "81189");
+
+        capturedUri.Should().NotBeNull();
+        capturedUri.Query.Should().Contain("t=search");
+        capturedUri.Query.Should().NotContain("t=tvsearch");
+    }
+
+    [Test]
+    public void ConstrainSearchMode_WhenModeUnsupportedAndGenericSearchAvailable_FallsBackToSearch()
+    {
+        var caps = new TorznabCapabilities { SupportsSearch = true, SupportsTvSearch = false };
+        TorznabClient.ConstrainSearchMode("tvsearch", caps).Should().Be("search");
+    }
+
+    [Test]
     public async Task SearchAsync_WithImdbId_NormalizesAndStripsTtPrefix()
     {
         Uri capturedUri = null!;
