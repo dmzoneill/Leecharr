@@ -30,7 +30,7 @@ public class SystemMaintenanceController : ControllerBase
         {
             this.logger.Info("Starting database compaction (VACUUM)...");
             using var connection = this.database.OpenConnection();
-            await connection.ExecuteAsync("VACUUM;");
+            await connection.ExecuteAsync("VACUUM;", commandTimeout: 0);
             this.logger.Info("Database compaction (VACUUM) completed successfully.");
             return this.Ok(new { Success = true, Message = "Database VACUUM completed successfully." });
         }
