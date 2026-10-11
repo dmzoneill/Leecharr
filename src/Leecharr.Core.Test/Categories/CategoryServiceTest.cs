@@ -191,34 +191,30 @@ public class CategoryServiceTest
     }
 
     [Test]
-    public void Add_WhenIsDefault_ClearsExistingDefaultCategories()
+    public void Add_WhenIsDefault_UsesInsertAsDefault()
     {
-        var existingDefault = new Category { Id = 1, Name = "old-default", IsDefault = true };
-        this.repository.All().Returns(new List<Category> { existingDefault });
+        var newCategory = new Category { Name = "new-default", IsDefault = true };
+        var inserted = new Category { Id = 2, Name = "new-default", IsDefault = true };
+        this.repository.InsertAsDefault(newCategory).Returns(inserted);
 
-        var newCategory = new Category { Id = 2, Name = "new-default", IsDefault = true };
-        this.repository.Insert(newCategory).Returns(newCategory);
+        var result = this.service.Add(newCategory);
 
-        this.service.Add(newCategory);
-
-        existingDefault.IsDefault.Should().BeFalse();
-        this.repository.Received(1).Update(existingDefault);
-        this.repository.Received(1).Insert(newCategory);
+        result.Should().BeSameAs(inserted);
+        this.repository.Received(1).InsertAsDefault(newCategory);
+        this.repository.DidNotReceive().Insert(Arg.Any<Category>());
     }
 
     [Test]
-    public void Update_WhenIsDefault_ClearsOtherDefaultCategories()
+    public void Update_WhenIsDefault_UsesSetAsDefault()
     {
-        var otherDefault = new Category { Id = 1, Name = "old-default", IsDefault = true };
         var categoryToUpdate = new Category { Id = 2, Name = "updated", IsDefault = true };
-        this.repository.All().Returns(new List<Category> { otherDefault, categoryToUpdate });
-        this.repository.Update(categoryToUpdate).Returns(categoryToUpdate);
+        this.repository.Get(2).Returns(new Category { Id = 2, Name = "updated", IsDefault = false });
+        this.repository.SetAsDefault(categoryToUpdate).Returns(categoryToUpdate);
 
         this.service.Update(categoryToUpdate);
 
-        otherDefault.IsDefault.Should().BeFalse();
-        this.repository.Received(1).Update(otherDefault);
-        this.repository.Received(1).Update(categoryToUpdate);
+        this.repository.Received(1).SetAsDefault(categoryToUpdate);
+        this.repository.DidNotReceive().Update(categoryToUpdate);
     }
 
     [Test]

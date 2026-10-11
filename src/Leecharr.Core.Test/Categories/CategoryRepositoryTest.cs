@@ -130,4 +130,77 @@ public class CategoryRepositoryTest
 
         result.Should().BeNull();
     }
+
+    [Test]
+    public void GetDefault_WhenMultipleDefaultsExist_ReturnsLowestId()
+    {
+        var firstDefault = new Category
+        {
+            Name = "first",
+            SavePath = "/downloads/first",
+            IsDefault = true,
+        };
+        var secondDefault = new Category
+        {
+            Name = "second",
+            SavePath = "/downloads/second",
+            IsDefault = true,
+        };
+
+        this.repository.Insert(firstDefault);
+        this.repository.Insert(secondDefault);
+
+        var result = this.repository.GetDefault();
+
+        result.Should().NotBeNull();
+        result.Name.Should().Be("first");
+    }
+
+    [Test]
+    public void InsertAsDefault_ClearsExistingDefault()
+    {
+        var existingDefault = new Category
+        {
+            Name = "general",
+            SavePath = "/downloads/general",
+            IsDefault = true,
+        };
+        this.repository.Insert(existingDefault);
+
+        var newDefault = new Category
+        {
+            Name = "movies",
+            SavePath = "/downloads/movies",
+            IsDefault = true,
+        };
+        this.repository.InsertAsDefault(newDefault);
+
+        this.repository.GetDefault().Name.Should().Be("movies");
+        this.repository.Get(existingDefault.Id).IsDefault.Should().BeFalse();
+    }
+
+    [Test]
+    public void SetAsDefault_ClearsOtherDefaults()
+    {
+        var firstDefault = new Category
+        {
+            Name = "general",
+            SavePath = "/downloads/general",
+            IsDefault = true,
+        };
+        var other = new Category
+        {
+            Name = "movies",
+            SavePath = "/downloads/movies",
+            IsDefault = false,
+        };
+        this.repository.Insert(firstDefault);
+        this.repository.Insert(other);
+
+        other.IsDefault = true;
+        this.repository.SetAsDefault(other);
+
+        this.repository.GetDefault().Name.Should().Be("movies");
+        this.repository.Get(firstDefault.Id).IsDefault.Should().BeFalse();
+    }
 }
