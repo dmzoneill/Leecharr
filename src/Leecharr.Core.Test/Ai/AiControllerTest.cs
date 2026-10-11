@@ -46,6 +46,21 @@ public class AiControllerTest
     }
 
     [Test]
+    public async Task CheckMalwareRisk_WhenTorrentIdNotFound_ReturnsNotFound()
+    {
+        const int missingTorrentId = 999999;
+        this.torrentService.Get(missingTorrentId).Returns((Torrent)null!);
+
+        var result = await this.controller.CheckMalwareRisk(new AiMalwareCheckRequest
+        {
+            TorrentId = missingTorrentId,
+        });
+
+        result.Result.Should().BeOfType<NotFoundObjectResult>();
+        await this.aiService.DidNotReceive().AnalyzeMalwareRiskAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<TorrentFile>>());
+    }
+
+    [Test]
     public async Task Chat_WhenRequestMessageEmpty_ReturnsBadRequest()
     {
         var result = await this.controller.Chat(new AiChatRequest { Message = string.Empty });
