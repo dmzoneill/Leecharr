@@ -12,12 +12,12 @@ namespace NzbDrone.Core.Notifications;
 public class EpisodicParser : IEpisodicParser
 {
     private static readonly Regex SeasonEpisodeRangeRegex = new(
-        @"(?i)\bS(?<season>\d{1,2})E(?<epStart>\d{1,3})(?:-(?:E|EP)?(?<epEnd>\d{1,3})|(?<extraEps>(?:[-._,]?[eE]\d{1,3})+))?\b",
+        @"(?i)\bS(?<season>\d{1,2})E(?<epStart>\d{1,3})(?:-(?:(?:E|EP)(?<epEnd>\d{1,3})|(?<epEndCompact>\d{1,2}))|(?<extraEps>(?:[-._,]?[eE]\d{1,3})+))?\b",
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
 
     private static readonly Regex SeasonEpisodeAltRangeRegex = new(
-        @"(?i)\b(?<season>\d{1,2})x(?<epStart>\d{1,3})(?:-(?:(?:\d{1,2}x)?(?<epEnd>\d{1,3}))|(?<extraEps>(?:x\d{1,3})+))?\b",
+        @"(?i)\b(?<season>\d{1,2})x(?<epStart>\d{1,3})(?:-(?:(?:\d{1,2})x(?<epEnd>\d{1,3})|(?<epEndCompact>\d{1,2}))|(?<extraEps>(?:x\d{1,3})+))?\b",
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
 
@@ -83,16 +83,9 @@ public class EpisodicParser : IEpisodicParser
             var epEndGroup = match.Groups["epEnd"];
             var extraEpsGroup = match.Groups["extraEps"];
 
-            if (epEndGroup.Success && int.TryParse(epEndGroup.Value, out var epEnd))
+            if (TryApplyEpisodeEnd(epEndGroup, match.Groups["epEndCompact"], epStart, eps, out var expandedEps))
             {
-                if (epEnd >= epStart && epEnd - epStart <= 50)
-                {
-                    eps = Enumerable.Range(epStart, epEnd - epStart + 1).ToList();
-                }
-                else
-                {
-                    eps.Add(epEnd);
-                }
+                eps = expandedEps;
             }
             else if (extraEpsGroup.Success)
             {
@@ -120,16 +113,9 @@ public class EpisodicParser : IEpisodicParser
             var epEndGroup = matchAlt.Groups["epEnd"];
             var extraEpsGroup = matchAlt.Groups["extraEps"];
 
-            if (epEndGroup.Success && int.TryParse(epEndGroup.Value, out var epEndAlt))
+            if (TryApplyEpisodeEnd(epEndGroup, matchAlt.Groups["epEndCompact"], epStartAlt, eps, out var expandedEpsAlt))
             {
-                if (epEndAlt >= epStartAlt && epEndAlt - epStartAlt <= 50)
-                {
-                    eps = Enumerable.Range(epStartAlt, epEndAlt - epStartAlt + 1).ToList();
-                }
-                else
-                {
-                    eps.Add(epEndAlt);
-                }
+                eps = expandedEpsAlt;
             }
             else if (extraEpsGroup.Success)
             {
@@ -157,6 +143,45 @@ public class EpisodicParser : IEpisodicParser
         }
 
         return (null, null, null, new List<int>(), null);
+    }
+
+    private static bool TryApplyEpisodeEnd(
+        Group epEndGroup,
+        Group epEndCompactGroup,
+        int epStart,
+        List<int> eps,
+        out List<int> expandedEps)
+    {
+        expandedEps = null;
+        if (epEndGroup.Success && int.TryParse(epEndGroup.Value, out var epEnd))
+        {
+            expandedEps = ExpandEpisodeEnd(epStart, epEnd, eps, allowNonContiguousEnd: true);
+            return true;
+        }
+
+        if (epEndCompactGroup.Success && int.TryParse(epEndCompactGroup.Value, out var epEndCompact))
+        {
+            expandedEps = ExpandEpisodeEnd(epStart, epEndCompact, eps, allowNonContiguousEnd: true);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static List<int> ExpandEpisodeEnd(int epStart, int epEnd, List<int> eps, bool allowNonContiguousEnd)
+    {
+        if (epEnd >= epStart && epEnd - epStart <= 50)
+        {
+            return Enumerable.Range(epStart, epEnd - epStart + 1).ToList();
+        }
+
+        if (allowNonContiguousEnd && epEnd != epStart)
+        {
+            var result = new List<int>(eps) { epEnd };
+            return result;
+        }
+
+        return new List<int>(eps);
     }
 
     private static string FormatEpisodeRange(int season, List<int> episodes)
