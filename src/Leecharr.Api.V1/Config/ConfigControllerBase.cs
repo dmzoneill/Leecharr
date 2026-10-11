@@ -1,7 +1,5 @@
 // Copyright (c) FeedItOut. All rights reserved.
 using System;
-using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Authorization;
@@ -65,12 +63,11 @@ public abstract class ConfigController<TResource> : Controller
                 }
             }
 
-            var dictionary = resource.GetType()
-                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-                .Where(prop => prop.Name != "Id" && prop.Name != "ResourceName")
-                .ToDictionary(prop => prop.Name, prop => prop.GetValue(resource, null));
-
-            this.configService.SaveConfigDictionary(dictionary);
+            var dictionary = ConfigResourceDictionaryBuilder.ToDictionary(resource);
+            if (dictionary.Count > 0)
+            {
+                this.configService.SaveConfigDictionary(dictionary);
+            }
 
             return await Task.FromResult(this.Accepted(resource));
         }

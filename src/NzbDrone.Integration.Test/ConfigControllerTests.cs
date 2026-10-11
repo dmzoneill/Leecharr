@@ -74,6 +74,27 @@ public class ConfigControllerTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task PutAdvancedConfig_partial_does_not_overwrite_logToFile()
+    {
+        var getBefore = await this.Client.GetAsync("/api/v1/config/advanced");
+        getBefore.StatusCode.Should().Be(HttpStatusCode.OK);
+        var beforeJson = await getBefore.Content.ReadAsStringAsync();
+        var before = Deserialize<Dictionary<string, object>>(beforeJson);
+        var logToFileBefore = before["logToFile"].ToString();
+
+        var putResponse = await this.PutJsonAsync("/api/v1/config/advanced/1", new { id = 1, uiRefreshRateSec = 42 });
+        putResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var getAfter = await this.Client.GetAsync("/api/v1/config/advanced");
+        getAfter.StatusCode.Should().Be(HttpStatusCode.OK);
+        var afterJson = await getAfter.Content.ReadAsStringAsync();
+        var after = Deserialize<Dictionary<string, object>>(afterJson);
+
+        after["logToFile"].ToString().Should().Be(logToFileBefore);
+        after["uiRefreshRateSec"].ToString().Should().Be("42");
+    }
+
+    [Test]
     public async Task PutNetworkConfig_with_invalid_port_returns_400()
     {
         var body = new

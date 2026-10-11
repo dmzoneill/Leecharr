@@ -1,11 +1,15 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace Leecharr.Http.REST;
 
 public abstract class RestResource
 {
+    [JsonIgnore]
+    public HashSet<string> SuppliedJsonPropertyNames { get; set; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int Id { get; set; }
 
