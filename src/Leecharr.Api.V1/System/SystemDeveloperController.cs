@@ -992,6 +992,10 @@ public class SystemDeveloperController : Controller
                 {
                     detectedArrType = "Prowlarr";
                 }
+                else if (inst.Contains("Whisparr", StringComparison.OrdinalIgnoreCase))
+                {
+                    detectedArrType = "Whisparr";
+                }
             }
 
             if (root.TryGetProperty("series", out var seriesProp))
@@ -1004,7 +1008,7 @@ public class SystemDeveloperController : Controller
             {
                 var title = movieProp.TryGetProperty("title", out var tp) ? tp.GetString() : "Unknown";
                 logs.Add($"[Simulator] Identified Movie context: '{title}'");
-                detectedArrType ??= "Radarr";
+                detectedArrType ??= InferArrTypeFromMoviePayload(root, movieProp);
             }
             else if (root.TryGetProperty("artist", out var artistProp))
             {
@@ -1189,6 +1193,23 @@ public class SystemDeveloperController : Controller
                 TraceLogs = logs,
             });
         }
+    }
+
+    private static string InferArrTypeFromMoviePayload(JsonElement root, JsonElement movie)
+    {
+        if (root.TryGetProperty("site", out _))
+        {
+            return "Whisparr";
+        }
+
+        if (movie.TryGetProperty("tmdbId", out _) ||
+            movie.TryGetProperty("imdbId", out _) ||
+            movie.TryGetProperty("year", out _))
+        {
+            return "Radarr";
+        }
+
+        return "Whisparr";
     }
 
     private ArrWebhookController GetWebhookController()

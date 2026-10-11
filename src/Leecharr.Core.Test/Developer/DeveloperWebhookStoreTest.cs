@@ -227,4 +227,64 @@ public class SystemDeveloperWebhookSimulateTest
             Arg.Is<string>(m => m.Contains("simulation parsed and verified successfully")),
             true);
     }
+
+    [Test]
+    public async Task SimulateWebhook_WhenWhisparrGrabTemplateWithoutArrType_DetectsWhisparr()
+    {
+        var payload = "{\"eventType\":\"Grab\",\"site\":{\"id\":15,\"name\":\"StudioX\"},\"movie\":{\"id\":401,\"title\":\"Summer Vacation\",\"releaseDate\":\"2024-06-15\"},\"downloadClient\":\"Leecharr\"}";
+        var request = new DeveloperWebhookSimulateRequest
+        {
+            EventType = "Grab",
+            PayloadJson = payload,
+            DispatchToPipeline = true,
+        };
+
+        var result = await this.controller.SimulateWebhook(request);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result.Result!;
+        var response = okResult.Value as DeveloperWebhookSimulateResponse;
+        response.Should().NotBeNull();
+        response!.TraceLogs.Should().Contain(log => log.Contains("ArrType: 'Whisparr'"));
+    }
+
+    [Test]
+    public async Task SimulateWebhook_WhenRadarrMoviePayloadWithoutArrType_DetectsRadarr()
+    {
+        var payload = "{\"eventType\":\"Grab\",\"movie\":{\"id\":77,\"title\":\"Inception\",\"year\":2010,\"tmdbId\":27205},\"downloadClient\":\"Leecharr\"}";
+        var request = new DeveloperWebhookSimulateRequest
+        {
+            EventType = "Grab",
+            PayloadJson = payload,
+            DispatchToPipeline = true,
+        };
+
+        var result = await this.controller.SimulateWebhook(request);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result.Result!;
+        var response = okResult.Value as DeveloperWebhookSimulateResponse;
+        response.Should().NotBeNull();
+        response!.TraceLogs.Should().Contain(log => log.Contains("ArrType: 'Radarr'"));
+    }
+
+    [Test]
+    public async Task SimulateWebhook_WhenWhisparrDownloadMovieWithoutRadarrIds_DetectsWhisparr()
+    {
+        var payload = "{\"eventType\":\"Download\",\"movie\":{\"id\":401,\"title\":\"Summer Vacation\"},\"movieFile\":{\"id\":801,\"path\":\"/adult/Summer Vacation/Summer Vacation (2024).mp4\"}}";
+        var request = new DeveloperWebhookSimulateRequest
+        {
+            EventType = "Download",
+            PayloadJson = payload,
+            DispatchToPipeline = true,
+        };
+
+        var result = await this.controller.SimulateWebhook(request);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result.Result!;
+        var response = okResult.Value as DeveloperWebhookSimulateResponse;
+        response.Should().NotBeNull();
+        response!.TraceLogs.Should().Contain(log => log.Contains("ArrType: 'Whisparr'"));
+    }
 }
