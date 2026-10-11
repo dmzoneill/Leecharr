@@ -205,6 +205,46 @@ class LibTorrentManager:
             return {"status": "reannounced"}
         return {"status": "not_found"}
 
+    def disconnect_peer(self, params):
+        h = self.find_handle(params.get("info_hash"))
+        if not h:
+            return {"status": "not_found", "disconnected": 0}
+
+        target = (params.get("ip") or "").strip()
+        if not target:
+            return {"status": "invalid_ip", "disconnected": 0}
+
+        target_norm = target.lower().strip("[]")
+        disconnected = 0
+        with self.lock:
+            try:
+                peers = list(h.get_peer_info())
+            except Exception:
+                peers = []
+
+            for pi in peers:
+                peer_ip = pi.ip[0] if isinstance(pi.ip, tuple) else str(pi.ip)
+                if not peer_ip:
+                    continue
+                peer_norm = str(peer_ip).lower().strip("[]")
+                if peer_norm != target_norm:
+                    continue
+                try:
+                    endpoint = pi.endpoint
+                except Exception:
+                    port = pi.ip[1] if isinstance(pi.ip, tuple) else 0
+                    try:
+                        endpoint = lt.tcp_endpoint(lt.address_from_string(str(peer_ip)), int(port))
+                    except Exception:
+                        continue
+                try:
+                    h.disconnect_peer(endpoint)
+                    disconnected += 1
+                except Exception:
+                    pass
+
+        return {"status": "ok", "disconnected": disconnected}
+
     def add_trackers(self, params):
         h = self.find_handle(params.get("info_hash"))
         if h:
@@ -528,6 +568,8 @@ class RpcHandler(BaseHTTPRequestHandler):
                 result = manager.force_recheck(params)
             elif method == "force_reannounce":
                 result = manager.force_reannounce(params)
+            elif method == "disconnect_peer":
+                result = manager.disconnect_peer(params)
             elif method == "add_trackers":
                 result = manager.add_trackers(params)
             elif method == "remove_trackers":

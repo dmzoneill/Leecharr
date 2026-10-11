@@ -19,6 +19,7 @@ using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Vpn;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.BitTorrent;
 
@@ -242,6 +243,45 @@ public class LibTorrentDownloadEngineTest
 
         paramsObj.GetProperty("enable_dht").GetBoolean().Should().BeFalse();
         paramsObj.GetProperty("anonymous_mode").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task DisconnectPeerAsync_WhenDaemonDisconnectsPeer_ReturnsTrueAndUpdatesCache()
+    {
+        var rpcMethods = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            rpcMethods.Add(doc.RootElement.GetProperty("method").GetString()!);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"disconnected\":1,\"status\":\"ok\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns("/downloads");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>()).Returns("/downloads");
+
+        var torrent = new Torrent
+        {
+            Id = 7,
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+            Name = "disconnect-test",
+        };
+        await engine.AddTorrentAsync(torrent);
+
+        var task = (LibTorrentDownloadTask)engine.GetTask(7)!;
+        task.SetPeers(new List<PeerInfo> { new() { Ip = "10.0.0.5", Port = 6881 } });
+
+        var result = await task.DisconnectPeerAsync("10.0.0.5");
+
+        result.Should().BeTrue();
+        rpcMethods.Should().Contain("disconnect_peer");
+        task.GetPeers().Should().BeEmpty();
     }
 
     private LibTorrentDownloadEngine CreateEngine(HttpClient client = null)

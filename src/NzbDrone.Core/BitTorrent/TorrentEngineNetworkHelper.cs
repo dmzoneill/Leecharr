@@ -144,4 +144,52 @@ public static class TorrentEngineNetworkHelper
             haltedIds.Clear();
         }
     }
+
+    public static string NormalizePeerIp(string ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = ip.Trim();
+        if (IPEndPoint.TryParse(trimmed, out var endpoint))
+        {
+            return endpoint.Address.ToString();
+        }
+
+        if (trimmed.StartsWith('[') && trimmed.EndsWith(']'))
+        {
+            trimmed = trimmed[1..^1].Trim();
+        }
+
+        if (IPAddress.TryParse(trimmed, out var address))
+        {
+            return address.ToString();
+        }
+
+        var colonCount = trimmed.Count(c => c == ':');
+        if (colonCount == 1)
+        {
+            var hostPart = trimmed.Substring(0, trimmed.IndexOf(':'));
+            if (IPAddress.TryParse(hostPart, out var ipv4))
+            {
+                return ipv4.ToString();
+            }
+        }
+
+        return trimmed;
+    }
+
+    public static bool PeerAddressesMatch(string requestedIp, string peerIp)
+    {
+        var left = NormalizePeerIp(requestedIp);
+        var right = NormalizePeerIp(peerIp);
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+        {
+            return false;
+        }
+
+        return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    }
 }

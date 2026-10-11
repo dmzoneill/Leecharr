@@ -1034,6 +1034,7 @@ public class TorrentControllerTest
         this.torrentService.Get(1).Returns(torrent);
 
         var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.DisconnectPeerAsync(Arg.Any<string>()).Returns(true);
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
         var result = await this.controller.BanPeer(1, new BanPeerRequest { Ip = "10.0.0.5" });
@@ -1050,6 +1051,7 @@ public class TorrentControllerTest
         this.torrentService.Get(1).Returns(torrent);
 
         var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.DisconnectPeerAsync(Arg.Any<string>()).Returns(true);
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
         var result = await this.controller.DisconnectPeer(1, "10.0.0.5");
@@ -1066,6 +1068,7 @@ public class TorrentControllerTest
         this.torrentService.Get(1).Returns(torrent);
 
         var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.DisconnectPeerAsync(Arg.Any<string>()).Returns(true);
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
         var result = await this.controller.DisconnectPeer(1, "[2001:db8::1]:51413");
@@ -1082,6 +1085,7 @@ public class TorrentControllerTest
         this.torrentService.Get(1).Returns(torrent);
 
         var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.DisconnectPeerAsync(Arg.Any<string>()).Returns(true);
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
         var result = await this.controller.DisconnectPeerPost(1, new DisconnectPeerRequest { Ip = "10.0.0.5:6881" });
@@ -1098,6 +1102,7 @@ public class TorrentControllerTest
         this.torrentService.Get(1).Returns(torrent);
 
         var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.DisconnectPeerAsync(Arg.Any<string>()).Returns(true);
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
         var result = await this.controller.BanPeer(1, new BanPeerRequest { Ip = "10.0.0.5:6881" });

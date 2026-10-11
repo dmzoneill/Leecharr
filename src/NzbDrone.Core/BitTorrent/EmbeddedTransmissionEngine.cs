@@ -299,7 +299,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
 
         var savePath = this.ResolveSavePath(torrent);
-        var task = new TransmissionDownloadTask(torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
+        var task = new TransmissionDownloadTask(this, torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
         this.tasks[torrent.Id] = task;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
         if (!string.IsNullOrWhiteSpace(torrent.V2InfoHash))
@@ -907,6 +907,53 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         return task;
     }
 
+    public async Task<bool> DisconnectPeerAsync(int torrentId, string ip)
+    {
+        if (!this.tasks.TryGetValue(torrentId, out var task))
+        {
+            return false;
+        }
+
+        var cleanIp = TorrentEngineNetworkHelper.NormalizePeerIp(ip);
+        if (string.IsNullOrWhiteSpace(cleanIp))
+        {
+            return false;
+        }
+
+        var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+        if (rpcIds.Count == 0)
+        {
+            return false;
+        }
+
+        var hasPeer = task.GetPeers().Any(p => TorrentEngineNetworkHelper.PeerAddressesMatch(cleanIp, p.Ip));
+        if (!hasPeer)
+        {
+            hasPeer = await this.TorrentHasPeerViaRpcAsync(rpcIds, cleanIp);
+            if (!hasPeer)
+            {
+                return false;
+            }
+        }
+
+        try
+        {
+            await this.SendRpcRequestAsync("torrent-stop", new Dictionary<string, object> { ["ids"] = rpcIds });
+            await this.SendRpcRequestAsync("torrent-start", new Dictionary<string, object> { ["ids"] = rpcIds });
+
+            var remainingPeers = task.GetPeers()
+                .Where(p => !TorrentEngineNetworkHelper.PeerAddressesMatch(cleanIp, p.Ip))
+                .ToList();
+            task.SetPeers(remainingPeers);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Transmission: failed to disconnect peer {0} on torrent {1}", ip, torrentId);
+            return false;
+        }
+    }
+
     public IEnumerable<IDownloadTask> GetAllTasks()
     {
         return this.tasks.Values;
@@ -1143,6 +1190,56 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
 
         return list;
+    }
+
+    private async Task<bool> TorrentHasPeerViaRpcAsync(List<object> rpcIds, string cleanIp)
+    {
+        try
+        {
+            var getResp = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
+            {
+                ["ids"] = rpcIds,
+                ["fields"] = new[] { "peers" },
+            });
+
+            if (!getResp.TryGetValue("arguments", out var argsObj) || argsObj is not JsonElement args)
+            {
+                return false;
+            }
+
+            if (!args.TryGetProperty("torrents", out var torrentsArray) || torrentsArray.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            foreach (var item in torrentsArray.EnumerateArray())
+            {
+                if (!item.TryGetProperty("peers", out var peersArray) || peersArray.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var peer in peersArray.EnumerateArray())
+                {
+                    if (!peer.TryGetProperty("address", out var addressProp))
+                    {
+                        continue;
+                    }
+
+                    var address = addressProp.GetString();
+                    if (TorrentEngineNetworkHelper.PeerAddressesMatch(cleanIp, address))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Transmission: failed to query peers while disconnecting {0}", cleanIp);
+        }
+
+        return false;
     }
 
     private static bool TrackerAnnouncesMatch(string requested, string announce)
@@ -1398,8 +1495,19 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
 public class TransmissionDownloadTask : BaseDaemonDownloadTask
 {
-    public TransmissionDownloadTask(int torrentId, string infoHash, string name, long totalSize, string category = null)
+    private readonly EmbeddedTransmissionEngine engine;
+
+    public TransmissionDownloadTask(
+        EmbeddedTransmissionEngine engine,
+        int torrentId,
+        string infoHash,
+        string name,
+        long totalSize,
+        string category = null)
         : base(torrentId, infoHash, name, totalSize, category)
     {
+        this.engine = engine;
     }
+
+    public Task<bool> DisconnectPeerAsync(string ip) => this.engine.DisconnectPeerAsync(this.TorrentId, ip);
 }
