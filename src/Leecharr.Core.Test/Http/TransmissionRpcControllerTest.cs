@@ -701,6 +701,80 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_TorrentAdd_WithFileSelection_AppliesFilePriorities()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Multi.File.Release",
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            TotalSize = 4096,
+        };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.torrentService.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null);
+
+        var newTorrent = new Torrent
+        {
+            Id = 42,
+            Name = "Multi.File.Release",
+            InfoHash = parsed.InfoHash,
+        };
+        this.torrentService.AddFromParsedTorrentAsync(parsed, Arg.Any<string>(), Arg.Any<string>(), false, Arg.Any<byte[]>()).Returns(newTorrent);
+
+        var files = new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1001, TorrentId = 42, Path = "a.mkv" },
+            new TorrentFile { Id = 1002, TorrentId = 42, Path = "b.mkv" },
+            new TorrentFile { Id = 1003, TorrentId = 42, Path = "c.mkv" },
+        };
+        this.torrentFileService.GetFiles(42).Returns(files);
+
+        var args = new Dictionary<string, JsonElement>();
+        var fakeBase64 = Convert.ToBase64String(new byte[] { 0x64, 0x38, 0x3a, 0x62 });
+        using (var metaDoc = JsonDocument.Parse($"\"{fakeBase64}\""))
+        {
+            args["metainfo"] = metaDoc.RootElement.Clone();
+        }
+
+        using (var unwantedDoc = JsonDocument.Parse("[1]"))
+        {
+            args["files-unwanted"] = unwantedDoc.RootElement.Clone();
+        }
+
+        using (var wantedDoc = JsonDocument.Parse("[0]"))
+        {
+            args["files-wanted"] = wantedDoc.RootElement.Clone();
+        }
+
+        using (var highDoc = JsonDocument.Parse("[0,2]"))
+        {
+            args["priority-high"] = highDoc.RootElement.Clone();
+        }
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-add",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        await this.torrentFileService.Received(1).SetPriorityAsync(1002, 0);
+        await this.torrentFileService.Received(1).SetPriorityAsync(1001, 3);
+        await this.torrentFileService.Received(1).SetPriorityAsync(1001, 4);
+        await this.torrentFileService.Received(1).SetPriorityAsync(1003, 4);
+    }
+
+    [Test]
     public async Task HandleRpc_TorrentAdd_WithDownloadDirSubfolder_ExtractsCategoryCorrectly()
     {
         var context = new DefaultHttpContext();
