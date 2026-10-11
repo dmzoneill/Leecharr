@@ -73,6 +73,48 @@ public class TagLibInspectorProviderTest
         result.AudioChannels.Should().Be("2.0");
     }
 
+    [Test]
+    public void Inspect_Matroska_OutputSamplingFrequencyOverridesCoreSamplingFrequency()
+    {
+        var ebmlData = CreateMatroskaHeaderWithAudioSampleRates(
+            "matroska",
+            "V_MPEGH/ISO/HEVC",
+            1920,
+            1080,
+            "A_AAC",
+            6,
+            24000f,
+            48000f);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "he-aac.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("AAC");
+        result.AudioSampleRate.Should().Be(48000);
+    }
+
+    [Test]
+    public void Inspect_WebM_OutputSamplingFrequencyOverridesCoreSamplingFrequency()
+    {
+        var ebmlData = CreateMatroskaHeaderWithAudioSampleRates(
+            "webm",
+            "V_VP9",
+            1280,
+            720,
+            "A_OPUS",
+            2,
+            24000f,
+            48000f);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "he-aac.webm");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("WebM");
+        result.AudioSampleRate.Should().Be(48000);
+    }
+
     [TestCase("A_AAC", 6, "AAC", "5.1")]
     [TestCase("A_AAC", 8, "AAC", "7.1")]
     [TestCase("A_AAC", 1, "AAC", "1.0")]
@@ -2177,6 +2219,56 @@ public class TagLibInspectorProviderTest
         return ms.ToArray();
     }
 
+    private static byte[] CreateMatroskaHeaderWithAudioSampleRates(
+        string docType,
+        string videoCodecId,
+        int width,
+        int height,
+        string audioCodecId,
+        int channels,
+        float samplingFrequency,
+        float outputSamplingFrequency)
+    {
+        using var ms = new MemoryStream();
+
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, docType);
+            var ebmlPayload = ebmlMs.ToArray();
+
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, videoCodecId);
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, (ulong)width);
+        WriteEbmlUInt(ms, 0xBA, (ulong)height);
+
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 2);
+        WriteEbmlString(ms, 0x86, audioCodecId);
+        WriteId(ms, 0xE1);
+        WriteSize(ms, -1);
+        WriteEbmlFloat(ms, 0xB5, samplingFrequency);
+        WriteEbmlFloat(ms, 0x78B5, outputSamplingFrequency);
+        WriteEbmlUInt(ms, 0x9F, (ulong)channels);
+
+        return ms.ToArray();
+    }
+
     private static byte[] CreateMatroskaHeaderWithTrackName(string docType, string videoCodecId, int width, int height, string audioCodecId, int channels, string trackName)
     {
         using var ms = new MemoryStream();
@@ -2306,6 +2398,19 @@ public class TagLibInspectorProviderTest
         WriteId(stream, id);
         WriteSize(stream, bytes.Length);
         stream.Write(bytes);
+    }
+
+    private static void WriteEbmlFloat(Stream stream, uint id, float value)
+    {
+        var bytes = BitConverter.GetBytes(value);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(bytes);
+        }
+
+        WriteId(stream, id);
+        WriteSize(stream, bytes.Length);
+        stream.Write(bytes, 0, bytes.Length);
     }
 
     private static byte[] CreateMp4Box(string type, byte[] payload)
