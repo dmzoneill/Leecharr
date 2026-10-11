@@ -84,6 +84,8 @@ public class Startup
         services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
         {
             options.MultipartBodyLengthLimit = 250 * 1024 * 1024;
+            options.KeyLengthLimit = int.MaxValue;
+            options.ValueLengthLimit = int.MaxValue;
         });
         services.AddDataProtection();
         services.AddHttpClient();
