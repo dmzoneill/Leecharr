@@ -1685,6 +1685,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return 0;
         }
 
+        var trackerInjections = trackerList
+            .Select(url => (Url: url, Tier: this.ResolveTrackerInjectTier(infoHash, url)))
+            .ToList();
+
         var clients = this.downloadClientRepository.GetEnabled()?.ToList();
         if (clients == null || clients.Count == 0)
         {
@@ -1696,7 +1700,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             try
             {
-                if (await this.InjectIntoClientAsync(client, infoHash, trackerList).ConfigureAwait(false))
+                if (await this.InjectIntoClientAsync(client, infoHash, trackerList, trackerInjections).ConfigureAwait(false))
                 {
                     successCount++;
                 }
@@ -1737,7 +1741,49 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         });
     }
 
-    private async Task<bool> InjectIntoClientAsync(DownloadClientDefinition client, string infoHash, List<string> trackerList)
+    private int ResolveTrackerInjectTier(string infoHash, string trackerUrl)
+    {
+        var normalized = trackerUrl.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return 1;
+        }
+
+        if (!string.IsNullOrWhiteSpace(infoHash))
+        {
+            var torrent = this.torrentService?.GetByInfoHash(infoHash);
+            if (torrent != null)
+            {
+                var entry = this.trackerEntryRepository?.GetByTorrentId(torrent.Id)
+                    ?.FirstOrDefault(e => string.Equals((e.Url ?? string.Empty).Trim(), normalized, StringComparison.OrdinalIgnoreCase));
+                if (entry != null && entry.Tier > 0)
+                {
+                    return entry.Tier;
+                }
+            }
+        }
+
+        var tracker = this.trackerRepository?.FindByUrl(normalized);
+        if (tracker != null)
+        {
+            return CalculateDynamicTier(tracker.Status, tracker.LatencyMs);
+        }
+
+        return 1;
+    }
+
+    internal static object[] BuildDelugeTrackerObjects(IEnumerable<(string Url, int Tier)> trackers)
+    {
+        return trackers
+            .Select(t => new { tier = Math.Max(1, t.Tier), url = t.Url })
+            .ToArray();
+    }
+
+    private async Task<bool> InjectIntoClientAsync(
+        DownloadClientDefinition client,
+        string infoHash,
+        List<string> trackerList,
+        List<(string Url, int Tier)> trackerInjections)
     {
         if (client == null || string.IsNullOrWhiteSpace(client.Host))
         {
@@ -1746,8 +1792,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         var port = client.Port > 0 ? client.Port : 8080;
         var scheme = client.UseSsl ? "https" : "http";
-        var host = ProxyTunnelBindingProvider.FormatHostForAuthority(client.Host);
-        var baseUrl = $"{scheme}://{host}:{port}";
+        var baseUrl = $"{scheme}://{client.Host}:{port}";
 
         var clientHttp = GetOrCreateClient(client, baseUrl);
 
@@ -1874,7 +1919,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 }
             }
 
-            var trackerObjects = trackerList.Select(u => new { tier = 0, url = u }).ToArray();
+            var trackerObjects = BuildDelugeTrackerObjects(trackerInjections);
             var body = new StringContent(
                 JsonSerializer.Serialize(new
                 {
@@ -2310,10 +2355,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken, this.disposeCts.Token);
             using var resp = await this.httpClient.SendAsync(req, linkedCts.Token).ConfigureAwait(false);
-            return resp.IsSuccessStatusCode
-                || resp.StatusCode == HttpStatusCode.BadRequest
-                || resp.StatusCode == HttpStatusCode.NotFound
-                || resp.StatusCode == HttpStatusCode.MethodNotAllowed;
+            return resp.IsSuccessStatusCode || resp.StatusCode == HttpStatusCode.BadRequest;
         }
         catch (OperationCanceledException)
         {
