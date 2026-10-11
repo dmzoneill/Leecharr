@@ -324,6 +324,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         public double DurationRaw { get; set; }
         public bool IsCurrentAudioTrackAccepted { get; set; }
         public int CurrentTrackChannels { get; set; }
+        public int CurrentTrackOutputSampleRate { get; set; }
         public string CurrentTrackName { get; set; }
         public bool HasHdr10Plus { get; set; }
         public bool HasDolbyVision { get; set; }
@@ -507,6 +508,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 case 0x9F: // Channels
                 case 0xB5: // SamplingFrequency
+                case 0x78B5: // OutputSamplingFrequency
                 case 0x6264: // BitDepth
                     ParseEbmlAudioField(header, offset, elemSize, id, info, ref context);
                     offset += elemSize;
@@ -534,6 +536,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         context.IsCurrentAudioTrackAccepted = false;
         context.CurrentTrackChannels = 0;
+        context.CurrentTrackOutputSampleRate = 0;
         context.CurrentTrackName = null;
 
         var trackType = 0;
@@ -623,6 +626,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 case 0x9F: // Channels
                 case 0xB5: // SamplingFrequency
+                case 0x78B5: // OutputSamplingFrequency
                 case 0x6264: // BitDepth
                     ParseEbmlAudioField(header, offset, elemSize, id, info, ref context);
                     offset += elemSize;
@@ -649,6 +653,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             if (!string.IsNullOrEmpty(trackCodecId))
             {
                 ApplyEbmlAudioTrack(info, trackCodecId, trackName, context.CurrentTrackChannels, ref context);
+                if (context.IsCurrentAudioTrackAccepted && context.CurrentTrackOutputSampleRate > 0)
+                {
+                    info.AudioSampleRate = context.CurrentTrackOutputSampleRate;
+                }
             }
         }
         else if (trackType == 1 || (trackType == 0 && trackCodecId != null && trackCodecId.StartsWith("V_", StringComparison.OrdinalIgnoreCase)))
@@ -741,6 +749,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             {
                 case 0x9F: // Channels
                 case 0xB5: // SamplingFrequency
+                case 0x78B5: // OutputSamplingFrequency
                 case 0x6264: // BitDepth
                     ParseEbmlAudioField(header, offset, elemSize, id, info, ref context);
                     break;
@@ -895,6 +904,20 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 if (sampleRate > 0 && info.AudioSampleRate == 0)
                 {
                     info.AudioSampleRate = (int)sampleRate;
+                }
+
+                break;
+
+            case 0x78B5: // OutputSamplingFrequency
+                var outputSampleRate = ReadEbmlFloat(header, offset, elemSize);
+                if (outputSampleRate > 0)
+                {
+                    var outputRate = (int)outputSampleRate;
+                    context.CurrentTrackOutputSampleRate = outputRate;
+                    if (context.IsCurrentAudioTrackAccepted)
+                    {
+                        info.AudioSampleRate = outputRate;
+                    }
                 }
 
                 break;
