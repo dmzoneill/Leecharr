@@ -80,6 +80,15 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             };
         }
 
+        if (this.isKillSwitchActive)
+        {
+            return new NetworkBindingHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "VPN kill switch is active. Network binding is fail-closed until the VPN interface is restored.",
+            };
+        }
+
         return await provider.ProbeHealthAsync();
     }
 

@@ -183,6 +183,20 @@ public class DynamicNetworkBindingProxyTest
     }
 
     [Test]
+    public async Task ProbeProviderAsync_WhenKillSwitchActive_ReturnsUnhealthyWithoutCallingProviderProbe()
+    {
+        this.configService.EnableVpnKillSwitch.Returns(true);
+        this.managedSocketProvider.IsInterfaceUp("tun0").Returns(false);
+        this.proxy.CheckVpnKillSwitch("tun0").Should().BeTrue();
+
+        var probe = await this.proxy.ProbeProviderAsync("ManagedSocket");
+
+        probe.IsHealthy.Should().BeFalse();
+        probe.StatusMessage.Should().Contain("kill switch");
+        await this.managedSocketProvider.DidNotReceive().ProbeHealthAsync();
+    }
+
+    [Test]
     public async Task SwitchProviderAsync_SwitchesActiveProviderAndPersistsConfig()
     {
         var result = await this.proxy.SwitchProviderAsync("LinuxBindToDevice");
