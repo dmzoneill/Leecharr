@@ -17,6 +17,7 @@ namespace NzbDrone.Core.Ai;
 public class RuleHeuristicAiProvider : IAiEngineProvider
 {
     private const string ReleaseGroupOptionalMediaExtensionPattern = @"(?:(?i)\.(?:mkv|mp4|avi|mov|wmv|flv|webm|m4v|ts|m2ts|flac|mp3|aac|wav|alac|ogg|m4a))?$";
+    private const string QualitySourceTokenPattern = @"(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?Blu[\s\.\-]?Ray|BRRip|BDRip|WEB[\s\.\-]?DL|WEB[\s\.\-]?Rip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS";
 
     private static readonly HashSet<string> DangerousExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -41,7 +42,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
     private static readonly Regex EpisodeOnlyRegex = new(@"(?i)\b(?:Episode|Ep)\s*(?<episode>\d{1,3})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex YearRegex = new(@"\b(?<year>19\d{2}|20\d{2})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex ResolutionRegex = new(@"(?i)\b(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
-    private static readonly Regex QualityRegex = new(@"(?i)\b(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex QualityRegex = new($@"(?i)\b(?<quality>{QualitySourceTokenPattern})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex VideoCodecRegex = new(@"(?i)\b(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|VP9|VP8|MPEG-?2|VC-?1|XviD|DivX)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex AudioCodecRegex = new(@"(?i)\b(?<audio>DTS(?:-|\.)HD(?:[\s\.]*MA)?|DTS-X|TrueHD(?:[\s\.]*Atmos)?|Atmos|DTS|E-?AC-?3|DDP5\.1|DDP|AC-?3|DD\.?5\.1|AAC(?:[\s\.]*2\.0)?|FLAC|MP3|OPUS|VORBIS)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex AudioChannelsRegex = new(@"(?i)\b(?<channels>7\.1|5\.1|2\.0|1\.0)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
@@ -587,7 +588,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 5. Quality
-        var qualityMatch = Regex.Match(working, @"(?i)\b(?:in\s+)?(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b", RegexOptions.None, TimeSpan.FromSeconds(2));
+        var qualityMatch = Regex.Match(working, $@"(?i)\b(?:in\s+)?(?<quality>{QualitySourceTokenPattern})\b", RegexOptions.None, TimeSpan.FromSeconds(2));
         if (qualityMatch.Success && IsTrailingTsMediaExtensionMisparse(working, qualityMatch))
         {
             qualityMatch = Match.Empty;
@@ -972,6 +973,9 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         var q = quality.ToUpperInvariant();
+        var qCompact = q.Replace(".", string.Empty, StringComparison.Ordinal)
+            .Replace(" ", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal);
 
         // 1. Remux distinction (2160p Remux, 1080p Remux, 720p Remux, REMUX)
         if (isRemux || q.Contains("REMUX"))
@@ -995,7 +999,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 2. BluRay distinction (2160p UHD BluRay vs 1080p BluRay vs 720p BluRay vs generic BluRay)
-        if (q.Contains("BLURAY") || q.Contains("BRRIP") || q.Contains("BDRIP"))
+        if (qCompact.Contains("BLURAY", StringComparison.Ordinal) || q.Contains("BRRIP", StringComparison.Ordinal) || q.Contains("BDRIP", StringComparison.Ordinal))
         {
             if (q.Contains("2160") || q.Contains("UHD") || resolution == "2160p")
             {
@@ -1015,12 +1019,12 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             return "BluRay";
         }
 
-        if (q.Contains("WEB-DL") || q.Contains("WEBDL"))
+        if (qCompact.Contains("WEBDL", StringComparison.Ordinal))
         {
             return "WEB-DL";
         }
 
-        if (q.Contains("WEBRIP"))
+        if (qCompact.Contains("WEBRIP", StringComparison.Ordinal))
         {
             return "WEBRip";
         }
