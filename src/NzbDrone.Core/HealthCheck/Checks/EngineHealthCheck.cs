@@ -23,6 +23,13 @@ public class EngineHealthCheck : IHealthCheck
             return HealthCheckResult.Error("EngineHealth", "No download engine is configured or available.");
         }
 
+        if (this.engine.IsHaltedByKillSwitch)
+        {
+            return HealthCheckResult.Error(
+                "EngineHealth",
+                "VPN kill switch is active. Download engine is fail-closed until the VPN interface is restored.");
+        }
+
         try
         {
             var result = await this.engine.ProbeHealthAsync().ConfigureAwait(false);
