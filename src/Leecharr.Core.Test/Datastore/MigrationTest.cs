@@ -566,4 +566,62 @@ public class MigrationTest
         command.CommandText = "SELECT ShareLimitAction FROM Torrents WHERE InfoHash = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';";
         command.ExecuteScalar().Should().Be("Remove");
     }
+
+    [Test]
+    public void Migration046_BackfillsLegacyIsImportedToTrue()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(23);
+        }
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            connection.Open();
+            using var seed = connection.CreateCommand();
+            seed.CommandText = @"
+                INSERT INTO Torrents (Name, InfoHash, DateAdded)
+                VALUES ('legacy-torrent', 'cccccccccccccccccccccccccccccccccccccccc', datetime('now'));";
+            seed.ExecuteNonQuery();
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(24);
+        }
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            connection.Open();
+            using var check = connection.CreateCommand();
+            check.CommandText = "SELECT IsImported FROM Torrents WHERE InfoHash = 'cccccccccccccccccccccccccccccccccccccccc';";
+            Convert.ToInt32(check.ExecuteScalar()).Should().Be(0);
+        }
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp(46);
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT IsImported FROM Torrents WHERE InfoHash = 'cccccccccccccccccccccccccccccccccccccccc';";
+        Convert.ToInt32(command.ExecuteScalar()).Should().Be(1);
+    }
 }
