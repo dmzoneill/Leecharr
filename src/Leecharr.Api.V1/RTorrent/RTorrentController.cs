@@ -559,8 +559,7 @@ public class RTorrentController : ControllerBase
                             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, torrentBytes);
                             if (added != null && customPriority.HasValue)
                             {
-                                added.Priority = customPriority.Value;
-                                await this.torrentService.UpdateAsync(added);
+                                await this.ApplyRTorrentTorrentPriorityAsync(added, customPriority.Value);
                             }
                         }
                     }
@@ -571,8 +570,7 @@ public class RTorrentController : ControllerBase
                             var added = await this.torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
                             if (added != null && customPriority.HasValue)
                             {
-                                added.Priority = customPriority.Value;
-                                await this.torrentService.UpdateAsync(added);
+                                await this.ApplyRTorrentTorrentPriorityAsync(added, customPriority.Value);
                             }
                         }
                         else if (global::System.IO.File.Exists(uriStr))
@@ -582,8 +580,7 @@ public class RTorrentController : ControllerBase
                             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
                             if (added != null && customPriority.HasValue)
                             {
-                                added.Priority = customPriority.Value;
-                                await this.torrentService.UpdateAsync(added);
+                                await this.ApplyRTorrentTorrentPriorityAsync(added, customPriority.Value);
                             }
                         }
                         else
@@ -594,8 +591,7 @@ public class RTorrentController : ControllerBase
                             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
                             if (added != null && customPriority.HasValue)
                             {
-                                added.Priority = customPriority.Value;
-                                await this.torrentService.UpdateAsync(added);
+                                await this.ApplyRTorrentTorrentPriorityAsync(added, customPriority.Value);
                             }
                         }
                     }
@@ -828,18 +824,9 @@ public class RTorrentController : ControllerBase
                 if (paramValues.Count >= 2 && paramValues[0] is string prioHash)
                 {
                     var t = this.torrentService.GetByInfoHash(prioHash);
-                    if (t != null)
+                    if (t != null && TryParseXmlRpcInt(paramValues[1], out var torrentPrio))
                     {
-                        if (paramValues[1] is int prioInt)
-                        {
-                            t.Priority = prioInt;
-                            await this.torrentService.UpdateAsync(t);
-                        }
-                        else if (paramValues[1] is string prioStr && int.TryParse(prioStr, out var parsedPrio))
-                        {
-                            t.Priority = parsedPrio;
-                            await this.torrentService.UpdateAsync(t);
-                        }
+                        await this.ApplyRTorrentTorrentPriorityAsync(t, torrentPrio);
                     }
                 }
 
@@ -852,8 +839,8 @@ public class RTorrentController : ControllerBase
                     var t = this.torrentService.GetByInfoHash(filePrioHash);
                     if (t != null)
                     {
-                        var fIdx = paramValues[1] is int fi ? fi : (int.TryParse(paramValues[1]?.ToString(), out var pfi) ? pfi : -1);
-                        var fPrio = paramValues[2] is int fp ? fp : (int.TryParse(paramValues[2]?.ToString(), out var pfp) ? pfp : 1);
+                        var fIdx = TryParseXmlRpcInt(paramValues[1], out var fi) ? fi : -1;
+                        var fPrio = TryParseXmlRpcInt(paramValues[2], out var fp) ? fp : 1;
                         var files = this.torrentFileService.GetFiles(t.Id).ToList();
                         if (fIdx >= 0 && fIdx < files.Count)
                         {
@@ -1376,8 +1363,9 @@ public class RTorrentController : ControllerBase
         return priority switch
         {
             <= 0 => 0,
-            1 or 2 or 3 => 1,
-            >= 4 => 2,
+            1 or 2 => 1,
+            3 => 2,
+            >= 4 => 3,
         };
     }
 
@@ -1386,10 +1374,40 @@ public class RTorrentController : ControllerBase
         return priority switch
         {
             0 => 0,
-            1 => 3,
-            2 => 4,
+            1 => 2,
+            2 => 3,
+            3 => 4,
             _ => 3,
         };
+    }
+
+    private async Task ApplyRTorrentTorrentPriorityAsync(Torrent torrent, int rTorrentPriority)
+    {
+        torrent.Priority = rTorrentPriority;
+        await this.torrentService.UpdateAsync(torrent);
+        if (rTorrentPriority == 0)
+        {
+            await this.torrentService.PauseAsync(torrent.Id);
+        }
+    }
+
+    private static bool TryParseXmlRpcInt(object value, out int result)
+    {
+        switch (value)
+        {
+            case int i:
+                result = i;
+                return true;
+            case long l when l >= int.MinValue && l <= int.MaxValue:
+                result = (int)l;
+                return true;
+            case string s when int.TryParse(s.Trim(), out var parsed):
+                result = parsed;
+                return true;
+            default:
+                result = 0;
+                return false;
+        }
     }
 
     private Torrent ResolveTorrent(List<object> paramValues, out List<object> remainingParams)
