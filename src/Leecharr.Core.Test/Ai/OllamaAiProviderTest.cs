@@ -162,6 +162,44 @@ public class OllamaAiProviderTest
     }
 
     [Test]
+    public async Task GenerateChatResponseAsync_WhenOllamaReturnsEmptyResponse_FallsBackToHeuristics()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"response\":\"\"}"),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var response = await provider.GenerateChatResponseAsync("Tell me about ratio");
+        response.Should().Contain("Ratio");
+        provider.LastChatUsedFallback.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task GenerateChatResponseAsync_WhenOllamaReturnsNullResponse_FallsBackToHeuristics()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"response\":null}"),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var response = await provider.GenerateChatResponseAsync("Tell me about ratio");
+        response.Should().Contain("Ratio");
+        provider.LastChatUsedFallback.Should().BeTrue();
+    }
+
+    [Test]
     public async Task GenerateChatResponseAsync_WhenOverlappingCalls_KeepIndependentFallbackFlags()
     {
         var releaseFallbackCall = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
