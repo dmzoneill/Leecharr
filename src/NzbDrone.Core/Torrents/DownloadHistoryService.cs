@@ -725,16 +725,26 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             if (parsed?.AnnounceList != null && parsed.AnnounceList.Count > 0)
             {
                 var trackerEntries = new List<TrackerEntry>();
+                var seenTrackerUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 for (var tier = 0; tier < parsed.AnnounceList.Count; tier++)
                 {
                     foreach (var url in parsed.AnnounceList[tier])
                     {
-                        if (!string.IsNullOrWhiteSpace(url))
+                        if (string.IsNullOrWhiteSpace(url))
                         {
-                            trackerEntries.Add(new TrackerEntry
+                            continue;
+                        }
+
+                        var trimmedUrl = url.Trim();
+                        if (!seenTrackerUrls.Add(trimmedUrl))
+                        {
+                            continue;
+                        }
+
+                        trackerEntries.Add(new TrackerEntry
                             {
                                 TorrentId = added.Id,
-                                Url = url.Trim(),
+                                Url = trimmedUrl,
                                 Tier = tier,
                                 Enabled = true,
                                 Status = 0,
@@ -744,7 +754,6 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                                 TotalAnnounces = 0,
                                 SuccessfulAnnounces = 0,
                             });
-                        }
                     }
                 }
 
