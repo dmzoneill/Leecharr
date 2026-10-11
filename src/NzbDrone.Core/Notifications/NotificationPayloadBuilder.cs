@@ -678,7 +678,7 @@ public static class NotificationPayloadBuilder
 
         if (string.Equals(implementation, "Apprise", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(candidateUrl))
         {
-            return AppendEndpointPath(candidateUrl, "notify");
+            return ResolveAppriseTargetUrl(candidateUrl);
         }
 
         if (string.Equals(implementation, "Gotify", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(candidateUrl))
@@ -1177,6 +1177,41 @@ public static class NotificationPayloadBuilder
 
             return null;
         }
+    }
+
+    private static string ResolveAppriseTargetUrl(string candidateUrl)
+    {
+        if (!Uri.TryCreate(candidateUrl, UriKind.Absolute, out var uri) ||
+            (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        {
+            return candidateUrl.Trim();
+        }
+
+        var path = (uri.AbsolutePath ?? string.Empty).TrimEnd('/');
+        if (AppriseHttpPathAlreadySpecifiesNotifyEndpoint(path))
+        {
+            var builder = new UriBuilder(uri);
+            builder.Path = string.IsNullOrEmpty(path) ? "/" : path;
+            return builder.Uri.AbsoluteUri;
+        }
+
+        return AppendEndpointPath(candidateUrl, "notify");
+    }
+
+    private static bool AppriseHttpPathAlreadySpecifiesNotifyEndpoint(string path)
+    {
+        if (string.IsNullOrEmpty(path) || path == "/")
+        {
+            return false;
+        }
+
+        if (path.EndsWith("/notify", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return path.Contains("/notify/", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string AppendEndpointPath(string candidateUrl, string endpoint)

@@ -64,6 +64,10 @@ public class NotificationPayloadBuilderTest
     [TestCase("http://apprise-server:8000/apprise/?tags=media", "http://apprise-server:8000/apprise/notify?tags=media")]
     [TestCase("http://apprise-server:8000/apprise/notify?tags=media", "http://apprise-server:8000/apprise/notify?tags=media")]
     [TestCase("https://apprise-server:8443/custom/?tags=media&format=markdown#section", "https://apprise-server:8443/custom/notify?tags=media&format=markdown#section")]
+    [TestCase("http://apprise-server:8000/notify/my-config-key", "http://apprise-server:8000/notify/my-config-key")]
+    [TestCase("http://apprise-server:8000/notify/my-config-key/", "http://apprise-server:8000/notify/my-config-key")]
+    [TestCase("http://apprise-server:8000/notify/my-config-key?tags=media", "http://apprise-server:8000/notify/my-config-key?tags=media")]
+    [TestCase("tgram://bot-token/chat-id", "tgram://bot-token/chat-id")]
     public void ResolveTargetUrl_Apprise_EndpointsAreNormalizedWithoutCorruptingQueryOrPath(string inputUrl, string expectedUrl)
     {
         var resolved = NotificationPayloadBuilder.ResolveTargetUrl("Apprise", inputUrl);
@@ -76,6 +80,10 @@ public class NotificationPayloadBuilderTest
         var jsonSettings = "{\"url\":\"http://apprise-server:8000?tags=media\"}";
         var resolved = NotificationPayloadBuilder.ResolveTargetUrl("Apprise", jsonSettings);
         resolved.Should().Be("http://apprise-server:8000/notify?tags=media");
+
+        var configKeySettings = "{\"url\":\"http://apprise-server:8000/notify/stateless-key\"}";
+        var configKeyResolved = NotificationPayloadBuilder.ResolveTargetUrl("Apprise", configKeySettings);
+        configKeyResolved.Should().Be("http://apprise-server:8000/notify/stateless-key");
     }
 
     [Test]
