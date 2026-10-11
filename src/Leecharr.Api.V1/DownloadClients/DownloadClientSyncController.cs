@@ -96,9 +96,19 @@ public class DownloadClientSyncController : Controller
                             {
                                 var category = !string.IsNullOrWhiteSpace(item.Category) ? item.Category : client.Category;
                                 var savePath = !string.IsNullOrWhiteSpace(item.SavePath) ? item.SavePath : null;
-                                var magnetUri = MagnetLinkParser.BuildMagnetUri(item.InfoHash);
+                                if (!DownloadClientRemoteImportHelper.TryBuildMagnetUri(item.InfoHash, item.Name, out var magnetUri, out var magnetError))
+                                {
+                                    failedTorrents++;
+                                    this.logger.Warn(
+                                        "Failed to build magnet for torrent {0} from download client {1}: {2}",
+                                        item.InfoHash,
+                                        client.Name,
+                                        magnetError);
+                                    continue;
+                                }
 
-                                await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
+                                var startPaused = DownloadClientRemoteImportHelper.ShouldStartPaused(item.State);
+                                await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, startPaused);
                                 syncedCount++;
                             }
                         }

@@ -173,6 +173,10 @@ public static class DownloadClientRemoteQuery
 
                             var labelsStr = string.Join(", ", labelList);
                             var cat = labelList.Count > 0 ? labelList[0] : string.Empty;
+                            var status = el.TryGetProperty("status", out var statusElem) && statusElem.TryGetInt32(out var statusCode)
+                                ? statusCode
+                                : -1;
+                            var state = DownloadClientRemoteImportHelper.MapTransmissionStatusToState(status, prog);
 
                             items.Add(new DownloadClientRemoteItem
                             {
@@ -181,7 +185,7 @@ public static class DownloadClientRemoteQuery
                                 Name = name,
                                 Size = size,
                                 Progress = prog,
-                                State = "active",
+                                State = state,
                                 SavePath = save,
                                 Category = cat,
                                 Tags = labelsStr,

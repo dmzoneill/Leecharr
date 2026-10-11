@@ -88,11 +88,46 @@ public class DownloadClientSyncControllerTest
         result.Added.Should().Be(1);
         result.Skipped.Should().Be(0);
 
+        var expectedMagnet = "magnet:?xt=urn:btih:aabbccddeeff00112233445566778899aabbccdd&dn=" + Uri.EscapeDataString("Ubuntu 22.04");
         await this.torrentService.Received(1).AddFromMagnetAsync(
-            "magnet:?xt=urn:btih:aabbccddeeff00112233445566778899aabbccdd",
+            expectedMagnet,
             "iso",
             "/downloads/linux",
             false);
+    }
+
+    [Test]
+    public async Task Sync_WhenRemoteTorrentIsPaused_ImportsWithDisplayNameAndStartPausedTrue()
+    {
+        var hash = "dddddddddddddddddddddddddddddddddddddddd";
+        var json = $"[{{\"hash\":\"{hash}\",\"name\":\"Paused Release\",\"size\":1000,\"progress\":0.1,\"state\":\"pausedDL\",\"save_path\":\"/downloads\",\"category\":\"tv\"}}]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient);
+        var clientDef = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "qBit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Enable = true,
+        };
+        this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition> { clientDef });
+        this.torrentService.GetByInfoHash(Arg.Any<string>()).Returns((Torrent)null!);
+
+        await controller.Sync();
+
+        var expectedMagnet = "magnet:?xt=urn:btih:" + hash + "&dn=" + Uri.EscapeDataString("Paused Release");
+        await this.torrentService.Received(1).AddFromMagnetAsync(
+            expectedMagnet,
+            "tv",
+            "/downloads",
+            true);
     }
 
     [Test]
@@ -298,8 +333,9 @@ public class DownloadClientSyncControllerTest
 
         await Task.WhenAll(task1, task2);
 
+        var expectedMagnet = "magnet:?xt=urn:btih:5555555555555555555555555555555555555555&dn=" + Uri.EscapeDataString("ConcurrencyTest");
         await this.torrentService.Received(1).AddFromMagnetAsync(
-            "magnet:?xt=urn:btih:5555555555555555555555555555555555555555",
+            expectedMagnet,
             Arg.Any<string>(),
             Arg.Any<string>(),
             false);
