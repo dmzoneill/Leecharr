@@ -54,18 +54,25 @@ public class AutomationEventService :
     IHandle<TaskFailedEvent>
 {
     private readonly IAutomationService _automationService;
+    private readonly ITorrentRepository? _torrentRepository;
     private readonly Logger _logger;
     private readonly TimeSpan _cooldownWindow;
     private readonly ConcurrentDictionary<(int ScriptId, int? TorrentId, AutomationTrigger Trigger), DateTime> _lastExecutionTime = new();
 
     public AutomationEventService(IAutomationService automationService)
-        : this(automationService, null)
+        : this(automationService, null, null)
     {
     }
 
     public AutomationEventService(IAutomationService automationService, TimeSpan? cooldownWindow)
+        : this(automationService, cooldownWindow, null)
+    {
+    }
+
+    public AutomationEventService(IAutomationService automationService, TimeSpan? cooldownWindow, ITorrentRepository? torrentRepository)
     {
         _automationService = automationService;
+        _torrentRepository = torrentRepository;
         _logger = LogManager.GetCurrentClassLogger();
         _cooldownWindow = cooldownWindow ?? TimeSpan.FromSeconds(2);
     }
@@ -108,13 +115,19 @@ public class AutomationEventService :
 
     public void Handle(HealthIssueEvent message)
     {
-        if (message?.Torrent == null)
+        if (message == null)
+        {
+            return;
+        }
+
+        var torrent = message.Torrent ?? (message.TorrentId > 0 ? _torrentRepository?.Get(message.TorrentId) : null);
+        if (torrent == null)
         {
             return;
         }
 
         var trigger = message.IsResolved ? AutomationTrigger.HealthRestored : AutomationTrigger.TorrentError;
-        _ = DispatchTrigger(trigger, message.Torrent);
+        _ = DispatchTrigger(trigger, torrent);
     }
 
     public void Handle(TorrentDeletedEvent message)

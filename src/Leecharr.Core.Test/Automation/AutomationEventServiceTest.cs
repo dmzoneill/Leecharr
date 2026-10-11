@@ -15,11 +15,13 @@ namespace NzbDrone.Core.Test.Automation;
 public class AutomationEventServiceTest
 {
     private IAutomationService _automationService;
+    private ITorrentRepository _torrentRepository;
 
     [SetUp]
     public void SetUp()
     {
         _automationService = Substitute.For<IAutomationService>();
+        _torrentRepository = Substitute.For<ITorrentRepository>();
     }
 
     [Test]
@@ -265,6 +267,30 @@ public class AutomationEventServiceTest
         _automationService.DidNotReceive().ExecuteScript(script, nonMatchingCategoryTorrent);
         _automationService.DidNotReceive().ExecuteScript(script, nonMatchingTagTorrent);
         _automationService.Received(1).ExecuteScript(script, matchingTorrent);
+    }
+
+    [Test]
+    public async Task ShouldDispatchTorrentErrorWhenHealthIssueHasTorrentIdOnly()
+    {
+        var torrent = new Torrent { Id = 90, Name = "TrackerTorrent" };
+        var script = new AutomationScript
+        {
+            Id = 90,
+            Name = "Torrent Error Script",
+            IsEnabled = true,
+            Trigger = AutomationTrigger.TorrentError,
+        };
+
+        _torrentRepository.Get(90).Returns(torrent);
+        _automationService.GetAll().Returns(new List<AutomationScript> { script });
+        var service = new AutomationEventService(_automationService, TimeSpan.FromSeconds(2), _torrentRepository);
+
+        service.Handle(new HealthIssueEvent(90, "Tracker", "Connection refused", isResolved: false));
+
+        await Task.Delay(200);
+
+        _torrentRepository.Received(1).Get(90);
+        _automationService.Received(1).ExecuteScript(script, torrent);
     }
 
     [Test]
