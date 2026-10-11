@@ -339,8 +339,6 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
             foreach (var notification in doc.RootElement.EnumerateArray())
             {
-                var name = notification.TryGetProperty("name", out var n) ? n.GetString() : null;
-
                 string url = null;
                 string apiKey = null;
 
@@ -367,12 +365,14 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
                     }
                 }
 
-                var isLeecharr = string.Equals(name, "Leecharr", StringComparison.OrdinalIgnoreCase) ||
-                                (url != null && url.Contains("leecharr", StringComparison.OrdinalIgnoreCase) &&
-                                (url.Contains("/api/v1/webhook/arr", StringComparison.OrdinalIgnoreCase) ||
-                                url.Contains("/api/v1/webhooks/arr", StringComparison.OrdinalIgnoreCase)));
+                var implementation = notification.TryGetProperty("implementation", out var implProp)
+                    ? implProp.GetString()
+                    : null;
+                var isWebhookImplementation = string.IsNullOrEmpty(implementation) ||
+                    string.Equals(implementation, "Webhook", StringComparison.OrdinalIgnoreCase);
 
-                if (isLeecharr && notification.TryGetProperty("id", out var idProp))
+                if (IsLeecharrArrWebhookUrl(url) && isWebhookImplementation &&
+                    notification.TryGetProperty("id", out var idProp))
                 {
                     return new ExistingWebhookInfo(idProp.GetInt32(), url, apiKey);
                 }
@@ -385,6 +385,13 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             this.logger.Debug(ex, "Failed to check existing webhooks in {0}", connection.ArrType);
             return null;
         }
+    }
+
+    private static bool IsLeecharrArrWebhookUrl(string url)
+    {
+        return !string.IsNullOrWhiteSpace(url) &&
+               (url.Contains("/api/v1/webhook/arr", StringComparison.OrdinalIgnoreCase) ||
+                url.Contains("/api/v1/webhooks/arr", StringComparison.OrdinalIgnoreCase));
     }
 
     private int? FindExistingDownloadClientId(ArrConnectionDefinition connection, string apiVersion)
