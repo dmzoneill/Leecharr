@@ -56,4 +56,19 @@ public class TrackerUrlSanitizerTest
     {
         TrackerUrlSanitizer.Sanitize(input).Should().Be(expected);
     }
+
+    [Test]
+    [TestCase("http://[2001:db8::1]:6969/announce", "http://[2001:db8::1]:6969/announce")]
+    [TestCase("http://[2001:db8::1]/announce", "http://[2001:db8::1]/announce")]
+    [TestCase("http://[2001:db8::1]/announce?passkey=123456", "http://[2001:db8::1]/announce?passkey=********")]
+    public void Sanitize_WhenIpv6Tracker_PreservesBracketedHost(string input, string expected)
+    {
+        TrackerUrlSanitizer.Sanitize(input).Should().Be(expected);
+    }
+
+    [Test]
+    public void Sanitize_WhenQueryContainsDefaultPortText_DoesNotAppendPortToHost()
+    {
+        TrackerUrlSanitizer.Sanitize("http://tracker.example/announce?x=1:80").Should().Be("http://tracker.example/announce?x=1:80");
+    }
 }
