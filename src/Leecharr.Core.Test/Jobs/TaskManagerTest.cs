@@ -153,6 +153,19 @@ public class TaskManagerTest
     }
 
     [Test]
+    public void GetByTypeName_WhenCaseVariantExists_ReturnsExistingTaskWithoutInsert()
+    {
+        var existing = new ScheduledTask { Id = 7, TypeName = "GeoIpUpdateTask", Interval = 43200 };
+        this.scheduledTaskRepository.GetByTypeName("geoipupdatetask").Returns((ScheduledTask)null!);
+        this.scheduledTaskRepository.GetByTypeName("GeoIpUpdateTask").Returns(existing);
+
+        var result = this.taskManager.GetByTypeName("geoipupdatetask");
+
+        result.Should().BeSameAs(existing);
+        this.scheduledTaskRepository.DidNotReceive().Insert(Arg.Any<ScheduledTask>());
+    }
+
+    [Test]
     public void Handle_ApplicationStartedEvent_EnsuresDefaultTasks()
     {
         var storedTasks = new List<ScheduledTask>();
