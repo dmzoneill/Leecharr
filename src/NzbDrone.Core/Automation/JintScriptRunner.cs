@@ -67,7 +67,7 @@ public class JintScriptRunner : IScriptRunner
             engine.SetValue("api", apiContext);
 
             // System / Command context
-            var systemContext = new ScriptSystemContext(_commandQueue, result, executionBudget);
+            var systemContext = new ScriptSystemContext(_commandQueue, result, executionBudget, abortScriptOnStop: true);
             engine.SetValue("system", systemContext);
 
             // HTML context
@@ -128,6 +128,16 @@ public class JintScriptRunner : IScriptRunner
             engine.Execute(script.Code ?? string.Empty);
 
             result.Success = true;
+        }
+        catch (AutomationPipelineStopException stop)
+        {
+            result.Success = true;
+            logBuilder.AppendLine($"[STOP] Pipeline halted: {stop.Message}");
+        }
+        catch (JavaScriptException jse) when (jse.InnerException is AutomationPipelineStopException stop)
+        {
+            result.Success = true;
+            logBuilder.AppendLine($"[STOP] Pipeline halted: {stop.Message}");
         }
         catch (JavaScriptException jse)
         {

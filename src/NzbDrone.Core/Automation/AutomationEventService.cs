@@ -389,7 +389,16 @@ public class AutomationEventService :
 
                     try
                     {
-                        _automationService.ExecuteScript(script, torrent);
+                        var executionResult = _automationService.ExecuteScript(script, torrent);
+                        if (executionResult.ShouldStopPipeline)
+                        {
+                            _logger.Debug(
+                                "Pipeline stopped by script '{0}' on trigger {1}: {2}",
+                                script.Name,
+                                trigger,
+                                executionResult.StopReason ?? "Stop requested");
+                            break;
+                        }
                     }
                     catch (Exception ex)
                     {

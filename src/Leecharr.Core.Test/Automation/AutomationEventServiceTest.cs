@@ -224,6 +224,41 @@ public class AutomationEventServiceTest
     }
 
     [Test]
+    public async Task ShouldNotRunSubsequentScriptsWhenPipelineStopped()
+    {
+        var torrent = new Torrent { Id = 7, Name = "StopPipelineTorrent" };
+        var stoppingScript = new AutomationScript
+        {
+            Id = 71,
+            Name = "Stop Script",
+            IsEnabled = true,
+            Trigger = AutomationTrigger.TorrentAdded,
+        };
+        var laterScript = new AutomationScript
+        {
+            Id = 72,
+            Name = "Later Script",
+            IsEnabled = true,
+            Trigger = AutomationTrigger.TorrentAdded,
+        };
+
+        _automationService.GetAll().Returns(new List<AutomationScript> { stoppingScript, laterScript });
+        _automationService.ExecuteScript(stoppingScript, torrent).Returns(new AutomationExecutionResult
+        {
+            Success = true,
+            ShouldStopPipeline = true,
+            StopReason = "Halt remaining scripts",
+        });
+
+        var service = new AutomationEventService(_automationService, TimeSpan.FromSeconds(2));
+
+        await service.DispatchTrigger(AutomationTrigger.TorrentAdded, torrent);
+
+        _automationService.Received(1).ExecuteScript(stoppingScript, torrent);
+        _automationService.DidNotReceive().ExecuteScript(laterScript, torrent);
+    }
+
+    [Test]
     public async Task ShouldFilterByCategoryAndTag()
     {
         var matchingTorrent = new Torrent

@@ -125,6 +125,34 @@ torrent.reannounce();
     }
 
     [Test]
+    public void ShouldStopFurtherJavascriptWhenStopPipelineCalled()
+    {
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "StopPipeline.Torrent",
+        };
+
+        var script = new AutomationScript
+        {
+            Name = "Stop Pipeline",
+            Code = @"
+system.stopPipeline('halt');
+torrent.addTag('after-stop');
+",
+            Language = AutomationLanguage.JavaScript,
+        };
+
+        var result = _runner.Execute(script, torrent);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.ShouldStopPipeline, Is.True);
+        Assert.That(result.StopReason, Is.EqualTo("halt"));
+        Assert.That(result.TagsToAdd, Does.Not.Contain("after-stop"));
+        Assert.That(result.OutputLog, Does.Contain("[STOP] Pipeline halted: halt"));
+    }
+
+    [Test]
     public void ShouldExecuteSystemContextGracefullyWithoutQueue()
     {
         var script = new AutomationScript

@@ -1,5 +1,6 @@
 #pragma warning disable SA1500, SA1516, SA1513, SA1508, SA1512, SA1507, SA1028
 #nullable enable
+using System;
 using System.Collections.Generic;
 
 namespace NzbDrone.Core.Automation;
@@ -108,4 +109,12 @@ public class AutomationExecutionResult
     public bool ShouldReannounceAll { get; set; }
 
     public string? TorrentExportDestination { get; set; }
+}
+
+public sealed class AutomationPipelineStopException : Exception
+{
+    public AutomationPipelineStopException(string? reason)
+        : base(reason ?? "Stop requested")
+    {
+    }
 }

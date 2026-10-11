@@ -14,16 +14,19 @@ public class ScriptSystemContext
     private readonly IManageCommandQueue? _commandQueue;
     private readonly AutomationExecutionResult? _result;
     private readonly ScriptExecutionBudget? _executionBudget;
+    private readonly bool _abortScriptOnStop;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public ScriptSystemContext(
         IManageCommandQueue? commandQueue = null,
         AutomationExecutionResult? result = null,
-        ScriptExecutionBudget? executionBudget = null)
+        ScriptExecutionBudget? executionBudget = null,
+        bool abortScriptOnStop = false)
     {
         _commandQueue = commandQueue;
         _result = result;
         _executionBudget = executionBudget;
+        _abortScriptOnStop = abortScriptOnStop;
     }
 
     public static long diskFreeSpace
@@ -233,6 +236,11 @@ public class ScriptSystemContext
         }
 
         _logger.Info("Automation script requested pipeline termination: {0}", reason);
+
+        if (_abortScriptOnStop)
+        {
+            throw new AutomationPipelineStopException(reason);
+        }
     }
 }
 #pragma warning restore SA1300
