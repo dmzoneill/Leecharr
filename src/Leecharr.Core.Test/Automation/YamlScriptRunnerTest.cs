@@ -1212,6 +1212,47 @@ public class YamlScriptRunnerTest
         result.NotificationsToSend.Should().ContainSingle(n => n.Message == "System check complete");
     }
 
+    [Test]
+    public void ShouldNotTreat999ThousandthsProgressAsComplete_InYamlConditions()
+    {
+        var almostDone = new Torrent
+        {
+            Id = 99,
+            Name = "AlmostDone",
+            Progress = 0.999,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var yaml = "name: 'Completion gate'\n" +
+            "steps:\n" +
+            "  - name: 'When complete'\n" +
+            "    condition: '${torrent.isComplete}'\n" +
+            "    actions:\n" +
+            "      - addTag: 'Finished'\n";
+
+        var script = new AutomationScript
+        {
+            Name = "Completion Script",
+            Code = yaml,
+            Language = AutomationLanguage.Yaml,
+        };
+
+        var notYet = _runner.Execute(script, almostDone);
+        notYet.Success.Should().BeTrue();
+        notYet.TagsToAdd.Should().NotContain("Finished");
+
+        var finished = new Torrent
+        {
+            Id = 100,
+            Name = "Done",
+            Progress = 1.0,
+            Status = TorrentStatus.Downloading,
+        };
+        var done = _runner.Execute(script, finished);
+        done.Success.Should().BeTrue();
+        done.TagsToAdd.Should().Contain("Finished");
+    }
+
     private static int GetFreePort()
     {
         using var socket = new TcpListener(IPAddress.Loopback, 0);

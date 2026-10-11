@@ -117,7 +117,7 @@ public class YamlScriptRunner : IScriptRunner
                 variableContext["torrent.status"] = torrentCtx.status;
                 variableContext["torrent.progress"] = torrentCtx.progress;
                 variableContext["torrent.isPrivate"] = torrent.IsPrivate;
-                variableContext["torrent.isComplete"] = torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.Status == TorrentStatus.Seeding || torrent.DateCompleted.HasValue;
+                variableContext["torrent.isComplete"] = torrentCtx.isComplete;
                 variableContext["torrent.downloadSpeed"] = torrent.DownloadSpeed;
                 variableContext["torrent.uploadSpeed"] = torrent.UploadSpeed;
                 variableContext["torrent.eta"] = torrent.Eta;
