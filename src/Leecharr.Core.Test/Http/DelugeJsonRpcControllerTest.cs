@@ -1225,6 +1225,54 @@ public class DelugeJsonRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_UsesStoredTrackerErrorAndAnnounceInterval()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 99,
+            Name = "Tracker Row Status Torrent",
+            InfoHash = "aabbccddeeff0011223344556677889900aabbccdd",
+            TotalSize = 1024,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+            TrackerUrl = "http://tracker.example.com:80/announce",
+            DateAdded = System.DateTime.UtcNow.AddHours(-2),
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var nextAnnounce = System.DateTime.UtcNow.AddMinutes(12);
+        this.trackerEntryRepository.GetByTorrentId(99).Returns(new List<TrackerEntry>
+        {
+            new()
+            {
+                TorrentId = 99,
+                Url = "http://tracker.example.com:80/announce",
+                Tier = 0,
+                Status = 2,
+                ErrorMessage = "Connection timed out",
+                AnnounceInterval = 900,
+                NextAnnounce = nextAnnounce,
+            },
+        });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{}, []],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resultDoc = JsonDocument.Parse(json);
+        var status = resultDoc.RootElement.GetProperty("result").GetProperty("aabbccddeeff0011223344556677889900aabbccdd");
+
+        status.GetProperty("tracker_status").GetString().Should().Contain("Connection timed out");
+        status.GetProperty("tracker_status").GetString().Should().NotContain("Announce OK");
+        status.GetProperty("next_announce").GetInt32().Should().BeInRange(600, 780);
+    }
+
+    [Test]
     public async Task HandleRpc_CoreGetConfig_ReturnsExpandedDelugePreferences()
     {
         var context = new DefaultHttpContext();
