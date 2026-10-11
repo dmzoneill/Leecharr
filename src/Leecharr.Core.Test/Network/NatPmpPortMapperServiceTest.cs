@@ -1352,4 +1352,44 @@ public class NatPmpPortMapperServiceTest
         var act = async () => await service.CheckAndRenewMappingsAsync();
         await act.Should().NotThrowAsync();
     }
+
+    [Test]
+    public void SelectGatewayFromLinuxProcRoute_PrefersDefaultRouteOnTunnel()
+    {
+        var lines = new[]
+        {
+            "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\tMTU\tWindow\tIRTT",
+            "tun0\t00000000\t0200070A\t0003\t0\t0\t0\t00000000\t0\t0\t0",
+            "tun0\tFFFFFFFFFFFFFFFF\tFFFFFFFF\t0002\t0\t0\t0\tFFFFFFFF\t0\t0\t0",
+        };
+
+        var gw = NatPmpPortMapperService.SelectGatewayFromLinuxProcRoute("tun0", lines);
+        gw.Should().Be(IPAddress.Parse("10.7.0.2"));
+    }
+
+    [Test]
+    public void SelectGatewayFromLinuxProcRoute_DoesNotInventDotOneGateway()
+    {
+        var lines = new[]
+        {
+            "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\tMTU\tWindow\tIRTT",
+            "tun0\t00000000\t0600080A\t0003\t0\t0\t0\t00000000\t0\t0\t0",
+        };
+
+        var gw = NatPmpPortMapperService.SelectGatewayFromLinuxProcRoute("tun0", lines);
+        gw.Should().Be(IPAddress.Parse("10.8.0.6"));
+        gw.Should().NotBe(IPAddress.Parse("10.8.0.1"));
+    }
+
+    [Test]
+    public void SelectGatewayFromLinuxProcRoute_WithNoGatewayRoutes_ReturnsNull()
+    {
+        var lines = new[]
+        {
+            "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\tMTU\tWindow\tIRTT",
+            "tun0\t0600080A\t00000000\t0001\t0\t0\t0\tFFFFFFFF\t0\t0\t0",
+        };
+
+        NatPmpPortMapperService.SelectGatewayFromLinuxProcRoute("tun0", lines).Should().BeNull();
+    }
 }

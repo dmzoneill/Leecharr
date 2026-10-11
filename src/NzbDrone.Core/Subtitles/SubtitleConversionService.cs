@@ -208,7 +208,8 @@ public class SubtitleConversionService : ISubtitleConversionService
                 var headerLine = lines[i].Trim();
                 if (headerLine.StartsWith("NOTE", StringComparison.OrdinalIgnoreCase) ||
                     headerLine.StartsWith("STYLE", StringComparison.OrdinalIgnoreCase) ||
-                    headerLine.StartsWith("REGION", StringComparison.OrdinalIgnoreCase))
+                    headerLine.StartsWith("REGION", StringComparison.OrdinalIgnoreCase) ||
+                    headerLine.StartsWith("X-TIMESTAMP-MAP", StringComparison.OrdinalIgnoreCase))
                 {
                     sb.Append(headerLine).Append('\n');
                 }
