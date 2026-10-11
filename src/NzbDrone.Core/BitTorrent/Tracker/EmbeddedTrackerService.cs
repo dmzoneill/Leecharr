@@ -311,6 +311,20 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             return new TrackerAnnounceResult { Success = false, FailureReason = hashError };
         }
 
+        if (this.configService?.TrackerLogAnnounces == true)
+        {
+            var eventLabel = string.IsNullOrWhiteSpace(request.Event) ? "none" : request.Event;
+            this.logger.Info(
+                "Peer announce query from {RemoteIp}:{Port} info_hash={InfoHash} event={Event} uploaded={Uploaded} downloaded={Downloaded} left={Left}",
+                request.RemoteIp,
+                request.Port,
+                hexKey,
+                eventLabel,
+                request.Uploaded,
+                request.Downloaded,
+                request.Left);
+        }
+
         var isPrivate = this.configService?.TrackerPrivateMode ?? false;
         if (isPrivate && (!this.swarms.TryGetValue(hexKey, out var registeredSwarm) || !registeredSwarm.IsRegistered))
         {

@@ -8,6 +8,9 @@ using System.Net;
 using System.Text;
 using FluentAssertions;
 using MonoTorrent.BEncoding;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent.Tracker;
@@ -1184,6 +1187,50 @@ public class EmbeddedTrackerServiceTest
 
         // Peer 1 is removed, only Peer 2 remains
         this.trackerService.ActivePeersCount.Should().Be(1);
+    }
+
+    [Test]
+    public void Announce_WhenTrackerLogAnnouncesEnabled_LogsPeerQuery()
+    {
+        var memoryTarget = new MemoryTarget("tracker-announce-log")
+        {
+            Layout = "${message}",
+        };
+        var configuration = new LoggingConfiguration();
+        configuration.AddRule(LogLevel.Info, LogLevel.Info, memoryTarget);
+        LogManager.Configuration = configuration;
+
+        try
+        {
+            this.configService.TrackerLogAnnounces.Returns(true);
+
+            var infoHash = new byte[20];
+            infoHash[0] = 99;
+
+            var request = new TrackerAnnounceRequest
+            {
+                InfoHashBytes = infoHash,
+                RemoteIp = IPAddress.Parse("203.0.113.10"),
+                Port = 51413,
+                Left = 1024,
+                Uploaded = 1,
+                Downloaded = 2,
+                Event = "started",
+            };
+
+            var result = this.trackerService.Announce(request);
+            result.Success.Should().BeTrue();
+
+            memoryTarget.Logs.Should().ContainSingle(log =>
+                log.Contains("Peer announce query from", StringComparison.Ordinal) &&
+                log.Contains("203.0.113.10", StringComparison.Ordinal) &&
+                log.Contains("event=started", StringComparison.Ordinal));
+        }
+        finally
+        {
+            LogManager.Configuration = null;
+            memoryTarget.Dispose();
+        }
     }
 
     private sealed class FakeTimeProvider : TimeProvider
