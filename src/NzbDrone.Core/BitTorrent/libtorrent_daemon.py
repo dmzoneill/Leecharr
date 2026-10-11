@@ -423,6 +423,24 @@ class LibTorrentManager:
             return {"status": "limits_set"}
         return {"status": "not_found"}
 
+    def set_torrent_private(self, params):
+        h = self.find_handle(params.get("info_hash"))
+        if not h:
+            return {"status": "not_found"}
+
+        is_private = bool(params.get("is_private", params.get("private", False)))
+        bep27_flags = (
+            lt.torrent_flags.disable_dht
+            | lt.torrent_flags.disable_pex
+            | lt.torrent_flags.disable_lsd
+        )
+        with self.lock:
+            if is_private:
+                h.set_flags(bep27_flags, bep27_flags)
+            else:
+                h.unset_flags(bep27_flags)
+        return {"status": "private_set", "is_private": is_private}
+
     def move_storage(self, params):
         h = self.find_handle(params.get("info_hash"))
         if h:
@@ -643,6 +661,8 @@ class RpcHandler(BaseHTTPRequestHandler):
                 result = manager.set_settings(params)
             elif method == "set_torrent_limits":
                 result = manager.set_torrent_limits(params)
+            elif method == "set_torrent_private":
+                result = manager.set_torrent_private(params)
             elif method == "move_storage":
                 result = manager.move_storage(params)
             elif method == "rename_file":

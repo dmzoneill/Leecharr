@@ -707,6 +707,50 @@ public class EmbeddedTransmissionEngineTest
         task.GetPeers().Should().BeEmpty();
     }
 
+    [Test]
+    public async Task SetTorrentPrivateStatusAsync_SendsTorrentSetWithIsPrivate()
+    {
+        var torrentSetBodies = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            if (method == "torrent-set")
+            {
+                torrentSetBodies.Add(body);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+        await engine.SetTorrentPrivateStatusAsync(42, true);
+
+        torrentSetBodies.Should().HaveCount(1);
+        using var setDoc = JsonDocument.Parse(torrentSetBodies[0]);
+        setDoc.RootElement.GetProperty("method").GetString().Should().Be("torrent-set");
+        var args = setDoc.RootElement.GetProperty("arguments");
+        args.GetProperty("isPrivate").GetBoolean().Should().BeTrue();
+        args.GetProperty("ids").GetArrayLength().Should().Be(1);
+        args.GetProperty("ids")[0].GetInt64().Should().Be(99);
+    }
+
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)
     {
         return new EmbeddedTransmissionEngine(
