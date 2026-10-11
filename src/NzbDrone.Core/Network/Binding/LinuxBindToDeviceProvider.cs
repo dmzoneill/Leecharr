@@ -15,6 +15,7 @@ namespace NzbDrone.Core.Network.Binding;
 
 public class LinuxBindToDeviceProvider : INetworkBindingProvider
 {
+    private const int SolSocket = 1;
     private const int SoBindToDevice = 25;
     private const int Ifnamesiz = 16;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
@@ -60,7 +61,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             {
                 using var testSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 var loBytes = Encoding.ASCII.GetBytes("lo\0");
-                testSocket.SetRawSocketOption((int)SocketOptionLevel.Socket, SoBindToDevice, loBytes);
+                testSocket.SetRawSocketOption(SolSocket, SoBindToDevice, loBytes);
             }
             catch (SocketException sex) when (sex.SocketErrorCode == SocketError.AccessDenied || sex.NativeErrorCode == 1)
             {
@@ -71,9 +72,23 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
                     Warnings = { "Process lacks CAP_NET_RAW capability required for SO_BINDTODEVICE kernel binding. Grant CAP_NET_RAW or run as root/privileged container." },
                 });
             }
+            catch (SocketException sex)
+            {
+                return Task.FromResult(new NetworkBindingHealthCheckResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = $"Linux SO_BINDTODEVICE probe failed: {sex.Message}",
+                    Warnings = { sex.ToString() },
+                });
+            }
             catch (Exception ex)
             {
-                this.logger.Debug(ex, "Capability probe non-fatal exception during SO_BINDTODEVICE test");
+                return Task.FromResult(new NetworkBindingHealthCheckResult
+                {
+                    IsHealthy = false,
+                    StatusMessage = $"Linux SO_BINDTODEVICE probe failed: {ex.Message}",
+                    Warnings = { ex.ToString() },
+                });
             }
 
             return Task.FromResult(new NetworkBindingHealthCheckResult
@@ -119,7 +134,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         try
         {
             var ifaceBytes = Encoding.ASCII.GetBytes(kernelInterfaceName + "\0");
-            socket.SetRawSocketOption((int)SocketOptionLevel.Socket, SoBindToDevice, ifaceBytes);
+            socket.SetRawSocketOption(SolSocket, SoBindToDevice, ifaceBytes);
             this.logger.Debug(
                 "Applied SO_BINDTODEVICE kernel lock to socket for interface '{0}' (resolved from '{1}')",
                 kernelInterfaceName,

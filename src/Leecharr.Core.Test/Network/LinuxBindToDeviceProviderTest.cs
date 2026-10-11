@@ -2,6 +2,8 @@
 
 using System;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Network.Binding;
@@ -79,5 +81,30 @@ public class LinuxBindToDeviceProviderTest
     {
         var longIface = new string('a', 16);
         this.provider.IsInterfaceUp(longIface).Should().BeFalse();
+    }
+
+    [Test]
+    public void BindSocket_OnLinux_WithLoopback_DoesNotThrow()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Assert.Inconclusive("Linux-only SO_BINDTODEVICE test");
+        }
+
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var act = () => this.provider.BindSocket(socket, "lo");
+        act.Should().NotThrow();
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_OnLinux_WhenSoBindToDeviceWorks_ReturnsHealthy()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Assert.Inconclusive("Linux-only SO_BINDTODEVICE test");
+        }
+
+        var health = await this.provider.ProbeHealthAsync();
+        health.IsHealthy.Should().BeTrue();
     }
 }
