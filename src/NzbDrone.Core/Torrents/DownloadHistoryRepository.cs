@@ -137,16 +137,19 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
             connection.Query<DownloadHistory>(sql.ToString(), parameters).ToList());
     }
 
+    public List<DownloadHistory> GetOlderThan(System.DateTime cutoffDate)
+    {
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<DownloadHistory>(
+                BuildRetentionSql("SELECT *"),
+                new { Cutoff = cutoffDate }).ToList());
+    }
+
     public void DeleteOlderThan(System.DateTime cutoffDate)
     {
         this.ExecuteWithRetry(connection =>
             connection.Execute(
-                @"DELETE FROM ""DownloadHistory""
-                  WHERE ""TorrentId"" IS NULL
-                    AND COALESCE(
-                      CASE WHEN ""Status"" = 'Removed' THEN ""DateRemoved"" END,
-                      CASE WHEN ""Status"" = 'Completed' THEN ""DateCompleted"" END,
-                      ""DateAdded"") < @Cutoff",
+                BuildRetentionSql("DELETE"),
                 new { Cutoff = cutoffDate }));
     }
 
@@ -154,6 +157,16 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
     {
         this.ExecuteWithRetry(connection =>
             connection.Execute("DELETE FROM \"DownloadHistory\""));
+    }
+
+    private static string BuildRetentionSql(string statementPrefix)
+    {
+        return $"{statementPrefix} FROM \"DownloadHistory\"\n" +
+               @"                  WHERE ""TorrentId"" IS NULL
+                    AND COALESCE(
+                      CASE WHEN ""Status"" = 'Removed' THEN ""DateRemoved"" END,
+                      CASE WHEN ""Status"" = 'Completed' THEN ""DateCompleted"" END,
+                      ""DateAdded"") < @Cutoff";
     }
 
     private static void NormalizeDownloadHistory(DownloadHistory model)

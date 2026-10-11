@@ -126,18 +126,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     public void ClearAll()
     {
         this.logger.Info("Clearing all download history entries");
-        var all = this.historyRepository.GetHistory(limit: 10000);
-        if (all != null)
-        {
-            foreach (var entry in all)
-            {
-                if (!string.IsNullOrWhiteSpace(entry.InfoHash))
-                {
-                    this.CleanupCachedTorrentFile(entry.InfoHash);
-                }
-            }
-        }
-
+        this.CleanupCachedTorrentFilesForHistoryEntries(this.historyRepository.GetHistory(limit: 0));
         this.historyRepository.DeleteAll();
     }
 
@@ -149,7 +138,25 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         }
 
         var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+        var expired = this.historyRepository.GetOlderThan(cutoff);
+        this.CleanupCachedTorrentFilesForHistoryEntries(expired);
         this.historyRepository.DeleteOlderThan(cutoff);
+    }
+
+    private void CleanupCachedTorrentFilesForHistoryEntries(IEnumerable<DownloadHistory> entries)
+    {
+        if (entries == null)
+        {
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            if (!string.IsNullOrWhiteSpace(entry.InfoHash))
+            {
+                this.CleanupCachedTorrentFile(entry.InfoHash);
+            }
+        }
     }
 
     private void CleanupCachedTorrentFile(string infoHash)
