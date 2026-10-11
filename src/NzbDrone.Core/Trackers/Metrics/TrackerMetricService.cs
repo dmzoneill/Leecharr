@@ -268,10 +268,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
             {
                 UpdateLatencyMetrics(metric, responseTimeMs);
                 metric.SuccessfulScrapes++;
-                metric.ConsecutiveFailures = 0;
                 metric.LastSuccess = now;
-                metric.LastErrorMessage = null;
-                metric.Status = "Working";
                 if (seeders > 0)
                 {
                     metric.LastSeeders = seeders;
@@ -285,8 +282,18 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
             else
             {
                 metric.FailedScrapes++;
+                metric.ConsecutiveFailures++;
                 metric.LastErrorTime = now;
                 metric.LastErrorMessage = error ?? "Scrape failed";
+
+                if (metric.ConsecutiveFailures >= 5)
+                {
+                    metric.Status = "Offline";
+                }
+                else if (metric.ConsecutiveFailures >= 2)
+                {
+                    metric.Status = "Degraded";
+                }
             }
 
             this.metricRepository.Update(metric);

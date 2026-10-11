@@ -309,7 +309,56 @@ public class TrackerMetricsAndOptimizationTest
         metric.TotalScrapes.Should().Be(1);
         metric.SuccessfulScrapes.Should().Be(0);
         metric.FailedScrapes.Should().Be(1);
+        metric.ConsecutiveFailures.Should().Be(1);
+        metric.Status.Should().Be("Working");
         metric.LastErrorMessage.Should().Be("Scrape unreachable");
+    }
+
+    [Test]
+    public void RecordScrape_Success_DoesNotClearAnnounceOfflineStatus()
+    {
+        var trackerUrl = "http://offline-after-announces.example/announce";
+
+        for (var i = 0; i < 5; i++)
+        {
+            this.metricService.RecordAnnounce(trackerUrl, 1, 0, 0, 0, 0, false, 0, 0, 0, "Announce timeout");
+        }
+
+        var offline = this.metricService.GetMetricByUrl(trackerUrl);
+        offline.Status.Should().Be("Offline");
+        offline.ConsecutiveFailures.Should().Be(5);
+
+        var afterScrape = this.metricService.RecordScrape(
+            trackerUrl,
+            responseTimeMs: 40,
+            success: true,
+            seeders: 10,
+            leechers: 2,
+            completed: 5);
+
+        afterScrape.Status.Should().Be("Offline");
+        afterScrape.ConsecutiveFailures.Should().Be(5);
+        afterScrape.LastErrorMessage.Should().Be("Announce timeout");
+        afterScrape.SuccessfulScrapes.Should().Be(1);
+    }
+
+    [Test]
+    public void RecordScrape_Failure_TransitionsThroughDegradedAndOfflineStatuses()
+    {
+        var trackerUrl = "udp://scrape-degrading.example:1337/announce";
+
+        var m2 = this.metricService.RecordScrape(trackerUrl, 0, false, 0, 0, 0, "Scrape timeout");
+        this.metricService.RecordScrape(trackerUrl, 0, false, 0, 0, 0, "Scrape timeout");
+        m2.Status.Should().Be("Degraded");
+        m2.ConsecutiveFailures.Should().Be(2);
+
+        this.metricService.RecordScrape(trackerUrl, 0, false, 0, 0, 0, "Scrape timeout");
+        this.metricService.RecordScrape(trackerUrl, 0, false, 0, 0, 0, "Scrape timeout");
+        var m5 = this.metricService.RecordScrape(trackerUrl, 0, false, 0, 0, 0, "Scrape dead");
+
+        m5.ConsecutiveFailures.Should().Be(5);
+        m5.Status.Should().Be("Offline");
+        m5.LastErrorMessage.Should().Be("Scrape dead");
     }
 
     [Test]
