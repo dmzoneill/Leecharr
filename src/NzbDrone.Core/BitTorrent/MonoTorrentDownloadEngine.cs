@@ -65,7 +65,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ITorrentFileRepository torrentFileRepository;
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IPeerConnectionHistoryService peerConnectionHistoryService;
+    private readonly IClientBehaviorSimulationService clientBehaviorSimulation;
     private readonly Logger logger;
+    private DateTime lastSwarmSimulationUtc = DateTime.MinValue;
     internal static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private static readonly char[] BootstrapNodeSeparators = [',', ';'];
 
@@ -324,7 +326,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         ITorrentLogService torrentLogService = null,
         ITorrentFileRepository torrentFileRepository = null,
         ITrackerEntryRepository trackerEntryRepository = null,
-        IPeerConnectionHistoryService peerConnectionHistoryService = null)
+        IPeerConnectionHistoryService peerConnectionHistoryService = null,
+        IClientBehaviorSimulationService clientBehaviorSimulation = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -340,6 +343,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.torrentFileRepository = torrentFileRepository;
         this.trackerEntryRepository = trackerEntryRepository;
         this.peerConnectionHistoryService = peerConnectionHistoryService;
+        this.clientBehaviorSimulation = clientBehaviorSimulation ?? new ClientBehaviorSimulationService(this.configService);
         this.logger = LogManager.GetCurrentClassLogger();
 
         this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
@@ -362,8 +366,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastAppliedAnonymousMode = this.configService?.AnonymousMode ?? false;
         this.lastAppliedDhtBootstrapNodes = this.configService?.DhtBootstrapNodes ?? string.Empty;
         this.lastAppliedPiecePickerStrategy = this.configService?.PiecePickerStrategy ?? string.Empty;
-        this.lastAppliedPeerIdPrefix = this.configService?.PeerIdPrefix ?? string.Empty;
-        this.lastAppliedUserAgent = this.configService?.BitTorrentUserAgent ?? string.Empty;
+        var initialIdentity = this.clientBehaviorSimulation.GetWireIdentity();
+        this.lastAppliedPeerIdPrefix = initialIdentity.PeerIdPrefix ?? string.Empty;
+        this.lastAppliedUserAgent = initialIdentity.UserAgent ?? string.Empty;
     }
 
     public async Task StartAsync()
@@ -623,8 +628,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var engineSettings = engineSettingsBuilder.ToSettings();
         var factories = Factories.Default;
 
-        var userAgent = this.configService.AnonymousMode ? string.Empty : this.configService.BitTorrentUserAgent;
-        var peerIdPrefix = this.configService.AnonymousMode ? string.Empty : this.configService.PeerIdPrefix;
+        var wireIdentity = this.clientBehaviorSimulation.GetWireIdentity();
+        var userAgent = this.configService.AnonymousMode ? string.Empty : wireIdentity.UserAgent;
+        var peerIdPrefix = this.configService.AnonymousMode ? string.Empty : wireIdentity.PeerIdPrefix;
 
         ConfigureGlobalMonoTorrentDefaults(peerIdPrefix, userAgent, this.configService.AnonymousMode);
 
@@ -681,7 +687,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             overrideField.SetValue(this.engine.DiskManager, hashOverride);
         }
 
-        this.ApplyCustomPeerId(this.engine, peerIdPrefix);
+        this.ApplyCustomPeerId(this.engine, peerIdPrefix, userAgent);
 
         this.lastAppliedInterfaceBinding = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
             ? this.configService.NetworkInterfaceBinding
@@ -2292,6 +2298,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             this.logger.Debug("Skipping tracker announce for torrent id {0}: torrent is in {1} state.", torrentId, manager.State);
             return (0, "tracker(s)");
+        }
+
+        if (this.clientBehaviorSimulation.TryRotateProfileForAnnounce(out var rotatedIdentity) && this.engine != null)
+        {
+            var rotatedPrefix = this.configService.AnonymousMode ? string.Empty : rotatedIdentity.PeerIdPrefix;
+            var rotatedUserAgent = this.configService.AnonymousMode ? string.Empty : rotatedIdentity.UserAgent;
+            this.ApplyCustomPeerId(this.engine, rotatedPrefix, rotatedUserAgent);
+            this.lastAppliedPeerIdPrefix = rotatedPrefix ?? string.Empty;
+            this.lastAppliedUserAgent = rotatedUserAgent ?? string.Empty;
         }
 
         var announceToAllInTier = this.configService?.AnnounceToAllInTier == true;
@@ -4761,7 +4776,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         var client = new HttpClient(handler);
-        var currentUserAgent = this.configService.AnonymousMode ? string.Empty : this.configService.BitTorrentUserAgent;
+        var wireIdentity = this.clientBehaviorSimulation.GetWireIdentity();
+        var currentUserAgent = this.configService.AnonymousMode ? string.Empty : wireIdentity.UserAgent;
         if (string.IsNullOrWhiteSpace(currentUserAgent) && !this.configService.AnonymousMode)
         {
             currentUserAgent = ClientEmulationPresets.DefaultUserAgent;
@@ -4918,6 +4934,65 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 this.logger.Debug(ex, "Error checking tracker health for torrent {0}", task.TorrentId);
             }
         }
+
+        if (DateTime.UtcNow - this.lastSwarmSimulationUtc >= TimeSpan.FromSeconds(30))
+        {
+            this.lastSwarmSimulationUtc = DateTime.UtcNow;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await this.ApplySwarmSimulationToActiveTorrentsAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to apply swarm simulation settings to active torrents");
+                }
+            });
+        }
+    }
+
+    private async Task ApplySwarmSimulationToActiveTorrentsAsync()
+    {
+        if (this.engine == null || !this.configService.ClientBehaviorEngineEnabled || !this.configService.SwarmIntelligenceEnabled)
+        {
+            return;
+        }
+
+        var baseMaxPerTorrent = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50;
+        var enablePex = this.configService.EnablePex;
+
+        foreach (var task in this.tasks.Values)
+        {
+            if (task.Manager == null)
+            {
+                continue;
+            }
+
+            try
+            {
+                var allowPex = !task.IsPrivate && enablePex;
+                var swarmMetrics = task.BuildSwarmPeerMetrics(this.configService.SwarmPeerAnalysisDepth);
+                var maxPerTorrent = this.clientBehaviorSimulation.GetEffectivePerTorrentConnections(baseMaxPerTorrent, swarmMetrics);
+                var currentSettings = task.Manager.Settings;
+                if (currentSettings == null ||
+                    currentSettings.AllowPeerExchange != allowPex ||
+                    currentSettings.MaximumConnections != maxPerTorrent)
+                {
+                    var settingsBuilder = currentSettings != null
+                        ? new TorrentSettingsBuilder(currentSettings)
+                        : new TorrentSettingsBuilder();
+
+                    settingsBuilder.AllowPeerExchange = allowPex;
+                    settingsBuilder.MaximumConnections = maxPerTorrent;
+                    await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings()).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to apply swarm simulation for torrent {0}", task.TorrentId);
+            }
+        }
     }
 
     internal EngineSettings BuildEngineSettings(Dictionary<string, IPEndPoint> listenEndPoints = null)
@@ -4999,6 +5074,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             : 0;
         builder.WebSeedDelay = TimeSpan.FromSeconds(this.configService.WebSeedDelaySeconds > 0 ? this.configService.WebSeedDelaySeconds : 30);
         builder.UsePartialFiles = this.configService.AppendIncompleteExtension;
+
+        this.clientBehaviorSimulation.ApplyEngineSimulation(builder);
     }
 
     internal IDhtEngine GetDhtEngine()
@@ -5209,8 +5286,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var currentAnonymousMode = this.configService.AnonymousMode;
         var anonymousModeChanged = this.lastAppliedAnonymousMode != currentAnonymousMode;
 
-        var currentPeerIdPrefix = this.configService.PeerIdPrefix ?? string.Empty;
-        var currentUserAgent = this.configService.BitTorrentUserAgent ?? string.Empty;
+        var wireIdentity = this.clientBehaviorSimulation.GetWireIdentity();
+        var currentPeerIdPrefix = wireIdentity.PeerIdPrefix ?? string.Empty;
+        var currentUserAgent = wireIdentity.UserAgent ?? string.Empty;
         var peerIdOrEmulationChanged = !string.Equals(this.lastAppliedPeerIdPrefix, currentPeerIdPrefix, StringComparison.Ordinal) ||
             !string.Equals(this.lastAppliedUserAgent, currentUserAgent, StringComparison.Ordinal);
 
@@ -5263,7 +5341,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        var maxPerTorrent = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50;
+        var baseMaxPerTorrent = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50;
         var enablePex = this.configService.EnablePex;
         var currentPiecePickerStrategy = this.configService.PiecePickerStrategy ?? string.Empty;
         var piecePickerChangedToSequential = !string.Equals(this.lastAppliedPiecePickerStrategy, currentPiecePickerStrategy, StringComparison.OrdinalIgnoreCase) &&
@@ -5279,6 +5357,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     var allowPex = !task.IsPrivate && enablePex;
                     var currentSettings = task.Manager.Settings;
+                    var swarmMetrics = task.BuildSwarmPeerMetrics(this.configService.SwarmPeerAnalysisDepth);
+                    var maxPerTorrent = this.clientBehaviorSimulation.GetEffectivePerTorrentConnections(baseMaxPerTorrent, swarmMetrics);
                     if (currentSettings == null ||
                         currentSettings.AllowPeerExchange != allowPex ||
                         currentSettings.MaximumConnections != maxPerTorrent)
@@ -5318,14 +5398,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public void Handle(ConfigSavedEvent message)
     {
-        var prefix = this.configService.PeerIdPrefix;
-        var userAgent = this.configService.BitTorrentUserAgent;
+        var wireIdentity = this.clientBehaviorSimulation.GetWireIdentity();
+        var prefix = wireIdentity.PeerIdPrefix;
+        var userAgent = wireIdentity.UserAgent;
         var isAnonymous = this.configService.AnonymousMode;
         ConfigureGlobalMonoTorrentDefaults(prefix, userAgent, isAnonymous);
 
         if (this.engine != null)
         {
-            this.ApplyCustomPeerId(this.engine, prefix);
+            this.ApplyCustomPeerId(this.engine, prefix, userAgent);
 
             _ = Task.Run(async () =>
             {
@@ -5343,14 +5424,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public void Handle(ConfigFileSavedEvent message)
     {
-        var prefix = this.configService.PeerIdPrefix;
-        var userAgent = this.configService.BitTorrentUserAgent;
+        var wireIdentity = this.clientBehaviorSimulation.GetWireIdentity();
+        var prefix = wireIdentity.PeerIdPrefix;
+        var userAgent = wireIdentity.UserAgent;
         var isAnonymous = this.configService.AnonymousMode;
         ConfigureGlobalMonoTorrentDefaults(prefix, userAgent, isAnonymous);
 
         if (this.engine != null)
         {
-            this.ApplyCustomPeerId(this.engine, prefix);
+            this.ApplyCustomPeerId(this.engine, prefix, userAgent);
 
             _ = Task.Run(async () =>
             {
@@ -5577,7 +5659,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return new BEncodedString(prefix + new string(randomChars));
     }
 
-    private void ApplyCustomPeerId(ClientEngine clientEngine, string prefix)
+    private void ApplyCustomPeerId(ClientEngine clientEngine, string prefix, string userAgentOverride = null)
     {
         var isAnonymous = this.configService.AnonymousMode;
         if (isAnonymous)
@@ -5586,10 +5668,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
         else if (string.IsNullOrWhiteSpace(prefix))
         {
-            prefix = this.configService.PeerIdPrefix;
+            prefix = this.clientBehaviorSimulation.GetWireIdentity().PeerIdPrefix;
         }
 
-        var userAgent = isAnonymous ? string.Empty : this.configService.BitTorrentUserAgent;
+        var userAgent = isAnonymous
+            ? string.Empty
+            : (userAgentOverride ?? this.clientBehaviorSimulation.GetWireIdentity().UserAgent);
         ConfigureGlobalMonoTorrentDefaults(prefix, userAgent, isAnonymous);
 
         if (clientEngine == null)
@@ -7386,6 +7470,25 @@ public class MonoTorrentDownloadTask : IDownloadTask
         }
 
         _ = this.PieceAvailability;
+    }
+
+    internal SwarmPeerMetrics BuildSwarmPeerMetrics(int analysisDepth)
+    {
+        var peers = this.GetCachedPeers();
+        var samples = new List<(bool IsSeeder, bool IsConnected)>();
+        foreach (var peer in peers)
+        {
+            if (peer == null)
+            {
+                continue;
+            }
+
+            var isConnected = peer.IsConnected;
+            var isSeeder = peer.IsSeeder;
+            samples.Add((isSeeder, isConnected));
+        }
+
+        return ClientSimulationPolicy.BuildSwarmMetrics(samples, analysisDepth);
     }
 
     public int[] PieceAvailability
