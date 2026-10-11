@@ -446,6 +446,44 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
     }
 
+    public async Task PauseAllTorrentsAsync()
+    {
+        foreach (var task in this.tasks.Values)
+        {
+            if (task.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Completed or TorrentStatus.QueuedForChecking)
+            {
+                continue;
+            }
+
+            await this.PauseTorrentAsync(task.TorrentId);
+        }
+    }
+
+    public Task PauseAllAsync() => this.PauseAllTorrentsAsync();
+
+    public Task PauseForSchedulerAsync() => this.PauseAllTorrentsAsync();
+
+    public async Task ResumeAllTorrentsAsync()
+    {
+        if (this.isHaltedByKillSwitch)
+        {
+            this.logger.Warn("Cannot resume all torrents: VPN Kill Switch is active (fail-closed).");
+            return;
+        }
+
+        foreach (var task in this.tasks.Values)
+        {
+            if (task.Status == TorrentStatus.Paused)
+            {
+                await this.ResumeTorrentAsync(task.TorrentId);
+            }
+        }
+    }
+
+    public Task ResumeAllAsync() => this.ResumeAllTorrentsAsync();
+
+    public Task ResumeFromSchedulerAsync() => this.ResumeAllTorrentsAsync();
+
     public void Handle(VpnKillSwitchTriggeredEvent message)
     {
         this.logger.Error("VPN Kill Switch drop detected for interface '{0}'. Halting Transmission engine transfers.", message.InterfaceName);

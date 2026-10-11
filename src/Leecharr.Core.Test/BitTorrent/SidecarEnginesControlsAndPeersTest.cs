@@ -199,6 +199,64 @@ public class SidecarEnginesControlsAndPeersTest
         args.GetProperty("flags").GetInt32().Should().Be(1);
     }
 
+    [Test]
+    public async Task LibTorrentDownloadEngine_PauseAllAsync_PausesActiveTorrentsAndSkipsAlreadyPaused()
+    {
+        var pauseRpcCount = 0;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            if (body.Contains("pause_torrent", StringComparison.Ordinal))
+            {
+                pauseRpcCount++;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"paused\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = new LibTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            httpClient);
+
+        await engine.AddTorrentAsync(new Torrent { Id = 1, InfoHash = "aa", Name = "A", TotalSize = 100 });
+        await engine.AddTorrentAsync(new Torrent { Id = 2, InfoHash = "bb", Name = "B", TotalSize = 100 });
+        await engine.PauseTorrentAsync(2);
+
+        await engine.PauseAllAsync();
+
+        engine.GetTask(1)!.Status.Should().Be(TorrentStatus.Paused);
+        engine.GetTask(2)!.Status.Should().Be(TorrentStatus.Paused);
+        pauseRpcCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task EmbeddedTransmissionEngine_PauseAllAsync_PausesActiveTorrentsAndSkipsAlreadyPaused()
+    {
+        using var engine = new EmbeddedTransmissionEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator);
+
+        await engine.AddTorrentAsync(new Torrent { Id = 11, InfoHash = "cc", Name = "C", TotalSize = 100 });
+        await engine.AddTorrentAsync(new Torrent { Id = 12, InfoHash = "dd", Name = "D", TotalSize = 100 });
+        engine.GetTask(12)!.Status = TorrentStatus.Paused;
+
+        await engine.PauseAllAsync();
+
+        engine.GetTask(11)!.Status.Should().Be(TorrentStatus.Paused);
+        engine.GetTask(12)!.Status.Should().Be(TorrentStatus.Paused);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
