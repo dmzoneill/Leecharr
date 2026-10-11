@@ -94,9 +94,7 @@ public static class MediaMetadataResourceMapper
             MusicBrainzId = model.MusicBrainzId,
             ArtistName = model.ArtistName,
             AlbumTitle = model.AlbumTitle,
-            Cast = string.IsNullOrWhiteSpace(model.Cast)
-                ? new List<string>()
-                : model.Cast.Split(',').Select(c => c.Trim()).Where(c => c.Length > 0).ToList(),
+            Cast = TorrentMediaCastCodec.Parse(model.Cast),
         };
     }
 }
