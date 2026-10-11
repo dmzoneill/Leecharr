@@ -55,22 +55,22 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         var searchDirectories = new List<string>
         {
             "/config/GeoIP",
-            "/config",
             Path.Combine(this.appFolderInfo.AppDataFolder, "GeoIP"),
+            "/config",
             this.appFolderInfo.AppDataFolder,
             Path.Combine(this.appFolderInfo.StartUpFolder, "GeoIP"),
             AppDomain.CurrentDomain.BaseDirectory,
         };
 
-        foreach (var dbName in databaseNames)
+        foreach (var dir in searchDirectories)
         {
-            foreach (var dir in searchDirectories)
+            if (string.IsNullOrWhiteSpace(dir))
             {
-                if (string.IsNullOrWhiteSpace(dir))
-                {
-                    continue;
-                }
+                continue;
+            }
 
+            foreach (var dbName in databaseNames)
+            {
                 var fullPath = Path.Combine(dir, dbName);
                 if (this.diskProvider.FileExists(fullPath))
                 {

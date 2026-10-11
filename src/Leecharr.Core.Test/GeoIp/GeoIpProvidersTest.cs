@@ -70,6 +70,30 @@ public class GeoIpProvidersTest
     }
 
     [Test]
+    public void MaxMind_GetDatabasePath_PrefersCountryInConfigGeoIpOverCityInLaterSearchPath()
+    {
+        var appDataCity = Path.Combine(this.appFolderInfo.AppDataFolder, "GeoIP", "GeoLite2-City.mmdb");
+        this.diskProvider.FileExists("/config/GeoIP/GeoLite2-Country.mmdb").Returns(true);
+        this.diskProvider.FileExists(appDataCity).Returns(true);
+
+        using var provider = new MaxMindGeoIpProvider(this.diskProvider, this.appFolderInfo);
+
+        provider.GetDatabasePath().Should().Be("/config/GeoIP/GeoLite2-Country.mmdb");
+    }
+
+    [Test]
+    public void MaxMind_GetDatabasePath_PrefersUpdaterCityInAppDataGeoIpOverStaleCityInLowerPriorityDirectory()
+    {
+        var appDataCity = Path.Combine(this.appFolderInfo.AppDataFolder, "GeoIP", "GeoLite2-City.mmdb");
+        this.diskProvider.FileExists(appDataCity).Returns(true);
+        this.diskProvider.FileExists("/config/GeoLite2-City.mmdb").Returns(true);
+
+        using var provider = new MaxMindGeoIpProvider(this.diskProvider, this.appFolderInfo);
+
+        provider.GetDatabasePath().Should().Be(appDataCity);
+    }
+
+    [Test]
     public void MaxMind_GetDatabasePath_WhenNoFilesExist_ReturnsNullAndAvailableFalse()
     {
         this.diskProvider.FileExists(Arg.Any<string>()).Returns(false);
