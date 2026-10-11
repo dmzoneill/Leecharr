@@ -725,6 +725,78 @@ public class Aria2RpcControllerTest
     }
 
     [Test]
+    public async Task ChangeOption_JsonRpc_WithSubKibLimits_UsesCeilingKbps()
+    {
+        var torrent = new Torrent
+        {
+            Id = 44,
+            Name = "SubKibTorrent",
+            InfoHash = FullInfoHash,
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "aria2.changeOption",
+                "params": [
+                "{{ExpectedGid}}",
+                {
+                    "max-download-limit": "512",
+                    "max-upload-limit": "1"
+                }
+                ]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        GetJsonRpcResultString(actionResult).Should().Be("OK");
+
+        torrent.DownloadLimit.Should().Be(1);
+        torrent.UploadLimit.Should().Be(1);
+        await this.torrentService.Received().UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task ChangeOption_JsonRpc_WithDir_InvokesSetLocationAsync()
+    {
+        var torrent = new Torrent
+        {
+            Id = 45,
+            Name = "DirTorrent",
+            InfoHash = FullInfoHash,
+            SavePath = "/downloads/old",
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "aria2.changeOption",
+                "params": [
+                "{{ExpectedGid}}",
+                {
+                    "dir": "/downloads/new"
+                }
+                ]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        GetJsonRpcResultString(actionResult).Should().Be("OK");
+
+        await this.torrentService.Received().SetLocationAsync(45, "/downloads/new", moveFiles: true);
+        torrent.SavePath.Should().Be("/downloads/new");
+        await this.torrentService.Received().UpdateAsync(torrent);
+    }
+
+    [Test]
     public async Task GetGlobalOption_XmlRpc_ReturnsConfiguredLimits()
     {
         this.configService.DownloadDir.Returns("/custom/downloads");
@@ -1185,7 +1257,7 @@ public class Aria2RpcControllerTest
     }
 
     [Test]
-    public async Task GetSessionInfo_JsonRpc_ReturnsValidSessionId()
+    public async Task GetSessionInfo_JsonRpc_ReturnsStableSessionIdAcrossCalls()
     {
         this.SetJsonRequestBody("""
             {
@@ -1196,28 +1268,52 @@ public class Aria2RpcControllerTest
             }
             """);
 
-        var result = await this.controller.HandleRpc();
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var json = JsonSerializer.Serialize(okResult.Value);
-        using var doc = JsonDocument.Parse(json);
-        var sessionId = doc.RootElement.GetProperty("result").GetProperty("sessionId").GetString();
-        sessionId.Should().NotBeNullOrWhiteSpace();
+        var firstResult = await this.controller.HandleRpc();
+        var firstOk = firstResult.Should().BeOfType<OkObjectResult>().Subject;
+        var firstJson = JsonSerializer.Serialize(firstOk.Value);
+        using var firstDoc = JsonDocument.Parse(firstJson);
+        var firstSessionId = firstDoc.RootElement.GetProperty("result").GetProperty("sessionId").GetString();
+        firstSessionId.Should().NotBeNullOrWhiteSpace();
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 102,
+                "method": "aria2.getSessionInfo",
+                "params": []
+            }
+            """);
+
+        var secondResult = await this.controller.HandleRpc();
+        var secondOk = secondResult.Should().BeOfType<OkObjectResult>().Subject;
+        var secondJson = JsonSerializer.Serialize(secondOk.Value);
+        using var secondDoc = JsonDocument.Parse(secondJson);
+        var secondSessionId = secondDoc.RootElement.GetProperty("result").GetProperty("sessionId").GetString();
+        secondSessionId.Should().Be(firstSessionId);
     }
 
     [Test]
-    public async Task GetSessionInfo_XmlRpc_ReturnsValidSessionId()
+    public async Task GetSessionInfo_XmlRpc_ReturnsStableSessionIdAcrossCalls()
     {
         this.SetXmlRpcRequest("aria2.getSessionInfo");
 
-        var actionResult = await this.controller.HandleRpc();
-        actionResult.Should().BeOfType<ContentResult>();
-        var contentResult = (ContentResult)actionResult;
-        var doc = XDocument.Parse(contentResult.Content);
+        var firstActionResult = await this.controller.HandleRpc();
+        firstActionResult.Should().BeOfType<ContentResult>();
+        var firstContent = (ContentResult)firstActionResult;
+        var firstDoc = XDocument.Parse(firstContent.Content);
+        var firstStruct = firstDoc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("struct");
+        firstStruct.Should().NotBeNull();
+        var firstSessionId = GetStructMember(firstStruct!, "sessionId");
+        firstSessionId.Should().NotBeNullOrWhiteSpace();
 
-        var structElem = doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("struct");
-        structElem.Should().NotBeNull();
-        var sessionId = GetStructMember(structElem!, "sessionId");
-        sessionId.Should().NotBeNullOrWhiteSpace();
+        this.SetXmlRpcRequest("aria2.getSessionInfo");
+
+        var secondActionResult = await this.controller.HandleRpc();
+        secondActionResult.Should().BeOfType<ContentResult>();
+        var secondContent = (ContentResult)secondActionResult;
+        var secondDoc = XDocument.Parse(secondContent.Content);
+        var secondStruct = secondDoc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("struct");
+        GetStructMember(secondStruct!, "sessionId").Should().Be(firstSessionId);
     }
 
     [Test]
