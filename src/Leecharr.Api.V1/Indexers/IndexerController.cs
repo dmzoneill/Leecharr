@@ -1358,27 +1358,34 @@ public class IndexerController : Controller
 
     private static IndexerDefinition ToModel(IndexerResource resource)
     {
-        var settingsJson = resource.Settings;
-        if (string.IsNullOrWhiteSpace(settingsJson))
+        var settings = new IndexerSettings();
+        if (!string.IsNullOrWhiteSpace(resource.Settings))
         {
-            var settings = new IndexerSettings
+            try
             {
-                SupportsSearch = resource.SupportsSearch,
-                SupportsTvSearch = resource.SupportsTvSearch,
-                SupportsMovieSearch = resource.SupportsMovieSearch,
-                SupportsMusicSearch = resource.SupportsMusicSearch,
-                SupportsBookSearch = resource.SupportsBookSearch,
-                SupportedTvParams = resource.SupportedTvParams ?? new(),
-                SupportedMovieParams = resource.SupportedMovieParams ?? new(),
-                SupportedMusicParams = resource.SupportedMusicParams ?? new(),
-                SupportedBookParams = resource.SupportedBookParams ?? new(),
-                DefaultPageSize = resource.DefaultPageSize > 0 ? resource.DefaultPageSize : 50,
-                MaxPageSize = resource.MaxPageSize > 0 ? resource.MaxPageSize : 100,
-                Cookie = resource.Cookie,
-                UserAgent = resource.UserAgent,
-            };
-            settingsJson = JsonSerializer.Serialize(settings);
+                settings = JsonSerializer.Deserialize<IndexerSettings>(resource.Settings, CaseInsensitiveJsonOptions) ?? new IndexerSettings();
+            }
+            catch (Exception ex)
+            {
+                StaticLogger.Trace(ex, "Failed to parse indexer settings from resource");
+            }
         }
+
+        settings.SupportsSearch = resource.SupportsSearch;
+        settings.SupportsTvSearch = resource.SupportsTvSearch;
+        settings.SupportsMovieSearch = resource.SupportsMovieSearch;
+        settings.SupportsMusicSearch = resource.SupportsMusicSearch;
+        settings.SupportsBookSearch = resource.SupportsBookSearch;
+        settings.SupportedTvParams = resource.SupportedTvParams ?? new();
+        settings.SupportedMovieParams = resource.SupportedMovieParams ?? new();
+        settings.SupportedMusicParams = resource.SupportedMusicParams ?? new();
+        settings.SupportedBookParams = resource.SupportedBookParams ?? new();
+        settings.DefaultPageSize = resource.DefaultPageSize > 0 ? resource.DefaultPageSize : 50;
+        settings.MaxPageSize = resource.MaxPageSize > 0 ? resource.MaxPageSize : 100;
+        settings.Cookie = resource.Cookie;
+        settings.UserAgent = resource.UserAgent;
+
+        var settingsJson = JsonSerializer.Serialize(settings);
 
         return new IndexerDefinition
         {
