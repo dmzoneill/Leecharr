@@ -98,6 +98,7 @@ public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStarte
         catch (Exception ex)
         {
             this.logger.Error(ex, "Error while purging expired user sessions.");
+            throw;
         }
     }
 
@@ -106,21 +107,33 @@ public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStarte
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
         try
         {
-            await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
+            await this.RunScheduledCleanupAsync().ConfigureAwait(false);
 
             while (!this.cts.Token.IsCancellationRequested &&
                     await timer.WaitForNextTickAsync(this.cts.Token).ConfigureAwait(false))
             {
-                await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
+                await this.RunScheduledCleanupAsync().ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException ex)
         {
             this.logger.Trace(ex, "Session cleanup periodic loop was cancelled");
         }
-        catch (Exception ex)
+    }
+
+    private async Task RunScheduledCleanupAsync()
+    {
+        try
         {
-            this.logger.Error(ex, "Unhandled error in SessionCleanupTask loop.");
+            await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Failure already logged in ExecuteAsync; keep the periodic loop running.
         }
     }
 
