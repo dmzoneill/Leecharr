@@ -458,7 +458,10 @@ public class TorrentCreationService : ITorrentCreationService
 
     private HashSet<string> GetCurrentAllowedDirectories()
     {
-        var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var dirs = new HashSet<string>(
+            OperatingSystem.IsWindows()
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal);
 
         if (this.staticAllowedDirectories != null)
         {

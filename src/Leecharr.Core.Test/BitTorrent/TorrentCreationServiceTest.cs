@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -409,6 +410,40 @@ public class TorrentCreationServiceTest
         };
 
         var result = await service.CreateTorrentAsync(request);
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        File.Exists(result.OutputPath).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_OnLinux_WhenAllowedDirectoriesDifferOnlyByCase_AcceptsBothPaths()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Assert.Ignore("Case-sensitive path allow-list behavior is validated on Linux.");
+        }
+
+        var upperDir = Path.Combine(this.testDir, "CaseDir");
+        var lowerDir = Path.Combine(this.testDir, "casedir");
+        Directory.CreateDirectory(upperDir);
+        Directory.CreateDirectory(lowerDir);
+
+        var sourceFile = Path.Combine(lowerDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var configService = Substitute.For<IConfigService>();
+        configService.DownloadDir.Returns(upperDir);
+        configService.IncompleteDownloadDir.Returns(lowerDir);
+
+        var service = new TorrentCreationService(null, configService);
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = Path.Combine(lowerDir, "out.torrent"),
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
         File.Exists(result.OutputPath).Should().BeTrue();
