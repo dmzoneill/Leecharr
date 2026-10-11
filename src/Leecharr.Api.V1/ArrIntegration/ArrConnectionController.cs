@@ -521,19 +521,7 @@ public class ArrConnectionController : Controller
         }
 
         var client = this.httpClient ?? DefaultHttpClient;
-        var baseUrl = resource.Url.TrimEnd('/');
-        if (baseUrl.EndsWith("/api/v3", StringComparison.OrdinalIgnoreCase))
-        {
-            baseUrl = baseUrl.Substring(0, baseUrl.Length - 7).TrimEnd('/');
-        }
-        else if (baseUrl.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
-        {
-            baseUrl = baseUrl.Substring(0, baseUrl.Length - 7).TrimEnd('/');
-        }
-        else if (baseUrl.EndsWith("/api", StringComparison.OrdinalIgnoreCase))
-        {
-            baseUrl = baseUrl.Substring(0, baseUrl.Length - 4).TrimEnd('/');
-        }
+        var baseUrl = ArrConnectionUrlNormalizer.StripApiSuffix(resource.Url);
         var endpoints = new[] { "/api/v3/system/status", "/api/v1/system/status" };
         string lastError = null;
 

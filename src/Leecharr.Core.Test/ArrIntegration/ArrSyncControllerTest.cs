@@ -127,6 +127,41 @@ public class ArrSyncControllerTest
     }
 
     [Test]
+    public async Task Sync_WhenUrlIncludesApiV3Suffix_ProbesNormalizedPath()
+    {
+        var requestedUris = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requestedUris.Add(req.RequestUri!.PathAndQuery);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr",
+                ArrType = "Sonarr",
+                Url = "http://127.0.0.1:8989/api/v3",
+                ApiKey = "secret-key",
+            },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var actionResult = await syncController.Sync();
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var result = okResult!.Value as SyncResultResource;
+        result!.SyncedCount.Should().Be(1);
+        requestedUris.Should().ContainSingle().Which.Should().Be("/api/v3/system/status");
+    }
+
+    [Test]
     public async Task Sync_WhenPrimaryEndpointFails_FallsBackToSecondaryEndpoint()
     {
         var requestedUris = new List<string>();

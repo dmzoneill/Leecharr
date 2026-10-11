@@ -407,6 +407,26 @@ public class ArrConnectionControllerTest
     }
 
     [Test]
+    public async Task TestDirect_WhenUrlIncludesApiV3Suffix_ProbesNormalizedStatusPath()
+    {
+        HttpRequestMessage capturedRequest = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        using var httpClient = new HttpClient(handler);
+        var testController = new ArrConnectionController(this.repository, httpClient);
+
+        var resource = new ArrConnectionResource { Url = "http://localhost:8989/api/v3", ArrType = "Sonarr" };
+        var result = await testController.TestDirect(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        capturedRequest!.RequestUri!.AbsolutePath.Should().Be("/api/v3/system/status");
+    }
+
+    [Test]
     public async Task TestDirect_WhenUrlEmpty_ReturnsFailResult()
     {
         var resource = new ArrConnectionResource { Url = string.Empty };
