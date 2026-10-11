@@ -320,6 +320,11 @@ public class Startup
 
         app.UseForwardedHeaders(forwardedOptions);
 
+        if (configFileProvider.EnableSsl && configFileProvider.RedirectHttpToHttps)
+        {
+            app.UseHttpsRedirection();
+        }
+
         app.UseMiddleware<SecurityHeadersMiddleware>();
 
         app.UseCors();
@@ -376,11 +381,6 @@ public class Startup
                 }
             },
         });
-
-        if (configFileProvider.EnableSsl && configFileProvider.RedirectHttpToHttps)
-        {
-            app.UseHttpsRedirection();
-        }
 
         app.Use(async (context, next) =>
         {
