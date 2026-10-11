@@ -3,6 +3,7 @@
 using System;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using Dapper;
 using FluentMigrator.Runner;
@@ -65,6 +66,11 @@ public class DbFactory : IDbFactory
     {
         TableRegistration.RegisterTables();
 
+        if (dbType == DatabaseType.SQLite)
+        {
+            connectionString = NormalizeSqliteConnectionString(connectionString);
+        }
+
         this.logger.Info("Creating {0} database: {1}", dbType, RedactConnectionString(dbType, connectionString));
 
         if (dbType == DatabaseType.SQLite)
@@ -95,8 +101,20 @@ public class DbFactory : IDbFactory
             return $"Host={builder.Host};Database={builder.Database}";
         }
 
-        var sqliteBuilder = new SqliteConnectionStringBuilder(connectionString);
+        var sqliteBuilder = new SqliteConnectionStringBuilder(NormalizeSqliteConnectionString(connectionString));
         return $"Data Source={sqliteBuilder.DataSource}";
+    }
+
+    private static string NormalizeSqliteConnectionString(string connectionString)
+    {
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            return connectionString;
+        }
+
+        var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var filtered = parts.Where(part => !part.StartsWith("DateTimeKind=", StringComparison.OrdinalIgnoreCase));
+        return string.Join(';', filtered);
     }
 
     private void RunMigrations(DatabaseType dbType, string connectionString)
