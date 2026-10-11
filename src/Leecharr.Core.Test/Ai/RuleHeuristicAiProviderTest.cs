@@ -64,6 +64,31 @@ public class RuleHeuristicAiProviderTest
     }
 
     [Test]
+    public async Task ParseReleaseAsync_SeasonPackToken_ParsesSeasonWithoutEpisode()
+    {
+        var release = "Show.Name.S01.1080p.BluRay.x264-GROUP";
+        var result = await this.provider.ParseReleaseAsync(release);
+
+        result.CleanTitle.Should().Be("Show Name");
+        result.Season.Should().Be(1);
+        result.Episode.Should().BeNull();
+        result.Resolution.Should().Be("1080p");
+        result.Quality.Should().Be("1080p BluRay");
+    }
+
+    [Test]
+    public async Task ProcessNaturalLanguageSearchAsync_BareSeasonToken_ParsesSeasonAndStripsFromTitle()
+    {
+        var query = "download The Office s02 1080p";
+        var result = await this.provider.ProcessNaturalLanguageSearchAsync(query);
+
+        result.Category.Should().Be("tv");
+        result.Season.Should().Be(2);
+        result.Resolution.Should().Be("1080p");
+        result.CleanTitle.Should().Be("The Office");
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_TvEpisode_ParsesCorrectly()
     {
         var release = "Breaking.Bad.S05E16.Felina.1080p.WEB-DL.DD5.1.H.264-NTb";

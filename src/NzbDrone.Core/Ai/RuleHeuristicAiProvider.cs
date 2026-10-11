@@ -30,6 +30,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
     private static readonly Regex SeasonEpisodeRegex = new(@"(?i)\bS(?<season>\d{1,2})E(?<episode>\d{1,3})(?:-?E?(?<endEpisode>\d{1,3}))?\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex AltSeasonEpisodeRegex = new(@"(?i)\b(?<season>\d{1,2})x(?<episode>\d{1,3})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex SeasonOnlyRegex = new(@"(?i)\b(?:Season|Series)\s*(?<season>\d{1,2})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex SeasonPackRegex = new(@"(?i)\bS(?<season>\d{1,2})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex EpisodeOnlyRegex = new(@"(?i)\b(?:Episode|Ep)\s*(?<episode>\d{1,3})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex YearRegex = new(@"\b(?<year>19\d{2}|20\d{2})\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex ResolutionRegex = new(@"(?i)\b(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
@@ -144,6 +145,14 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
                 {
                     result.Season = int.Parse(seasonMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
                 }
+                else
+                {
+                    var seasonPackMatch = SeasonPackRegex.Match(working);
+                    if (seasonPackMatch.Success)
+                    {
+                        result.Season = int.Parse(seasonPackMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
+                    }
+                }
 
                 var epMatch = EpisodeOnlyRegex.Match(working);
                 if (epMatch.Success)
@@ -175,6 +184,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         CheckTech(SeasonEpisodeRegex);
         CheckTech(AltSeasonEpisodeRegex);
         CheckTech(SeasonOnlyRegex);
+        CheckTech(SeasonPackRegex);
         CheckTech(ResolutionRegex);
         CheckTech(QualityRegex);
         CheckTech(VideoCodecRegex);
@@ -609,6 +619,16 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
                 result.Category = "tv";
                 working = working.Remove(seasonMatch.Index, seasonMatch.Length);
             }
+            else
+            {
+                var seasonPackMatch = SeasonPackRegex.Match(working);
+                if (seasonPackMatch.Success)
+                {
+                    result.Season = int.Parse(seasonPackMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
+                    result.Category = "tv";
+                    working = working.Remove(seasonPackMatch.Index, seasonPackMatch.Length);
+                }
+            }
 
             var epMatch = EpisodeOnlyRegex.Match(working);
             if (epMatch.Success)
@@ -843,6 +863,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         CheckMatch(SeasonEpisodeRegex);
         CheckMatch(AltSeasonEpisodeRegex);
         CheckMatch(SeasonOnlyRegex);
+        CheckMatch(SeasonPackRegex);
         CheckMatch(ResolutionRegex);
         CheckMatch(QualityRegex);
         CheckMatch(VideoCodecRegex);
