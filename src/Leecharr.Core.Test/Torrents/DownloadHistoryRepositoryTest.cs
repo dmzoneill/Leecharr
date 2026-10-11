@@ -256,6 +256,29 @@ public class DownloadHistoryRepositoryTest
     }
 
     [Test]
+    public void Insert_DuplicateInfoHash_ThrowsUniqueConstraintViolation()
+    {
+        var hash = "abababababababababababababababababababab";
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "First",
+            InfoHash = hash,
+            Status = "Active",
+            DateAdded = DateTime.UtcNow,
+        });
+
+        var act = () => this.repository.Insert(new DownloadHistory
+        {
+            Title = "Second",
+            InfoHash = hash,
+            Status = "Active",
+            DateAdded = DateTime.UtcNow,
+        });
+
+        act.Should().Throw<SqliteException>().Where(ex => ex.SqliteErrorCode == 19);
+    }
+
+    [Test]
     public void FindByInfoHash_NormalizesInputCase()
     {
         var entry = new DownloadHistory

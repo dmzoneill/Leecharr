@@ -6,7 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using NLog;
+using Npgsql;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
@@ -21,6 +23,8 @@ namespace NzbDrone.Core.Torrents;
 
 public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAddedEvent>, IHandle<TorrentDeletedEvent>, IHandle<TorrentDownloadCompletedEvent>, IHandle<TorrentStatusChangedEvent>
 {
+    private static readonly object HistoryWriteLock = new();
+
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly IDownloadHistoryRepository historyRepository;
@@ -204,6 +208,19 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             return null;
         }
 
+        lock (HistoryWriteLock)
+        {
+            return this.RecordTorrentAddedCore(torrent, source, magnetUrl, downloadUrl, indexerName);
+        }
+    }
+
+    private DownloadHistory RecordTorrentAddedCore(
+        Torrent torrent,
+        string source,
+        string magnetUrl,
+        string downloadUrl,
+        string indexerName)
+    {
         var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(torrent.Id)?
             .Select(t => t.Url)
             .Where(u => !string.IsNullOrWhiteSpace(u))
@@ -223,53 +240,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
         if (existing != null)
         {
-            existing.TorrentId = torrent.Id;
-            existing.Title = torrent.Name ?? existing.Title;
-            existing.TotalSize = torrent.TotalSize > 0 ? torrent.TotalSize : existing.TotalSize;
-            existing.Status = "Active";
-            existing.DateRemoved = null;
-            existing.IsPrivate = torrent.IsPrivate;
-
-            if (dbTrackers.Count > 0)
-            {
-                existing.Trackers = dbTrackers;
-                existing.PrimaryTracker = tracker;
-            }
-            else if (existing.Trackers != null && existing.Trackers.Count > 0)
-            {
-                if (string.IsNullOrWhiteSpace(existing.PrimaryTracker))
-                {
-                    existing.PrimaryTracker = existing.Trackers.FirstOrDefault();
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(source))
-            {
-                existing.Source = source;
-            }
-
-            if (!string.IsNullOrWhiteSpace(magnetUrl))
-            {
-                existing.MagnetUrl = magnetUrl;
-            }
-
-            if (!string.IsNullOrWhiteSpace(downloadUrl))
-            {
-                existing.DownloadUrl = downloadUrl;
-            }
-
-            if (!string.IsNullOrWhiteSpace(indexerName))
-            {
-                existing.IndexerName = indexerName;
-            }
-
-            if (string.IsNullOrWhiteSpace(existing.PrimaryTracker))
-            {
-                existing.PrimaryTracker = tracker;
-            }
-
-            this.historyRepository.Update(existing);
-            return existing;
+            return this.MergeTorrentIntoExistingHistory(torrent, source, magnetUrl, downloadUrl, indexerName, dbTrackers, tracker);
         }
 
         var entry = new DownloadHistory
@@ -295,7 +266,82 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             Status = "Active",
         };
 
-        return this.historyRepository.Insert(entry);
+        try
+        {
+            return this.historyRepository.Insert(entry);
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            return this.MergeTorrentIntoExistingHistory(torrent, source, magnetUrl, downloadUrl, indexerName, dbTrackers, tracker);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "23505")
+        {
+            return this.MergeTorrentIntoExistingHistory(torrent, source, magnetUrl, downloadUrl, indexerName, dbTrackers, tracker);
+        }
+    }
+
+    private DownloadHistory MergeTorrentIntoExistingHistory(
+        Torrent torrent,
+        string source,
+        string magnetUrl,
+        string downloadUrl,
+        string indexerName,
+        List<string> dbTrackers,
+        string tracker)
+    {
+        var existing = !string.IsNullOrEmpty(torrent.InfoHash)
+            ? this.historyRepository.FindByInfoHash(torrent.InfoHash)
+            : null;
+
+        if (existing == null)
+        {
+            throw new InvalidOperationException($"Download history insert conflict for info hash {torrent.InfoHash} but no row was found.");
+        }
+
+        existing.TorrentId = torrent.Id;
+        existing.Title = torrent.Name ?? existing.Title;
+        existing.TotalSize = torrent.TotalSize > 0 ? torrent.TotalSize : existing.TotalSize;
+        existing.Status = "Active";
+        existing.DateRemoved = null;
+        existing.IsPrivate = torrent.IsPrivate;
+
+        if (dbTrackers.Count > 0)
+        {
+            existing.Trackers = dbTrackers;
+            existing.PrimaryTracker = tracker;
+        }
+        else if (existing.Trackers != null && existing.Trackers.Count > 0 && string.IsNullOrWhiteSpace(existing.PrimaryTracker))
+        {
+            existing.PrimaryTracker = existing.Trackers.FirstOrDefault();
+        }
+
+        if (!string.IsNullOrWhiteSpace(source))
+        {
+            existing.Source = source;
+        }
+
+        if (!string.IsNullOrWhiteSpace(magnetUrl))
+        {
+            existing.MagnetUrl = magnetUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            existing.DownloadUrl = downloadUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(indexerName))
+        {
+            existing.IndexerName = indexerName;
+        }
+
+        if (string.IsNullOrWhiteSpace(existing.PrimaryTracker))
+        {
+            existing.PrimaryTracker = tracker;
+        }
+
+        this.historyRepository.Update(existing);
+        return existing;
     }
 
     public void RecordTorrentUpdated(Torrent torrent)
@@ -350,6 +396,14 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             return;
         }
 
+        lock (HistoryWriteLock)
+        {
+            this.RecordTorrentRemovedCore(torrent, reason);
+        }
+    }
+
+    private void RecordTorrentRemovedCore(Torrent torrent, string reason)
+    {
         var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(torrent.Id)?
             .Select(t => t.Url)
             .Where(u => !string.IsNullOrWhiteSpace(u))
