@@ -47,37 +47,62 @@ public static class ClientEmulationPresets
             return DefaultUserAgent;
         }
 
-        if (peerIdPrefix.StartsWith("-qB", StringComparison.OrdinalIgnoreCase))
+        var cleaned = CleanClientVersion(peerIdPrefix);
+        if (cleaned.Length < 6 || !AreAllDigits(cleaned, 2, 4))
         {
             return DefaultUserAgent;
         }
 
-        if (peerIdPrefix.StartsWith("-DE", StringComparison.OrdinalIgnoreCase))
+        var clientId = cleaned.Substring(0, 2);
+        var major = cleaned[2];
+        var minor = cleaned[3];
+        var patch = cleaned[4];
+        var build = cleaned[5];
+
+        if (clientId.Equals("qB", StringComparison.OrdinalIgnoreCase))
         {
-            return "Deluge/2.1.1";
+            return $"qBittorrent/{major}.{minor}.{patch}";
         }
 
-        if (peerIdPrefix.StartsWith("-TR", StringComparison.OrdinalIgnoreCase))
+        if (clientId.Equals("DE", StringComparison.OrdinalIgnoreCase))
         {
-            return "Transmission/4.0.5";
+            return $"Deluge/{major}.{minor}.{patch}";
         }
 
-        if (peerIdPrefix.StartsWith("-UT", StringComparison.OrdinalIgnoreCase))
+        if (clientId.Equals("TR", StringComparison.OrdinalIgnoreCase))
         {
-            return "uTorrent/3550";
+            return $"Transmission/{major}.{minor}.{patch}";
         }
 
-        if (peerIdPrefix.StartsWith("-AZ", StringComparison.OrdinalIgnoreCase))
+        if (clientId.Equals("UT", StringComparison.OrdinalIgnoreCase))
         {
-            return "BiglyBT/3.4.0.0";
+            return $"uTorrent/{major}{minor}{patch}{build}";
         }
 
-        if (peerIdPrefix.StartsWith("-LC", StringComparison.OrdinalIgnoreCase))
+        if (clientId.Equals("AZ", StringComparison.OrdinalIgnoreCase))
         {
-            return "Leecharr/1.0.0";
+            return $"BiglyBT/{major}.{minor}.{patch}.{build}";
+        }
+
+        if (clientId.Equals("LC", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Leecharr/{major}.{minor}.{patch}";
         }
 
         return DefaultUserAgent;
+    }
+
+    private static bool AreAllDigits(string value, int start, int count)
+    {
+        for (var i = start; i < start + count && i < value.Length; i++)
+        {
+            if (!char.IsDigit(value[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public static string CleanClientIdentifier(string peerIdPrefix)
