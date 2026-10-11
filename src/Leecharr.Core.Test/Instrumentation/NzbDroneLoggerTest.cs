@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using FluentAssertions;
@@ -77,9 +78,14 @@ public class NzbDroneLoggerTest
         consoleRules.Any(r => r.Levels.Contains(LogLevel.Debug)).Should().BeTrue();
     }
 
-    [TestCase("error", LogLevel.Error)]
-    [TestCase("warn", LogLevel.Warn)]
-    [TestCase("off", LogLevel.Off)]
+    private static IEnumerable<TestCaseData> RegisterLogLevelCases()
+    {
+        yield return new TestCaseData("error", LogLevel.Error);
+        yield return new TestCaseData("warn", LogLevel.Warn);
+        yield return new TestCaseData("off", LogLevel.Off);
+    }
+
+    [TestCaseSource(nameof(RegisterLogLevelCases))]
     public void Register_WithLogLevelArg_ConfiguresConsoleLevel(string levelArg, LogLevel expectedLevel)
     {
         var appFolderInfo = Substitute.For<IAppFolderInfo>();
