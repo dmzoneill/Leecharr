@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -374,6 +375,101 @@ public class ArrWebhookRegistrationTest
     }
 
     [Test]
+    public void RegisterDownloadClient_WhenWebhookHostIsAbsoluteUrl_UsesHostAndPortFromUrl()
+    {
+        string postBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                postBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 100}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+            EnableAutomaticAdd = true,
+            WebhookHost = "https://leecharr.example:8443",
+        };
+
+        registration.RegisterDownloadClient(conn).Should().BeTrue();
+        postBody.Should().NotBeNullOrEmpty();
+
+        using var doc = JsonDocument.Parse(postBody!);
+        var fields = doc.RootElement.GetProperty("fields");
+        GetFieldValue(fields, "host").Should().Be("leecharr.example");
+        GetFieldValue(fields, "port").Should().Be("8443");
+    }
+
+    [Test]
+    public void RegisterWebhook_WhenWebhookHostIsRawIpv6_RegistersBracketedWebhookUrl()
+    {
+        string postBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                postBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 42}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-api-key",
+            Enable = true,
+            WebhookEnabled = true,
+            WebhookHost = "2001:db8::10",
+        };
+
+        registration.RegisterWebhook(conn).Should().BeTrue();
+        postBody.Should().NotBeNullOrEmpty();
+
+        using var doc = JsonDocument.Parse(postBody!);
+        var fields = doc.RootElement.GetProperty("fields");
+        GetFieldValue(fields, "url").Should().Be("http://[2001:db8::10]:7889/api/v1/webhook/arr");
+    }
+
+    [Test]
     public void UnregisterDownloadClient_WhenExistingFound_SendsDelete()
     {
         var requests = new List<HttpRequestMessage>();
@@ -466,6 +562,19 @@ public class ArrWebhookRegistrationTest
         }
 
         mockReg.Received(1).Register(Arg.Is<ArrConnectionDefinition>(c => c.Id == 1));
+    }
+
+    private static string GetFieldValue(JsonElement fields, string name)
+    {
+        foreach (var field in fields.EnumerateArray())
+        {
+            if (field.GetProperty("name").GetString() == name)
+            {
+                return field.GetProperty("value").ToString();
+            }
+        }
+
+        return string.Empty;
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
