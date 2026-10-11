@@ -24,8 +24,8 @@ public class UdpTrackerService : IUdpTrackerService
 
     private readonly IEmbeddedTrackerService trackerService;
     private readonly IConfigService configService;
+    private readonly ITrackerClientRateLimiter rateLimiter;
     private readonly ConcurrentDictionary<long, (IPAddress Ip, DateTime ExpiresUtc)> connectionIds = new();
-    private readonly ConcurrentDictionary<IPAddress, (int Count, long WindowMinute)> clientRateLimits = new();
     private readonly object pruneLock = new();
     private readonly object syncRoot = new();
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
@@ -36,10 +36,14 @@ public class UdpTrackerService : IUdpTrackerService
     private Task listenTask;
     private int disposed;
 
-    public UdpTrackerService(IEmbeddedTrackerService trackerService, IConfigService configService = null)
+    public UdpTrackerService(
+        IEmbeddedTrackerService trackerService,
+        IConfigService configService = null,
+        ITrackerClientRateLimiter rateLimiter = null)
     {
         this.trackerService = trackerService;
         this.configService = configService;
+        this.rateLimiter = rateLimiter ?? new TrackerClientRateLimiter();
     }
 
     public bool IsRunning { get; private set; }
@@ -507,31 +511,12 @@ public class UdpTrackerService : IUdpTrackerService
                 }
             }
 
-            var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
-            foreach (var kvp in this.clientRateLimits)
-            {
-                if (kvp.Value.WindowMinute < currentMinute)
-                {
-                    this.clientRateLimits.TryRemove(kvp.Key, out _);
-                }
-            }
         }
     }
 
     private bool IsRateLimited(IPAddress clientIp)
     {
         var limit = this.configService?.TrackerRateLimitPerMinute ?? 0;
-        if (limit <= 0)
-        {
-            return false;
-        }
-
-        var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
-        var entry = this.clientRateLimits.AddOrUpdate(
-            clientIp,
-            _ => (1, currentMinute),
-            (_, existing) => existing.WindowMinute == currentMinute ? (existing.Count + 1, currentMinute) : (1, currentMinute));
-
-        return entry.Count > limit;
+        return this.rateLimiter.IsRateLimited(clientIp, limit);
     }
 }
