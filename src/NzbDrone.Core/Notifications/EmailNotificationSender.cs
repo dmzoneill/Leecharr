@@ -7,6 +7,8 @@ using System.Net.Security;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using MailKit.Security;
+using MimeKit;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Notifications;
@@ -14,6 +16,8 @@ namespace NzbDrone.Core.Notifications;
 public static class EmailNotificationSender
 {
     private static readonly char[] RecipientSeparators = [',', ';'];
+
+    internal static bool RequiresImplicitSsl(bool useSsl, int port) => useSsl && port == 465;
 
     public static void SendEmailNotification(
         string settings,
@@ -246,6 +250,12 @@ public static class EmailNotificationSender
             throw new InvalidOperationException("Recipient email address ('to') is required.");
         }
 
+        if (RequiresImplicitSsl(ssl, port) && smtpSenderAsync == null)
+        {
+            await SendWithImplicitSslAsync(host, port, user, pass, ignoreSslErrors, mail).ConfigureAwait(false);
+            return;
+        }
+
         using var client = new SmtpClient(host, port)
         {
             EnableSsl = ssl,
@@ -292,5 +302,46 @@ public static class EmailNotificationSender
             }
         }
 #pragma warning restore SYSLIB0014
+    }
+
+    private static async Task SendWithImplicitSslAsync(
+        string host,
+        int port,
+        string user,
+        string pass,
+        bool ignoreSslErrors,
+        MailMessage mail)
+    {
+        using var client = new MailKit.Net.Smtp.SmtpClient();
+        if (ignoreSslErrors)
+        {
+            client.ServerCertificateValidationCallback = (_, _, _, sslPolicyErrors) =>
+                sslPolicyErrors == SslPolicyErrors.None || ignoreSslErrors;
+        }
+
+        await client.ConnectAsync(host, port, SecureSocketOptions.SslOnConnect).ConfigureAwait(false);
+
+        if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
+        {
+            await client.AuthenticateAsync(user, pass).ConfigureAwait(false);
+        }
+
+        using var message = ToMimeMessage(mail);
+        await client.SendAsync(message).ConfigureAwait(false);
+        await client.DisconnectAsync(true).ConfigureAwait(false);
+    }
+
+    private static MimeMessage ToMimeMessage(MailMessage mail)
+    {
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(mail.From.DisplayName, mail.From.Address));
+        foreach (var recipient in mail.To)
+        {
+            message.To.Add(new MailboxAddress(recipient.DisplayName, recipient.Address));
+        }
+
+        message.Subject = mail.Subject;
+        message.Body = new TextPart("plain") { Text = mail.Body };
+        return message;
     }
 }

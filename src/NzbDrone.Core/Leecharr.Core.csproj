@@ -16,6 +16,7 @@
     <PackageReference Include="FluentMigrator.Runner.SQLite" Version="8.0.1" />
     <PackageReference Include="FluentMigrator.Runner.Postgres" Version="8.0.1" />
     <PackageReference Include="Jint" Version="4.16.2" />
+    <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="MaxMind.GeoIP2" Version="6.1.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
