@@ -131,7 +131,7 @@ public class SystemDeveloperController : Controller
                 SourceNamespace = e.SourceNamespace,
                 PayloadJson = e.PayloadJson,
             }).ToList(),
-            TotalRecorded = list.Count,
+            TotalRecorded = this.eventStore.GetRecordedCount(search),
         };
     }
 
@@ -338,7 +338,7 @@ public class SystemDeveloperController : Controller
                 ResponseBodyPreview = t.ResponseBodyPreview,
                 ErrorMessage = t.ErrorMessage,
             }).ToList(),
-            TotalRecorded = items.Count,
+            TotalRecorded = this.httpTrafficStore.GetRecordedCount(search),
         };
     }
 

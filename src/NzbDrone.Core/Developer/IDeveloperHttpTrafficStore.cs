@@ -47,5 +47,7 @@ public interface IDeveloperHttpTrafficStore
 
     List<DeveloperHttpTrafficEntry> GetRecent(int limit = 100, string search = null);
 
+    int GetRecordedCount(string search = null);
+
     void Clear();
 }

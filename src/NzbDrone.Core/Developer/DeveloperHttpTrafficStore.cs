@@ -95,6 +95,18 @@ public class DeveloperHttpTrafficStore : IDeveloperHttpTrafficStore
 
     public List<DeveloperHttpTrafficEntry> GetRecent(int limit = 100, string search = null)
     {
+        return this.EnumerateMatching(search)
+            .Take(Math.Clamp(limit, 1, MaxEntries))
+            .ToList();
+    }
+
+    public int GetRecordedCount(string search = null)
+    {
+        return this.EnumerateMatching(search).Count();
+    }
+
+    private IEnumerable<DeveloperHttpTrafficEntry> EnumerateMatching(string search)
+    {
         var items = this.traffic.ToArray().Reverse();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -106,7 +118,7 @@ public class DeveloperHttpTrafficStore : IDeveloperHttpTrafficStore
                 t.StatusCode.ToString().Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
-        return items.Take(Math.Clamp(limit, 1, MaxEntries)).ToList();
+        return items;
     }
 
     public void Clear()
