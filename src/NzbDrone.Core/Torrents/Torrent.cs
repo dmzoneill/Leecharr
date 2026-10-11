@@ -52,6 +52,14 @@ public class Torrent : ModelBase
 
     public string Category { get; set; }
 
+    public string Custom2 { get; set; }
+
+    public string Custom3 { get; set; }
+
+    public string Custom4 { get; set; }
+
+    public string Custom5 { get; set; }
+
     public string Label { get; set; }
 
     public string TrackerUrl { get; set; }

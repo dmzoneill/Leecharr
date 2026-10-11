@@ -838,6 +838,11 @@ public class RTorrentControllerTest
         this.SetRequestBody(setXml5);
         var setRes5 = (ContentResult)await this.controller.HandleXmlRpc();
         setRes5.Content.Should().Contain("<string>val-custom5</string>");
+        torrent.Custom2.Should().Be("val-custom2");
+        torrent.Custom3.Should().Be("val-custom3");
+        torrent.Custom4.Should().Be("val-custom4");
+        torrent.Custom5.Should().Be("val-custom5");
+        await this.torrentService.Received(4).UpdateAsync(torrent);
 
         // 3. Get custom2 through custom5
         var verifyXml = """
