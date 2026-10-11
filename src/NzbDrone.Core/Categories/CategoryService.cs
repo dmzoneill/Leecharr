@@ -109,6 +109,58 @@ public class CategoryService : ICategoryService
         return string.Join('/', parts);
     }
 
+    public static void ValidateCategoryNameSegments(string normalizedCategory, string paramName = "category")
+    {
+        if (string.IsNullOrWhiteSpace(normalizedCategory))
+        {
+            return;
+        }
+
+        foreach (var segment in normalizedCategory.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!IsValidCategoryPathSegment(segment))
+            {
+                throw new ArgumentException(
+                    $"Category name contains invalid path segment: '{segment}'.",
+                    paramName);
+            }
+        }
+    }
+
+    private static bool IsValidCategoryPathSegment(string segment)
+    {
+        if (string.IsNullOrWhiteSpace(segment) ||
+            string.Equals(segment, ".", StringComparison.Ordinal) ||
+            string.Equals(segment, "..", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (Path.IsPathRooted(segment))
+        {
+            return false;
+        }
+
+        if (segment.Length >= 2 && char.IsLetter(segment[0]) && segment[1] == ':')
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool HasInvalidCategoryNameSegments(string normalizedCategory)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedCategory))
+        {
+            return false;
+        }
+
+        return normalizedCategory
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Any(segment => !IsValidCategoryPathSegment(segment));
+    }
+
     public Category GetByName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -140,6 +192,8 @@ public class CategoryService : ICategoryService
         {
             throw new ArgumentException("Category name is required.", nameof(category));
         }
+
+        ValidateCategoryNameSegments(category.Name, nameof(category));
 
         if (category.SavePath != null)
         {
@@ -193,6 +247,8 @@ public class CategoryService : ICategoryService
         {
             throw new ArgumentException("Category name is required.", nameof(category));
         }
+
+        ValidateCategoryNameSegments(category.Name, nameof(category));
 
         if (category.SavePath != null)
         {
@@ -613,6 +669,11 @@ public class CategoryService : ICategoryService
             return null;
         }
 
+        if (HasInvalidCategoryNameSegments(normalizedCategory))
+        {
+            return null;
+        }
+
         var cat = this.repository.GetByName(normalizedCategory);
         if (cat != null && !string.IsNullOrWhiteSpace(cat.SavePath))
         {
@@ -627,10 +688,40 @@ public class CategoryService : ICategoryService
             var parentPath = this.GetExplicitOrInheritedSavePath(parentName);
             if (!string.IsNullOrWhiteSpace(parentPath))
             {
-                return Path.Combine(parentPath, childSegment);
+                return CombineInheritedSavePath(parentPath, childSegment);
             }
         }
 
         return null;
+    }
+
+    private static string CombineInheritedSavePath(string parentPath, string childSegment)
+    {
+        if (!IsValidCategoryPathSegment(childSegment))
+        {
+            return null;
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(Path.Combine(parentPath, childSegment));
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (IsForbiddenSystemDirectory(fullPath) || IsRootOrSystemDirectory(fullPath))
+        {
+            return null;
+        }
+
+        if (!TorrentPathValidator.IsStrictSubPath(parentPath, fullPath))
+        {
+            return null;
+        }
+
+        return fullPath;
     }
 }
