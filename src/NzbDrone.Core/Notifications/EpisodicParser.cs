@@ -252,7 +252,7 @@ public class EpisodicParser : IEpisodicParser
 
     public static string FormatEtaStatic(long seconds)
     {
-        if (seconds <= 0 || seconds >= 8640000)
+        if (seconds <= 0)
         {
             return "00:00:00";
         }
