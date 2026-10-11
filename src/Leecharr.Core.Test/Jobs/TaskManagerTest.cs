@@ -6,6 +6,7 @@ using System.Linq;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Jobs;
 using NzbDrone.Core.Lifecycle;
 
@@ -15,13 +16,17 @@ namespace Leecharr.Core.Test.Jobs;
 public class TaskManagerTest
 {
     private IScheduledTaskRepository scheduledTaskRepository = null!;
+    private IConfigService configService = null!;
     private TaskManager taskManager = null!;
 
     [SetUp]
     public void SetUp()
     {
         this.scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
-        this.taskManager = new TaskManager(this.scheduledTaskRepository);
+        this.configService = Substitute.For<IConfigService>();
+        this.configService.WatchFolderScanIntervalSeconds.Returns(10);
+        this.configService.BlocklistUpdateIntervalHours.Returns(24);
+        this.taskManager = new TaskManager(this.scheduledTaskRepository, this.configService);
     }
 
     [Test]
@@ -82,7 +87,7 @@ public class TaskManagerTest
         var existingCustomTask = new ScheduledTask
         {
             Id = 1,
-            TypeName = "WatchFolderScanTask",
+            TypeName = "BackupTask",
             Interval = 5,
             LastExecution = DateTime.UtcNow.AddMinutes(-2),
         };
@@ -94,10 +99,33 @@ public class TaskManagerTest
         var result = this.taskManager.GetAll();
 
         result.Should().HaveCount(10);
-        var watchFolder = result.First(t => t.TypeName == "WatchFolderScanTask");
-        watchFolder.Interval.Should().Be(5); // Preserved user customization
+        var backup = result.First(t => t.TypeName == "BackupTask");
+        backup.Interval.Should().Be(5);
 
         this.scheduledTaskRepository.Received(9).Insert(Arg.Any<ScheduledTask>());
+    }
+
+    [Test]
+    public void GetAll_SyncsWatchFolderAndBlocklistIntervalsFromConfig()
+    {
+        this.configService.WatchFolderScanIntervalSeconds.Returns(3600);
+        this.configService.BlocklistUpdateIntervalHours.Returns(168);
+
+        var storedTasks = new List<ScheduledTask>
+        {
+            new() { Id = 1, TypeName = "WatchFolderScanTask", Interval = 1 },
+            new() { Id = 2, TypeName = "BlocklistUpdateTask", Interval = 1440 },
+            new() { Id = 3, TypeName = "RssSyncTask", Interval = 15 },
+        };
+
+        this.scheduledTaskRepository.All().Returns(_ => storedTasks.ToList());
+        this.scheduledTaskRepository.Insert(Arg.Do<ScheduledTask>(t => storedTasks.Add(t)));
+
+        this.taskManager.GetAll();
+
+        storedTasks.First(t => t.TypeName == "WatchFolderScanTask").Interval.Should().Be(60);
+        storedTasks.First(t => t.TypeName == "BlocklistUpdateTask").Interval.Should().Be(10080);
+        this.scheduledTaskRepository.Received(2).Update(Arg.Any<ScheduledTask>());
     }
 
     [Test]

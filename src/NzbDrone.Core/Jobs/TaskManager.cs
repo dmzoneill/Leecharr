@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Events;
 
@@ -25,11 +26,13 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
     ];
 
     private readonly IScheduledTaskRepository scheduledTaskRepository;
+    private readonly IConfigService configService;
     private readonly object syncRoot = new();
 
-    public TaskManager(IScheduledTaskRepository scheduledTaskRepository)
+    public TaskManager(IScheduledTaskRepository scheduledTaskRepository, IConfigService configService)
     {
         this.scheduledTaskRepository = scheduledTaskRepository;
+        this.configService = configService;
     }
 
     public IList<ScheduledTask> GetAll()
@@ -60,7 +63,7 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
                         task = this.scheduledTaskRepository.Insert(new ScheduledTask
                         {
                             TypeName = def.TypeName,
-                            Interval = def.Interval,
+                            Interval = this.ResolveInterval(def.TypeName, def.Interval),
                             LastExecution = DateTime.UtcNow,
                             LastStartTime = null,
                         });
@@ -96,7 +99,7 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
                     var newTask = new ScheduledTask
                     {
                         TypeName = def.TypeName,
-                        Interval = def.Interval,
+                        Interval = this.ResolveInterval(def.TypeName, def.Interval),
                         LastExecution = DateTime.UtcNow,
                         LastStartTime = null,
                     };
@@ -105,6 +108,67 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
                     existingNames.Add(def.TypeName);
                 }
             }
+
+            this.SyncConfigurableIntervals(existing);
         }
+    }
+
+    private void SyncConfigurableIntervals(List<ScheduledTask> existing)
+    {
+        foreach (var task in existing)
+        {
+            if (!IsConfigDrivenTask(task.TypeName))
+            {
+                continue;
+            }
+
+            var def = DefaultDefinitions.FirstOrDefault(d => string.Equals(d.TypeName, task.TypeName, StringComparison.OrdinalIgnoreCase));
+            if (def.TypeName == null)
+            {
+                continue;
+            }
+
+            var desiredInterval = this.ResolveInterval(task.TypeName, def.Interval);
+            if (task.Interval == desiredInterval)
+            {
+                continue;
+            }
+
+            task.Interval = desiredInterval;
+            this.scheduledTaskRepository.Update(task);
+        }
+    }
+
+    private static bool IsConfigDrivenTask(string typeName)
+    {
+        return string.Equals(typeName, "WatchFolderScanTask", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(typeName, "BlocklistUpdateTask", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int ResolveInterval(string typeName, int defaultIntervalMinutes)
+    {
+        if (string.Equals(typeName, "WatchFolderScanTask", StringComparison.OrdinalIgnoreCase))
+        {
+            var seconds = this.configService.WatchFolderScanIntervalSeconds;
+            if (seconds <= 0)
+            {
+                return defaultIntervalMinutes;
+            }
+
+            return Math.Max(1, (seconds + 59) / 60);
+        }
+
+        if (string.Equals(typeName, "BlocklistUpdateTask", StringComparison.OrdinalIgnoreCase))
+        {
+            var hours = this.configService.BlocklistUpdateIntervalHours;
+            if (hours <= 0)
+            {
+                return defaultIntervalMinutes;
+            }
+
+            return Math.Max(1, hours * 60);
+        }
+
+        return defaultIntervalMinutes;
     }
 }
