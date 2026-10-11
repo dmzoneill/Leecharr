@@ -130,7 +130,7 @@ public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
                             SnapshotCompletedRunDurationBeforeNewStart(task);
                             var startTime = DateTime.UtcNow;
                             task.LastStartTime = startTime;
-                            this.taskManager.Update(task);
+                            this.taskManager.RecordDispatchStart(task);
 
                             try
                             {

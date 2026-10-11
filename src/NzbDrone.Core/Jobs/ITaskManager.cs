@@ -14,5 +14,7 @@ public interface ITaskManager
 
     void Update(ScheduledTask task);
 
+    void RecordDispatchStart(ScheduledTask task);
+
     void EnsureDefaultTasks();
 }

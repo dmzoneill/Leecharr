@@ -220,4 +220,34 @@ public class TaskManagerTest
 
         this.scheduledTaskRepository.Received(1).Update(task);
     }
+
+    [Test]
+    public void RecordDispatchStart_UpdatesOnlyDispatchFields()
+    {
+        var startTime = DateTime.UtcNow;
+        var task = new ScheduledTask
+        {
+            Id = 5,
+            TypeName = "BackupTask",
+            Interval = 120,
+            LastExecution = DateTime.UtcNow.AddHours(-1),
+            LastStartTime = startTime,
+            LastCompletedDurationSeconds = 42,
+        };
+
+        this.taskManager.RecordDispatchStart(task);
+
+        this.scheduledTaskRepository.Received(1).UpdateDispatchStart(5, startTime, 42);
+        this.scheduledTaskRepository.DidNotReceive().Update(Arg.Any<ScheduledTask>());
+    }
+
+    [Test]
+    public void RecordDispatchStart_WhenLastStartTimeMissing_DoesNothing()
+    {
+        var task = new ScheduledTask { Id = 5, TypeName = "BackupTask", Interval = 120 };
+
+        this.taskManager.RecordDispatchStart(task);
+
+        this.scheduledTaskRepository.DidNotReceive().UpdateDispatchStart(Arg.Any<int>(), Arg.Any<DateTime>(), Arg.Any<long?>());
+    }
 }
