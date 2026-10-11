@@ -114,6 +114,47 @@ public class DeveloperGitHubServiceTest
     }
 
     [Test]
+    public async Task GetIssuesAsync_when_first_page_is_only_prs_fetches_next_page()
+    {
+        var pageOne = @"[
+            {
+                ""id"": 2002,
+                ""number"": 100,
+                ""title"": ""PR only"",
+                ""state"": ""open"",
+                ""pull_request"": {}
+            }
+        ]";
+
+        var pageTwo = @"[
+            {
+                ""id"": 2003,
+                ""number"": 98,
+                ""title"": ""bug: missing issue"",
+                ""state"": ""open"",
+                ""html_url"": ""https://github.com/dmzoneill/Leecharr/issues/98"",
+                ""created_at"": ""2026-10-02T14:00:00Z"",
+                ""comments"": 1,
+                ""user"": { ""login"": ""bob"" }
+            }
+        ]";
+
+        var handler = new MockHttpMessageHandler();
+        handler.Enqueue(
+            HttpStatusCode.OK,
+            pageOne,
+            "<https://api.github.com/repos/dmzoneill/Leecharr/issues?state=open&per_page=30&page=2>; rel=\"next\"");
+        handler.Enqueue(HttpStatusCode.OK, pageTwo);
+        var client = new HttpClient(handler);
+        var service = new DeveloperGitHubService(client);
+
+        var result = await service.GetIssuesAsync("open", CancellationToken.None);
+
+        Assert.That(result.TotalCount, Is.EqualTo(1));
+        Assert.That(result.Items[0].Number, Is.EqualTo(98));
+    }
+
+    [Test]
     public async Task GetIssuesAsync_when_rate_limited_sets_flag()
     {
         var handler = new MockHttpMessageHandler();
@@ -132,12 +173,19 @@ public class DeveloperGitHubServiceTest
     {
         private readonly Queue<HttpResponseMessage> responses = new();
 
-        public void Enqueue(HttpStatusCode statusCode, string content)
+        public void Enqueue(HttpStatusCode statusCode, string content, string linkHeader = null)
         {
-            this.responses.Enqueue(new HttpResponseMessage(statusCode)
+            var response = new HttpResponseMessage(statusCode)
             {
                 Content = new StringContent(content)
-            });
+            };
+
+            if (!string.IsNullOrEmpty(linkHeader))
+            {
+                response.Headers.TryAddWithoutValidation("Link", linkHeader);
+            }
+
+            this.responses.Enqueue(response);
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

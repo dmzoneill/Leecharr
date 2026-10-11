@@ -17,6 +17,7 @@ public class DeveloperGitHubService : IDeveloperGitHubService
 {
     private const string RepoOwner = "dmzoneill";
     private const string RepoName = "Leecharr";
+    private const int IssuesListSize = 30;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
 
     private static readonly ConcurrentDictionary<string, (object Data, DateTime Expiry)> MemoryCache = new(StringComparer.OrdinalIgnoreCase);
@@ -120,44 +121,46 @@ public class DeveloperGitHubService : IDeveloperGitHubService
 
         try
         {
-            var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/issues?state={state}&per_page=30";
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.UserAgent.Add(new ProductInfoHeaderValue("Leecharr-Developer", "2.0.31"));
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+            var nextUrl = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/issues?state={state}&per_page={IssuesListSize}";
+            var fetchedAnyPage = false;
 
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
-            if (response.IsSuccessStatusCode)
+            while (!string.IsNullOrEmpty(nextUrl) && result.Items.Count < IssuesListSize)
             {
-                var json = await response.Content.ReadAsStringAsync(cancellationToken);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var elem in doc.RootElement.EnumerateArray())
-                    {
-                        if (elem.TryGetProperty("pull_request", out _)) continue;
+                using var request = new HttpRequestMessage(HttpMethod.Get, nextUrl);
+                request.Headers.UserAgent.Add(new ProductInfoHeaderValue("Leecharr-Developer", "2.0.31"));
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
 
-                        var issue = ParseIssue(elem);
-                        if (issue != null)
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (!fetchedAnyPage)
+                    {
+                        if ((int)response.StatusCode == 403 || (int)response.StatusCode == 429)
                         {
-                            result.Items.Add(issue);
+                            result.IsRateLimited = true;
+                            result.Message = "GitHub API rate limit reached. Displaying local workspace snapshot.";
+                        }
+                        else
+                        {
+                            result.Message = $"GitHub returned status {(int)response.StatusCode}. Displaying local workspace snapshot.";
                         }
                     }
+
+                    break;
                 }
 
+                fetchedAnyPage = true;
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                AppendIssuesFromJson(json, result.Items, IssuesListSize);
+                nextUrl = result.Items.Count < IssuesListSize ? GetNextLinkUrl(response) : null;
+            }
+
+            if (fetchedAnyPage)
+            {
                 result.TotalCount = result.Items.Count;
                 result.Message = $"Fetched {result.TotalCount} issues from GitHub.";
                 MemoryCache[cacheKey] = (result, DateTime.UtcNow.Add(CacheDuration));
                 return result;
-            }
-
-            if ((int)response.StatusCode == 403 || (int)response.StatusCode == 429)
-            {
-                result.IsRateLimited = true;
-                result.Message = "GitHub API rate limit reached. Displaying local workspace snapshot.";
-            }
-            else
-            {
-                result.Message = $"GitHub returned status {(int)response.StatusCode}. Displaying local workspace snapshot.";
             }
         }
         catch (Exception ex)
@@ -170,6 +173,62 @@ public class DeveloperGitHubService : IDeveloperGitHubService
         result.TotalCount = result.Items.Count;
         MemoryCache[cacheKey] = (result, DateTime.UtcNow.AddMinutes(2));
         return result;
+    }
+
+    private static void AppendIssuesFromJson(string json, List<DeveloperIssueItem> items, int maxCount)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var elem in doc.RootElement.EnumerateArray())
+        {
+            if (items.Count >= maxCount)
+            {
+                return;
+            }
+
+            if (elem.TryGetProperty("pull_request", out _))
+            {
+                continue;
+            }
+
+            var issue = ParseIssue(elem);
+            if (issue != null)
+            {
+                items.Add(issue);
+            }
+        }
+    }
+
+    private static string GetNextLinkUrl(HttpResponseMessage response)
+    {
+        if (!response.Headers.TryGetValues("Link", out var linkHeaders))
+        {
+            return null;
+        }
+
+        foreach (var linkHeader in linkHeaders)
+        {
+            foreach (var part in linkHeader.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!part.Contains("rel=\"next\"", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var start = part.IndexOf('<');
+                var end = part.IndexOf('>');
+                if (start >= 0 && end > start)
+                {
+                    return part.Substring(start + 1, end - start - 1);
+                }
+            }
+        }
+
+        return null;
     }
 
     private static HttpClient CreateDefaultHttpClient()
