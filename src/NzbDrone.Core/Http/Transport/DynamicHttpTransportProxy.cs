@@ -86,6 +86,15 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
             };
         }
 
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            return new HttpTransportHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "VPN kill switch is active. Outbound HTTP transport is fail-closed until the VPN interface is restored.",
+            };
+        }
+
         return await provider.ProbeHealthAsync();
     }
 

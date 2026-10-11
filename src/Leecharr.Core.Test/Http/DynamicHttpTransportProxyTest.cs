@@ -13,6 +13,7 @@ using NUnit.Framework;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network.Vpn;
 
 namespace Leecharr.Core.Test.Http;
 
@@ -158,6 +159,25 @@ public class DynamicHttpTransportProxyTest
         probe.Should().NotBeNull();
         probe.IsHealthy.Should().BeFalse();
         probe.StatusMessage.Should().Contain("not recognized");
+    }
+
+    [Test]
+    public async Task ProbeProviderAsync_WhenKillSwitchActive_ReturnsUnhealthyWithoutCallingProviderProbe()
+    {
+        var vpnKillSwitchService = Substitute.For<IVpnKillSwitchService>();
+        vpnKillSwitchService.IsFailClosedActive.Returns(true);
+        var providers = new List<IHttpTransportProvider> { this.socketsProvider, this.curlProvider, this.flareSolverrProvider };
+        var proxy = new DynamicHttpTransportProxy(
+            providers,
+            this.configService,
+            this.eventAggregator,
+            vpnKillSwitchService);
+
+        var probe = await proxy.ProbeProviderAsync("SocketsHttpHandler");
+
+        probe.IsHealthy.Should().BeFalse();
+        probe.StatusMessage.Should().Contain("kill switch");
+        await this.socketsProvider.DidNotReceive().ProbeHealthAsync();
     }
 
     [Test]
