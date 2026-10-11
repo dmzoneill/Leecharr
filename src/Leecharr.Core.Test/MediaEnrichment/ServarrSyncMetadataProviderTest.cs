@@ -75,7 +75,7 @@ public class ServarrSyncMetadataProviderTest
         result.TmdbId.Should().Be("12345");
         result.Genres.Should().Be("Drama, Mystery");
         result.PosterUrl.Should().Be("https://example.com/poster.jpg");
-        result.BackdropUrl.Should().Be("http://127.0.0.1:7878/MediaCover/1/fanart.jpg?apikey=test-api-key");
+        result.BackdropUrl.Should().Be("http://127.0.0.1:7878/MediaCover/1/fanart.jpg");
     }
 
     [Test]
@@ -399,7 +399,7 @@ public class ServarrSyncMetadataProviderTest
         result.TvdbId.Should().Be("371980");
         result.ImdbId.Should().Be("tt11280740");
         result.MediaType.Should().Be("TV");
-        result.BannerUrl.Should().Be("http://127.0.0.1:8989/MediaCover/42/banner.jpg?apikey=sonarr-key");
+        result.BannerUrl.Should().Be("http://127.0.0.1:8989/MediaCover/42/banner.jpg");
     }
 
     [Test]
@@ -535,7 +535,7 @@ public class ServarrSyncMetadataProviderTest
         result.MusicBrainzId.Should().Be("83d91898-7763-47d7-b03b-b92132375c47");
         result.ArrMediaId.Should().Be(15);
         result.Year.Should().Be(1973);
-        result.PosterUrl.Should().Be("http://127.0.0.1:8686/MediaCover/88/cover.jpg?apikey=lidarr-key");
+        result.PosterUrl.Should().Be("http://127.0.0.1:8686/MediaCover/88/cover.jpg");
     }
 
     [Test]

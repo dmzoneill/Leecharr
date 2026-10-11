@@ -265,8 +265,8 @@ public class TvdbMetadataProviderTest
         result.ImdbId.Should().Be("tt3032476");
         result.Genres.Should().Be("Crime, Drama");
         result.PosterUrl.Should().Be("https://example.com/saul-poster.jpg");
-        result.BackdropUrl.Should().Be("http://127.0.0.1:8989/MediaCover/5/fanart.jpg?apikey=sonarr-key");
-        result.BannerUrl.Should().Be("http://127.0.0.1:8989/MediaCover/5/banner.jpg?apikey=sonarr-key");
+        result.BackdropUrl.Should().Be("http://127.0.0.1:8989/MediaCover/5/fanart.jpg");
+        result.BannerUrl.Should().Be("http://127.0.0.1:8989/MediaCover/5/banner.jpg");
     }
 
     [Test]

@@ -904,11 +904,6 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                 if (url.StartsWith('/'))
                 {
                     url = $"{baseUrl}{url}";
-                    if (!string.IsNullOrWhiteSpace(conn.ApiKey) && !url.Contains("apikey=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var separator = url.Contains('?') ? "&" : "?";
-                        url = $"{url}{separator}apikey={Uri.EscapeDataString(conn.ApiKey)}";
-                    }
                 }
 
                 if ((string.Equals(coverType, "poster", StringComparison.OrdinalIgnoreCase) ||

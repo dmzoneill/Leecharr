@@ -43,6 +43,8 @@ public class MediaMetadataResource : RestResource
 
     public string BannerUrl { get; set; }
 
+    public string BannerLocalPath { get; set; }
+
     public string MusicBrainzId { get; set; }
 
     public string ArtistName { get; set; }
@@ -61,13 +63,9 @@ public static class MediaMetadataResourceMapper
             return null;
         }
 
-        var posterUrl = model.TorrentId > 0 && !string.IsNullOrEmpty(model.PosterLocalPath)
-            ? $"/api/v1/media/artwork/{model.TorrentId}/poster"
-            : model.PosterUrl;
-
-        var backdropUrl = model.TorrentId > 0 && !string.IsNullOrEmpty(model.BackdropLocalPath)
-            ? $"/api/v1/media/artwork/{model.TorrentId}/backdrop"
-            : model.BackdropUrl;
+        var posterUrl = MediaArtworkUrls.ToPublicUrl(model.TorrentId, model.PosterLocalPath, model.PosterUrl, "poster");
+        var backdropUrl = MediaArtworkUrls.ToPublicUrl(model.TorrentId, model.BackdropLocalPath, model.BackdropUrl, "backdrop");
+        var bannerUrl = MediaArtworkUrls.ToPublicUrl(model.TorrentId, model.BannerLocalPath, model.BannerUrl, "banner");
 
         return new MediaMetadataResource
         {
@@ -82,7 +80,8 @@ public static class MediaMetadataResourceMapper
             PosterLocalPath = model.PosterLocalPath,
             BackdropUrl = backdropUrl,
             BackdropLocalPath = model.BackdropLocalPath,
-            BannerUrl = model.BannerUrl,
+            BannerUrl = bannerUrl,
+            BannerLocalPath = model.BannerLocalPath,
             MediaInfoJson = model.MediaInfoJson,
             Genres = string.IsNullOrWhiteSpace(model.Genres)
                 ? new List<string>()

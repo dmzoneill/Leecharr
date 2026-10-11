@@ -97,6 +97,10 @@ public class MediaController : RestController<MediaMetadataResource>
         {
             path = meta.PosterLocalPath;
         }
+        else if (string.Equals(type, "banner", StringComparison.OrdinalIgnoreCase))
+        {
+            path = meta.BannerLocalPath;
+        }
 
         if (string.IsNullOrEmpty(path) || !global::System.IO.File.Exists(path))
         {
@@ -137,6 +141,15 @@ public class MediaController : RestController<MediaMetadataResource>
         if (!string.IsNullOrEmpty(meta.BackdropLocalPath))
         {
             var dir = global::System.IO.Path.GetDirectoryName(meta.BackdropLocalPath);
+            if (!string.IsNullOrEmpty(dir) && global::System.IO.Directory.Exists(dir) && !candidateDirs.Contains(dir))
+            {
+                candidateDirs.Add(dir);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(meta.BannerLocalPath))
+        {
+            var dir = global::System.IO.Path.GetDirectoryName(meta.BannerLocalPath);
             if (!string.IsNullOrEmpty(dir) && global::System.IO.Directory.Exists(dir) && !candidateDirs.Contains(dir))
             {
                 candidateDirs.Add(dir);
