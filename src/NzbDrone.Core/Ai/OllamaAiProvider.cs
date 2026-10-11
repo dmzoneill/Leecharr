@@ -158,13 +158,65 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
         }
 
         var startIdx = trimmed.IndexOf('{');
-        var endIdx = trimmed.LastIndexOf('}');
-        if (startIdx != -1 && endIdx > startIdx)
+        if (startIdx != -1)
         {
-            return trimmed.Substring(startIdx, endIdx - startIdx + 1);
+            var endIdx = FindBalancedJsonObjectEnd(trimmed, startIdx);
+            if (endIdx > startIdx)
+            {
+                return trimmed.Substring(startIdx, endIdx - startIdx + 1);
+            }
         }
 
         return trimmed;
+    }
+
+    private static int FindBalancedJsonObjectEnd(string text, int startIdx)
+    {
+        var depth = 0;
+        var inString = false;
+        var escape = false;
+        for (var i = startIdx; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (inString)
+            {
+                if (escape)
+                {
+                    escape = false;
+                }
+                else if (c == '\\')
+                {
+                    escape = true;
+                }
+                else if (c == '"')
+                {
+                    inString = false;
+                }
+
+                continue;
+            }
+
+            if (c == '"')
+            {
+                inString = true;
+                continue;
+            }
+
+            if (c == '{')
+            {
+                depth++;
+            }
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return i;
+                }
+            }
+        }
+
+        return -1;
     }
 
     private static bool SafeGetBoolean(JsonElement element, bool defaultValue = false)
