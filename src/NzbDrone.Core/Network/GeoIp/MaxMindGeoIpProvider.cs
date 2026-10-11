@@ -168,7 +168,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
             return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
         }
 
-        if (IsPrivateOrLoopback(parsedIp))
+        if (IsLoopbackAddress(parsedIp))
         {
             return Task.FromResult(new GeoLocationInfo
             {
@@ -186,6 +186,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
             {
                 var missingDbInfo = new GeoLocationInfo { IpAddress = ipAddress };
                 this.ApplyAsnLookup(missingDbInfo, parsedIp);
+                ApplyLanFallbackForPrivateAddress(missingDbInfo, parsedIp);
                 return Task.FromResult(missingDbInfo);
             }
         }
@@ -199,6 +200,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
                 {
                     var missingReaderInfo = new GeoLocationInfo { IpAddress = ipAddress };
                     this.ApplyAsnLookup(missingReaderInfo, parsedIp);
+                    ApplyLanFallbackForPrivateAddress(missingReaderInfo, parsedIp);
                     return Task.FromResult(missingReaderInfo);
                 }
 
@@ -240,6 +242,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
                 var notFoundInfo = new GeoLocationInfo { IpAddress = ipAddress };
                 this.ApplyAsnLookup(notFoundInfo, parsedIp);
+                ApplyLanFallbackForPrivateAddress(notFoundInfo, parsedIp);
                 return Task.FromResult(notFoundInfo);
             }
         }
@@ -260,8 +263,40 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         {
             var errorInfo = new GeoLocationInfo { IpAddress = ipAddress };
             this.ApplyAsnLookup(errorInfo, parsedIp);
+            ApplyLanFallbackForPrivateAddress(errorInfo, parsedIp);
             return Task.FromResult(errorInfo);
         }
+    }
+
+    private static bool IsLoopbackAddress(IPAddress ip)
+    {
+        if (ip == null)
+        {
+            return false;
+        }
+
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        return IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.IPv6Loopback);
+    }
+
+    private static void ApplyLanFallbackForPrivateAddress(GeoLocationInfo info, IPAddress parsedIp)
+    {
+        if (info == null || !IsPrivateNonLoopbackAddress(parsedIp) || !string.IsNullOrEmpty(info.CountryCode))
+        {
+            return;
+        }
+
+        info.CountryCode = "LAN";
+        info.CountryName = "Local Network";
+    }
+
+    private static bool IsPrivateNonLoopbackAddress(IPAddress ip)
+    {
+        return IsPrivateOrLoopback(ip) && !IsLoopbackAddress(ip);
     }
 
     private static bool IsPrivateOrLoopback(IPAddress ip)

@@ -40,6 +40,24 @@ public class MaxMindGeoIpProviderTest
     }
 
     [Test]
+    public async Task LookupAsync_WithPrivateIpAndTestDatabase_DoesNotLabelCityLocalhost()
+    {
+        File.Exists(this.testDatabasePath).Should().BeTrue("MaxMind test database must be copied to output");
+
+        var diskMock = Substitute.For<IDiskProvider>();
+        diskMock.FileExists(this.testDatabasePath).Returns(true);
+
+        using var provider = new TestableMaxMindGeoIpProvider(this.testDatabasePath, null, diskMock, this.appFolderInfo);
+
+        var result = await provider.LookupAsync("192.168.1.50");
+
+        result.Should().NotBeNull();
+        result.IpAddress.Should().Be("192.168.1.50");
+        result.City.Should().NotBe("Localhost");
+        result.City.Should().BeNullOrEmpty();
+    }
+
+    [Test]
     public async Task LookupAsync_WithTestDatabase_ResolvesCountry()
     {
         File.Exists(this.testDatabasePath).Should().BeTrue("MaxMind test database must be copied to output");
