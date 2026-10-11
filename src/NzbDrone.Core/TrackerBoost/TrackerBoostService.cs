@@ -1785,6 +1785,50 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             .ToArray();
     }
 
+    private bool TryGetTransmissionRpcSuccess(JsonElement root, string baseUrl)
+    {
+        if (root.TryGetProperty("result", out var resultElem) &&
+            resultElem.ValueKind == JsonValueKind.String &&
+            string.Equals(resultElem.GetString(), "success", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var resultText = root.TryGetProperty("result", out var errElem) && errElem.ValueKind == JsonValueKind.String
+            ? errElem.GetString()
+            : root.GetRawText();
+        this.logger.Warn("Transmission tracker injection RPC failed: {0} for {1}", resultText, baseUrl);
+        return false;
+    }
+
+    private async Task<bool> TryConfirmTransmissionTrackerInjectAsync(
+        HttpResponseMessage resp,
+        string baseUrl,
+        DownloadClientDefinition client,
+        string infoHash,
+        int trackerCount)
+    {
+        if (!resp.IsSuccessStatusCode)
+        {
+            this.logger.Warn("Transmission addTrackers failed with status {0} for {1}", resp.StatusCode, baseUrl);
+            return false;
+        }
+
+        var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+        if (!this.TryGetTransmissionRpcSuccess(doc.RootElement, baseUrl))
+        {
+            return false;
+        }
+
+        this.logger.Info(
+            "Successfully injected {0} tracker(s) into Transmission ({1}) for hash {2}",
+            trackerCount,
+            client.Name,
+            infoHash);
+        return true;
+    }
+
     private async Task<bool> InjectIntoClientAsync(
         DownloadClientDefinition client,
         string infoHash,
@@ -1883,24 +1927,20 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
                 req2.Headers.Add("X-Transmission-Session-Id", sessionId);
                 using var retryResp = await clientHttp.SendAsync(req2).ConfigureAwait(false);
-                if (retryResp.IsSuccessStatusCode)
-                {
-                    this.logger.Info("Successfully injected {0} tracker(s) into Transmission ({1}) for hash {2}", trackerList.Count, client.Name, infoHash);
-                    return true;
-                }
-
-                this.logger.Warn("Transmission addTrackers failed with status {0} for {1}", retryResp.StatusCode, baseUrl);
-                return false;
+                return await this.TryConfirmTransmissionTrackerInjectAsync(
+                    retryResp,
+                    baseUrl,
+                    client,
+                    infoHash,
+                    trackerList.Count).ConfigureAwait(false);
             }
 
-            if (resp.IsSuccessStatusCode)
-            {
-                this.logger.Info("Successfully injected {0} tracker(s) into Transmission ({1}) for hash {2}", trackerList.Count, client.Name, infoHash);
-                return true;
-            }
-
-            this.logger.Warn("Transmission addTrackers failed with status {0} for {1}", resp.StatusCode, baseUrl);
-            return false;
+            return await this.TryConfirmTransmissionTrackerInjectAsync(
+                resp,
+                baseUrl,
+                client,
+                infoHash,
+                trackerList.Count).ConfigureAwait(false);
         }
         else if (string.Equals(client.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
         {
