@@ -69,6 +69,34 @@ public class CloudGeminiAiProviderTest
     }
 
     [Test]
+    public async Task ProbeHealthAsync_DisposesHttpResponseOnSuccessAndError()
+    {
+        var successDisposed = false;
+        using (var client = new HttpClient(new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult<HttpResponseMessage>(new TrackingHttpResponseMessage(HttpStatusCode.OK, "{}", () => successDisposed = true));
+        })))
+        using (var provider = new CloudGeminiAiProvider(this.configService, client))
+        {
+            (await provider.ProbeHealthAsync()).IsHealthy.Should().BeTrue();
+        }
+
+        successDisposed.Should().BeTrue();
+
+        var errorDisposed = false;
+        using (var client = new HttpClient(new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult<HttpResponseMessage>(new TrackingHttpResponseMessage(HttpStatusCode.BadRequest, "bad key", () => errorDisposed = true));
+        })))
+        using (var provider = new CloudGeminiAiProvider(this.configService, client))
+        {
+            (await provider.ProbeHealthAsync()).IsHealthy.Should().BeFalse();
+        }
+
+        errorDisposed.Should().BeTrue();
+    }
+
+    [Test]
     public async Task ProbeHealthAsync_WhenKeyMissing_ReturnsUnhealthy()
     {
         this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns(string.Empty);
@@ -540,6 +568,28 @@ public class CloudGeminiAiProviderTest
         var assessment = await provider.AnalyzeMalwareRiskAsync("TestTorrent", Array.Empty<NzbDrone.Core.Torrents.TorrentFile>());
         assessment.IsSuspicious.Should().BeTrue();
         assessment.RiskScore.Should().Be(0.8);
+    }
+
+    private sealed class TrackingHttpResponseMessage : HttpResponseMessage
+    {
+        private readonly Action onDispose;
+
+        public TrackingHttpResponseMessage(HttpStatusCode statusCode, string body, Action onDispose)
+            : base(statusCode)
+        {
+            this.onDispose = onDispose;
+            this.Content = new StringContent(body);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                this.onDispose?.Invoke();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
