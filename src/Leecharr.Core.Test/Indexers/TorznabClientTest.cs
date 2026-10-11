@@ -865,6 +865,74 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task TestConnectionAsync_WhenCapsSucceeds_DisposesHttpResponseMessage()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+        var capsResponse = new DisposableHttpResponseMessage(
+            HttpStatusCode.OK,
+            new StringContent("<caps><server /><limits default=\"50\" max=\"100\" /><searching><search available=\"yes\" /></searching></caps>"));
+        var handler = new TestHttpMessageHandler(_ => capsResponse);
+        using var testHttpClient = new HttpClient(handler);
+        var customClient = new TorznabClient(testHttpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "CapsOk",
+            Url = "https://indexer.local/api",
+            ApiKey = "key",
+        };
+
+        var result = await customClient.TestConnectionAsync(indexer);
+
+        result.Success.Should().BeTrue();
+        capsResponse.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task TestConnectionAsync_WhenSearchFallback_DisposesCapsBeforeSearchAndBothResponses()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+        var capsResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK, new StringContent("<unknown></unknown>"));
+        var searchResponse = new DisposableHttpResponseMessage(
+            HttpStatusCode.OK,
+            new StringContent("<rss><channel><title>Test</title></channel></rss>"));
+        var capsDisposedBeforeSearch = false;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.Query.Contains("t=search", StringComparison.OrdinalIgnoreCase))
+            {
+                capsDisposedBeforeSearch = capsResponse.IsDisposed;
+                return searchResponse;
+            }
+
+            if (req.RequestUri.Query.Contains("t=caps", StringComparison.OrdinalIgnoreCase))
+            {
+                return capsResponse;
+            }
+
+            throw new InvalidOperationException($"Unexpected request: {req.RequestUri}");
+        });
+        using var testHttpClient = new HttpClient(handler);
+        var customClient = new TorznabClient(testHttpClient);
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "SearchFallback",
+            Url = "https://indexer.local/api",
+            ApiKey = "key",
+        };
+
+        var result = await customClient.TestConnectionAsync(indexer);
+
+        result.Success.Should().BeTrue();
+        capsDisposedBeforeSearch.Should().BeTrue();
+        capsResponse.IsDisposed.Should().BeTrue();
+        searchResponse.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
     public void SafeParseXml_WithUnescapedAmpersandsAndControlCharacters_ParsesDocumentCorrectly()
     {
         var rawXml = "<root attr=\"value & more &amp; &lt;tag&gt; \x01\x02\">Text & Content &#169;</root>";
@@ -2402,6 +2470,27 @@ public class TorznabClientTest
     }
 
     #endregion
+
+    private sealed class DisposableHttpResponseMessage : HttpResponseMessage
+    {
+        public DisposableHttpResponseMessage(HttpStatusCode statusCode, HttpContent content)
+            : base(statusCode)
+        {
+            this.Content = content;
+        }
+
+        public bool IsDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                this.IsDisposed = true;
+            }
+
+            base.Dispose(disposing);
+        }
+    }
 
     private class TestHttpMessageHandler : HttpMessageHandler
     {
