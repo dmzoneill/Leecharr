@@ -224,7 +224,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
 
                     if (dynamicMeta.Cast != null && dynamicMeta.Cast.Count > 0)
                     {
-                        metadata.Cast = string.Join(", ", dynamicMeta.Cast);
+                        metadata.Cast = TorrentMediaCastCodec.Serialize(dynamicMeta.Cast);
                     }
                 }
             }
