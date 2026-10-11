@@ -5,6 +5,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Notifications;
@@ -86,6 +89,37 @@ public class CustomScriptServiceTest
         var result = await this.service.ExecuteScriptAsync(scriptPath, new Torrent { Id = 1 }, "OnDownloadComplete");
 
         result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ExecuteScriptAsync_WhenScriptFails_LogsErrorWithExitCode()
+    {
+        var memoryTarget = new MemoryTarget("custom-script-fail-log")
+        {
+            Layout = "${level}|${message}",
+        };
+        var configuration = new LoggingConfiguration();
+        configuration.AddRule(LogLevel.Error, LogLevel.Error, memoryTarget);
+        LogManager.Configuration = configuration;
+
+        try
+        {
+            var script = OperatingSystem.IsWindows()
+                ? "@echo off\r\nexit /b 42"
+                : "#!/bin/sh\nexit 42\n";
+
+            var scriptPath = this.CreateExecutableScript(script);
+            var result = await this.service.ExecuteScriptAsync(scriptPath, new Torrent { Id = 1 }, "OnDownloadComplete");
+
+            result.Should().BeFalse();
+            memoryTarget.Logs.Should().Contain(log =>
+                log.Contains("Error|", StringComparison.Ordinal) &&
+                log.Contains("failed with exit code: 42", StringComparison.Ordinal));
+        }
+        finally
+        {
+            LogManager.Configuration = null;
+        }
     }
 
     [Test]
