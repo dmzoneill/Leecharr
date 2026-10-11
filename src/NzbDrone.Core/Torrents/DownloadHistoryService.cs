@@ -716,7 +716,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
         var all = this.torrentRepository.All().ToList();
         torrent.Priority = all.Count > 0 ? all.Max(t => t.Priority) + 1 : 0;
-        torrent.QueuePosition = all.Select(t => t.QueuePosition).DefaultIfEmpty(0).Max() + 1;
+        torrent.QueuePosition = 0;
 
         var added = this.torrentRepository.Insert(torrent);
 

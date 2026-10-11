@@ -187,6 +187,42 @@ public class TorrentRepositoryTest
     }
 
     [Test]
+    public async Task Insert_WhenMultipleConcurrentInsertsWithStalePositiveQueuePosition_AssignsUniqueQueuePositions()
+    {
+        this.repository.Insert(new Torrent
+        {
+            Name = "Existing Torrent",
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            Category = "default",
+            Status = TorrentStatus.Downloading,
+            QueuePosition = 3,
+            DateAdded = DateTime.UtcNow,
+        });
+
+        var stalePosition = 4;
+        var tasks = Enumerable.Range(1, 20).Select(i => Task.Run(() =>
+        {
+            var torrent = new Torrent
+            {
+                Name = $"Stale Position Torrent {i}",
+                InfoHash = $"st{i:D38}",
+                Category = "default",
+                Status = TorrentStatus.Downloading,
+                QueuePosition = stalePosition,
+                DateAdded = DateTime.UtcNow,
+            };
+            return this.repository.Insert(torrent);
+        })).ToArray();
+
+        var insertedTorrents = await Task.WhenAll(tasks);
+
+        var queuePositions = insertedTorrents.Select(t => t.QueuePosition).ToList();
+        queuePositions.Should().HaveCount(20);
+        queuePositions.Distinct().Should().HaveCount(20);
+        queuePositions.Should().OnlyContain(p => p >= stalePosition);
+    }
+
+    [Test]
     public async Task Insert_WhenMultipleConcurrentInsertsWithoutQueuePosition_AssignsSequentialUniqueQueuePositions()
     {
         var tasks = Enumerable.Range(1, 20).Select(i => Task.Run(() =>
