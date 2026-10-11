@@ -1044,4 +1044,79 @@ public class SabnzbdApiControllerTest
         moviesDir.Should().Be("/data/movies");
         this.categoryService.Received().GetSavePathForCategory("movies", "/downloads");
     }
+
+    [Test]
+    public async Task HandleApi_History_IncludesCompletedPausedTorrentAndQueueExcludesIt()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        this.configService.IncompleteDownloadDir.Returns("/incomplete");
+
+        var completedDate = new DateTime(2025, 6, 1, 8, 0, 0, DateTimeKind.Utc);
+        var torrents = new List<Torrent>
+        {
+            new Torrent
+            {
+                Id = 1,
+                InfoHash = "paused-complete",
+                Name = "Finished.While.Paused.mkv",
+                SavePath = "/downloads/tv",
+                Status = TorrentStatus.Paused,
+                Progress = 1.0,
+                TotalSize = 104857600,
+                DateAdded = completedDate.AddHours(-1),
+                DateCompleted = completedDate,
+            },
+            new Torrent
+            {
+                Id = 2,
+                InfoHash = "paused-partial",
+                Name = "Still.Downloading.mkv",
+                Status = TorrentStatus.Paused,
+                Progress = 0.4,
+                TotalSize = 104857600,
+                Downloaded = 41943040,
+                DateAdded = completedDate.AddHours(-2),
+            },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var historyResult = await this.controller.HandleApi(
+            mode: "history",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        historyResult.Should().BeOfType<OkObjectResult>();
+        var historyJson = JsonSerializer.Serialize(((OkObjectResult)historyResult).Value);
+        using (var historyDoc = JsonDocument.Parse(historyJson))
+        {
+            var history = historyDoc.RootElement.GetProperty("history");
+            history.GetProperty("noofslots").GetInt32().Should().Be(1);
+            var historySlots = history.GetProperty("slots");
+            historySlots.GetArrayLength().Should().Be(1);
+            historySlots[0].GetProperty("nzo_id").GetString().Should().Be("paused-complete");
+            historySlots[0].GetProperty("status").GetString().Should().Be("Completed");
+        }
+
+        var queueResult = await this.controller.HandleApi(
+            mode: "queue",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        queueResult.Should().BeOfType<OkObjectResult>();
+        var queueJson = JsonSerializer.Serialize(((OkObjectResult)queueResult).Value);
+        using var queueDoc = JsonDocument.Parse(queueJson);
+        var queueSlots = queueDoc.RootElement.GetProperty("queue").GetProperty("slots");
+        queueSlots.GetArrayLength().Should().Be(1);
+        queueSlots[0].GetProperty("nzo_id").GetString().Should().Be("paused-partial");
+        queueSlots[0].GetProperty("status").GetString().Should().Be("Paused");
+    }
 }
