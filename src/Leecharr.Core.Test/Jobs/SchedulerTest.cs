@@ -53,6 +53,8 @@ public class SchedulerTest
         this.commandQueueManager.Received().Push(Arg.Any<WatchFolderScanCommand>(), CommandTrigger.Scheduled);
         task.LastStartTime.Should().NotBeNull();
         task.LastExecution.Should().Be(DateTime.MinValue);
+        this.taskManager.Received(1).RecordDispatchStart(task);
+        this.taskManager.DidNotReceive().Update(Arg.Any<ScheduledTask>());
     }
 
     [Test]
@@ -150,6 +152,36 @@ public class SchedulerTest
         task.LastExecution.Should().Be(endedAt);
         task.LastStartTime.Should().Be(startedAt);
         this.taskManager.Received(1).Update(task);
+        this.taskManager.DidNotReceive().RecordDispatchStart(Arg.Any<ScheduledTask>());
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WhenDispatchingDueTask_RecordsDispatchStartWithoutFullUpdate()
+    {
+        var staleLastExecution = DateTime.UtcNow.AddHours(-2);
+        var task = new ScheduledTask
+        {
+            Id = 1,
+            TypeName = "WatchFolderScanTask",
+            Interval = 1,
+            LastExecution = staleLastExecution,
+        };
+
+        this.taskManager.GetAll().Returns(new List<ScheduledTask> { task });
+        this.commandQueueManager.GetQueued().Returns(new List<CommandModel>());
+        this.commandQueueManager.GetStarted().Returns(new List<CommandModel>());
+        this.commandQueueManager.GetAll().Returns(new List<CommandModel>());
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(500);
+
+        await this.scheduler.StartAsync(cts.Token);
+        await Task.Delay(100);
+        await this.scheduler.StopAsync(CancellationToken.None);
+
+        this.taskManager.Received(1).RecordDispatchStart(Arg.Is<ScheduledTask>(t =>
+            t.Id == 1 && t.LastStartTime.HasValue && t.LastExecution == staleLastExecution));
+        this.taskManager.DidNotReceive().Update(Arg.Any<ScheduledTask>());
     }
 
     [Test]

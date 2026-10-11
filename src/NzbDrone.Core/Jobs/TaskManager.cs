@@ -80,6 +80,16 @@ public class TaskManager : ITaskManager, IHandle<ApplicationStartedEvent>
         this.scheduledTaskRepository.Update(task);
     }
 
+    public void RecordDispatchStart(ScheduledTask task)
+    {
+        if (task == null || !task.LastStartTime.HasValue)
+        {
+            return;
+        }
+
+        this.scheduledTaskRepository.UpdateDispatchStart(task.Id, task.LastStartTime.Value, task.LastCompletedDurationSeconds);
+    }
+
     public void Handle(ApplicationStartedEvent message)
     {
         this.EnsureDefaultTasks();
