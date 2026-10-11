@@ -116,6 +116,58 @@ public class OllamaAiProviderTest
     }
 
     [Test]
+    public async Task GenerateChatResponseAsync_WhenOverlappingCalls_KeepIndependentFallbackFlags()
+    {
+        var releaseFallbackCall = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = new MockHttpMessageHandler(async (req, ct) =>
+        {
+            if (req.Content == null)
+            {
+                throw new InvalidOperationException("Missing request body.");
+            }
+
+            var body = await req.Content.ReadAsStringAsync(ct);
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            var prompt = doc.RootElement.GetProperty("prompt").GetString();
+            if (string.Equals(prompt, "block-until-release", StringComparison.Ordinal))
+            {
+                await releaseFallbackCall.Task;
+                throw new HttpRequestException("Sidecar offline");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"response\":\"From Ollama\"}"),
+            };
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var fallbackFlow = Task.Run(async () =>
+        {
+            var reply = await provider.GenerateChatResponseAsync("block-until-release");
+            return (reply, provider.LastChatUsedFallback);
+        });
+
+        await Task.Delay(100);
+
+        var successFlow = Task.Run(async () =>
+        {
+            var reply = await provider.GenerateChatResponseAsync("quick-success");
+            return (reply, provider.LastChatUsedFallback);
+        });
+
+        var (_, successUsedFallback) = await successFlow;
+        successUsedFallback.Should().BeFalse();
+
+        releaseFallbackCall.TrySetResult(true);
+        var (fallbackReply, fallbackUsedFallback) = await fallbackFlow;
+        fallbackReply.Should().Contain("Ratio");
+        fallbackUsedFallback.Should().BeTrue();
+    }
+
+    [Test]
     public async Task GenerateChatResponseAsync_WhenOllamaFails_FallsBackToHeuristics()
     {
         var handler = new MockHttpMessageHandler((req, ct) =>
