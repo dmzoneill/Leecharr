@@ -27,6 +27,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly ConcurrentDictionary<int, bool> superSeedingTorrents = new();
     private readonly ConcurrentDictionary<int, bool> seedGoalReachedTorrents = new();
     private readonly ConcurrentDictionary<int, bool> ratioReachedTorrents = new();
+    private readonly ConcurrentDictionary<int, bool> seedingTimeReachedTorrents = new();
     private readonly ConcurrentDictionary<int, bool> stalledTorrents = new();
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
@@ -442,6 +443,11 @@ public class AppLifetime : IHostedService, IDisposable
                                             this.services.EventAggregator?.PublishEvent(new TorrentRatioReachedEvent(torrent, torrent.Ratio));
                                         }
 
+                                        if (timeReached && this.seedingTimeReachedTorrents.TryAdd(torrent.Id, true))
+                                        {
+                                            this.services.EventAggregator?.PublishEvent(new TorrentSeedingTimeReachedEvent(torrent, TimeSpan.FromMinutes(torrent.SeedTimeMinutes)));
+                                        }
+
                                         if (this.seedGoalReachedTorrents.TryAdd(torrent.Id, true))
                                         {
                                             this.services.EventAggregator?.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
@@ -462,6 +468,7 @@ public class AppLifetime : IHostedService, IDisposable
                                             {
                                                 this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal (Ratio: {2:F2}/{3:F2}, SeedTime: {4}/{5}m). Removing torrent and deleting data files.", torrent.Id, torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                                 this.ratioReachedTorrents.TryRemove(torrent.Id, out _);
+                                                this.seedingTimeReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.seedGoalReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.superSeedingTorrents.TryRemove(torrent.Id, out _);
                                                 await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: true);
@@ -478,6 +485,7 @@ public class AppLifetime : IHostedService, IDisposable
                                             {
                                                 this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal (Ratio: {2:F2}/{3:F2}, SeedTime: {4}/{5}m). Removing torrent (preserving data).", torrent.Id, torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                                 this.ratioReachedTorrents.TryRemove(torrent.Id, out _);
+                                                this.seedingTimeReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.seedGoalReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.superSeedingTorrents.TryRemove(torrent.Id, out _);
                                                 await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: false);

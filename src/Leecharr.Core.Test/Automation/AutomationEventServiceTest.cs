@@ -102,6 +102,50 @@ public class AutomationEventServiceTest
     }
 
     [Test]
+    public async Task ShouldNotRunRatioScriptsOnSeedGoalReachedEvent()
+    {
+        var torrent = new Torrent { Id = 31, Name = "TimeOnlyTorrent" };
+        var script = new AutomationScript
+        {
+            Id = 31,
+            Name = "Ratio Script",
+            IsEnabled = true,
+            Trigger = AutomationTrigger.RatioReached,
+        };
+
+        _automationService.GetAll().Returns(new List<AutomationScript> { script });
+        var service = new AutomationEventService(_automationService, TimeSpan.FromSeconds(2));
+
+        service.Handle(new TorrentSeedGoalReachedEvent(torrent));
+
+        await Task.Delay(200);
+
+        _automationService.DidNotReceive().ExecuteScript(script, torrent);
+    }
+
+    [Test]
+    public async Task ShouldDispatchSeedingTimeReachedScripts()
+    {
+        var torrent = new Torrent { Id = 32, Name = "SeedTimeTorrent" };
+        var script = new AutomationScript
+        {
+            Id = 32,
+            Name = "Seed Time Script",
+            IsEnabled = true,
+            Trigger = AutomationTrigger.SeedingTimeReached,
+        };
+
+        _automationService.GetAll().Returns(new List<AutomationScript> { script });
+        var service = new AutomationEventService(_automationService, TimeSpan.FromSeconds(2));
+
+        service.Handle(new TorrentSeedingTimeReachedEvent(torrent, TimeSpan.FromMinutes(120)));
+
+        await Task.Delay(200);
+
+        _automationService.Received(1).ExecuteScript(script, torrent);
+    }
+
+    [Test]
     public async Task ShouldAllowExecutionAfterCooldownWindowExpires()
     {
         var torrent = new Torrent { Id = 4, Name = "ExpiringTorrent" };
