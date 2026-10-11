@@ -9,7 +9,10 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Ai;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Core.Test.Ai;
 
@@ -460,6 +463,30 @@ public class CloudGeminiAiProviderTest
         assessment.IsSuspicious.Should().BeTrue();
         assessment.RiskLevel.Should().Be("Suspicious");
         assessment.SuspiciousFileNames.Should().Contain("payload.exe");
+    }
+
+    [Test]
+    public async Task DiagnoseTorrentHealthAsync_WhenChatFallsBack_DoesNotLabelHeuristicAsGemini()
+    {
+        this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns(string.Empty);
+        using var provider = new CloudGeminiAiProvider(this.configService);
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Stalled Release",
+            Progress = 0.2,
+            Status = TorrentStatus.Downloading,
+            Seeders = 0,
+            Leechers = 0,
+            DownloadSpeed = 0,
+        };
+
+        var report = await provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), Array.Empty<TrackerEntry>());
+
+        provider.LastChatUsedFallback.Should().BeTrue();
+        report.Recommendations.Should().NotContain(r => r.StartsWith("[Gemini AI]", StringComparison.Ordinal));
+        report.Recommendations.Should().Contain("Ensure DHT and PEX are enabled to discover unannounced peers.");
     }
 
     [Test]
