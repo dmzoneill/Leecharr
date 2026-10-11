@@ -29,7 +29,7 @@ public class CategoryResource : RestResource
 
     public bool AutoStop { get; set; }
 
-    public bool IsDefault { get; set; }
+    public bool? IsDefault { get; set; }
 }
 
 public static class CategoryResourceMapper
@@ -72,7 +72,7 @@ public static class CategoryResourceMapper
             TargetRatio = resource.TargetRatio,
             TargetSeedTimeMinutes = resource.TargetSeedTimeMinutes,
             AutoStop = resource.AutoStop,
-            IsDefault = resource.IsDefault,
+            IsDefault = resource.IsDefault ?? false,
         };
     }
 }

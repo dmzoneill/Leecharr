@@ -260,6 +260,17 @@ public class CategoryService : ICategoryService
         this.logger.Info("Updating category: {0}", category.Name);
         var existing = this.repository.Get(category.Id);
 
+        if (existing != null && existing.IsDefault && !category.IsDefault)
+        {
+            var hasAnotherDefault = this.repository.All()
+                .Any(c => c.IsDefault && c.Id != category.Id);
+            if (!hasAnotherDefault)
+            {
+                throw new InvalidOperationException(
+                    "Cannot unset the default category while it is the only default. Set another category as default first.");
+            }
+        }
+
         if (category.IsDefault)
         {
             this.ClearExistingDefaults(category.Id);
