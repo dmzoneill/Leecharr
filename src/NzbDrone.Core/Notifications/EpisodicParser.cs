@@ -74,64 +74,16 @@ public class EpisodicParser : IEpisodicParser
             return (null, null, null, new List<int>(), null);
         }
 
-        var match = SeasonEpisodeRangeRegex.Match(name);
-        if (match.Success &&
-            int.TryParse(match.Groups["season"].Value, out var s) &&
-            int.TryParse(match.Groups["epStart"].Value, out var epStart))
+        if (TryExtractFromSeasonEpisodeMatches(SeasonEpisodeRangeRegex.Matches(name), out var seasonResult, out var epsResult))
         {
-            var eps = new List<int> { epStart };
-            var epEndGroup = match.Groups["epEnd"];
-            var extraEpsGroup = match.Groups["extraEps"];
-
-            if (TryApplyEpisodeEnd(epEndGroup, match.Groups["epEndCompact"], epStart, eps, out var expandedEps))
-            {
-                eps = expandedEps;
-            }
-            else if (extraEpsGroup.Success)
-            {
-                var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}", RegexOptions.None, TimeSpan.FromSeconds(2));
-                foreach (Match m in extraMatches)
-                {
-                    if (int.TryParse(m.Value, out var eNum))
-                    {
-                        eps.Add(eNum);
-                    }
-                }
-            }
-
-            eps = eps.Distinct().OrderBy(x => x).ToList();
-            var formatted = FormatEpisodeRange(s, eps);
-            return (s, eps[0], null, eps, formatted);
+            var formatted = FormatEpisodeRange(seasonResult, epsResult);
+            return (seasonResult, epsResult[0], null, epsResult, formatted);
         }
 
-        var matchAlt = SeasonEpisodeAltRangeRegex.Match(name);
-        if (matchAlt.Success &&
-            int.TryParse(matchAlt.Groups["season"].Value, out var sAlt) &&
-            int.TryParse(matchAlt.Groups["epStart"].Value, out var epStartAlt))
+        if (TryExtractFromSeasonEpisodeMatches(SeasonEpisodeAltRangeRegex.Matches(name), out var seasonAlt, out var epsAlt))
         {
-            var eps = new List<int> { epStartAlt };
-            var epEndGroup = matchAlt.Groups["epEnd"];
-            var extraEpsGroup = matchAlt.Groups["extraEps"];
-
-            if (TryApplyEpisodeEnd(epEndGroup, matchAlt.Groups["epEndCompact"], epStartAlt, eps, out var expandedEpsAlt))
-            {
-                eps = expandedEpsAlt;
-            }
-            else if (extraEpsGroup.Success)
-            {
-                var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}", RegexOptions.None, TimeSpan.FromSeconds(2));
-                foreach (Match m in extraMatches)
-                {
-                    if (int.TryParse(m.Value, out var eNum))
-                    {
-                        eps.Add(eNum);
-                    }
-                }
-            }
-
-            eps = eps.Distinct().OrderBy(x => x).ToList();
-            var formatted = FormatEpisodeRange(sAlt, eps);
-            return (sAlt, eps[0], null, eps, formatted);
+            var formatted = FormatEpisodeRange(seasonAlt, epsAlt);
+            return (seasonAlt, epsAlt[0], null, epsAlt, formatted);
         }
 
         var matchSp = SpecialEpisodeRegex.Match(name);
@@ -143,6 +95,73 @@ public class EpisodicParser : IEpisodicParser
         }
 
         return (null, null, null, new List<int>(), null);
+    }
+
+    private static bool TryExtractFromSeasonEpisodeMatches(MatchCollection matches, out int season, out List<int> episodes)
+    {
+        season = 0;
+        episodes = new List<int>();
+        if (matches.Count == 0)
+        {
+            return false;
+        }
+
+        int? firstSeason = null;
+        foreach (Match match in matches)
+        {
+            if (!match.Success ||
+                !int.TryParse(match.Groups["season"].Value, out var s) ||
+                !int.TryParse(match.Groups["epStart"].Value, out var epStart))
+            {
+                continue;
+            }
+
+            if (firstSeason == null)
+            {
+                firstSeason = s;
+            }
+            else if (firstSeason != s)
+            {
+                continue;
+            }
+
+            episodes.AddRange(BuildEpisodeListFromMatch(match, epStart));
+        }
+
+        if (firstSeason == null || episodes.Count == 0)
+        {
+            return false;
+        }
+
+        season = firstSeason.Value;
+        episodes = episodes.Distinct().OrderBy(x => x).ToList();
+        return true;
+    }
+
+    private static List<int> BuildEpisodeListFromMatch(Match match, int epStart)
+    {
+        var eps = new List<int> { epStart };
+        var epEndGroup = match.Groups["epEnd"];
+        var extraEpsGroup = match.Groups["extraEps"];
+
+        if (TryApplyEpisodeEnd(epEndGroup, match.Groups["epEndCompact"], epStart, eps, out var expandedEps))
+        {
+            return expandedEps;
+        }
+
+        if (extraEpsGroup.Success)
+        {
+            var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}", RegexOptions.None, TimeSpan.FromSeconds(2));
+            foreach (Match m in extraMatches)
+            {
+                if (int.TryParse(m.Value, out var eNum))
+                {
+                    eps.Add(eNum);
+                }
+            }
+        }
+
+        return eps;
     }
 
     private static bool TryApplyEpisodeEnd(
