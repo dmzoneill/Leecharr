@@ -106,5 +106,35 @@ public class LinuxBindToDeviceProviderTest
 
         var health = await this.provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
+        health.StatusMessage.Should().Contain("SO_BINDTODEVICE");
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenNotLinux_ReturnsUnhealthy()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Assert.Inconclusive("Non-Linux SO_BINDTODEVICE availability test");
+        }
+
+        var health = await this.provider.ProbeHealthAsync();
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("only supported on Linux");
+    }
+
+    [Test]
+    public void BindSocket_UsesSolSocketLevel_NotSocketOptionLevelSocket()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Assert.Inconclusive("Linux-only SO_BINDTODEVICE level regression (#1689 / #1170)");
+        }
+
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var actWrongLevel = () => socket.SetRawSocketOption((int)SocketOptionLevel.Socket, 25, System.Text.Encoding.ASCII.GetBytes("lo\0"));
+        actWrongLevel.Should().Throw<SocketException>();
+
+        var act = () => this.provider.BindSocket(socket, "lo");
+        act.Should().NotThrow();
     }
 }
