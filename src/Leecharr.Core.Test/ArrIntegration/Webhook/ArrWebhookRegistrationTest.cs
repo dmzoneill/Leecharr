@@ -517,6 +517,150 @@ public class ArrWebhookRegistrationTest
     }
 
     [Test]
+    public void RegisterDownloadClient_WhenArrUrlIsLocalhost_UsesLoopbackForDelugeHost()
+    {
+        var postBody = string.Empty;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                postBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 1}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://localhost:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+            EnableAutomaticAdd = true,
+        };
+
+        registration.RegisterDownloadClient(conn).Should().BeTrue();
+        GetDownloadClientHostFromBody(postBody).Should().Be("127.0.0.1");
+    }
+
+    [Test]
+    public void RegisterDownloadClient_WhenArrHostOnlyStartsWithLocalhost_DoesNotUseLoopbackForDelugeHost()
+    {
+        var postBody = string.Empty;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                postBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 1}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        foreach (var arrUrl in new[] { "http://localhost.home.arpa:8989", "http://localhostess.example:8989" })
+        {
+            postBody = string.Empty;
+            var conn = new ArrConnectionDefinition
+            {
+                ArrType = "Sonarr",
+                Url = arrUrl,
+                ApiKey = "sonarr-key",
+                Enable = true,
+                EnableAutomaticAdd = true,
+            };
+
+            registration.RegisterDownloadClient(conn).Should().BeTrue();
+            GetDownloadClientHostFromBody(postBody).Should().NotBe("127.0.0.1");
+        }
+    }
+
+    [Test]
+    public void RegisterWebhook_WhenArrHostOnlyStartsWithLocalhost_WebhookUrlDoesNotUseLoopback()
+    {
+        var postBody = string.Empty;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                postBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 42}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://localhost.home.arpa:8989",
+            ApiKey = "sonarr-api-key",
+            Enable = true,
+            WebhookEnabled = true,
+        };
+
+        registration.RegisterWebhook(conn).Should().BeTrue();
+        postBody.Should().NotContain("127.0.0.1");
+    }
+
+    private static string GetDownloadClientHostFromBody(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        foreach (var field in doc.RootElement.GetProperty("fields").EnumerateArray())
+        {
+            if (field.GetProperty("name").GetString() == "host")
+            {
+                return field.GetProperty("value").GetString()!;
+            }
+        }
+
+        throw new InvalidOperationException("Deluge host field not found in download client payload.");
+    }
+
+    [Test]
     public void ArrWebhookMaintenanceTask_RegisterAllConnections_CallsWebhookRegistrationForEnabled()
     {
         var repo = Substitute.For<IArrConnectionRepository>();
