@@ -640,19 +640,19 @@ public class RTorrentController : ControllerBase
 
             case "d.custom2":
             case "d.get_custom2":
-                return HandleGetCustomField(paramValues, "custom2");
+                return this.HandleGetCustomField(paramValues, "custom2");
 
             case "d.custom3":
             case "d.get_custom3":
-                return HandleGetCustomField(paramValues, "custom3");
+                return this.HandleGetCustomField(paramValues, "custom3");
 
             case "d.custom4":
             case "d.get_custom4":
-                return HandleGetCustomField(paramValues, "custom4");
+                return this.HandleGetCustomField(paramValues, "custom4");
 
             case "d.custom5":
             case "d.get_custom5":
-                return HandleGetCustomField(paramValues, "custom5");
+                return this.HandleGetCustomField(paramValues, "custom5");
 
             case "d.delete_tied":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToDeleteTied)
@@ -661,6 +661,7 @@ public class RTorrentController : ControllerBase
                     if (t != null)
                     {
                         await this.torrentService.DeleteAsync(t.Id, true);
+                        RemoveCustomFieldsStoreEntry(hashToDeleteTied);
                     }
                 }
 
@@ -696,6 +697,7 @@ public class RTorrentController : ControllerBase
                         }
 
                         await this.torrentService.DeleteAsync(t.Id, deleteFiles);
+                        RemoveCustomFieldsStoreEntry(hashToErase);
                     }
                 }
 
@@ -763,19 +765,19 @@ public class RTorrentController : ControllerBase
 
             case "d.custom2.set":
             case "d.set_custom2":
-                return HandleSetCustomField(paramValues, "custom2");
+                return await this.HandleSetCustomFieldAsync(paramValues, "custom2");
 
             case "d.custom3.set":
             case "d.set_custom3":
-                return HandleSetCustomField(paramValues, "custom3");
+                return await this.HandleSetCustomFieldAsync(paramValues, "custom3");
 
             case "d.custom4.set":
             case "d.set_custom4":
-                return HandleSetCustomField(paramValues, "custom4");
+                return await this.HandleSetCustomFieldAsync(paramValues, "custom4");
 
             case "d.custom5.set":
             case "d.set_custom5":
-                return HandleSetCustomField(paramValues, "custom5");
+                return await this.HandleSetCustomFieldAsync(paramValues, "custom5");
 
             case "d.views.has":
                 if (paramValues.Count >= 2 && paramValues[0] != null && paramValues[1] != null)
@@ -1172,19 +1174,19 @@ public class RTorrentController : ControllerBase
 
             case "d.custom2":
             case "d.get_custom2":
-                return new XElement("string", GetCustomField(torrent.InfoHash, "custom2"));
+                return new XElement("string", GetTorrentCustomFieldValue(torrent, "custom2"));
 
             case "d.custom3":
             case "d.get_custom3":
-                return new XElement("string", GetCustomField(torrent.InfoHash, "custom3"));
+                return new XElement("string", GetTorrentCustomFieldValue(torrent, "custom3"));
 
             case "d.custom4":
             case "d.get_custom4":
-                return new XElement("string", GetCustomField(torrent.InfoHash, "custom4"));
+                return new XElement("string", GetTorrentCustomFieldValue(torrent, "custom4"));
 
             case "d.custom5":
             case "d.get_custom5":
-                return new XElement("string", GetCustomField(torrent.InfoHash, "custom5"));
+                return new XElement("string", GetTorrentCustomFieldValue(torrent, "custom5"));
 
             case "d.views.has":
                 return new XElement("i4", 1);
@@ -1439,6 +1441,63 @@ public class RTorrentController : ControllerBase
         dict[normalizedField] = value ?? string.Empty;
     }
 
+    private static void RemoveCustomFieldsStoreEntry(string infoHash)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return;
+        }
+
+        CustomFieldsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
+    }
+
+    private static string GetTorrentCustomFieldValue(Torrent torrent, string fieldName)
+    {
+        if (torrent == null)
+        {
+            return string.Empty;
+        }
+
+        switch (fieldName.Trim().ToLowerInvariant())
+        {
+            case "custom2":
+                return torrent.Custom2 ?? string.Empty;
+            case "custom3":
+                return torrent.Custom3 ?? string.Empty;
+            case "custom4":
+                return torrent.Custom4 ?? string.Empty;
+            case "custom5":
+                return torrent.Custom5 ?? string.Empty;
+            default:
+                return string.Empty;
+        }
+    }
+
+    private static void SetTorrentCustomFieldValue(Torrent torrent, string fieldName, string value)
+    {
+        if (torrent == null)
+        {
+            return;
+        }
+
+        var normalizedValue = value ?? string.Empty;
+        switch (fieldName.Trim().ToLowerInvariant())
+        {
+            case "custom2":
+                torrent.Custom2 = normalizedValue;
+                break;
+            case "custom3":
+                torrent.Custom3 = normalizedValue;
+                break;
+            case "custom4":
+                torrent.Custom4 = normalizedValue;
+                break;
+            case "custom5":
+                torrent.Custom5 = normalizedValue;
+                break;
+        }
+    }
+
     private static string GetCustomField(string infoHash, string fieldName)
     {
         if (string.IsNullOrWhiteSpace(infoHash))
@@ -1500,25 +1559,34 @@ public class RTorrentController : ControllerBase
         }
     }
 
-    private static XElement HandleGetCustomField(List<object> paramValues, string fieldName)
+    private XElement HandleGetCustomField(List<object> paramValues, string fieldName)
     {
         if (paramValues.Count > 0 && paramValues[0] != null)
         {
             var hash = paramValues[0].ToString()?.Trim();
-            return new XElement("string", GetCustomField(hash, fieldName));
+            var torrent = this.torrentService.GetByInfoHash(hash);
+            if (torrent != null)
+            {
+                return new XElement("string", GetTorrentCustomFieldValue(torrent, fieldName));
+            }
         }
 
         return new XElement("string", string.Empty);
     }
 
-    private static XElement HandleSetCustomField(List<object> paramValues, string fieldName)
+    private async Task<XElement> HandleSetCustomFieldAsync(List<object> paramValues, string fieldName)
     {
         var targetVal = string.Empty;
         if (paramValues.Count >= 2 && paramValues[0] != null)
         {
             var targetHash = paramValues[0].ToString()?.Trim();
             targetVal = paramValues[1]?.ToString() ?? string.Empty;
-            SetCustomField(targetHash, fieldName, targetVal);
+            var torrent = this.torrentService.GetByInfoHash(targetHash);
+            if (torrent != null)
+            {
+                SetTorrentCustomFieldValue(torrent, fieldName, targetVal);
+                await this.torrentService.UpdateAsync(torrent);
+            }
         }
 
         return new XElement("string", targetVal);
