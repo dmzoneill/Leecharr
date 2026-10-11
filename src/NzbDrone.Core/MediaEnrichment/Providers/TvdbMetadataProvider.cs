@@ -551,12 +551,9 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
             };
 
             if (first.TryGetProperty("ratings", out var ratings) &&
-                ratings.ValueKind == JsonValueKind.Object &&
-                ratings.TryGetProperty("value", out var rVal) &&
-                rVal.ValueKind == JsonValueKind.Number &&
-                rVal.TryGetDouble(out var r))
+                ServarrRatingsJsonParser.TryGetRating(ratings, out var servarrRating))
             {
-                meta.Rating = r;
+                meta.Rating = servarrRating;
             }
 
             if (first.TryGetProperty("tvdbId", out var tvdb) && tvdb.ValueKind == JsonValueKind.Number && tvdb.TryGetInt32(out var tvdbInt) && tvdbInt > 0)

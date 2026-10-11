@@ -462,12 +462,9 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         }
 
         if (series.TryGetProperty("ratings", out var ratings) &&
-            ratings.ValueKind == JsonValueKind.Object &&
-            ratings.TryGetProperty("value", out var rVal) &&
-            rVal.ValueKind == JsonValueKind.Number &&
-            rVal.TryGetDouble(out var r))
+            ServarrRatingsJsonParser.TryGetRating(ratings, out var seriesRating))
         {
-            meta.Rating = r;
+            meta.Rating = seriesRating;
         }
 
         if (series.TryGetProperty("imdbId", out var imdb) && imdb.ValueKind == JsonValueKind.String)
@@ -512,12 +509,9 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         }
 
         if (movie.TryGetProperty("ratings", out var ratings) &&
-            ratings.ValueKind == JsonValueKind.Object &&
-            ratings.TryGetProperty("value", out var rVal) &&
-            rVal.ValueKind == JsonValueKind.Number &&
-            rVal.TryGetDouble(out var r))
+            ServarrRatingsJsonParser.TryGetRating(ratings, out var movieRating))
         {
-            meta.Rating = r;
+            meta.Rating = movieRating;
         }
 
         if (movie.TryGetProperty("imdbId", out var imdb) && imdb.ValueKind == JsonValueKind.String)
@@ -594,12 +588,9 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             }
 
             if (artist.TryGetProperty("ratings", out var aratings) &&
-                aratings.ValueKind == JsonValueKind.Object &&
-                aratings.TryGetProperty("value", out var arVal) &&
-                arVal.ValueKind == JsonValueKind.Number &&
-                arVal.TryGetDouble(out var ar))
+                ServarrRatingsJsonParser.TryGetRating(aratings, out var artistRating))
             {
-                meta.Rating = ar;
+                meta.Rating = artistRating;
             }
 
             if (artist.TryGetProperty("images", out var aImages) && aImages.ValueKind == JsonValueKind.Array)
@@ -648,13 +639,9 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             }
 
             if (album.TryGetProperty("ratings", out var albratings) &&
-                albratings.ValueKind == JsonValueKind.Object &&
-                albratings.TryGetProperty("value", out var albrVal) &&
-                albrVal.ValueKind == JsonValueKind.Number &&
-                albrVal.TryGetDouble(out var albr) &&
-                albr > 0)
+                ServarrRatingsJsonParser.TryGetRating(albratings, out var albumRating))
             {
-                meta.Rating = albr;
+                meta.Rating = albumRating;
             }
 
             if (album.TryGetProperty("images", out var albImages) && albImages.ValueKind == JsonValueKind.Array)
@@ -806,12 +793,9 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         }
 
         if (chosen.TryGetProperty("ratings", out var ratings) &&
-            ratings.ValueKind == JsonValueKind.Object &&
-            ratings.TryGetProperty("value", out var rVal) &&
-            rVal.ValueKind == JsonValueKind.Number &&
-            rVal.TryGetDouble(out var r))
+            ServarrRatingsJsonParser.TryGetRating(ratings, out var lookupRating))
         {
-            meta.Rating = r;
+            meta.Rating = lookupRating;
         }
 
         if (chosen.TryGetProperty("imdbId", out var imdb) && imdb.ValueKind == JsonValueKind.String)
