@@ -93,6 +93,43 @@ public class DynamicMediaMetadataProviderTest
     }
 
     [Test]
+    public async Task FetchMetadataAsync_WhenPosterUrlIsSet_FallbackMergesOverviewAndIds()
+    {
+        this.primaryProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())
+            .Returns(Task.FromResult(new MediaMetadata
+            {
+                Title = "Gladiator",
+                Year = 2000,
+                MediaType = "Movie",
+                PosterUrl = "file:///media/poster.jpg",
+                Overview = string.Empty,
+            }));
+
+        this.fallbackProvider.FetchMetadataAsync("Gladiator", "movies", 2000, Arg.Any<string>())
+            .Returns(Task.FromResult(new MediaMetadata
+            {
+                Title = "Gladiator",
+                Year = 2000,
+                MediaType = "Movie",
+                Overview = "A former Roman General sets out to exact vengeance.",
+                Rating = 8.5,
+                Genres = "Action, Drama",
+                ImdbId = "tt0172495",
+                TmdbId = "98",
+            }));
+
+        var result = await this.proxy.FetchMetadataAsync("Gladiator", "movies", 2000);
+
+        result.Should().NotBeNull();
+        result!.PosterUrl.Should().Be("file:///media/poster.jpg");
+        result.Overview.Should().Be("A former Roman General sets out to exact vengeance.");
+        result.Rating.Should().Be(8.5);
+        result.ImdbId.Should().Be("tt0172495");
+        result.TmdbId.Should().Be("98");
+        await this.fallbackProvider.Received(1).FetchMetadataAsync("Gladiator", "movies", 2000, null);
+    }
+
+    [Test]
     public async Task FetchMetadataAsync_WhenPrimaryReturnsEmptyPlaceholder_SupersededByFallbackMetadata()
     {
         this.primaryProvider.FetchMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())

@@ -181,7 +181,9 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
             try
             {
                 result = await provider.FetchMetadataAsync(title, category, year, infoHash);
-                if (result != null && !string.IsNullOrEmpty(result.PosterUrl))
+                if (result != null &&
+                    !string.IsNullOrEmpty(result.PosterUrl) &&
+                    !string.IsNullOrEmpty(result.Overview))
                 {
                     return result;
                 }
