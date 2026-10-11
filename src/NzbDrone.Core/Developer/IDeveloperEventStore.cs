@@ -28,5 +28,7 @@ public interface IDeveloperEventStore
 
     List<DeveloperEventEntry> GetRecentEvents(int limit = 100, string search = null);
 
+    int GetRecordedCount(string search = null);
+
     void Clear();
 }

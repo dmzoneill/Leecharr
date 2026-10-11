@@ -71,6 +71,18 @@ public class DeveloperEventStore : IDeveloperEventStore
 
     public List<DeveloperEventEntry> GetRecentEvents(int limit = 100, string search = null)
     {
+        return this.EnumerateMatching(search)
+            .Take(Math.Clamp(limit, 1, MaxEntries))
+            .ToList();
+    }
+
+    public int GetRecordedCount(string search = null)
+    {
+        return this.EnumerateMatching(search).Count();
+    }
+
+    private IEnumerable<DeveloperEventEntry> EnumerateMatching(string search)
+    {
         var items = this.events.ToArray().Reverse();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -81,7 +93,7 @@ public class DeveloperEventStore : IDeveloperEventStore
                 e.SourceNamespace.Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
-        return items.Take(Math.Clamp(limit, 1, MaxEntries)).ToList();
+        return items;
     }
 
     public void Clear()

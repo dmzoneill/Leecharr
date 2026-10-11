@@ -52,6 +52,29 @@ public class DeveloperEventStoreTest
         var events = this.store.GetRecentEvents();
         events.Should().BeEmpty();
     }
+
+    [Test]
+    public void GetRecordedCount_WhenMoreEntriesThanPageLimit_ReturnsBufferTotalNotPageSize()
+    {
+        for (var i = 0; i < 150; i++)
+        {
+            this.store.RecordEvent(new DeveloperEventEntry { EventName = $"Event{i}" });
+        }
+
+        this.store.GetRecentEvents(100).Should().HaveCount(100);
+        this.store.GetRecordedCount().Should().Be(150);
+    }
+
+    [Test]
+    public void GetRecordedCount_WhenSearchApplied_ReturnsMatchingBufferTotal()
+    {
+        this.store.RecordEvent(new DeveloperEventEntry { EventName = "AlphaEvent" });
+        this.store.RecordEvent(new DeveloperEventEntry { EventName = "BetaEvent" });
+        this.store.RecordEvent(new DeveloperEventEntry { EventName = "AlphaAgain" });
+
+        this.store.GetRecordedCount("alpha").Should().Be(2);
+        this.store.GetRecentEvents(1, "alpha").Should().HaveCount(1);
+    }
 }
 
 [TestFixture]
