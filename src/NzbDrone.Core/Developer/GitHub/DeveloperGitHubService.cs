@@ -200,8 +200,21 @@ public class DeveloperGitHubService : IDeveloperGitHubService
                 State = elem.GetProperty("state").GetString() ?? "open",
                 HtmlUrl = elem.GetProperty("html_url").GetString() ?? string.Empty,
                 CreatedAt = elem.GetProperty("created_at").GetDateTime(),
-                Draft = elem.TryGetProperty("draft", out var d) && d.GetBoolean()
+                Draft = elem.TryGetProperty("draft", out var d) && d.GetBoolean(),
+                CommentsCount = elem.TryGetProperty("comments", out var c) ? c.GetInt32() : 0
             };
+
+            if (elem.TryGetProperty("base", out var baseRef) && baseRef.ValueKind == JsonValueKind.Object
+                && baseRef.TryGetProperty("ref", out var baseBranch))
+            {
+                item.BaseBranch = baseBranch.GetString();
+            }
+
+            if (elem.TryGetProperty("head", out var headRef) && headRef.ValueKind == JsonValueKind.Object
+                && headRef.TryGetProperty("ref", out var headBranch))
+            {
+                item.HeadBranch = headBranch.GetString();
+            }
 
             if (elem.TryGetProperty("user", out var user) && user.ValueKind == JsonValueKind.Object)
             {

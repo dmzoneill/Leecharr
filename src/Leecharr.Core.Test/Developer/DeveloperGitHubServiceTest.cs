@@ -32,6 +32,9 @@ public class DeveloperGitHubServiceTest
                 ""html_url"": ""https://github.com/dmzoneill/Leecharr/pull/42"",
                 ""created_at"": ""2026-10-01T12:00:00Z"",
                 ""draft"": false,
+                ""comments"": 5,
+                ""base"": { ""ref"": ""main"" },
+                ""head"": { ""ref"": ""feature/add-new"" },
                 ""user"": { ""login"": ""alice"", ""avatar_url"": ""https://avatar.test/alice"" },
                 ""labels"": [{ ""name"": ""enhancement"" }]
             }
@@ -51,6 +54,9 @@ public class DeveloperGitHubServiceTest
         Assert.That(item.Title, Is.EqualTo("feat: add new feature"));
         Assert.That(item.Author, Is.EqualTo("alice"));
         Assert.That(item.Labels, Contains.Item("enhancement"));
+        Assert.That(item.CommentsCount, Is.EqualTo(5));
+        Assert.That(item.BaseBranch, Is.EqualTo("main"));
+        Assert.That(item.HeadBranch, Is.EqualTo("feature/add-new"));
     }
 
     [Test]
