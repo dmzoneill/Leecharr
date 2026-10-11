@@ -51,6 +51,24 @@ public class EpisodicParserTest
         formattedRange.Should().Be(expectedFormattedRange);
     }
 
+    [TestCase("The.Show.S01E02-720.WEB.mkv", 1, 2, new[] { 2 }, "S01E02")]
+    [TestCase("The.Show.S01E02-264.mkv", 1, 2, new[] { 2 }, "S01E02")]
+    [TestCase("The.Show.S01E02-720p.WEB.mkv", 1, 2, new[] { 2 }, "S01E02")]
+    [TestCase("The.Show.1x02-720.WEB.mkv", 1, 2, new[] { 2 }, "S01E02")]
+    public void ExtractDetailedEpisodicInfo_ResolutionSuffix_DoesNotParseAsEpisode(
+        string name,
+        int expectedSeason,
+        int expectedStartEp,
+        int[] expectedEpisodes,
+        string expectedFormattedRange)
+    {
+        var (season, startEp, _, allEpisodes, formattedRange) = this.parser.ExtractDetailedEpisodicInfo(name);
+        season.Should().Be(expectedSeason);
+        startEp.Should().Be(expectedStartEp);
+        allEpisodes.Should().Equal(expectedEpisodes);
+        formattedRange.Should().Be(expectedFormattedRange);
+    }
+
     [Test]
     public void ExtractEpisodeNumbers_ReturnsListOfAllParsedEpisodes()
     {
