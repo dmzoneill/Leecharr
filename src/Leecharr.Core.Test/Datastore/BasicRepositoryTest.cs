@@ -106,6 +106,62 @@ public class BasicRepositoryTest
     }
 
     [Test]
+    public void Update_WhenRowMissing_ThrowsKeyNotFoundAndDoesNotPublishEvent()
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repo = new BasicRepository<Torrent>(database, eventAggregator);
+
+        var torrent = new Torrent
+        {
+            Id = 999999,
+            Name = "Ghost.Torrent",
+            InfoHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            Category = "ghost",
+            TotalSize = 1000,
+            Status = TorrentStatus.Downloading,
+            DateAdded = DateTime.UtcNow,
+        };
+
+        var act = () => repo.Update(torrent);
+        act.Should().Throw<KeyNotFoundException>().WithMessage("*Torrent*999999*");
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ModelEvent<Torrent>>());
+    }
+
+    [Test]
+    public void UpsertMany_WhenUpdateTargetsMissingId_RollsBackInserts()
+    {
+        var insert = new Torrent
+        {
+            Name = "Rollback.On.Missing.Update",
+            InfoHash = "3333444455556666777788889999000011112222",
+            Category = "rollback-missing-update",
+            TotalSize = 1000,
+            Status = TorrentStatus.Downloading,
+            DateAdded = DateTime.UtcNow,
+        };
+
+        var updateMissing = new Torrent
+        {
+            Id = 999999,
+            Name = "Missing.Row",
+            InfoHash = "4444555566667777888899990000111122223333",
+            Category = "rollback-missing-update",
+            TotalSize = 2000,
+            Status = TorrentStatus.Seeding,
+            DateAdded = DateTime.UtcNow,
+        };
+
+        var act = () => this.repository.UpsertMany(new[] { insert }, new[] { updateMissing });
+        act.Should().Throw<KeyNotFoundException>();
+
+        var all = System.Linq.Enumerable.ToList(
+            System.Linq.Enumerable.Where(this.repository.All(), t => t.Category == "rollback-missing-update"));
+        all.Should().BeEmpty();
+    }
+
+    [Test]
     public void Insert_And_Get_With_TagIds_Persists_List()
     {
         var torrent = new Torrent

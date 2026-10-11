@@ -227,7 +227,11 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
 
                     foreach (var model in updateList)
                     {
-                        connection.Execute(updateSql, model, transaction: transaction);
+                        var rowsAffected = connection.Execute(updateSql, model, transaction: transaction);
+                        if (rowsAffected == 0)
+                        {
+                            throw new KeyNotFoundException($"{typeof(TModel).Name} with ID {model.Id} was not found.");
+                        }
                     }
                 }
 
@@ -273,12 +277,15 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
 
     public virtual TModel Update(TModel model)
     {
-        this.ExecuteWithRetry(connection =>
-        {
+        var rowsAffected = this.ExecuteWithRetry(connection =>
             connection.Execute(
                 TableMapping.GetUpdateSql(this.table, model),
-                model);
-        });
+                model));
+
+        if (rowsAffected == 0)
+        {
+            throw new KeyNotFoundException($"{typeof(TModel).Name} with ID {model.Id} was not found.");
+        }
 
         this.eventAggregator?.PublishEvent(new ModelEvent<TModel>(model, ModelAction.Updated));
         return model;
