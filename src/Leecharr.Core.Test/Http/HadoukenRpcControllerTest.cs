@@ -455,8 +455,11 @@ public class HadoukenRpcControllerTest
     }
 
     [TestCase("pause")]
+    [TestCase("stop")]
     [TestCase("resume")]
     [TestCase("start")]
+    [TestCase("unpause")]
+    [TestCase("forcestart")]
     [TestCase("recheck")]
     [TestCase("remove")]
     [TestCase("removedata")]
@@ -481,10 +484,17 @@ public class HadoukenRpcControllerTest
         switch (action)
         {
             case "pause":
+            case "stop":
                 await this.torrentService.Received(1).PauseAsync(35);
                 break;
             case "resume":
             case "start":
+            case "unpause":
+                await this.torrentService.Received(1).ResumeAsync(35);
+                break;
+            case "forcestart":
+                torrent.ForceStart.Should().BeTrue();
+                await this.torrentService.Received(1).UpdateAsync(torrent);
                 await this.torrentService.Received(1).ResumeAsync(35);
                 break;
             case "recheck":
@@ -495,6 +505,68 @@ public class HadoukenRpcControllerTest
                 break;
             case "removedata":
                 await this.torrentService.Received(1).DeleteAsync(35, true);
+                break;
+        }
+    }
+
+    [TestCase("queueup", "up")]
+    [TestCase("queuedown", "down")]
+    [TestCase("queuetop", "top")]
+    [TestCase("queuebottom", "bottom")]
+    public async Task HandleRpc_WebUiPerform_QueueActions_MoveQueueInExpectedOrder(string action, string direction)
+    {
+        var torrentA = new Torrent { Id = 10, InfoHash = "hashA", QueuePosition = 4 };
+        var torrentB = new Torrent { Id = 20, InfoHash = "hashB", QueuePosition = 2 };
+        var torrentC = new Torrent { Id = 30, InfoHash = "hashC", QueuePosition = 3 };
+        this.torrentService.GetByInfoHash("hashA").Returns(torrentA);
+        this.torrentService.GetByInfoHash("hashB").Returns(torrentB);
+        this.torrentService.GetByInfoHash("hashC").Returns(torrentC);
+
+        var requestJson = $"{{\"method\":\"webui.perform\",\"params\":[\"{action}\",[\"hashA\",\"hashB\",\"hashC\"]],\"id\":31}}";
+        using var doc = JsonDocument.Parse(requestJson);
+        var request = new HadoukenRpcRequest
+        {
+            Method = "webui.perform",
+            Params = doc.RootElement.GetProperty("params"),
+            Id = 31,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+        result.Should().BeOfType<OkObjectResult>();
+
+        switch (action)
+        {
+            case "queueup":
+                Received.InOrder(async () =>
+                {
+                    await this.torrentService.MoveQueueAsync(20, direction);
+                    await this.torrentService.MoveQueueAsync(30, direction);
+                    await this.torrentService.MoveQueueAsync(10, direction);
+                });
+                break;
+            case "queuedown":
+                Received.InOrder(async () =>
+                {
+                    await this.torrentService.MoveQueueAsync(10, direction);
+                    await this.torrentService.MoveQueueAsync(30, direction);
+                    await this.torrentService.MoveQueueAsync(20, direction);
+                });
+                break;
+            case "queuetop":
+                Received.InOrder(async () =>
+                {
+                    await this.torrentService.MoveQueueAsync(30, direction);
+                    await this.torrentService.MoveQueueAsync(20, direction);
+                    await this.torrentService.MoveQueueAsync(10, direction);
+                });
+                break;
+            case "queuebottom":
+                Received.InOrder(async () =>
+                {
+                    await this.torrentService.MoveQueueAsync(10, direction);
+                    await this.torrentService.MoveQueueAsync(20, direction);
+                    await this.torrentService.MoveQueueAsync(30, direction);
+                });
                 break;
         }
     }
