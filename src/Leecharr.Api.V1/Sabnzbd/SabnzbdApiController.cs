@@ -327,7 +327,11 @@ public class SabnzbdApiController : ControllerBase
         var queueSlots = allTorrents
             .Where(t => t.Status == TorrentStatus.Downloading ||
                         t.Status == TorrentStatus.Queued ||
-                        t.Status == TorrentStatus.Paused ||
+                        t.Status == TorrentStatus.Checking ||
+                        t.Status == TorrentStatus.Error ||
+                        t.Status == TorrentStatus.Stalled ||
+                        t.Status == TorrentStatus.QueuedForChecking ||
+                        (t.Status == TorrentStatus.Paused && !IsComplete(t)) ||
                         (t.Status == TorrentStatus.Stopped && !IsComplete(t)))
             .OrderBy(t => t.QueuePosition)
             .ThenBy(t => t.DateAdded)
@@ -426,7 +430,11 @@ public class SabnzbdApiController : ControllerBase
     {
         var nowUtc = DateTime.UtcNow;
         var finishedTorrents = this.torrentService.GetAll()
-            .Where(t => (t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed) && IsComplete(t))
+            .Where(t => IsComplete(t) &&
+                        (t.Status == TorrentStatus.Stopped ||
+                         t.Status == TorrentStatus.Seeding ||
+                         t.Status == TorrentStatus.Completed ||
+                         t.Status == TorrentStatus.Paused))
             .OrderByDescending(t => t.DateCompleted ?? t.DateAdded)
             .Select(t =>
             {
