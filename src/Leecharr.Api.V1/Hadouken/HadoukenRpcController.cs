@@ -226,6 +226,21 @@ public class HadoukenRpcController : ControllerBase
                         var completedUnix = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0;
                         var modifiedUnix = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedUnix;
 
+                        var swarmLeechers = t.Leechers;
+                        var swarmSeeders = t.Seeders;
+                        var connectedLeechers = 0;
+                        var connectedSeeders = 0;
+                        var isInactive = t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+                        if (!isInactive)
+                        {
+                            var downloadTask = this.torrentService.GetDownloadTask(t.Id);
+                            if (downloadTask != null)
+                            {
+                                connectedLeechers = downloadTask.ConnectedLeechers;
+                                connectedSeeders = downloadTask.ConnectedSeeders;
+                            }
+                        }
+
                         torrentRows.Add(new object[]
                         {
                             t.InfoHash.ToUpperInvariant(),
@@ -240,10 +255,10 @@ public class HadoukenRpcController : ControllerBase
                             t.DownloadSpeed,
                             t.Eta,
                             t.Category ?? string.Empty,
-                            t.Leechers,
-                            t.Leechers,
-                            t.Seeders,
-                            t.Seeders,
+                            connectedLeechers,
+                            swarmLeechers,
+                            connectedSeeders,
+                            swarmSeeders,
                             65536,
                             0,
                             Math.Max(0, t.TotalSize - t.Downloaded),
