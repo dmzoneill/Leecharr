@@ -1335,6 +1335,210 @@ public class RssSyncServiceTest
     }
 
     [Test]
+    public async Task SyncRssFeedsAsync_WhenDownloadUrlEndsWithNzbAndInfoHashPresent_FallsBackToMagnet()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var parser = Substitute.For<ITorrentFileParser>();
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            torrentFileParser: parser,
+            safeHttpClientService: safeHttpClient,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "Torrent Rule",
+            IsEnabled = true,
+            MinSeeders = 1,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:nzb-with-hash",
+            Title = "Hybrid.Nzb.Enclosure",
+            DownloadUrl = "https://tracker.example.com/file.nzb",
+            InfoHash = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            MagnetUrl = null,
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(1);
+
+        await safeHttpClient.DidNotReceive().DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>());
+        await this.torrentService.Received(1).AddFromMagnetAsync(
+            Arg.Is<string>(m => m.Contains("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenDownloadUrlEndsWithNzbWithoutInfoHash_RecordsReleaseAndSkipsOnNextSync()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var parser = Substitute.For<ITorrentFileParser>();
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            torrentFileParser: parser,
+            safeHttpClientService: safeHttpClient,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "Torrent Rule",
+            IsEnabled = true,
+            MinSeeders = 1,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:nzb-release-1",
+            Title = "Usenet.Release.NZB",
+            DownloadUrl = "https://tracker.example.com/file.nzb",
+            MagnetUrl = null,
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var firstCount = await testService.SyncRssFeedsAsync();
+        firstCount.Should().Be(0);
+
+        var secondCount = await testService.SyncRssFeedsAsync();
+        secondCount.Should().Be(0);
+
+        await safeHttpClient.DidNotReceive().DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>());
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromMagnetAsync(default!, default!, default!, default!);
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenDownloadedPayloadIsXmlNzbWithInfoHash_FallsBackToMagnet()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var parser = Substitute.For<ITorrentFileParser>();
+        var xmlBytes = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"utf-8\" ?><html><body>login</body></html>");
+
+        safeHttpClient.DownloadBytesAsync("https://tracker.example.com/file.torrent", Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(xmlBytes));
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            torrentFileParser: parser,
+            safeHttpClientService: safeHttpClient,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "Torrent Rule",
+            IsEnabled = true,
+            MinSeeders = 1,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:xml-payload-with-hash",
+            Title = "Login.Page.Release",
+            DownloadUrl = "https://tracker.example.com/file.torrent",
+            InfoHash = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            MagnetUrl = null,
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(1);
+
+        parser.DidNotReceive().Parse(Arg.Any<byte[]>());
+        await this.torrentService.Received(1).AddFromMagnetAsync(
+            Arg.Is<string>(m => m.Contains("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenDownloadedPayloadIsXmlNzbWithoutInfoHash_DoesNotRedownloadOnNextSync()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var parser = Substitute.For<ITorrentFileParser>();
+        var xmlBytes = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"utf-8\" ?><nzb></nzb>");
+
+        safeHttpClient.DownloadBytesAsync("https://tracker.example.com/file.torrent", Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(xmlBytes));
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            torrentFileParser: parser,
+            safeHttpClientService: safeHttpClient,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "Torrent Rule",
+            IsEnabled = true,
+            MinSeeders = 1,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:xml-payload-grab",
+            Title = "Bogus.Release",
+            DownloadUrl = "https://tracker.example.com/file.torrent",
+            MagnetUrl = null,
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var firstCount = await testService.SyncRssFeedsAsync();
+        firstCount.Should().Be(0);
+
+        var secondCount = await testService.SyncRssFeedsAsync();
+        secondCount.Should().Be(0);
+
+        await safeHttpClient.Received(1).DownloadBytesAsync("https://tracker.example.com/file.torrent", Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>());
+        parser.DidNotReceive().Parse(Arg.Any<byte[]>());
+    }
+
+    [Test]
     public async Task SyncRssFeedsAsync_WhenTorznabThrowsTorznabException_RecordsFailureAndDoesNotRecordSuccess()
     {
         var mockStatusService = Substitute.For<IIndexerStatusService>();

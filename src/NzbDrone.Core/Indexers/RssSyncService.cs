@@ -270,13 +270,14 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                     }
                                     else if (!string.IsNullOrEmpty(release.DownloadUrl))
                                     {
-                                        if (release.DownloadUrl.EndsWith(".nzb", StringComparison.OrdinalIgnoreCase))
+                                        var isNzbDownloadUrl = release.DownloadUrl.EndsWith(".nzb", StringComparison.OrdinalIgnoreCase);
+                                        var nonTorrentPayload = false;
+
+                                        if (isNzbDownloadUrl)
                                         {
                                             this.logger.Warn("Skipping Usenet/NZB release '{0}' from {1}: Leecharr operates exclusively as a BitTorrent engine.", release.Title, release.DownloadUrl);
-                                            break;
                                         }
-
-                                        if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                                        else if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                                         {
                                             var magnetInfoHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(release.DownloadUrl)?.InfoHash);
                                             if (!string.IsNullOrWhiteSpace(magnetInfoHash))
@@ -319,10 +320,9 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                             if (torrentBytes != null && torrentBytes.Length > 0 && torrentBytes[0] == (byte)'<')
                                             {
                                                 this.logger.Warn("Downloaded payload for '{0}' from {1} appears to be XML/NZB rather than a .torrent file. Skipping non-torrent release.", release.Title, release.DownloadUrl);
-                                                break;
+                                                nonTorrentPayload = true;
                                             }
-
-                                            if (torrentBytes != null && torrentBytes.Length > 0)
+                                            else if (torrentBytes != null && torrentBytes.Length > 0)
                                             {
                                                 try
                                                 {
@@ -355,47 +355,52 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                                     this.logger.Warn(parseEx, "Failed to parse .torrent for '{0}'", release.Title);
                                                 }
                                             }
+                                        }
 
-                                            if (!grabbed)
+                                        if (!grabbed)
+                                        {
+                                            var fallbackMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
+                                                ? release.MagnetUrl
+                                                : (!string.IsNullOrWhiteSpace(release.InfoHash)
+                                                    ? MagnetLinkParser.BuildMagnetUri(release.InfoHash.Trim(), release.Title ?? release.InfoHash.Trim())
+                                                    : null);
+
+                                            if (!string.IsNullOrWhiteSpace(fallbackMagnet))
                                             {
-                                                var fallbackMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
-                                                    ? release.MagnetUrl
-                                                    : (!string.IsNullOrWhiteSpace(release.InfoHash)
-                                                        ? MagnetLinkParser.BuildMagnetUri(release.InfoHash.Trim(), release.Title ?? release.InfoHash.Trim())
-                                                        : null);
-
-                                                if (!string.IsNullOrWhiteSpace(fallbackMagnet))
+                                                try
                                                 {
-                                                    try
+                                                    var fallbackHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(fallbackMagnet)?.InfoHash);
+                                                    if (!string.IsNullOrWhiteSpace(fallbackHash))
                                                     {
-                                                        var fallbackHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(fallbackMagnet)?.InfoHash);
-                                                        if (!string.IsNullOrWhiteSpace(fallbackHash))
-                                                        {
-                                                            var existingTorrent = this.torrentService?.GetByInfoHash(fallbackHash);
-                                                            var existingHistory = this.downloadHistoryService?.GetByInfoHash(fallbackHash);
+                                                        var existingTorrent = this.torrentService?.GetByInfoHash(fallbackHash);
+                                                        var existingHistory = this.downloadHistoryService?.GetByInfoHash(fallbackHash);
 
-                                                            if (existingTorrent != null || existingHistory != null)
-                                                            {
-                                                                this.RecordGrabbed(releaseId, fallbackHash);
-                                                                this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed via fallback magnet. Skipping duplicate.", release.Title, fallbackHash);
-                                                                break;
-                                                            }
-                                                        }
-
-                                                        var fallbackGrab = await this.GrabReleaseForIndexerAsync(indexer, release, categoryName, savePath, fallbackMagnet, null, null);
-                                                        if (fallbackGrab != null)
+                                                        if (existingTorrent != null || existingHistory != null)
                                                         {
-                                                            addedTorrent = fallbackGrab.Value.Torrent;
-                                                            usedExternalClient = fallbackGrab.Value.UsedExternalClient;
-                                                            grabbed = true;
+                                                            this.RecordGrabbed(releaseId, fallbackHash);
+                                                            this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed via fallback magnet. Skipping duplicate.", release.Title, fallbackHash);
+                                                            break;
                                                         }
                                                     }
-                                                    catch (Exception magEx)
+
+                                                    var fallbackGrab = await this.GrabReleaseForIndexerAsync(indexer, release, categoryName, savePath, fallbackMagnet, null, null);
+                                                    if (fallbackGrab != null)
                                                     {
-                                                        this.logger.Warn(magEx, "Failed to add release '{0}' via fallback magnet", release.Title);
+                                                        addedTorrent = fallbackGrab.Value.Torrent;
+                                                        usedExternalClient = fallbackGrab.Value.UsedExternalClient;
+                                                        grabbed = true;
                                                     }
                                                 }
+                                                catch (Exception magEx)
+                                                {
+                                                    this.logger.Warn(magEx, "Failed to add release '{0}' via fallback magnet", release.Title);
+                                                }
                                             }
+                                        }
+
+                                        if (!grabbed && (isNzbDownloadUrl || nonTorrentPayload))
+                                        {
+                                            this.RecordGrabbed(releaseId);
                                         }
                                     }
                                 }
