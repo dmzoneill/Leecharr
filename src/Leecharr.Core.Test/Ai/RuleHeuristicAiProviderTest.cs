@@ -79,6 +79,18 @@ public class RuleHeuristicAiProviderTest
     }
 
     [Test]
+    public async Task ParseReleaseAsync_DottedAudioTags_ParsesDtsHdMaAndDd51()
+    {
+        var dtsHdMa = await this.provider.ParseReleaseAsync("Movie.2024.1080p.BluRay.DTS.HD.MA.5.1-GROUP");
+        dtsHdMa.AudioCodec.Should().Be("DTS-HD MA");
+        dtsHdMa.AudioChannels.Should().Be("5.1");
+
+        var dd51 = await this.provider.ParseReleaseAsync("Show.Name.S01E01.1080p.WEB.DL.DD.5.1.H.264-NTb");
+        dd51.AudioCodec.Should().Be("DD5.1");
+        dd51.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_MultiEpisode_ParsesEpisodeList()
     {
         var release = "Game.of.Thrones.S01E01-E03.720p.HDTV.x264-Scene";

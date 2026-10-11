@@ -35,7 +35,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
     private static readonly Regex ResolutionRegex = new(@"(?i)\b(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex QualityRegex = new(@"(?i)\b(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex VideoCodecRegex = new(@"(?i)\b(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|VP9|VP8|MPEG-?2|VC-?1|XviD|DivX)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
-    private static readonly Regex AudioCodecRegex = new(@"(?i)\b(?<audio>DTS-HD(?:[\s\.]*MA)?|DTS-X|TrueHD(?:[\s\.]*Atmos)?|Atmos|DTS|E-?AC-?3|DDP5\.1|DDP|AC-?3|DD5\.1|AAC(?:[\s\.]*2\.0)?|FLAC|MP3|OPUS|VORBIS)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex AudioCodecRegex = new(@"(?i)\b(?<audio>DTS(?:-|\.)HD(?:[\s\.]*MA)?|DTS-X|TrueHD(?:[\s\.]*Atmos)?|Atmos|DTS|E-?AC-?3|DDP5\.1|DDP|AC-?3|DD\.?5\.1|AAC(?:[\s\.]*2\.0)?|FLAC|MP3|OPUS|VORBIS)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex AudioChannelsRegex = new(@"(?i)\b(?<channels>7\.1|5\.1|2\.0|1\.0)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex DynamicRangeRegex = new(@"(?i)\b(?<hdr>DV|Dolby\s*Vision|HDR10\+|HDR10|HDR|HLG|SDR)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex EditionRegex = new(@"(?i)\b(?<edition>Extended(?:\s*Cut)?|Director'?s\s*Cut|Unrated|IMAX(?:\s*Enhanced)?|Theatrical|Remastered|Criterion)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
@@ -1075,7 +1075,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         var a = audio.ToUpperInvariant();
-        if (a.Contains("DTS-HD") && a.Contains("MA"))
+        if ((a.Contains("DTS-HD") || a.Contains("DTS HD")) && a.Contains("MA"))
         {
             return "DTS-HD MA";
         }
@@ -1095,12 +1095,12 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             return "Atmos";
         }
 
-        if (a.Contains("DTS-HD"))
+        if (a.Contains("DTS-HD") || a.Contains("DTS HD"))
         {
             return "DTS-HD";
         }
 
-        if (a.Contains("DD5.1") || a.Contains("DD5 1"))
+        if (a.Contains("DD5.1") || a.Contains("DD5 1") || a.Contains("DD 5 1"))
         {
             return "DD5.1";
         }
