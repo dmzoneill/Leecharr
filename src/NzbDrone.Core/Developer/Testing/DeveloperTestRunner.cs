@@ -853,7 +853,10 @@ public class DeveloperTestRunner : IDeveloperTestRunner
 
     public IReadOnlyList<DeveloperTestResult> GetRecentResults(int limit = 50)
     {
-        return this.recentResults.Take(Math.Max(1, Math.Min(limit, 100))).ToList().AsReadOnly();
+        return this.recentResults.ToArray().Reverse()
+            .Take(Math.Max(1, Math.Min(limit, 100)))
+            .ToList()
+            .AsReadOnly();
     }
 
     public void ClearHistory()
