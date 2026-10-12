@@ -360,6 +360,32 @@ public class EmbeddedTrackerControllerTest
     }
 
     [Test]
+    public void Announce_WhenTrustedProxy_IgnoresSpoofedLeadingForwardedForHop()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.GetValue("TrackerTrustedProxies", string.Empty).Returns("10.0.0.0/24");
+        this.ConfigureHttpTracker(configService, 6969);
+
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
+
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.5");
+        httpContext.Connection.LocalPort = 6969;
+        httpContext.Request.Headers["X-Forwarded-For"] = "198.51.100.10, 203.0.113.10";
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = customController.Announce();
+        result.Should().BeOfType<FileContentResult>();
+
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
+            r.RemoteIp != null &&
+            r.RemoteIp.ToString() == "203.0.113.10"));
+    }
+
+    [Test]
     public void Announce_WhenTrustedProxy_RejectsSpoofedLoopbackOrLinkLocalForwardedHeaders()
     {
         var configService = Substitute.For<IConfigService>();

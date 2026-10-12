@@ -71,6 +71,15 @@ public class HttpSecurityAndAuthenticationComprehensiveIntegrationTests : Integr
         var resolvedForwarded = ClientIpResolver.ResolveClientIp(context2, trustedService, configService);
         resolvedForwarded.Should().Be("203.0.113.50");
 
+        // 3b. Trusted proxy ignores client-spoofed leading X-Forwarded-For hop
+        var context2b = new DefaultHttpContext();
+        context2b.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.1");
+        context2b.Request.Headers["X-Forwarded-For"] = "198.51.100.10, 203.0.113.50";
+        trustedService.IsTrustedProxy(Arg.Any<IPAddress>(), Arg.Any<string>()).Returns(true);
+
+        var resolvedSpoofed = ClientIpResolver.ResolveClientIp(context2b, trustedService, configService);
+        resolvedSpoofed.Should().Be("203.0.113.50");
+
         // 4. Trusted proxy resolves X-Real-IP
         var context3 = new DefaultHttpContext();
         context3.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.1");

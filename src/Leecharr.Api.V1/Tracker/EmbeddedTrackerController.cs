@@ -507,11 +507,11 @@ public class EmbeddedTrackerController : ControllerBase
             IPAddress candidateIp = null;
             if (!string.IsNullOrWhiteSpace(request.ForwardedFor))
             {
-                var firstIp = request.ForwardedFor.Split(',')[0].Trim();
-                if (IPAddress.TryParse(firstIp, out var parsedFwd))
-                {
-                    candidateIp = parsedFwd.IsIPv4MappedToIPv6 ? parsedFwd.MapToIPv4() : parsedFwd;
-                }
+                candidateIp = ClientIpResolver.TryGetClientIpFromForwardedFor(
+                    request.ForwardedFor,
+                    remoteIp,
+                    trustedNetworkService,
+                    trustedCidrs);
             }
             else if (!string.IsNullOrWhiteSpace(request.RealIp) && IPAddress.TryParse(request.RealIp.Trim(), out var parsedReal))
             {

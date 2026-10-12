@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
@@ -366,17 +367,9 @@ public class ArrWebhookController : Controller
         {
             if (string.IsNullOrWhiteSpace(ip))
             {
-                if (this.Request?.Headers != null && this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwarded) && !string.IsNullOrWhiteSpace(forwarded))
+                if (this.HttpContext != null)
                 {
-                    var first = forwarded.ToString().Split(',')[0].Trim();
-                    if (!string.IsNullOrWhiteSpace(first))
-                    {
-                        ip = first;
-                    }
-                }
-                else if (this.HttpContext?.Connection?.RemoteIpAddress != null)
-                {
-                    ip = this.HttpContext.Connection.RemoteIpAddress.ToString();
+                    ip = ClientIpResolver.ResolveClientIp(this.HttpContext);
                 }
             }
 

@@ -145,6 +145,15 @@ public class ApiKeyAuthenticationHandlerTest
 
     private ApiKeyAuthenticationHandler CreateHandler(HttpContext context)
     {
+        return this.CreateHandler(context, null, null, null);
+    }
+
+    private ApiKeyAuthenticationHandler CreateHandler(
+        HttpContext context,
+        IConfigService configService,
+        ITrustedNetworkService trustedNetworkService,
+        AuthRateLimiter rateLimiter)
+    {
         var optionsMonitor = Substitute.For<IOptionsMonitor<ApiKeyAuthenticationOptions>>();
         optionsMonitor.Get(ApiKeyAuthenticationOptions.DefaultScheme).Returns(new ApiKeyAuthenticationOptions());
 
@@ -152,7 +161,10 @@ public class ApiKeyAuthenticationHandlerTest
             optionsMonitor,
             NullLoggerFactory.Instance,
             UrlEncoder.Default,
-            this.configFileProvider);
+            this.configFileProvider,
+            rateLimiter,
+            trustedNetworkService,
+            configService);
 
         var scheme = new AuthenticationScheme(ApiKeyAuthenticationOptions.DefaultScheme, null, typeof(ApiKeyAuthenticationHandler));
         h.InitializeAsync(scheme, context).GetAwaiter().GetResult();
@@ -253,6 +265,39 @@ public class ApiKeyAuthenticationHandlerTest
 
         throttledResult.Succeeded.Should().BeFalse();
         throttledResult.Failure!.Message.Should().Contain("Too many failed authentication attempts");
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenTrustedProxySpoofsLeadingForwardedFor_ThrottlesRealClientIp()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("correct-key");
+        var configService = Substitute.For<IConfigService>();
+        configService.GetValue("TrustedProxies", string.Empty).Returns("10.0.0.0/24");
+        var trustedNetworkService = new TrustedNetworkService();
+        var rateLimiter = new AuthRateLimiter();
+
+        for (var i = 1; i <= 5; i++)
+        {
+            var failCtx = new DefaultHttpContext();
+            failCtx.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("10.0.0.5");
+            failCtx.Request.Headers["X-Api-Key"] = "wrong-key";
+            failCtx.Request.Headers["X-Forwarded-For"] = $"198.51.100.{i}, 203.0.113.55";
+            var h = this.CreateHandler(failCtx, configService, trustedNetworkService, rateLimiter);
+            var failResult = await h.AuthenticateAsync();
+            failResult.Succeeded.Should().BeFalse();
+        }
+
+        var nextCtx = new DefaultHttpContext();
+        nextCtx.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("10.0.0.5");
+        nextCtx.Request.Headers["X-Api-Key"] = "wrong-key";
+        nextCtx.Request.Headers["X-Forwarded-For"] = "198.51.100.99, 203.0.113.55";
+        var throttledHandler = this.CreateHandler(nextCtx, configService, trustedNetworkService, rateLimiter);
+        var throttledResult = await throttledHandler.AuthenticateAsync();
+
+        throttledResult.Succeeded.Should().BeFalse();
+        throttledResult.Failure!.Message.Should().Contain("Too many failed authentication attempts");
+        rateLimiter.IsThrottled("198.51.100.99").Should().BeFalse();
     }
 
     [Test]

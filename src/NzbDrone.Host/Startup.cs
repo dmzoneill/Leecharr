@@ -310,6 +310,11 @@ public class Startup
             trustedProxies = configService?.GetValue("ForwardAuthTrustedProxies", string.Empty);
         }
 
+        if (string.IsNullOrWhiteSpace(trustedProxies))
+        {
+            trustedProxies = configService?.GetValue("TrackerTrustedProxies", string.Empty);
+        }
+
         if (!string.IsNullOrWhiteSpace(trustedProxies))
         {
             foreach (var proxy in trustedProxies.Split(ProxySeparators, StringSplitOptions.RemoveEmptyEntries))

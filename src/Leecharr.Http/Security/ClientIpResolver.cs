@@ -42,11 +42,11 @@ public static class ClientIpResolver
             IPAddress candidateIp = null;
             if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) && !string.IsNullOrWhiteSpace(forwardedFor))
             {
-                var firstIp = forwardedFor.ToString().Split(',')[0].Trim();
-                if (IPAddress.TryParse(firstIp, out var parsedFwd))
-                {
-                    candidateIp = parsedFwd.IsIPv4MappedToIPv6 ? parsedFwd.MapToIPv4() : parsedFwd;
-                }
+                candidateIp = TryGetClientIpFromForwardedFor(
+                    forwardedFor.ToString(),
+                    remoteIp,
+                    trustedNetworkService,
+                    trustedCidrs);
             }
             else if (context.Request.Headers.TryGetValue("X-Real-IP", out var realIp) && !string.IsNullOrWhiteSpace(realIp))
             {
@@ -67,6 +67,41 @@ public static class ClientIpResolver
         }
 
         return remoteIp.ToString();
+    }
+
+    public static IPAddress TryGetClientIpFromForwardedFor(
+        string forwardedFor,
+        IPAddress remoteIp,
+        ITrustedNetworkService trustedNetworkService,
+        string trustedCidrs)
+    {
+        if (string.IsNullOrWhiteSpace(forwardedFor) || remoteIp == null)
+        {
+            return null;
+        }
+
+        var hops = forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        for (var i = hops.Length - 1; i >= 0; i--)
+        {
+            if (!IPAddress.TryParse(hops[i], out var parsed))
+            {
+                continue;
+            }
+
+            if (parsed.IsIPv4MappedToIPv6)
+            {
+                parsed = parsed.MapToIPv4();
+            }
+
+            if (parsed.Equals(remoteIp) || trustedNetworkService.IsTrustedProxy(parsed, trustedCidrs))
+            {
+                continue;
+            }
+
+            return parsed;
+        }
+
+        return null;
     }
 
     public static bool IsLoopbackOrLinkLocal(IPAddress ip)
