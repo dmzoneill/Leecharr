@@ -65,6 +65,7 @@ public class FloodActionRequest
 [ApiController]
 public class FloodApiController : ControllerBase, IActionFilter
 {
+    private const long FloodUnknownEtaSeconds = 8640000;
     private static readonly RpcSessionStore AuthenticatedSessions = new();
     private static readonly char[] LabelSeparators = [',', ';'];
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -418,13 +419,13 @@ public class FloodApiController : ControllerBase, IActionFilter
             {
                 hash = t.InfoHash,
                 name = t.Name,
-                bytesDone = t.Downloaded,
+                bytesDone = GetFloodBytesDone(t),
                 sizeBytes = t.TotalSize,
                 percentComplete = Math.Round(t.Progress * 100.0, 1),
                 downRate = t.DownloadSpeed,
                 upRate = t.UploadSpeed,
                 ratio = t.Ratio,
-                eta = t.Eta > 0 ? t.Eta : (t.Progress >= 1.0 ? 0 : (t.DownloadSpeed > 0 ? (Math.Max(0, t.TotalSize - t.Downloaded) / t.DownloadSpeed) : 8640000)),
+                eta = GetFloodEtaSeconds(t),
                 status = new[] { MapToFloodStatus(t) },
                 tags = tags,
                 directory = t.SavePath ?? string.Empty,
@@ -443,6 +444,46 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     private static bool IsFloodDownloadComplete(double progress, DateTime? dateCompleted) =>
         progress >= 1.0 || dateCompleted.HasValue;
+
+    public static long GetFloodBytesDone(Torrent torrent)
+    {
+        if (torrent.Progress >= 1.0)
+        {
+            return torrent.TotalSize;
+        }
+
+        return (long)Math.Min(torrent.TotalSize, Math.Max(0, torrent.Progress * torrent.TotalSize));
+    }
+
+    public static long GetFloodLeftBytes(Torrent torrent)
+    {
+        if (torrent.Progress >= 1.0)
+        {
+            return 0;
+        }
+
+        return (long)Math.Max(0, (1.0 - torrent.Progress) * torrent.TotalSize);
+    }
+
+    public static long GetFloodEtaSeconds(Torrent torrent)
+    {
+        if (torrent.Eta > 0)
+        {
+            return torrent.Eta;
+        }
+
+        if (torrent.Progress >= 1.0)
+        {
+            return 0;
+        }
+
+        if (torrent.DownloadSpeed > 0)
+        {
+            return GetFloodLeftBytes(torrent) / torrent.DownloadSpeed;
+        }
+
+        return FloodUnknownEtaSeconds;
+    }
 
     public static string MapToFloodStatus(TorrentStatus status, double progress = 0.0, DateTime? dateCompleted = null)
     {
