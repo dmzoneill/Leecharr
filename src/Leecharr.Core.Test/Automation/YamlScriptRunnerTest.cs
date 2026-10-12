@@ -1117,6 +1117,29 @@ public class YamlScriptRunnerTest
     }
 
     [Test]
+    public void ShouldResolveNestedStructuredInputVariables()
+    {
+        var yaml = "name: 'Nested Inputs'\n" +
+            "steps:\n" +
+            "  - name: 'Check Nested Inputs'\n" +
+            "    actions:\n" +
+            "      - addTag: 'Upload-${inputs.limits.upload}'\n";
+
+        var script = new AutomationScript
+        {
+            Name = "Nested Input Script",
+            Code = yaml,
+            Language = AutomationLanguage.Yaml,
+            InputsJson = "{\"limits\":{\"upload\":100}}",
+        };
+
+        var result = _runner.Execute(script);
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("Upload-100");
+    }
+
+    [Test]
     public void ShouldEscapeJsonStringsInsideQuotes_DuringVariableSubstitution()
     {
         var torrent = new Torrent

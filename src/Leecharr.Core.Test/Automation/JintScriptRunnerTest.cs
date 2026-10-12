@@ -83,6 +83,23 @@ if (torrent.ratio > 2.0) {
     }
 
     [Test]
+    public void ShouldReadStructuredInputsAsObjectsAndArrays()
+    {
+        var script = new AutomationScript
+        {
+            Name = "Structured Inputs",
+            Code = "console.log('Tag:', inputs.tags[0], 'Upload:', inputs.limits.upload);",
+            InputsJson = "{\"tags\":[\"tv\",\"4k\"],\"limits\":{\"upload\":100}}",
+            Language = AutomationLanguage.JavaScript,
+        };
+
+        var result = _runner.Execute(script);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.OutputLog, Does.Contain("Tag: tv Upload: 100"));
+    }
+
+    [Test]
     public void ShouldHandleScriptSyntaxErrorGracefully()
     {
         var script = new AutomationScript
