@@ -350,13 +350,18 @@ public class FileBrowserService : IFileBrowserService
             this.diskProvider.CreateFolder(destDir);
         }
 
+        if (this.diskProvider.FileExists(target) || this.diskProvider.FolderExists(target))
+        {
+            throw new InvalidOperationException($"Destination '{target}' already exists.");
+        }
+
         if (this.diskProvider.FolderExists(source))
         {
             try
             {
                 this.diskProvider.MoveFolder(source, target);
             }
-            catch (IOException)
+            catch (IOException ex) when (IsCrossDeviceIOException(ex))
             {
                 // Fallback for cross-device / cross-volume moves (EXDEV)
                 this.CopyDirectoryRecursive(source, target);
@@ -367,15 +372,35 @@ public class FileBrowserService : IFileBrowserService
         {
             try
             {
-                this.diskProvider.MoveFile(source, target, overwrite: true);
+                this.diskProvider.MoveFile(source, target, overwrite: false);
             }
-            catch (IOException)
+            catch (IOException ex) when (IsCrossDeviceIOException(ex))
             {
                 // Fallback for cross-device / cross-volume moves (EXDEV)
-                this.diskProvider.CopyFile(source, target, overwrite: true);
+                this.diskProvider.CopyFile(source, target, overwrite: false);
                 this.diskProvider.DeleteFile(source);
             }
         }
+    }
+
+    private static bool IsCrossDeviceIOException(IOException ex)
+    {
+        const int errorNotSameDevice = 0x11;
+        const int hresultNotSameDevice = unchecked((int)0x80070000) + errorNotSameDevice;
+
+        if (ex.HResult == hresultNotSameDevice || ex.HResult == errorNotSameDevice)
+        {
+            return true;
+        }
+
+        var message = ex.Message;
+        if (message.Contains("cross-device", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("EXDEV", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private void EnsureSourcePathExists(string source)
