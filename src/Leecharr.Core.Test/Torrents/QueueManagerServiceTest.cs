@@ -451,6 +451,32 @@ public class QueueManagerServiceTest
     }
 
     [Test]
+    public async Task ProcessQueueAsync_WhenQueuedTorrentHasStaleDateCompletedAndIncompleteProgress_PromotesToDownloadingNotSeeding()
+    {
+        var completedAt = DateTime.UtcNow.AddHours(-1);
+        var torrents = new List<Torrent>
+        {
+            new Torrent
+            {
+                Id = 1,
+                Name = "RecheckedIncomplete",
+                Status = TorrentStatus.Queued,
+                Progress = 0.5,
+                QueuePosition = 1,
+                DateCompleted = completedAt,
+            },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrents[0].Status.Should().Be(TorrentStatus.Downloading);
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(1);
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 1 && t.Status == TorrentStatus.Downloading));
+    }
+
+    [Test]
     public async Task ProcessQueueAsync_WhenSeedingResumeThrows_DoesNotConsumeUploadSlotForLaterQueuedTorrents()
     {
         this.configService.MaxActiveUploads.Returns(1);
