@@ -303,6 +303,32 @@ public class YamlScriptRunnerTest
     }
 
     [Test]
+    public void ShouldWarnWhenSetFilePermissionsPathMissing()
+    {
+        var missingPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "missing.txt");
+        var yaml = "name: 'Missing path permissions'\n" +
+                    "steps:\n" +
+                    "  - name: 'Chmod missing'\n" +
+                    "    actions:\n" +
+                    "      - setFilePermissions:\n" +
+                    $"          path: '{missingPath}'\n" +
+                    "          permissions: '600'\n";
+
+        var script = new AutomationScript
+        {
+            Name = "Missing Path Permissions",
+            Code = yaml,
+            Language = AutomationLanguage.Yaml,
+        };
+
+        var result = _runner.Execute(script, new Torrent { Id = 41, Name = "MissingPath" });
+
+        result.Success.Should().BeTrue();
+        result.OutputLog.Should().Contain("setFilePermissions Warning: path not found");
+        result.OutputLog.Should().NotContain("setFilePermissions: set");
+    }
+
+    [Test]
     public void ShouldCreateSymlinkOnDisk()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
