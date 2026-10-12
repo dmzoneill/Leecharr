@@ -535,7 +535,8 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
         {
             var now = DateTime.UtcNow;
             var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc);
-            var oldestBucketStart = currentHour.AddHours(-24);
+            var oldestBucketStart = currentHour.AddHours(-23);
+            var summarySince = currentHour.AddHours(-24);
             var aggregated = this.snapshotRepository.GetHourlyAggregatedMetrics(oldestBucketStart);
 
             if (aggregated != null)
@@ -617,7 +618,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                 }
             }
 
-            var recentSnapshots = this.snapshotRepository.GetRecentSnapshots(oldestBucketStart);
+            var recentSnapshots = this.snapshotRepository.GetRecentSnapshots(summarySince);
             var validLatencies = recentSnapshots?
                 .Where(s => s.IsSuccess && s.ResponseTimeMs > 0)
                 .Select(s => (double)s.ResponseTimeMs)
