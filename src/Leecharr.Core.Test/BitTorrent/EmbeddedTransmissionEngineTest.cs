@@ -808,6 +808,122 @@ public class EmbeddedTransmissionEngineTest
         task.IsSuperSeeding.Should().BeTrue();
     }
 
+    [Test]
+    public async Task VpnKillSwitch_StopRpc_TargetsManagedTorrentIdsOnly()
+    {
+        var stopBodies = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-stop")
+            {
+                stopBodies.Add(body);
+            }
+
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+        await engine.StartAsync();
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        var task = (TransmissionDownloadTask)await engine.AddTorrentAsync(torrent);
+        task.Status = TorrentStatus.Downloading;
+
+        engine.Handle(new VpnKillSwitchTriggeredEvent("tun0"));
+        for (var i = 0; i < 50 && stopBodies.Count == 0; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        stopBodies.Should().HaveCount(1);
+        using var stopDoc = JsonDocument.Parse(stopBodies[0]);
+        var args = stopDoc.RootElement.GetProperty("arguments");
+        args.TryGetProperty("ids", out var ids).Should().BeTrue();
+        ids.GetArrayLength().Should().Be(1);
+        ids[0].GetInt64().Should().Be(99);
+    }
+
+    [Test]
+    public async Task VpnKillSwitch_RestoreStartsTorrentsAfterStopRpcCompletes()
+    {
+        var rpcOrder = new List<string>();
+        var releaseStop = new ManualResetEventSlim(false);
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-stop")
+            {
+                releaseStop.Wait(TimeSpan.FromSeconds(5));
+                rpcOrder.Add(method!);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+                };
+            }
+
+            if (method == "torrent-start")
+            {
+                rpcOrder.Add(method!);
+            }
+
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+        await engine.StartAsync();
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        var task = (TransmissionDownloadTask)await engine.AddTorrentAsync(torrent);
+        task.Status = TorrentStatus.Downloading;
+
+        engine.Handle(new VpnKillSwitchTriggeredEvent("tun0"));
+        await Task.Delay(50);
+        engine.Handle(new VpnInterfaceRestoredEvent("tun0"));
+
+        for (var i = 0; i < 50 && rpcOrder.Count < 2; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        releaseStop.Set();
+
+        for (var i = 0; i < 50 && rpcOrder.Count < 2; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        rpcOrder.Should().Equal("torrent-stop", "torrent-start");
+    }
+
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)
     {
         return new EmbeddedTransmissionEngine(

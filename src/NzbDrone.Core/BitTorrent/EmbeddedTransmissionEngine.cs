@@ -51,6 +51,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
     private readonly HttpClient httpClient;
     private readonly bool ownsHttpClient;
+    private readonly SemaphoreSlim vpnKillSwitchTransitionGate = new(1, 1);
     private string transmissionSessionId = string.Empty;
     private Process daemonProcess;
     private CancellationTokenSource syncCts;
@@ -501,14 +502,21 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
         _ = Task.Run(async () =>
         {
+            await this.vpnKillSwitchTransitionGate.WaitAsync(this.syncCts?.Token ?? CancellationToken.None);
             try
             {
-                await this.SendRpcRequestAsync("torrent-stop", new Dictionary<string, object>());
-                await this.ConfigureSessionSettingsAsync();
+                await this.RunVpnKillSwitchHaltRpcAsync(this.syncCts?.Token ?? CancellationToken.None);
+            }
+            catch (OperationCanceledException)
+            {
             }
             catch (Exception ex)
             {
                 this.logger.Trace(ex, "Failed to stop torrents or update session settings during killswitch activation");
+            }
+            finally
+            {
+                this.vpnKillSwitchTransitionGate.Release();
             }
         }, this.syncCts?.Token ?? CancellationToken.None);
     }
@@ -518,25 +526,31 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         this.logger.Info("VPN interface '{0}' restored. Resuming Transmission engine transfers.", message.InterfaceName);
         this.isHaltedByKillSwitch = false;
 
+        var resumeIds = TorrentEngineNetworkHelper.PrepareHaltedTorrentsForRestore(
+            this.tasks,
+            this.torrentsHaltedByKillSwitch,
+            (t, s) => t.Status = s,
+            t => t.Progress);
+
         _ = Task.Run(async () =>
         {
+            await this.vpnKillSwitchTransitionGate.WaitAsync(this.syncCts?.Token ?? CancellationToken.None);
             try
             {
-                await this.ConfigureSessionSettingsAsync();
+                await this.RunVpnInterfaceRestoreRpcAsync(resumeIds, this.syncCts?.Token ?? CancellationToken.None);
+            }
+            catch (OperationCanceledException)
+            {
             }
             catch (Exception ex)
             {
                 this.logger.Trace(ex, "Failed to update session settings during killswitch deactivation");
             }
+            finally
+            {
+                this.vpnKillSwitchTransitionGate.Release();
+            }
         }, this.syncCts?.Token ?? CancellationToken.None);
-
-        TorrentEngineNetworkHelper.ResumeHaltedTorrents(
-            this.tasks,
-            this.torrentsHaltedByKillSwitch,
-            t => t.Status,
-            (t, s) => t.Status = s,
-            t => t.Progress,
-            id => _ = this.ResumeTorrentAsync(id));
     }
 
     public void Handle(NetworkBindingProviderSwitchedEvent message)
@@ -1105,6 +1119,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         {
             this.disposed = true;
             this.StopAsync().GetAwaiter().GetResult();
+            this.vpnKillSwitchTransitionGate.Dispose();
             if (this.ownsHttpClient)
             {
                 this.httpClient.Dispose();
@@ -1257,6 +1272,59 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 break;
             }
+        }
+    }
+
+    private List<object> CollectRpcIdsForHaltedTorrents()
+    {
+        var rpcIds = new List<object>();
+        lock (this.torrentsHaltedByKillSwitch)
+        {
+            foreach (var torrentId in this.torrentsHaltedByKillSwitch)
+            {
+                if (this.tasks.TryGetValue(torrentId, out var task))
+                {
+                    rpcIds.AddRange(this.GetRpcIdsForTorrent(torrentId, task.InfoHash));
+                }
+            }
+        }
+
+        return rpcIds;
+    }
+
+    private async Task RunVpnKillSwitchHaltRpcAsync(CancellationToken cancellationToken)
+    {
+        var rpcIds = this.CollectRpcIdsForHaltedTorrents();
+        if (rpcIds.Count > 0)
+        {
+            await this.SendRpcRequestAsync("torrent-stop", new Dictionary<string, object>
+            {
+                ["ids"] = rpcIds,
+            });
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (this.isHaltedByKillSwitch)
+        {
+            await this.ConfigureSessionSettingsAsync();
+        }
+    }
+
+    private async Task RunVpnInterfaceRestoreRpcAsync(IReadOnlyList<int> resumeIds, CancellationToken cancellationToken)
+    {
+        await this.ConfigureSessionSettingsAsync();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (this.isHaltedByKillSwitch)
+        {
+            return;
+        }
+
+        foreach (var torrentId in resumeIds)
+        {
+            await this.ResumeTorrentAsync(torrentId);
         }
     }
 

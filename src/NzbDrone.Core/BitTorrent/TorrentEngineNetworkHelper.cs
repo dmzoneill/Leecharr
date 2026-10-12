@@ -131,7 +131,7 @@ public static class TorrentEngineNetworkHelper
         lock (haltedIds)
         {
             var pausedIds = haltedIds
-                .Where(id => tasks.TryGetValue(id, out var task) && getStatus(task) == TorrentStatus.Paused)
+                .Where(id => tasks.ContainsKey(id))
                 .ToList();
 
             foreach (var torrentId in pausedIds)
@@ -144,6 +144,36 @@ public static class TorrentEngineNetworkHelper
             }
 
             haltedIds.Clear();
+        }
+    }
+
+    public static IReadOnlyList<int> PrepareHaltedTorrentsForRestore<TTask>(
+        ConcurrentDictionary<int, TTask> tasks,
+        HashSet<int> haltedIds,
+        Action<TTask, TorrentStatus> setStatus,
+        Func<TTask, double> getProgress)
+    {
+        ArgumentNullException.ThrowIfNull(tasks);
+        ArgumentNullException.ThrowIfNull(haltedIds);
+        ArgumentNullException.ThrowIfNull(setStatus);
+        ArgumentNullException.ThrowIfNull(getProgress);
+
+        lock (haltedIds)
+        {
+            var resumeIds = haltedIds
+                .Where(id => tasks.ContainsKey(id))
+                .ToList();
+
+            foreach (var torrentId in resumeIds)
+            {
+                if (tasks.TryGetValue(torrentId, out var task))
+                {
+                    setStatus(task, getProgress(task) >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading);
+                }
+            }
+
+            haltedIds.Clear();
+            return resumeIds;
         }
     }
 
