@@ -223,19 +223,11 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                 metric.LastErrorMessage = null;
                 metric.Status = "Working";
 
-                if (seeders > 0)
-                {
-                    metric.LastSeeders = seeders;
-                }
-
-                if (leechers > 0)
-                {
-                    metric.LastLeechers = leechers;
-                }
-
+                metric.LastSeeders = seeders;
+                metric.LastLeechers = leechers;
+                metric.LastPeers = peersCount;
                 if (peersCount > 0)
                 {
-                    metric.LastPeers = peersCount;
                     metric.TotalPeersDiscovered += peersCount;
                 }
 
@@ -314,15 +306,8 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                 UpdateLatencyMetrics(metric, responseTimeMs);
                 metric.SuccessfulScrapes++;
                 metric.LastSuccess = now;
-                if (seeders > 0)
-                {
-                    metric.LastSeeders = seeders;
-                }
-
-                if (leechers > 0)
-                {
-                    metric.LastLeechers = leechers;
-                }
+                metric.LastSeeders = seeders;
+                metric.LastLeechers = leechers;
             }
             else
             {

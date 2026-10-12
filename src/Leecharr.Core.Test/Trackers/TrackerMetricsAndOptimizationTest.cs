@@ -320,6 +320,66 @@ public class TrackerMetricsAndOptimizationTest
     }
 
     [Test]
+    public void RecordAnnounce_Success_ZeroSwarmCounts_ClearStoredSeedersLeechersAndPeers()
+    {
+        var trackerUrl = "http://zero-swarm.announce.example/announce";
+
+        this.metricService.RecordAnnounce(
+            trackerUrl,
+            torrentId: 1,
+            uploaded: 0,
+            downloaded: 0,
+            left: 0,
+            responseTimeMs: 50,
+            success: true,
+            seeders: 25,
+            leechers: 10,
+            peersCount: 35);
+
+        var cleared = this.metricService.RecordAnnounce(
+            trackerUrl,
+            torrentId: 1,
+            uploaded: 0,
+            downloaded: 0,
+            left: 0,
+            responseTimeMs: 55,
+            success: true,
+            seeders: 0,
+            leechers: 0,
+            peersCount: 0);
+
+        cleared.LastSeeders.Should().Be(0);
+        cleared.LastLeechers.Should().Be(0);
+        cleared.LastPeers.Should().Be(0);
+        cleared.TotalPeersDiscovered.Should().Be(35);
+    }
+
+    [Test]
+    public void RecordScrape_Success_ZeroSwarmCounts_ClearStoredSeedersAndLeechers()
+    {
+        var trackerUrl = "http://zero-scrape.announce.example/announce";
+
+        this.metricService.RecordScrape(
+            trackerUrl,
+            responseTimeMs: 40,
+            success: true,
+            seeders: 30,
+            leechers: 15,
+            completed: 5);
+
+        var cleared = this.metricService.RecordScrape(
+            trackerUrl,
+            responseTimeMs: 45,
+            success: true,
+            seeders: 0,
+            leechers: 0,
+            completed: 0);
+
+        cleared.LastSeeders.Should().Be(0);
+        cleared.LastLeechers.Should().Be(0);
+    }
+
+    [Test]
     public void RecordScrape_Success_UpdatesScrapeCountsAndMetrics()
     {
         var trackerUrl = "http://scrape.example.org:6969/announce";
