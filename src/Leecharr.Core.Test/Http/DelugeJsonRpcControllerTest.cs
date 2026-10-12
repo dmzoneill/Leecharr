@@ -15,6 +15,7 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Deluge;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -32,6 +33,7 @@ public class DelugeJsonRpcControllerTest
     private IDiskProvider diskProvider = null!;
     private IDownloadEngine downloadEngine = null!;
     private ITrackerEntryRepository trackerEntryRepository = null!;
+    private IDelugePluginSettingsService delugePluginSettings = null!;
     private DelugeJsonRpcController controller = null!;
 
     [SetUp]
@@ -46,6 +48,7 @@ public class DelugeJsonRpcControllerTest
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.downloadEngine = Substitute.For<IDownloadEngine>();
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
+        this.delugePluginSettings = new DelugePluginSettingsService(configService: this.configService);
 
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("deluge_secret_key");
@@ -59,7 +62,8 @@ public class DelugeJsonRpcControllerTest
             this.configFileProvider,
             diskProvider: this.diskProvider,
             downloadEngine: this.downloadEngine,
-            trackerEntryRepository: this.trackerEntryRepository);
+            trackerEntryRepository: this.trackerEntryRepository,
+            delugePluginSettings: this.delugePluginSettings);
     }
 
     [Test]
@@ -2617,6 +2621,32 @@ public class DelugeJsonRpcControllerTest
         statsFilteredResult.GetProperty("download_rate").GetInt64().Should().Be(1024);
         statsFilteredResult.GetProperty("upload_rate").GetInt64().Should().Be(512);
         statsFilteredResult.TryGetProperty("num_torrents", out _).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task HandleRpc_PluginSettings_RoundTripPersistedValues()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var schedSetDoc = JsonDocument.Parse("{\"method\":\"scheduler.set_config\",\"params\":[{\"enabled\":true,\"low_down\":512}],\"id\":70}");
+        var schedSetRes = (JsonResult)await this.controller.HandleRpc(schedSetDoc.RootElement);
+        JsonSerializer.Serialize(schedSetRes.Value).Should().Contain("\"result\":true");
+
+        using var schedGetDoc = JsonDocument.Parse("{\"method\":\"scheduler.get_config\",\"params\":[],\"id\":71}");
+        var schedGetRes = (JsonResult)await this.controller.HandleRpc(schedGetDoc.RootElement);
+        using var schedGetParsed = JsonDocument.Parse(JsonSerializer.Serialize(schedGetRes.Value));
+        schedGetParsed.RootElement.GetProperty("result").GetProperty("enabled").GetBoolean().Should().BeTrue();
+        schedGetParsed.RootElement.GetProperty("result").GetProperty("low_down").GetDouble().Should().Be(512);
+
+        using var execAddDoc = JsonDocument.Parse("{\"method\":\"execute.add_command\",\"params\":[\"complete\", \"/bin/echo done\"],\"id\":72}");
+        await this.controller.HandleRpc(execAddDoc.RootElement);
+
+        using var execGetDoc = JsonDocument.Parse("{\"method\":\"execute.get_commands\",\"params\":[],\"id\":73}");
+        var execGetRes = (JsonResult)await this.controller.HandleRpc(execGetDoc.RootElement);
+        using var execGetParsed = JsonDocument.Parse(JsonSerializer.Serialize(execGetRes.Value));
+        execGetParsed.RootElement.GetProperty("result").GetArrayLength().Should().Be(1);
     }
 
     [Test]

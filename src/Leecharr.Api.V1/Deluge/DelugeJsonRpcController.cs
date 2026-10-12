@@ -15,8 +15,10 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Deluge;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -135,6 +137,8 @@ public class DelugeJsonRpcController : ControllerBase
     private readonly IStoragePathService storagePathService;
     private readonly IDownloadEngine downloadEngine;
     private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IDelugePluginSettingsService delugePluginSettings;
+    private readonly IBlocklistService blocklistService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DelugeJsonRpcController(
@@ -148,7 +152,9 @@ public class DelugeJsonRpcController : ControllerBase
         IDiskProvider diskProvider = null,
         IStoragePathService storagePathService = null,
         IDownloadEngine downloadEngine = null,
-        ITrackerEntryRepository trackerEntryRepository = null)
+        ITrackerEntryRepository trackerEntryRepository = null,
+        IDelugePluginSettingsService delugePluginSettings = null,
+        IBlocklistService blocklistService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -161,6 +167,8 @@ public class DelugeJsonRpcController : ControllerBase
         this.storagePathService = storagePathService;
         this.downloadEngine = downloadEngine;
         this.trackerEntryRepository = trackerEntryRepository;
+        this.delugePluginSettings = delugePluginSettings ?? new DelugePluginSettingsService(configService: configService);
+        this.blocklistService = blocklistService;
     }
 
     private bool IsDelugeAuthenticated()
@@ -319,7 +327,7 @@ public class DelugeJsonRpcController : ControllerBase
                 lowerMethod.StartsWith("scheduler.") ||
                 lowerMethod.StartsWith("stats."))
             {
-                return this.DispatchPluginRpc(lowerMethod, paramsElem, id);
+                return await this.DispatchPluginRpcAsync(lowerMethod, paramsElem, id);
             }
 
             return this.HandleUnknownMethod(method, id);
@@ -429,23 +437,23 @@ public class DelugeJsonRpcController : ControllerBase
         };
     }
 
-    private IActionResult DispatchPluginRpc(string method, JsonElement args, object id)
+    private async Task<IActionResult> DispatchPluginRpcAsync(string method, JsonElement args, object id)
     {
         var lowerMethod = method.ToLowerInvariant();
 
         if (lowerMethod.StartsWith("scheduler."))
         {
-            return HandleSchedulerRpc(lowerMethod, args, id);
+            return this.HandleSchedulerRpc(lowerMethod, args, id);
         }
 
         if (lowerMethod.StartsWith("autoadd."))
         {
-            return HandleAutoAddRpc(lowerMethod, args, id);
+            return this.HandleAutoAddRpc(lowerMethod, args, id);
         }
 
         if (lowerMethod.StartsWith("blocklist."))
         {
-            return HandleBlocklistRpc(lowerMethod, args, id);
+            return await this.HandleBlocklistRpcAsync(lowerMethod, args, id);
         }
 
         if (lowerMethod.StartsWith("extractor."))
@@ -455,7 +463,7 @@ public class DelugeJsonRpcController : ControllerBase
 
         if (lowerMethod.StartsWith("execute."))
         {
-            return HandleExecuteRpc(lowerMethod, args, id);
+            return this.HandleExecuteRpc(lowerMethod, args, id);
         }
 
         if (lowerMethod.StartsWith("stats."))
@@ -466,98 +474,86 @@ public class DelugeJsonRpcController : ControllerBase
         return DelugeResult(new { result = new Dictionary<string, object>(), error = (object)null, id });
     }
 
-    private static IActionResult HandleSchedulerRpc(string method, JsonElement args, object id)
+    private IActionResult HandleSchedulerRpc(string method, JsonElement args, object id)
     {
         switch (method)
         {
             case "scheduler.get_config":
-                var scheduleMatrix = new List<List<int>>();
-                for (var day = 0; day < 7; day++)
-                {
-                    var dayRow = new List<int>();
-                    for (var hour = 0; hour < 24; hour++)
-                    {
-                        dayRow.Add(0);
-                    }
-
-                    scheduleMatrix.Add(dayRow);
-                }
-
-                var config = new Dictionary<string, object>
-                {
-                    ["enabled"] = false,
-                    ["low_down"] = -1.0,
-                    ["low_up"] = -1.0,
-                    ["low_active"] = -1,
-                    ["button_state"] = 0,
-                    ["schedule"] = scheduleMatrix,
-                };
-                return DelugeResult(new { result = config, error = (object)null, id });
+                return DelugeResult(new { result = this.delugePluginSettings.GetSchedulerConfig(), error = (object)null, id });
 
             case "scheduler.set_config":
+            {
+                var config = GetFirstObjectParam(args);
+                var success = config.HasValue && this.delugePluginSettings.SetSchedulerConfig(config.Value);
+                return DelugeResult(new { result = success, error = (object)null, id });
+            }
+
             case "scheduler.enable":
+                return DelugeResult(new { result = this.delugePluginSettings.SetSchedulerEnabled(true), error = (object)null, id });
+
             case "scheduler.disable":
-                return DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = this.delugePluginSettings.SetSchedulerEnabled(false), error = (object)null, id });
 
             default:
                 return DelugeResult(new { result = true, error = (object)null, id });
         }
     }
 
-    private static IActionResult HandleAutoAddRpc(string method, JsonElement args, object id)
+    private IActionResult HandleAutoAddRpc(string method, JsonElement args, object id)
     {
         switch (method)
         {
             case "autoadd.get_watchdirs":
-                return DelugeResult(new { result = new List<object>(), error = (object)null, id });
+                return DelugeResult(new { result = this.delugePluginSettings.GetAutoAddWatchdirs(), error = (object)null, id });
 
             case "autoadd.set_options":
+                return DelugeResult(new { result = this.delugePluginSettings.SetAutoAddOptions(args), error = (object)null, id });
+
             case "autoadd.set_config":
+            {
+                var config = GetFirstObjectParam(args);
+                var success = config.HasValue && this.delugePluginSettings.SetAutoAddConfig(config.Value);
+                return DelugeResult(new { result = success || !config.HasValue, error = (object)null, id });
+            }
+
             case "autoadd.enable":
+                return DelugeResult(new { result = this.delugePluginSettings.SetAutoAddEnabled(true), error = (object)null, id });
+
             case "autoadd.disable":
-                return DelugeResult(new { result = true, error = (object)null, id });
+                return DelugeResult(new { result = this.delugePluginSettings.SetAutoAddEnabled(false), error = (object)null, id });
 
             default:
                 return DelugeResult(new { result = true, error = (object)null, id });
         }
     }
 
-    private static IActionResult HandleBlocklistRpc(string method, JsonElement args, object id)
+    private async Task<IActionResult> HandleBlocklistRpcAsync(string method, JsonElement args, object id)
     {
         switch (method)
         {
             case "blocklist.get_config":
-                var blocklistConfig = new Dictionary<string, object>
-                {
-                    ["url"] = string.Empty,
-                    ["load_on_start"] = false,
-                    ["check_after_days"] = 4,
-                    ["timeout"] = 180,
-                    ["try_times"] = 3,
-                    ["list_type"] = "PeerGuardian",
-                    ["list_compression"] = string.Empty,
-                    ["last_update"] = 0,
-                    ["file_date"] = 0,
-                    ["file_size"] = 0,
-                    ["file_url"] = string.Empty,
-                };
-                return DelugeResult(new { result = blocklistConfig, error = (object)null, id });
+                return DelugeResult(new { result = this.delugePluginSettings.GetBlocklistConfig(), error = (object)null, id });
 
             case "blocklist.set_config":
+            {
+                var config = GetFirstObjectParam(args);
+                var success = config.HasValue && this.delugePluginSettings.SetBlocklistConfig(config.Value);
+                return DelugeResult(new { result = success || !config.HasValue, error = (object)null, id });
+            }
+
             case "blocklist.import":
-                return DelugeResult(new { result = true, error = (object)null, id });
+            {
+                var loaded = await this.delugePluginSettings.ImportBlocklistAsync();
+                return DelugeResult(new { result = loaded >= 0, error = (object)null, id });
+            }
 
             case "blocklist.check":
             case "blocklist.get_status":
             case "blocklist.status":
-                var status = new Dictionary<string, object>
-                {
-                    ["status"] = "Ready",
-                    ["num_blocked"] = 0,
-                    ["file_size"] = 0,
-                    ["file_date"] = 0,
-                };
-                return DelugeResult(new { result = status, error = (object)null, id });
+            {
+                var rulesLoaded = this.blocklistService?.TotalRulesLoaded ?? 0;
+                return DelugeResult(new { result = this.delugePluginSettings.GetBlocklistStatus(rulesLoaded), error = (object)null, id });
+            }
 
             default:
                 return DelugeResult(new { result = true, error = (object)null, id });
@@ -566,18 +562,19 @@ public class DelugeJsonRpcController : ControllerBase
 
     private IActionResult HandleExtractorRpc(string method, JsonElement args, object id)
     {
+        var defaultDest = this.configService?.DownloadDir ?? "/downloads";
         switch (method)
         {
             case "extractor.get_config":
-                var extractorConfig = new Dictionary<string, object>
-                {
-                    ["dest"] = this.configService?.DownloadDir ?? "/downloads",
-                    ["use_dest"] = false,
-                    ["extract_in_place"] = true,
-                };
-                return DelugeResult(new { result = extractorConfig, error = (object)null, id });
+                return DelugeResult(new { result = this.delugePluginSettings.GetExtractorConfig(defaultDest), error = (object)null, id });
 
             case "extractor.set_config":
+            {
+                var config = GetFirstObjectParam(args);
+                var success = config.HasValue && this.delugePluginSettings.SetExtractorConfig(config.Value);
+                return DelugeResult(new { result = success || !config.HasValue, error = (object)null, id });
+            }
+
             case "extractor.extract":
                 return DelugeResult(new { result = true, error = (object)null, id });
 
@@ -586,17 +583,25 @@ public class DelugeJsonRpcController : ControllerBase
         }
     }
 
-    private static IActionResult HandleExecuteRpc(string method, JsonElement args, object id)
+    private IActionResult HandleExecuteRpc(string method, JsonElement args, object id)
     {
         switch (method)
         {
             case "execute.get_commands":
-                return DelugeResult(new { result = new List<object>(), error = (object)null, id });
+                return DelugeResult(new { result = this.delugePluginSettings.GetExecuteCommands(), error = (object)null, id });
 
             case "execute.add_command":
+                return DelugeResult(new { result = this.delugePluginSettings.AddExecuteCommand(args), error = (object)null, id });
+
             case "execute.remove_command":
+                return DelugeResult(new { result = this.delugePluginSettings.RemoveExecuteCommand(args), error = (object)null, id });
+
             case "execute.set_config":
-                return DelugeResult(new { result = true, error = (object)null, id });
+            {
+                var config = GetFirstObjectParam(args);
+                var success = config.HasValue && this.delugePluginSettings.SetExecuteConfig(config.Value);
+                return DelugeResult(new { result = success || !config.HasValue, error = (object)null, id });
+            }
 
             default:
                 return DelugeResult(new { result = true, error = (object)null, id });
@@ -2496,6 +2501,24 @@ public class DelugeJsonRpcController : ControllerBase
         else if (parameters.ValueKind == JsonValueKind.String)
         {
             return parameters.GetString();
+        }
+
+        return null;
+    }
+
+    private static JsonElement? GetFirstObjectParam(JsonElement parameters)
+    {
+        if (parameters.ValueKind == JsonValueKind.Array && parameters.GetArrayLength() > 0)
+        {
+            var first = parameters[0];
+            if (first.ValueKind == JsonValueKind.Object)
+            {
+                return first;
+            }
+        }
+        else if (parameters.ValueKind == JsonValueKind.Object)
+        {
+            return parameters;
         }
 
         return null;
