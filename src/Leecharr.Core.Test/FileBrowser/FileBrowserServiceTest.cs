@@ -122,12 +122,12 @@ public class FileBrowserServiceTest
         this.diskProvider.FolderExists(source).Returns(false);
         this.diskProvider.FileExists(source).Returns(true);
 
-        this.diskProvider.When(x => x.MoveFile(source, targetFile, true))
+        this.diskProvider.When(x => x.MoveFile(source, targetFile, false))
             .Do(x => throw new System.IO.IOException("EXDEV: Cross-device link"));
 
         this.service.Move(source, destDir);
 
-        this.diskProvider.Received(1).CopyFile(source, targetFile, true);
+        this.diskProvider.Received(1).CopyFile(source, targetFile, false);
         this.diskProvider.Received(1).DeleteFile(source);
     }
 
@@ -150,7 +150,7 @@ public class FileBrowserServiceTest
 
         this.service.Move(source, destDir);
 
-        this.diskProvider.Received(1).CopyFile(sourceFile, targetFile, true);
+        this.diskProvider.Received(1).CopyFile(sourceFile, targetFile, false);
         this.diskProvider.Received(1).DeleteFolder(source, true);
     }
 
@@ -339,7 +339,7 @@ public class FileBrowserServiceTest
         this.service.Move(source, destDir);
 
         this.diskProvider.Received(1).CreateFolder(expectedTargetDir);
-        this.diskProvider.Received(1).CopyFile(fileInSource, fileInTarget, true);
+        this.diskProvider.Received(1).CopyFile(fileInSource, fileInTarget, false);
         this.diskProvider.Received(1).DeleteFolder(expectedSource, true);
     }
 
@@ -525,6 +525,47 @@ public class FileBrowserServiceTest
     {
         Action act = () => this.service.Move("/downloads/movie.mkv", "/etc");
         act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void Move_WhenTargetDirectoryExists_ThrowsInvalidOperationExceptionWithoutCopyOrDelete()
+    {
+        var source = "/downloads/album";
+        var destDir = "/storage/music";
+        var targetDir = "/storage/music/album";
+
+        this.diskProvider.FolderExists(destDir).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(true);
+        this.diskProvider.FolderExists(targetDir).Returns(true);
+
+        var action = () => this.service.Move(source, destDir);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage($"Destination '{targetDir}' already exists.");
+        this.diskProvider.DidNotReceive().MoveFolder(Arg.Any<string>(), Arg.Any<string>());
+        this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        this.diskProvider.DidNotReceive().DeleteFolder(Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void Move_WhenMoveFolderThrowsNonCrossDeviceIOException_DoesNotCopyOrDeleteSource()
+    {
+        var source = "/downloads/album";
+        var destDir = "/storage/music";
+        var targetFolder = "/storage/music/album";
+
+        this.diskProvider.FolderExists(destDir).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(true);
+        this.diskProvider.FolderExists(targetFolder).Returns(false);
+        this.diskProvider.FileExists(targetFolder).Returns(false);
+
+        this.diskProvider.When(x => x.MoveFolder(source, targetFolder))
+            .Do(x => throw new System.IO.IOException("Cannot create a file when that file already exists."));
+
+        var action = () => this.service.Move(source, destDir);
+
+        action.Should().Throw<System.IO.IOException>();
+        this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        this.diskProvider.DidNotReceive().DeleteFolder(Arg.Any<string>(), Arg.Any<bool>());
     }
 
     [Test]
