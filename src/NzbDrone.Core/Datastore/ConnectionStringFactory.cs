@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using Npgsql;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 
@@ -48,15 +49,20 @@ public class ConnectionStringFactory : IConnectionStringFactory
 
     private string BuildPostgresConnectionString()
     {
-        return $"Host={this.configFileProvider.PostgresHost};" +
-            $"Port={this.configFileProvider.PostgresPort};" +
-            $"Database={this.configFileProvider.PostgresMainDb};" +
-            $"Username={this.configFileProvider.PostgresUser};" +
-            $"Password={this.configFileProvider.PostgresPassword};" +
-            $"Pooling=true;" +
-            $"Minimum Pool Size=1;" +
-            $"Maximum Pool Size=50;" +
-            $"Connection Timeout=15;" +
-            $"Command Timeout=30;";
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = this.configFileProvider.PostgresHost,
+            Port = this.configFileProvider.PostgresPort,
+            Database = this.configFileProvider.PostgresMainDb,
+            Username = this.configFileProvider.PostgresUser,
+            Password = this.configFileProvider.PostgresPassword,
+            Pooling = true,
+            MinPoolSize = 1,
+            MaxPoolSize = 50,
+            Timeout = 15,
+            CommandTimeout = 30,
+        };
+
+        return builder.ConnectionString;
     }
 }

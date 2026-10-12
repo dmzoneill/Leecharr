@@ -2,6 +2,7 @@
 
 using System.IO;
 using FluentAssertions;
+using Npgsql;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.EnvironmentInfo;
@@ -60,5 +61,26 @@ public class ConnectionStringFactoryTest
         factory.MainDbConnectionString.Should().Contain("Maximum Pool Size=50");
         factory.MainDbConnectionString.Should().Contain("Connection Timeout=15");
         factory.MainDbConnectionString.Should().Contain("Command Timeout=30");
+    }
+
+    [Test]
+    public void Postgres_ConnectionString_Escapes_Special_Characters_In_Credentials()
+    {
+        const string password = "secret;Ssl Mode=Disable";
+        this.configFileProvider.PostgresHost.Returns("postgres-host");
+        this.configFileProvider.PostgresPort.Returns(5432);
+        this.configFileProvider.PostgresMainDb.Returns("leecharr_db");
+        this.configFileProvider.PostgresUser.Returns("user=evil");
+        this.configFileProvider.PostgresPassword.Returns(password);
+
+        var factory = new ConnectionStringFactory(this.appFolderInfo, this.configFileProvider);
+
+        var parsed = new NpgsqlConnectionStringBuilder(factory.MainDbConnectionString);
+        parsed.Host.Should().Be("postgres-host");
+        parsed.Port.Should().Be(5432);
+        parsed.Database.Should().Be("leecharr_db");
+        parsed.Username.Should().Be("user=evil");
+        parsed.Password.Should().Be(password);
+        parsed.SslMode.Should().NotBe(SslMode.Disable);
     }
 }
