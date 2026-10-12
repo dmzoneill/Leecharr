@@ -202,6 +202,12 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
 
         var totalCount = mergedV4.Count + mergedV6.Count;
 
+        if (totalCount == 0)
+        {
+            this.logger.Warn("Blocklist refresh produced zero parseable ranges; keeping {0} existing P2P blocklist ranges.", this.ruleCount);
+            return Task.FromResult(0);
+        }
+
         lock (this.@lock)
         {
             this.v4Ranges = mergedV4;

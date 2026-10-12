@@ -144,6 +144,12 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
             }
         }
 
+        if (added == 0)
+        {
+            this.logger.Warn("Blocklist refresh produced zero parseable rules; keeping {0} existing Radix Trie rules.", this.ruleCount);
+            return Task.FromResult(0);
+        }
+
         lock (this.@lock)
         {
             Volatile.Write(ref this.ipv4Root, newIpv4Root);

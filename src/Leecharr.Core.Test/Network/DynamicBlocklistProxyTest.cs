@@ -446,6 +446,28 @@ public class DynamicBlocklistProxyTest
     }
 
     [Test]
+    public async Task LoadRulesAsync_WhenRefreshParsesZeroRules_KeepsExistingBlocklist()
+    {
+        var providers = new List<IBlocklistProvider>
+        {
+            new RadixTreeBlocklistProvider(),
+            new P2PDatBlocklistProvider(),
+            this.linuxIpSetProvider,
+        };
+
+        var proxy = new DynamicBlocklistProxy(providers, this.configService, this.eventAggregator);
+
+        (await proxy.LoadRulesAsync(new[] { "10.0.0.1" })).Should().Be(1);
+        proxy.IsIpBlocked("10.0.0.1").Should().BeTrue();
+
+        (await proxy.LoadRulesAsync(new[] { "<html>not a blocklist</html>", "not-an-ip" })).Should().Be(0);
+        proxy.TotalRulesLoaded.Should().Be(1);
+        proxy.IsIpBlocked("10.0.0.1").Should().BeTrue();
+
+        proxy.Dispose();
+    }
+
+    [Test]
     public void TotalRulesLoaded_ExposesIpv4AndIpv6CountsFromActiveProvider()
     {
         this.radixTreeProvider.Ipv4RuleCount.Returns(3);

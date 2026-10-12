@@ -188,13 +188,17 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
         try
         {
             var ruleList = rules.ToList();
-            lock (this.rulesLock)
+            var loaded = await Volatile.Read(ref this.activeProvider).LoadRulesAsync(ruleList);
+            if (loaded > 0)
             {
-                this.loadedRawRules.Clear();
-                this.loadedRawRules.AddRange(ruleList);
+                lock (this.rulesLock)
+                {
+                    this.loadedRawRules.Clear();
+                    this.loadedRawRules.AddRange(ruleList);
+                }
             }
 
-            return await Volatile.Read(ref this.activeProvider).LoadRulesAsync(ruleList);
+            return loaded;
         }
         finally
         {
@@ -213,14 +217,26 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
         try
         {
             var ruleList = rules.ToList();
+            List<string> previousRules;
             List<string> allRules;
             lock (this.rulesLock)
             {
+                previousRules = this.loadedRawRules.ToList();
                 this.loadedRawRules.AddRange(ruleList);
                 allRules = this.loadedRawRules.ToList();
             }
 
-            return await Volatile.Read(ref this.activeProvider).LoadRulesAsync(allRules);
+            var loaded = await Volatile.Read(ref this.activeProvider).LoadRulesAsync(allRules);
+            if (loaded == 0)
+            {
+                lock (this.rulesLock)
+                {
+                    this.loadedRawRules.Clear();
+                    this.loadedRawRules.AddRange(previousRules);
+                }
+            }
+
+            return loaded;
         }
         finally
         {

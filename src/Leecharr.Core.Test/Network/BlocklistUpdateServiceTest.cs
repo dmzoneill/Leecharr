@@ -273,6 +273,26 @@ public class BlocklistUpdateServiceTest
     }
 
     [Test]
+    public async Task UpdateRulesAsync_WhenFeedParsesToZeroRules_ReturnsZeroWithoutReplacing()
+    {
+        this.configService.BlocklistEnabled.Returns(true);
+        this.configService.BlocklistUrl.Returns("https://example.com/empty.html");
+        this.configService.BlocklistPath.Returns(string.Empty);
+
+        var htmlFeed = Encoding.UTF8.GetBytes("<html><body>Not a blocklist</body></html>");
+        this.safeHttpClientService.DownloadBytesAsync("https://example.com/empty.html", Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(htmlFeed));
+
+        this.blocklistService.LoadRulesAsync(Arg.Any<IEnumerable<string>>())
+            .Returns(Task.FromResult(0));
+
+        var result = await this.updateService.UpdateRulesAsync();
+
+        result.Should().Be(0);
+        await this.blocklistService.Received(1).LoadRulesAsync(Arg.Any<IEnumerable<string>>());
+    }
+
+    [Test]
     public void ParseLines_WithWhitespaceAndEmptyLines_FiltersOutWhitespace()
     {
         var content = "  \n  1.2.3.4  \n\n\r\n   5.6.7.8   \n  \t  \n";

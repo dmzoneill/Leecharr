@@ -412,6 +412,30 @@ public class BlocklistProvidersTest
         provider.RuleCount.Should().Be(3);
     }
 
+    [Test]
+    public async Task RadixTreeBlocklistProvider_WhenRefreshParsesZeroRules_KeepsExistingRules()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+        (await provider.LoadRulesAsync(new[] { "10.0.0.1" })).Should().Be(1);
+        provider.IsIpBlocked("10.0.0.1").Should().BeTrue();
+
+        (await provider.LoadRulesAsync(new[] { "# comments only", "not-an-ip", "<html>error page</html>" })).Should().Be(0);
+        provider.RuleCount.Should().Be(1);
+        provider.IsIpBlocked("10.0.0.1").Should().BeTrue();
+    }
+
+    [Test]
+    public async Task P2PDatBlocklistProvider_WhenRefreshParsesZeroRules_KeepsExistingRanges()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        (await provider.LoadRulesAsync(new[] { "Bad:1.2.3.4-1.2.3.10" })).Should().Be(1);
+        provider.IsIpBlocked("1.2.3.5").Should().BeTrue();
+
+        (await provider.LoadRulesAsync(new[] { "garbage line", "# only comments" })).Should().Be(0);
+        provider.RuleCount.Should().Be(1);
+        provider.IsIpBlocked("1.2.3.5").Should().BeTrue();
+    }
+
     private class TestableLinuxIpSetBlocklistProvider : LinuxIpSetBlocklistProvider
     {
         private readonly Func<string, string, Task<(int ExitCode, string StdOut, string StdErr)>> commandExecutor;
