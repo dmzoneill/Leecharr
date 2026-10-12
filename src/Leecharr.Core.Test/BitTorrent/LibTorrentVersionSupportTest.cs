@@ -102,6 +102,25 @@ public class LibTorrentVersionSupportTest
     }
 
     [Test]
+    public void TryResolveSupportedVersion_RejectsUnknownMajorVersions()
+    {
+        LibTorrentDownloadEngine.TryResolveSupportedVersion("3.0.0", out _).Should().BeFalse();
+        LibTorrentDownloadEngine.TryResolveSupportedVersion("1.2.19", out var normalized).Should().BeTrue();
+        normalized.Should().Be("1.2.20");
+    }
+
+    [Test]
+    public async Task ProbeVersionHealthAsync_UnsupportedVersion_ReturnsUnhealthy()
+    {
+        using var engine = this.CreateEngine("2.1.1");
+
+        var probe = await engine.ProbeVersionHealthAsync("9.9.9");
+
+        probe.IsHealthy.Should().BeFalse();
+        probe.StatusMessage.Should().Contain("not supported");
+    }
+
+    [Test]
     public void GetCapabilitiesForVersion_Version1_DisablesV2AndMemoryMappedIo()
     {
         using var engine = this.CreateEngine();

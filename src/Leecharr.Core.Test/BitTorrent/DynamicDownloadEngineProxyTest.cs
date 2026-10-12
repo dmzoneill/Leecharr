@@ -153,6 +153,19 @@ public class DynamicDownloadEngineProxyTest
     }
 
     [Test]
+    public async Task ProbeEngineAsync_WithVersion_CallsProbeVersionHealthAsync()
+    {
+        this.libTorrentEngine.ProbeVersionHealthAsync("1.2.19")
+            .Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "v1 ok" }));
+
+        var probe = await this.proxy.ProbeEngineAsync("LibTorrent", "1.2.19");
+
+        probe.StatusMessage.Should().Be("v1 ok");
+        await this.libTorrentEngine.Received(1).ProbeVersionHealthAsync("1.2.19");
+        await this.libTorrentEngine.DidNotReceive().ProbeHealthAsync();
+    }
+
+    [Test]
     public async Task SwitchEngineAsync_SwitchesActiveEngineAndMigratesTorrents()
     {
         await this.proxy.StartAsync();

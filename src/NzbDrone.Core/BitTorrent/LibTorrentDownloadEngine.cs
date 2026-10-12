@@ -259,6 +259,83 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
+    public Task<EngineHealthCheckResult> ProbeVersionHealthAsync(string version)
+    {
+        if (!TryResolveSupportedVersion(version, out var normalized))
+        {
+            return Task.FromResult(new EngineHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = $"libtorrent version '{version}' is not supported.",
+                Warnings = new List<string> { $"Supported versions: {string.Join(", ", this.SupportedVersions)}" },
+            });
+        }
+
+        if (string.Equals(this.activeVersion, normalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return this.ProbeHealthAsync();
+        }
+
+        return this.ProbeInactiveVersionHealthAsync(normalized);
+    }
+
+    private async Task<EngineHealthCheckResult> ProbeInactiveVersionHealthAsync(string normalizedVersion)
+    {
+        var sw = Stopwatch.StartNew();
+        var rpcUrl = GetRpcUrlForVersion(normalizedVersion);
+        var checks = new List<string>();
+        var warnings = new List<string>
+        {
+            $"Probing libtorrent {normalizedVersion} while {this.activeVersion} is the active build.",
+        };
+
+        try
+        {
+            await this.SendRpcRequestAsync(rpcUrl, "session_status", new Dictionary<string, object>());
+            sw.Stop();
+
+            checks.Add($"libtorrent {normalizedVersion} RPC service reachable at {rpcUrl} (Latency: {sw.ElapsedMilliseconds} ms)");
+
+            return new EngineHealthCheckResult
+            {
+                IsHealthy = true,
+                StatusMessage = $"libtorrent {normalizedVersion} daemon is healthy and responding ({sw.ElapsedMilliseconds}ms).",
+                DependencyChecks = checks,
+                Warnings = warnings,
+            };
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            var pythonBin = FindPythonBinary(normalizedVersion);
+            var scriptPath = ResolveDaemonScriptPath();
+            if (!string.IsNullOrWhiteSpace(pythonBin) && !string.IsNullOrWhiteSpace(scriptPath))
+            {
+                checks.Add($"Python interpreter for libtorrent {normalizedVersion}: {pythonBin}");
+                checks.Add($"Daemon sidecar script: {scriptPath}");
+
+                return new EngineHealthCheckResult
+                {
+                    IsHealthy = true,
+                    StatusMessage = $"libtorrent {normalizedVersion} is ready (embedded sidecar can spawn on switch).",
+                    DependencyChecks = checks,
+                    Warnings = warnings,
+                };
+            }
+
+            checks.Add($"libtorrent {normalizedVersion} RPC connection to {rpcUrl} failed: {ex.Message}");
+            warnings.Add($"No running daemon or sidecar dependencies were detected for libtorrent {normalizedVersion}.");
+
+            return new EngineHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = $"libtorrent {normalizedVersion} is unavailable.",
+                DependencyChecks = checks,
+                Warnings = warnings,
+            };
+        }
+    }
+
     public async Task StartAsync()
     {
         if (this.isRunning)
@@ -1306,9 +1383,13 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
-    private async Task<Dictionary<string, object>> SendRpcRequestAsync(string method, Dictionary<string, object> arguments)
+    private Task<Dictionary<string, object>> SendRpcRequestAsync(string method, Dictionary<string, object> arguments)
     {
-        var rpcUrl = this.GetRpcUrl();
+        return this.SendRpcRequestAsync(this.GetRpcUrl(), method, arguments);
+    }
+
+    private async Task<Dictionary<string, object>> SendRpcRequestAsync(string rpcUrl, string method, Dictionary<string, object> arguments)
+    {
         var payload = new Dictionary<string, object>
         {
             ["method"] = method,
@@ -1328,28 +1409,38 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         return content.FromJson<Dictionary<string, object>>() ?? new Dictionary<string, object>();
     }
 
-    public static string NormalizeVersion(string version)
+    public static bool TryResolveSupportedVersion(string version, out string normalized)
     {
+        normalized = null;
         if (string.IsNullOrWhiteSpace(version))
         {
-            return "2.1.1";
+            return false;
         }
 
         var trimmed = version.Trim().TrimStart('v', 'V');
-        if (trimmed.StartsWith("1.2") || trimmed.StartsWith("1."))
+        if (trimmed.StartsWith("1.2", StringComparison.Ordinal) || trimmed.StartsWith("1.", StringComparison.Ordinal))
         {
-            return "1.2.20";
+            normalized = "1.2.20";
+            return true;
         }
 
-        if (trimmed.StartsWith("2.1") || trimmed.StartsWith("2.0") || trimmed.StartsWith("2."))
+        if (trimmed.StartsWith("2.1", StringComparison.Ordinal) || trimmed.StartsWith("2.0", StringComparison.Ordinal) || trimmed.StartsWith("2.", StringComparison.Ordinal))
         {
-            return "2.1.1";
+            normalized = "2.1.1";
+            return true;
         }
 
-        return "2.1.1";
+        return false;
     }
 
-    private string GetRpcUrl()
+    public static string NormalizeVersion(string version)
+    {
+        return TryResolveSupportedVersion(version, out var normalized) ? normalized : "2.1.1";
+    }
+
+    private string GetRpcUrl() => GetRpcUrlForVersion(this.ActiveVersion);
+
+    private static string GetRpcUrlForVersion(string version)
     {
         var envUrl = Environment.GetEnvironmentVariable("LIBTORRENT_RPC_URL");
         if (!string.IsNullOrWhiteSpace(envUrl))
@@ -1357,7 +1448,8 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             return envUrl;
         }
 
-        if (!string.IsNullOrWhiteSpace(this.ActiveVersion) && this.ActiveVersion.StartsWith("1.2"))
+        var normalized = string.IsNullOrWhiteSpace(version) ? "2.1.1" : NormalizeVersion(version);
+        if (normalized.StartsWith("1.2", StringComparison.Ordinal))
         {
             var v1Url = Environment.GetEnvironmentVariable("LIBTORRENT_1_2_RPC_URL");
             if (!string.IsNullOrWhiteSpace(v1Url))

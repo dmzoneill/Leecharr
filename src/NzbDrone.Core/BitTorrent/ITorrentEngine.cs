@@ -27,4 +27,6 @@ public interface ITorrentEngine : IDownloadEngine
     TorrentEngineCapabilities GetCapabilitiesForVersion(string version);
 
     Task<bool> SwitchVersionAsync(string targetVersion, CancellationToken cancellationToken = default);
+
+    Task<EngineHealthCheckResult> ProbeVersionHealthAsync(string version);
 }
