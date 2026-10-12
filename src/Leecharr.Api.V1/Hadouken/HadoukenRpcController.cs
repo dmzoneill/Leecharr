@@ -273,7 +273,7 @@ public class HadoukenRpcController : ControllerBase
                             connectedSeeders,
                             swarmSeeders,
                             65536,
-                            0,
+                            t.QueuePosition,
                             Math.Max(0, t.TotalSize - t.Downloaded),
                             string.Empty,
                             string.Empty,
