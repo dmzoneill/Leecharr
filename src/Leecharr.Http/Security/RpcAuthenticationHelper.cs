@@ -19,9 +19,14 @@ public static class RpcAuthenticationHelper
             return a == b;
         }
 
-        return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(a),
-            Encoding.UTF8.GetBytes(b));
+        var aBytes = Encoding.UTF8.GetBytes(a);
+        var bBytes = Encoding.UTF8.GetBytes(b);
+        if (aBytes.Length != bBytes.Length)
+        {
+            return false;
+        }
+
+        return CryptographicOperations.FixedTimeEquals(aBytes, bBytes);
     }
 
     public static bool IsAuthenticated(HttpContext context, IConfigFileProvider configFileProvider)

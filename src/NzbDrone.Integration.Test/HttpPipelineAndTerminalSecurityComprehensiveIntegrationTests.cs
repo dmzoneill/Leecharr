@@ -728,6 +728,7 @@ public class HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests : Inte
         RpcAuthenticationHelper.FixedTimeEquals(null, null).Should().BeTrue();
         RpcAuthenticationHelper.FixedTimeEquals("abc", "abc").Should().BeTrue();
         RpcAuthenticationHelper.FixedTimeEquals("abc", "def").Should().BeFalse();
+        RpcAuthenticationHelper.FixedTimeEquals("abc", "abcd").Should().BeFalse();
         RpcAuthenticationHelper.FixedTimeEquals(null, "abc").Should().BeFalse();
 
         // 2. Disabled auth allows everything
