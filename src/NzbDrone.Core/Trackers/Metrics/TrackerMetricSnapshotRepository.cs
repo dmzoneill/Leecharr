@@ -31,10 +31,14 @@ public class TrackerMetricSnapshotRepository : BasicRepository<TrackerMetricSnap
     public List<TrackerMetricSnapshot> GetHistory(int trackerMetricId, DateTime since, int limit = 500)
     {
         return this.ExecuteWithRetry(connection =>
-            connection.Query<TrackerMetricSnapshot>(
-                "SELECT * FROM \"TrackerMetricSnapshots\" WHERE \"TrackerMetricId\" = @MetricId AND \"Timestamp\" >= @Since ORDER BY \"Timestamp\" ASC LIMIT @Limit",
-                new { MetricId = trackerMetricId, Since = since, Limit = limit })
-                .ToList());
+        {
+            var snapshots = connection.Query<TrackerMetricSnapshot>(
+                    "SELECT * FROM \"TrackerMetricSnapshots\" WHERE \"TrackerMetricId\" = @MetricId AND \"Timestamp\" >= @Since ORDER BY \"Timestamp\" DESC, \"Id\" DESC LIMIT @Limit",
+                    new { MetricId = trackerMetricId, Since = since, Limit = limit })
+                .ToList();
+            snapshots.Reverse();
+            return snapshots;
+        });
     }
 
     public List<TrackerMetricSnapshot> GetRecentSnapshots(DateTime since)

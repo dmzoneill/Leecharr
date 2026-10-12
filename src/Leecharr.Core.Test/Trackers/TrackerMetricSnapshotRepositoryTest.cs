@@ -64,6 +64,33 @@ public class TrackerMetricSnapshotRepositoryTest
     }
 
     [Test]
+    public void GetHistory_WhenMoreSnapshotsThanLimit_ReturnsNewestRowsInChronologicalOrder()
+    {
+        const int metricId = 42;
+        var since = DateTime.UtcNow.AddHours(-2);
+        var baseTime = since.AddMinutes(5);
+        var snapshots = Enumerable.Range(0, 6)
+            .Select(i => new TrackerMetricSnapshot
+            {
+                TrackerMetricId = metricId,
+                TrackerUrl = "udp://history-limit.tracker.org:1337/announce",
+                Timestamp = baseTime.AddMinutes(i * 10),
+                Operation = "Announce",
+                IsSuccess = true,
+                ResponseTimeMs = 10 + i,
+            })
+            .ToArray();
+
+        this.repository.InsertMany(snapshots);
+
+        var history = this.repository.GetHistory(metricId, since, limit: 3);
+
+        history.Should().HaveCount(3);
+        history.Select(s => s.Timestamp).Should().BeInAscendingOrder();
+        history.Select(s => s.ResponseTimeMs).Should().Equal(30, 40, 50);
+    }
+
+    [Test]
     public void GetHourlyAggregatedMetrics_WhenPeerSumExceedsInt32_Max_DoesNotOverflow()
     {
         var bucketStart = DateTime.UtcNow.Date.AddHours(12);
