@@ -1689,12 +1689,13 @@ public class DelugeJsonRpcController : ControllerBase
                 var parsed = this.torrentFileParser.Parse(bytes);
                 if (parsed != null)
                 {
-                    var filesList = parsed.Files?.Select(f => (object)new
+                    var parsedFiles = parsed.Files ?? new List<ParsedTorrentFile>();
+                    var filesList = parsedFiles.Select(f => (object)new
                     {
                         path = f.Path,
                         size = f.Size,
-                        offset = 0L,
-                    }).ToList() ?? new List<object>();
+                        offset = f.ByteOffset,
+                    }).ToList();
 
                     torrentInfoResult = new Dictionary<string, object>
                     {
@@ -1703,7 +1704,7 @@ public class DelugeJsonRpcController : ControllerBase
                         ["total_size"] = parsed.TotalSize,
                         ["comment"] = parsed.Comment ?? string.Empty,
                         ["private"] = parsed.IsPrivate,
-                        ["files_tree"] = new Dictionary<string, object>(),
+                        ["files_tree"] = BuildDelugeWebFilesTree(parsedFiles),
                         ["files"] = filesList,
                     };
                 }
@@ -2611,7 +2612,7 @@ public class DelugeJsonRpcController : ControllerBase
                 { "index", idx },
                 { "path", f.Path },
                 { "size", f.Size },
-                { "offset", f.PieceOffset },
+                { "offset", f.ByteOffset },
             }).ToList();
 
             filePriorities = files.Select(f => ToDelugePriority(f.Priority)).ToList();
@@ -3480,5 +3481,63 @@ public class DelugeJsonRpcController : ControllerBase
 
         var minutes = configService.IdleSeedingLimitMinutes;
         return minutes > 0 ? minutes * 60 : 0;
+    }
+
+    /// <summary>
+    /// Builds a Deluge web UI FileTree2 structure for <c>web.get_torrent_info</c>.
+    /// </summary>
+    private static Dictionary<string, object> BuildDelugeWebFilesTree(IReadOnlyList<ParsedTorrentFile> files)
+    {
+        var rootContents = new Dictionary<string, object>();
+        var tree = new Dictionary<string, object>
+        {
+            ["contents"] = rootContents,
+            ["type"] = "dir",
+        };
+
+        for (var index = 0; index < files.Count; index++)
+        {
+            var file = files[index];
+            var path = (file.Path ?? string.Empty).Replace('\\', '/');
+            if (string.IsNullOrEmpty(path))
+            {
+                continue;
+            }
+
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 0)
+            {
+                continue;
+            }
+
+            var parent = rootContents;
+            for (var i = 0; i < segments.Length - 1; i++)
+            {
+                var dirName = segments[i];
+                if (!parent.TryGetValue(dirName, out var dirObj))
+                {
+                    dirObj = new Dictionary<string, object>
+                    {
+                        ["type"] = "dir",
+                        ["contents"] = new Dictionary<string, object>(),
+                    };
+                    parent[dirName] = dirObj;
+                }
+
+                parent = (Dictionary<string, object>)((Dictionary<string, object>)dirObj)["contents"];
+            }
+
+            var fileName = segments[^1];
+            parent[fileName] = new Dictionary<string, object>
+            {
+                ["type"] = "file",
+                ["path"] = path,
+                ["index"] = index,
+                ["length"] = file.Size,
+                ["download"] = true,
+            };
+        }
+
+        return tree;
     }
 }
