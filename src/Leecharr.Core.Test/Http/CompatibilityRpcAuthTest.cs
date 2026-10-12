@@ -9,6 +9,7 @@ using Leecharr.Api.V1.Freebox;
 using Leecharr.Api.V1.Hadouken;
 using Leecharr.Api.V1.Nzbget;
 using Leecharr.Api.V1.NzbVortex;
+using Leecharr.Http.Security;
 using Leecharr.Api.V1.RTorrent;
 using Leecharr.Api.V1.Sabnzbd;
 using Leecharr.Api.V1.Synology;
@@ -367,8 +368,16 @@ public class CompatibilityRpcAuthTest
             this.configFileProvider);
 
         var loginContext = new DefaultHttpContext();
-        loginContext.Request.Headers["X-Api-Key"] = "master_api_key_xyz";
         controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+
+        var nonceResult = controller.GetNonce();
+        nonceResult.Should().BeOfType<OkObjectResult>();
+        var nonceOk = (OkObjectResult)nonceResult;
+        var serverNonce = nonceOk.Value!.GetType().GetProperty("authNonce")!.GetValue(nonceOk.Value)!.ToString()!;
+        const string cnonce = "arr-client-nonce";
+        var hash = NzbVortexAuthenticationHelper.ComputeLoginHash(serverNonce, cnonce, "master_api_key_xyz");
+        loginContext.Request.QueryString = new QueryString(
+            $"?nonce={Uri.EscapeDataString(serverNonce)}&cnonce={Uri.EscapeDataString(cnonce)}&hash={Uri.EscapeDataString(hash)}");
 
         var loginResult = controller.Login();
         loginResult.Should().BeOfType<OkObjectResult>();
