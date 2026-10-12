@@ -1464,12 +1464,35 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpGet("torrents/tags")]
     public ActionResult<List<string>> GetTags()
     {
-        var tags = this.torrentService.GetAll()
-            .Select(t => t.Label)
-            .Where(l => !string.IsNullOrWhiteSpace(l))
-            .Distinct()
-            .ToList();
-        return this.Ok(tags);
+        var allTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (this.tagRepository != null)
+        {
+            foreach (var tag in this.tagRepository.All())
+            {
+                if (!string.IsNullOrWhiteSpace(tag.Label))
+                {
+                    allTags.Add(tag.Label.Trim());
+                }
+            }
+        }
+
+        foreach (var t in this.torrentService.GetAll())
+        {
+            if (!string.IsNullOrWhiteSpace(t.Label))
+            {
+                var split = t.Label.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var s in split)
+                {
+                    var trimmed = s.Trim();
+                    if (!string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        allTags.Add(trimmed);
+                    }
+                }
+            }
+        }
+
+        return this.Ok(allTags.OrderBy(t => t).ToList());
     }
 
     [HttpPost("torrents/createTags")]

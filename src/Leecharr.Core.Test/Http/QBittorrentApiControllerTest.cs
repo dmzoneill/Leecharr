@@ -3699,6 +3699,48 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetTags_SplitsCommaSeparatedLabelsAndIncludesUnusedRepositoryTags()
+    {
+        var tagRepo = Substitute.For<ITagRepository>();
+        var tags = new List<Tag>
+        {
+            new() { Id = 1, Label = "unusedTag" },
+        };
+        tagRepo.All().Returns(_ => tags);
+
+        var controllerWithTags = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            configFileProvider: this.configFileProvider,
+            safeHttpClientService: this.safeHttpClientService,
+            downloadEngine: this.downloadEngine,
+            diskProvider: this.diskProvider,
+            tagRepository: tagRepo);
+
+        var torrent = new Torrent { Id = 1, InfoHash = "h1", Name = "T1", Label = "movies, hd" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var result = controllerWithTags.GetTags();
+        var tagList = ((OkObjectResult)result.Result!).Value as List<string>;
+        tagList.Should().Equal("hd", "movies", "unusedTag");
+    }
+
+    [Test]
+    public void GetTags_SplitsCommaSeparatedLabelsWithoutRepository()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "h1", Name = "T1", Label = "tag1, tag2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var result = this.controller.GetTags();
+        var tagList = ((OkObjectResult)result.Result!).Value as List<string>;
+        tagList.Should().Equal("tag1", "tag2");
+    }
+
+    [Test]
     public void GetMainData_FullAndDeltaUpdates_IncludeTagsAndCategoriesDeltas()
     {
         var cat1 = new Category { Id = 1, Name = "tv", SavePath = "/downloads/tv" };
