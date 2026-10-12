@@ -350,6 +350,80 @@ public class LibTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task SetSequentialDownloadAsync_DispatchesSetSequentialDownloadRpc()
+    {
+        string capturedBody = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult()!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"sequential_set\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns("/downloads");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>()).Returns("/downloads");
+
+        var torrent = new Torrent
+        {
+            Id = 15,
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+            Name = "sequential-test",
+        };
+        await engine.AddTorrentAsync(torrent);
+
+        await engine.SetSequentialDownloadAsync(15, true);
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        doc.RootElement.GetProperty("method").GetString().Should().Be("set_sequential_download");
+        var paramsObj = doc.RootElement.GetProperty("params");
+        paramsObj.GetProperty("info_hash").GetString().Should().Be(torrent.InfoHash);
+        paramsObj.GetProperty("enabled").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SetFirstLastPiecePriorityAsync_DispatchesSetFirstLastPiecePriorityRpc()
+    {
+        string capturedBody = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult()!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"priorities_set\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns("/downloads");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>()).Returns("/downloads");
+
+        var torrent = new Torrent
+        {
+            Id = 16,
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+            Name = "first-last-test",
+        };
+        await engine.AddTorrentAsync(torrent);
+
+        await engine.SetFirstLastPiecePriorityAsync(16, true);
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        doc.RootElement.GetProperty("method").GetString().Should().Be("set_first_last_piece_priority");
+        var paramsObj = doc.RootElement.GetProperty("params");
+        paramsObj.GetProperty("info_hash").GetString().Should().Be(torrent.InfoHash);
+        paramsObj.GetProperty("enabled").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
     public async Task DisconnectPeerAsync_WhenDaemonDisconnectsPeer_ReturnsTrueAndUpdatesCache()
     {
         var rpcMethods = new List<string>();

@@ -379,6 +379,16 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 addArgs["url"] = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
             }
 
+            if (torrent.SequentialDownload)
+            {
+                addArgs["sequential_download"] = true;
+            }
+
+            if (torrent.FirstLastPiecePriority)
+            {
+                addArgs["first_last_piece_priority"] = true;
+            }
+
             await this.SendRpcRequestAsync("add_torrent", addArgs);
             this.logger.Info("libtorrent: Ingested torrent {0} ({1}) to {2}", torrent.Name, torrent.InfoHash, savePath);
         }
@@ -697,6 +707,46 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error setting file priority in libtorrent for {0} (file: {1}, priority: {2})", torrentId, filePath, priority);
+            }
+        }
+    }
+
+    public async Task SetSequentialDownloadAsync(int torrentId, bool enabled)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                await this.SendRpcRequestAsync("set_sequential_download", new Dictionary<string, object>
+                {
+                    ["info_hash"] = task.InfoHash,
+                    ["enabled"] = enabled,
+                });
+                this.logger.Info("libtorrent: Set sequential download for torrent id {0}: {1}", torrentId, enabled);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting sequential download in libtorrent for {0}", torrentId);
+            }
+        }
+    }
+
+    public async Task SetFirstLastPiecePriorityAsync(int torrentId, bool enabled)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                await this.SendRpcRequestAsync("set_first_last_piece_priority", new Dictionary<string, object>
+                {
+                    ["info_hash"] = task.InfoHash,
+                    ["enabled"] = enabled,
+                });
+                this.logger.Info("libtorrent: Set first/last piece priority for torrent id {0}: {1}", torrentId, enabled);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting first/last piece priority in libtorrent for {0}", torrentId);
             }
         }
     }
