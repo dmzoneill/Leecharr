@@ -77,6 +77,45 @@ public class SubtitleDiscoveryAndStreamingTest
     }
 
     [Test]
+    public void DiscoverSubtitles_PtBrTag_ReportsPortugueseBrazil()
+    {
+        var videoFile = new TorrentFile
+        {
+            Id = 1,
+            Path = "Show.S01E01.1080p.mkv",
+        };
+
+        var allFiles = new List<TorrentFile>
+        {
+            videoFile,
+            new()
+            {
+                Id = 2,
+                Path = "Show.S01E01.1080p.pt-br.srt",
+            },
+            new()
+            {
+                Id = 3,
+                Path = "Show.S01E01.1080p.pt.srt",
+            },
+        };
+
+        var discovered = this.discoveryService.DiscoverSubtitles(videoFile, allFiles);
+
+        discovered.Should().HaveCount(2);
+
+        var ptBrSub = discovered.Find(s => s.Path.EndsWith("pt-br.srt", StringComparison.OrdinalIgnoreCase));
+        ptBrSub.Should().NotBeNull();
+        ptBrSub!.Language.Should().Be("pt-BR");
+        ptBrSub.Title.Should().Be("Portuguese (Brazil)");
+
+        var ptSub = discovered.Find(s => s.Path.EndsWith(".pt.srt", StringComparison.OrdinalIgnoreCase));
+        ptSub.Should().NotBeNull();
+        ptSub!.Language.Should().Be("pt");
+        ptSub.Title.Should().Be("Portuguese");
+    }
+
+    [Test]
     public void DiscoverSubtitles_MatchesSubtitleFilesForVideo()
     {
         var videoFile = new TorrentFile
