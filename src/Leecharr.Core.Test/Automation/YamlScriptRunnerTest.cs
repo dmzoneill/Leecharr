@@ -927,7 +927,7 @@ public class YamlScriptRunnerTest
         result.ScriptsToRun.Should().HaveCount(2);
         result.ScriptsToRun[0].Path.Should().Be("/scripts/postprocess.sh");
         result.ScriptsToRun[0].TimeoutSeconds.Should().Be(45);
-        result.ScriptsToRun[0].Arguments.Should().Contain(new[] { "--id", "${torrent.id}" });
+        result.ScriptsToRun[0].Arguments.Should().Contain(new[] { "--id", "17" });
         result.ScriptsToRun[1].Path.Should().Be("/scripts/simple.sh");
     }
 
