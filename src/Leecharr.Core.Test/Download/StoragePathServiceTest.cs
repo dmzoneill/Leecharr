@@ -558,6 +558,20 @@ public class StoragePathServiceTest
     }
 
     [Test]
+    public void NormalizeCompletedSavePath_WhenPathUnderUnconfiguredIncompleteFolder_PreservesPath()
+    {
+        this.configService.IncompleteDownloadDir.Returns("/tank/incomplete");
+        this.diskProvider.FolderExists("/tank/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("tv").Returns("/library");
+        this.diskProvider.FolderExists("/library").Returns(true);
+
+        var savePath = "/downloads/incomplete/Show";
+        var result = this.storagePathService.NormalizeCompletedSavePath(savePath, "tv");
+
+        result.Should().Be(savePath);
+    }
+
+    [Test]
     public void MoveToCompleted_WhenDestinationFileExists_GeneratesNonCollidingNameAndDoesNotOverwrite()
     {
         var source = "/downloads/incomplete/Movie.mkv";
