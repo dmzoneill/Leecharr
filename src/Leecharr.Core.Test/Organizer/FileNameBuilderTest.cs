@@ -214,6 +214,25 @@ public class FileNameBuilderTest
     }
 
     [Test]
+    public void BuildFileName_AnimeEpisode_WithSeasonalAndAbsoluteNumbers_UsesAnimeFormat()
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "Naruto",
+            SeasonNumber = 1,
+            EpisodeNumbers = new List<int> { 5 },
+            AbsoluteEpisodeNumbers = new List<int> { 101 },
+            EpisodeTitles = new List<string> { "Gotta See! Gotta Know!" },
+            Quality = "1080p",
+            Extension = "mkv",
+        };
+
+        var result = this.builder.BuildFileName(context);
+
+        result.Should().Be("Naruto - S01E05 - 101 - Gotta See Gotta Know [1080p].mkv");
+    }
+
+    [Test]
     public void BuildFileName_AnimeEpisode_WithAirDate_UsesAnimeFormatNotDaily()
     {
         var context = new EpisodeNamingContext
