@@ -57,6 +57,8 @@ public interface ITorrentService
 
     Task SetLocationAsync(int id, string newSavePath, bool moveFiles = true);
 
+    Task SetDownloadPathAsync(int id, string downloadPath, bool moveFiles = false);
+
     Task SetCategoryAsync(int id, string category);
 
     int GetEffectiveDownloadLimit(Torrent torrent);

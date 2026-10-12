@@ -50,6 +50,8 @@ public class Torrent : ModelBase
 
     public string SavePath { get; set; }
 
+    public string DownloadPath { get; set; }
+
     public string Category { get; set; }
 
     public string Custom2 { get; set; }

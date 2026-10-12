@@ -830,6 +830,31 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task SetDownloadPathAsync_UpdatesDownloadPathWithoutChangingSavePath()
+    {
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "Download Path Torrent",
+            SavePath = "/downloads/completed",
+        };
+
+        this.torrentRepository.Get(11).Returns(torrent);
+
+        await this.service.SetDownloadPathAsync(11, "/downloads/incomplete", moveFiles: false);
+
+        await this.downloadEngine.Received(1).SetTorrentDownloadPathAsync(11, "/downloads/incomplete", false);
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 11 &&
+            t.DownloadPath == "/downloads/incomplete" &&
+            t.SavePath == "/downloads/completed"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e =>
+            e.Torrent.Id == 11 &&
+            e.Torrent.DownloadPath == "/downloads/incomplete" &&
+            e.Torrent.SavePath == "/downloads/completed"));
+    }
+
+    [Test]
     public async Task SetLocationAsync_WhenMoveFilesIsFalse_UpdatesSavePathWithoutInvokingEngine()
     {
         var torrent = new Torrent
