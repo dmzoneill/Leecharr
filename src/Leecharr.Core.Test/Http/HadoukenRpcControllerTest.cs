@@ -434,6 +434,30 @@ public class HadoukenRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_WebUiAddTorrent_FileType_WhenExceedsMaxTorrentFileSizeBytes_ReturnsError()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(10L);
+        var oversized = new byte[64];
+        var base64 = Convert.ToBase64String(oversized);
+
+        var requestJson = $"{{\"method\":\"webui.addtorrent\",\"params\":[\"file\",\"{base64}\"],\"id\":24}}";
+        using var doc = JsonDocument.Parse(requestJson);
+        var request = new HadoukenRpcRequest
+        {
+            Method = "webui.addtorrent",
+            Params = doc.RootElement.GetProperty("params"),
+            Id = 24,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        json.Should().Contain("exceeds maximum allowed size");
+        this.torrentFileParser.DidNotReceiveWithAnyArgs().Parse(Arg.Any<byte[]>());
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
     public async Task HandleRpc_WebUiAddTorrent_UrlType_AddsMagnet()
     {
         var magnetUri = "magnet:?xt=urn:btih:feedbeef11223344556677889900112233445566&dn=Test";

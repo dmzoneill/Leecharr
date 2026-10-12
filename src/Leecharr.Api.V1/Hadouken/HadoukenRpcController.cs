@@ -322,7 +322,18 @@ public class HadoukenRpcController : ControllerBase
 
                         if (string.Equals(type, "file", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(data))
                         {
+                            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                            if ((long)data.Length * 3 / 4 > maxTorrentBytes + 4)
+                            {
+                                return this.Ok(new { result = (object)null, error = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes.", id });
+                            }
+
                             var bytes = Convert.FromBase64String(data);
+                            if (bytes.LongLength > maxTorrentBytes)
+                            {
+                                return this.Ok(new { result = (object)null, error = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes.", id });
+                            }
+
                             var parsed = this.torrentFileParser.Parse(bytes);
                             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                             return this.Ok(new { result = added?.InfoHash, error = (object)null, id });

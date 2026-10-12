@@ -422,6 +422,27 @@ public class FreeboxDownloadControllerTest
     }
 
     [Test]
+    public async Task AddDownload_WhenFileExceedsMaxTorrentFileSizeBytes_Returns413PayloadTooLarge()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(1024L);
+
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(2048L);
+        formFile.FileName.Returns("large.torrent");
+
+        var fileCollection = new FormFileCollection { formFile };
+        this.httpContext.Request.ContentType = "multipart/form-data";
+        this.httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>(), fileCollection);
+
+        var result = await this.controller.AddDownload(null!, null!);
+
+        var statusResult = result.Should().BeOfType<ObjectResult>().Subject;
+        statusResult.StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
+        await formFile.DidNotReceiveWithAnyArgs().CopyToAsync(Arg.Any<Stream>());
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
     public async Task DeleteDownload_WhenNotAuthenticated_ReturnsUnauthorized()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
