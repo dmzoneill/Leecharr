@@ -502,6 +502,40 @@ public class WebhookDispatcherTest
         WebhookDispatcher.IsValidTargetUrl(url, allowLoopback: true).Should().BeTrue();
     }
 
+    [TestCase("http://127.0.0.1:8080/webhook")]
+    [TestCase("http://localhost:5000/webhook")]
+    [TestCase("http://[::1]:8080/webhook")]
+    [TestCase("http://10.0.0.1:8080/webhook")]
+    [TestCase("http://192.168.1.1:8080/webhook")]
+    [TestCase("http://172.16.0.1:8080/webhook")]
+    [TestCase("http://[fd00::1]:8080/webhook")]
+    public void IsValidTargetUrl_WhenAllowPrivateNetworkRequestsIsTrue_AllowsLanTargets(string url)
+    {
+        WebhookDispatcher.IsValidTargetUrl(url, allowPrivateNetworkRequests: true).Should().BeTrue();
+    }
+
+    [TestCase("http://169.254.169.254/latest/meta-data/")]
+    [TestCase("http://169.254.1.2/webhook")]
+    [TestCase("http://instance-data/test")]
+    [TestCase("http://metadata.google.internal/test")]
+    [TestCase("http://0.0.0.0/test")]
+    [TestCase("http://[fe80::1]/webhook")]
+    public void IsValidTargetUrl_WhenAllowPrivateNetworkRequestsIsTrue_StillBlocksMetadataAndLinkLocal(string url)
+    {
+        WebhookDispatcher.IsValidTargetUrl(url, allowPrivateNetworkRequests: true).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenAllowPrivateNetworkRequests_AllowsLanTarget()
+    {
+        var dispatcher = new WebhookDispatcher(this.httpClient, this.fastRetryPolicy, allowPrivateNetworkRequests: true);
+
+        var result = await dispatcher.DispatchAsync("http://192.168.1.50/webhook", new { eventType = "Test" });
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+    }
+
     [Test]
     public async Task DispatchAsync_WhenTargetIsBlockedBySsrfProtection_ReturnsFalseWithoutSendingHttp()
     {

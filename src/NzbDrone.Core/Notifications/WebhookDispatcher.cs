@@ -14,6 +14,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Trackers;
 using Polly;
@@ -54,27 +55,30 @@ public class WebhookDispatcher : IWebhookDispatcher
     private static readonly SearchValues<char> KeyValueSeparators = SearchValues.Create([':', '=']);
     private readonly TimeSpan timeout;
     private readonly bool allowLoopback;
+    private readonly bool allowPrivateNetworkRequests;
 
     public TimeSpan Timeout => this.timeout;
 
-    public WebhookDispatcher(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null, TimeSpan? timeout = null, bool allowLoopback = false)
+    public WebhookDispatcher(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null, TimeSpan? timeout = null, bool allowLoopback = false, IConfigService configService = null)
         : this(
             httpClient ?? CreateDefaultHttpClient(transportEngine, timeout),
             null,
             timeout,
-            allowLoopback)
+            allowLoopback,
+            configService?.AllowPrivateNetworkRequests ?? false)
     {
     }
 
     public WebhookDispatcher(HttpClient httpClient, TimeSpan? timeout = null, bool allowLoopback = false)
-        : this(null, httpClient, timeout, allowLoopback)
+        : this(httpClient, null, timeout, allowLoopback, false)
     {
     }
 
-    internal WebhookDispatcher(HttpClient httpClient, AsyncRetryPolicy<HttpResponseMessage> retryPolicy, TimeSpan? timeout = null, bool allowLoopback = false)
+    internal WebhookDispatcher(HttpClient httpClient, AsyncRetryPolicy<HttpResponseMessage> retryPolicy, TimeSpan? timeout = null, bool allowLoopback = false, bool allowPrivateNetworkRequests = false)
     {
         this.timeout = timeout ?? TimeSpan.FromSeconds(10);
         this.allowLoopback = allowLoopback;
+        this.allowPrivateNetworkRequests = allowPrivateNetworkRequests;
         this.httpClient = httpClient ?? CreateDefaultHttpClient(null, this.timeout);
         this.logger = LogManager.GetCurrentClassLogger();
         this.retryPolicy = retryPolicy ?? CreateRetryPolicy();
@@ -92,7 +96,7 @@ public class WebhookDispatcher : IWebhookDispatcher
         };
     }
 
-    public static bool IsValidTargetUrl(string targetUrl, bool allowLoopback = false)
+    public static bool IsValidTargetUrl(string targetUrl, bool allowLoopback = false, bool allowPrivateNetworkRequests = false)
     {
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
@@ -120,18 +124,26 @@ public class WebhookDispatcher : IWebhookDispatcher
             return true;
         }
 
-        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-            host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
-            host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(host, "instance-data", StringComparison.OrdinalIgnoreCase) ||
+        if (string.Equals(host, "instance-data", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(host, "metadata.google.internal", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
+        if (host.EndsWith(".local", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return allowPrivateNetworkRequests;
+        }
+
         if (IPAddress.TryParse(host, out var ip))
         {
-            if (IsBlockedIp(ip, allowLoopback))
+            if (IsBlockedIp(ip, allowLoopback, allowPrivateNetworkRequests))
             {
                 return false;
             }
@@ -141,7 +153,7 @@ public class WebhookDispatcher : IWebhookDispatcher
             try
             {
                 var addresses = Dns.GetHostAddresses(host);
-                if (addresses.Length > 0 && addresses.Any(a => IsBlockedIp(a, allowLoopback)))
+                if (addresses.Length > 0 && addresses.Any(a => IsBlockedIp(a, allowLoopback, allowPrivateNetworkRequests)))
                 {
                     return false;
                 }
@@ -155,7 +167,7 @@ public class WebhookDispatcher : IWebhookDispatcher
         return true;
     }
 
-    internal static bool IsBlockedIp(IPAddress ip, bool allowLoopback = false)
+    internal static bool IsBlockedIp(IPAddress ip, bool allowLoopback = false, bool allowPrivateNetworkRequests = false)
     {
         if (ip == null)
         {
@@ -167,14 +179,19 @@ public class WebhookDispatcher : IWebhookDispatcher
             return false;
         }
 
-        if (IPAddress.IsLoopback(ip))
-        {
-            return true;
-        }
-
         if (ip.IsIPv4MappedToIPv6)
         {
             ip = ip.MapToIPv4();
+        }
+
+        if (allowPrivateNetworkRequests && IsAllowedPrivateNetworkIp(ip))
+        {
+            return false;
+        }
+
+        if (IPAddress.IsLoopback(ip))
+        {
+            return true;
         }
 
         if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
@@ -213,6 +230,60 @@ public class WebhookDispatcher : IWebhookDispatcher
             var bytes = ip.GetAddressBytes();
 
             // IPv6 Unique Local Addresses (fc00::/7)
+            if ((bytes[0] & 0xFE) == 0xFC)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsAllowedPrivateNetworkIp(IPAddress ip)
+    {
+        if (IPAddress.IsLoopback(ip))
+        {
+            return true;
+        }
+
+        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            var bytes = ip.GetAddressBytes();
+
+            if (bytes[0] == 10)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 127)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+            {
+                return true;
+            }
+
+            if (bytes[0] == 192 && bytes[1] == 168)
+            {
+                return true;
+            }
+        }
+        else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        {
+            if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal)
+            {
+                return true;
+            }
+
+            var bytes = ip.GetAddressBytes();
+
             if ((bytes[0] & 0xFE) == 0xFC)
             {
                 return true;
@@ -436,7 +507,7 @@ public class WebhookDispatcher : IWebhookDispatcher
             };
         }
 
-        if (!IsValidTargetUrl(targetUrl, this.allowLoopback))
+        if (!IsValidTargetUrl(targetUrl, this.allowLoopback, this.allowPrivateNetworkRequests))
         {
             this.logger.Warn("Webhook dispatch blocked: Invalid or prohibited target URL (SSRF protection): {0}", RedactTargetUrlForLogging(targetUrl));
             return new WebhookDispatchResult
@@ -489,7 +560,7 @@ public class WebhookDispatcher : IWebhookDispatcher
                     }
 
                     var nextUrl = redirectUri.AbsoluteUri;
-                    if (!IsValidTargetUrl(nextUrl, this.allowLoopback))
+                    if (!IsValidTargetUrl(nextUrl, this.allowLoopback, this.allowPrivateNetworkRequests))
                     {
                         this.logger.Warn("Webhook redirect blocked: Target prohibited by SSRF protection: {0}", RedactTargetUrlForLogging(nextUrl));
                         return new WebhookDispatchResult
