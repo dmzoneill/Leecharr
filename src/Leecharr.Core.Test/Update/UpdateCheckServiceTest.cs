@@ -238,6 +238,79 @@ public class UpdateCheckServiceTest
     }
 
     [Test]
+    public void SelectPackageAssetFileName_PrefersPlatformMatchedArchive()
+    {
+        var assets = new[]
+        {
+            "Leecharr.1.0.0.linux-x64.tar.gz.sha256",
+            "Leecharr.win-x64.zip",
+            "Leecharr.1.0.0.linux-x64.tar.gz",
+        };
+        var fallback = "Leecharr.1.0.0.linux-x64.tar.gz";
+
+        UpdateCheckService.SelectPackageAssetFileName(assets, "linux-x64", ".tar.gz", fallback)
+            .Should().Be("Leecharr.1.0.0.linux-x64.tar.gz");
+    }
+
+    [Test]
+    public void SelectPackageAssetFileName_IgnoresWrongPlatformAndChecksumAssets()
+    {
+        var assets = new[] { "Leecharr.1.0.0.win-x64.zip", "Leecharr.1.0.0.linux-x64.tar.gz.sha256" };
+        var fallback = "Leecharr.1.0.0.linux-x64.tar.gz";
+
+        UpdateCheckService.SelectPackageAssetFileName(assets, "linux-x64", ".tar.gz", fallback)
+            .Should().Be(fallback);
+    }
+
+    [Test]
+    public void SelectPackageAssetFileName_DoesNotTreatArm64AsArm()
+    {
+        var assets = new[] { "Leecharr.1.0.0.linux-arm64.tar.gz" };
+        var fallback = "Leecharr.1.0.0.linux-arm.tar.gz";
+
+        UpdateCheckService.SelectPackageAssetFileName(assets, "linux-arm", ".tar.gz", fallback)
+            .Should().Be(fallback);
+    }
+
+    [Test]
+    public async Task GetAvailableUpdatesAsync_WhenOnlyWrongPlatformAssetExists_UsesExpectedPackageFileName()
+    {
+        var platform = UpdateCheckService.GetPackagePlatformIdentifier();
+        var extension = UpdateCheckService.GetPackageExtension();
+        var wrongPlatform = platform.StartsWith("win", StringComparison.OrdinalIgnoreCase) ? "linux-x64" : "win-x64";
+        var wrongExtension = extension == ".zip" ? ".tar.gz" : ".zip";
+        var wrongAssetName = $"Leecharr.9.9.9.{wrongPlatform}{wrongExtension}";
+        var jsonResponse = @"[
+    {
+    ""tag_name"": ""v9.9.9"",
+    ""published_at"": ""2026-09-10T22:35:18Z"",
+    ""html_url"": ""https://github.com/dmzoneill/Leecharr/releases/tag/v9.9.9"",
+    ""body"": ""* Test"",
+    ""assets"": [
+        {
+        ""name"": """ + wrongAssetName + @"""
+        }
+    ]
+    }
+]";
+
+        var handler = new MockHttpMessageHandler
+        {
+            ResponseHandler = _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(jsonResponse, Encoding.UTF8, "application/json"),
+            },
+        };
+        var httpClient = new HttpClient(handler);
+        var service = new UpdateCheckService(httpClient);
+
+        var updates = await service.GetAvailableUpdatesAsync();
+
+        updates.Should().ContainSingle();
+        updates[0].FileName.Should().Be(UpdateCheckService.GetPackageFileName("9.9.9"));
+    }
+
+    [Test]
     public async Task UpdateController_InstallUpdate_SignalsRestartAndStopsApplication()
     {
         var runtimeInfo = Substitute.For<IRuntimeInfo>();
