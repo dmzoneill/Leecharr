@@ -579,6 +579,51 @@ public class SamlSecurityTest
         assignedRoles.Should().ContainSingle().Which.Should().Be("Admin");
     }
 
+    [Test]
+    public async Task SamlCallback_WhenAssertionProcessingThrows_DoesNotExposeExceptionDetails()
+    {
+        const string secretMarker = "SAML_CALLBACK_SECRET_EXCEPTION_MARKER";
+        var malformedXml = Convert.ToBase64String(Encoding.UTF8.GetBytes($"<{secretMarker}"));
+
+        var result = await this.controller.SamlCallback("saml1", malformedXml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        var body = System.Text.Json.JsonSerializer.Serialize(((UnauthorizedObjectResult)result).Value);
+        body.Should().NotContain("details");
+        body.Should().NotContain(secretMarker);
+        body.Should().Contain("Failed to process SAML assertion");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenIdentityProviderCertificateInvalid_DoesNotExposeExceptionDetails()
+    {
+        const string requestId = "_req_invalid_cert_test";
+        AuthController.RegisterPendingSamlRequest(requestId);
+
+        var (b64Saml, _) = CreateSignedSamlResponse(
+            "_assertion_invalid_cert",
+            "user@example.com",
+            "User",
+            inResponseTo: requestId);
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = "not-a-valid-certificate",
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        var body = System.Text.Json.JsonSerializer.Serialize(((UnauthorizedObjectResult)result).Value);
+        body.Should().NotContain("details");
+        body.Should().NotContain("not-a-valid-certificate");
+        body.Should().Contain("Invalid SAML certificate in Identity Provider configuration");
+    }
+
     #endregion
 
     private static (string SamlResponseBase64, string CertBase64) CreateSignedSamlResponse(
