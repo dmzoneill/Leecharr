@@ -451,6 +451,35 @@ public class QBittorrentSearchServiceTest
     }
 
     [Test]
+    public async Task StartSearch_WithDuplicateInfoHash_WhenFirstResultUsesHttpDownloadUrl_MergesHigherSeeders()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "IndexerTwo", Enable = true, EnableSearch = true, Url = "http://indexer2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(indexer1, "matrix", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(new List<TorznabSearchResult>
+            {
+                new() { Title = "Matrix HTTP", InfoHash = "hashA", DownloadUrl = "http://site/dl1", Guid = "http://site/guid1", Seeders = 20, Leechers = 2 },
+            });
+
+        this.torznabClient.SearchAsync(indexer2, "matrix", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(new List<TorznabSearchResult>
+            {
+                new() { Title = "The Matrix", InfoHash = "hashA", MagnetUrl = "magnet:?xt=urn:btih:hashA", Seeders = 50, Leechers = 10 },
+            });
+
+        var id = this.searchService.StartSearch("matrix");
+        await Task.Delay(200);
+
+        var results = this.searchService.GetResults(id);
+        results.Results.Should().HaveCount(1);
+        results.Results[0].NbSeeders.Should().Be(50);
+        results.Results[0].InfoHash.Should().Be("hashA");
+        results.Results[0].FileUrl.Should().Be("http://site/dl1");
+    }
+
+    [Test]
     public async Task PeriodicCleanup_AutomaticallyPrunesExpiredJobsInBackground()
     {
         using var shortTtlService = new QBittorrentSearchService(this.indexerRepository, this.torznabClient, maxJobs: 100, jobTtl: TimeSpan.FromMilliseconds(50));
