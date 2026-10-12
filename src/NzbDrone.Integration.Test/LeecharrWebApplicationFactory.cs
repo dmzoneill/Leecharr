@@ -138,6 +138,7 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         var server = this.app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>();
         var addressesFeature = server.Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>();
         this.BaseUrl = addressesFeature?.Addresses?.FirstOrDefault() ?? "http://127.0.0.1:0";
+        this.ConfigureEmbeddedTrackerHttpPort();
 
         this.LoadApiKey();
         this.ConfigureEmbeddedTrackerForTestServer();
@@ -148,6 +149,34 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         }
 
         this.WaitForHealthy();
+    }
+
+    private void ConfigureEmbeddedTrackerHttpPort()
+    {
+        try
+        {
+            if (!Uri.TryCreate(this.BaseUrl, UriKind.Absolute, out var baseUri) || baseUri.Port <= 0)
+            {
+                return;
+            }
+
+            var configService = this.app.Services.GetService<IConfigService>();
+            if (configService == null)
+            {
+                return;
+            }
+
+            configService.SaveConfigDictionary(new Dictionary<string, object>
+            {
+                ["TrackerServerEnabled"] = true,
+                ["TrackerHttpEnabled"] = true,
+                ["TrackerHttpPort"] = baseUri.Port,
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ConfigureEmbeddedTrackerHttpPort] Warning: {ex.Message}");
+        }
     }
 
     private void LoadApiKey()

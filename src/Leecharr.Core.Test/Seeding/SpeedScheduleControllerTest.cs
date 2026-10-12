@@ -281,11 +281,25 @@ public class SpeedScheduleControllerTest
     [Test]
     public async Task Delete_DeletesAndAppliesLimits()
     {
+        this.repository.Get(7).Returns(new SpeedSchedule { Id = 7, Name = "To Delete" });
+
         var actionResult = await this.controller.Delete(7);
         actionResult.Should().BeOfType<OkResult>();
 
         this.repository.Received(1).Delete(7);
         await this.schedulerService.Received(1).ApplyCurrentLimitsAsync();
+    }
+
+    [Test]
+    public async Task Delete_WhenMissing_ReturnsNotFoundAndDoesNotDeleteOrApplyLimits()
+    {
+        this.repository.Get(999).Returns((SpeedSchedule)null!);
+
+        var actionResult = await this.controller.Delete(999);
+        actionResult.Should().BeOfType<NotFoundResult>();
+
+        this.repository.DidNotReceive().Delete(Arg.Any<int>());
+        await this.schedulerService.DidNotReceive().ApplyCurrentLimitsAsync();
     }
 
     [Test]
