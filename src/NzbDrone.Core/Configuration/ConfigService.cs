@@ -239,6 +239,8 @@ public interface IConfigService
 
     int IdleSeedingLimitMinutes { get; }
 
+    int IdleSeedingLimitSeconds { get; }
+
     // Network & Sockets Extended
     string NetworkInterfaceBinding { get; }
 
@@ -644,6 +646,17 @@ public class ConfigService : IConfigService
         else if (configValues.TryGetValue("NetworkInterfaceBinding", out var networkInterfaceBinding) && !configValues.ContainsKey("BindInterface"))
         {
             configValues["BindInterface"] = networkInterfaceBinding;
+        }
+
+        if (configValues.TryGetValue("IdleSeedingLimitMinutes", out var idleMinutesObj) && !configValues.ContainsKey("IdleSeedingLimitSeconds"))
+        {
+            var idleMinutes = Convert.ToInt32(idleMinutesObj);
+            configValues["IdleSeedingLimitSeconds"] = idleMinutes > 0 ? idleMinutes * 60 : 0;
+        }
+        else if (configValues.TryGetValue("IdleSeedingLimitSeconds", out var idleSecondsObj) && !configValues.ContainsKey("IdleSeedingLimitMinutes"))
+        {
+            var idleSeconds = Convert.ToInt32(idleSecondsObj);
+            configValues["IdleSeedingLimitMinutes"] = idleSeconds > 0 ? (idleSeconds + 59) / 60 : 0;
         }
 
         var urlBaseKey = configValues.Keys.FirstOrDefault(k => string.Equals(k, "UrlBase", StringComparison.OrdinalIgnoreCase));
@@ -1116,6 +1129,8 @@ public class ConfigService : IConfigService
     public int MagnetMetadataTimeoutSeconds => this.GetValueInt("MagnetMetadataTimeoutSeconds", 180);
 
     public int IdleSeedingLimitMinutes => this.GetValueInt("IdleSeedingLimitMinutes", 0);
+
+    public int IdleSeedingLimitSeconds => this.GetValueInt("IdleSeedingLimitSeconds", 0);
 
     // Network & Sockets Extended
     public string NetworkInterfaceBinding => this.GetValue("NetworkInterfaceBinding", string.Empty);

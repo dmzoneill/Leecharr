@@ -1375,6 +1375,7 @@ public class DelugeJsonRpcControllerTest
             (string)d["BindInterface"] == "tun0" &&
             (bool)d["PeerPortRandomOnStart"] == true &&
             (double)d["GlobalSeedRatioLimit"] == 3.0 &&
+            (int)d["IdleSeedingLimitSeconds"] == 3600 &&
             (int)d["IdleSeedingLimitMinutes"] == 60 &&
             string.Equals((string)d["EncryptionMode"], "disabled", StringComparison.OrdinalIgnoreCase) &&
             (int)d["MaxPerTorrentConnections"] == 40 &&
@@ -2839,6 +2840,43 @@ public class DelugeJsonRpcControllerTest
 
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
             d.ContainsKey("UpnpEnabled") && (bool)d["UpnpEnabled"] == true));
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetConfig_PreservesSubMinuteSeedTimeLimitSeconds()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_config\",\"params\":[{\"seed_time_limit\":90}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["IdleSeedingLimitSeconds"] == 90 &&
+            (int)d["IdleSeedingLimitMinutes"] == 2));
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetConfig_ReturnsStoredSeedTimeLimitSeconds()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.IdleSeedingLimitSeconds.Returns(90);
+        this.configService.IdleSeedingLimitMinutes.Returns(2);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_config\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        using var resultDoc = JsonDocument.Parse(json);
+        var config = resultDoc.RootElement.GetProperty("result");
+        config.GetProperty("seed_time_limit").GetInt32().Should().Be(90);
     }
 
     [Test]

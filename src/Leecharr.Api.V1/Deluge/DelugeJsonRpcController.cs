@@ -1185,7 +1185,8 @@ public class DelugeJsonRpcController : ControllerBase
 
                 if (cfgElem.TryGetProperty("seed_time_limit", out var stlProp) && stlProp.ValueKind == JsonValueKind.Number && stlProp.TryGetInt32(out var stlVal))
                 {
-                    cfgUpdates["IdleSeedingLimitMinutes"] = stlVal <= 0 ? 0 : stlVal / 60;
+                    cfgUpdates["IdleSeedingLimitSeconds"] = stlVal <= 0 ? 0 : stlVal;
+                    cfgUpdates["IdleSeedingLimitMinutes"] = stlVal <= 0 ? 0 : (stlVal + 59) / 60;
                 }
 
                 if (cfgElem.TryGetProperty("dont_count_slow_torrents", out var dcstProp))
@@ -3437,12 +3438,24 @@ public class DelugeJsonRpcController : ControllerBase
             { "enc_level", 2 },
             { "stop_seed_at_ratio", isStopAtRatio },
             { "stop_seed_ratio", stopRatio },
-            { "seed_time_limit", this.configService.IdleSeedingLimitMinutes > 0 ? this.configService.IdleSeedingLimitMinutes * 60 : 0 },
+            { "seed_time_limit", GetDelugeSeedTimeLimitSeconds(this.configService) },
             { "remove_at_ratio", isRemoveAtRatio },
             { "queue_complete", true },
             { "dont_count_slow_torrents", this.configService.IgnoreSlowTorrents },
             { "auto_manage_prefer_seeds", false },
             { "shared", false },
         };
+    }
+
+    private static int GetDelugeSeedTimeLimitSeconds(IConfigService configService)
+    {
+        var seconds = configService.IdleSeedingLimitSeconds;
+        if (seconds > 0)
+        {
+            return seconds;
+        }
+
+        var minutes = configService.IdleSeedingLimitMinutes;
+        return minutes > 0 ? minutes * 60 : 0;
     }
 }
