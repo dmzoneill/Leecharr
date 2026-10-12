@@ -212,6 +212,11 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                 }
                 else if (string.Equals(trackType, "Video", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (IsMediaInfoCoverVideoTrack(track))
+                    {
+                        continue;
+                    }
+
                     if (string.IsNullOrEmpty(info.VideoCodec) && track.TryGetProperty("Format", out var vFmt))
                     {
                         info.VideoCodec = vFmt.GetString();
@@ -371,6 +376,32 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             Logger.Warn(ex, "Failed to parse MediaInfo JSON output: {0}", ex.Message);
             return null;
         }
+    }
+
+    private static bool IsMediaInfoCoverVideoTrack(JsonElement track)
+    {
+        if (track.TryGetProperty("Format", out var formatProp) && formatProp.ValueKind == JsonValueKind.String)
+        {
+            var format = formatProp.GetString() ?? string.Empty;
+            if (format.Equals("PNG", StringComparison.OrdinalIgnoreCase) ||
+                format.Equals("JPEG", StringComparison.OrdinalIgnoreCase) ||
+                format.Equals("BMP", StringComparison.OrdinalIgnoreCase) ||
+                format.Equals("GIF", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (track.TryGetProperty("Title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String)
+        {
+            var title = titleProp.GetString() ?? string.Empty;
+            if (title.Contains("cover", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TryGetInt(JsonElement element, out int value)
