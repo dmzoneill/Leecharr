@@ -13,6 +13,8 @@ public abstract class Command
     public CommandTrigger Trigger { get; set; }
 
     public bool SuppressMessages { get; set; }
+
+    public int Priority { get; set; }
 }
 
 public enum CommandTrigger

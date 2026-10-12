@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using FluentAssertions;
 using FluentMigrator.Runner;
 using Microsoft.Data.Sqlite;
@@ -206,6 +207,45 @@ public class CommandRepositoryTest
         var found = this.repository.FindExisting("RssSync", "{}");
 
         found.Should().BeNull();
+    }
+
+    [Test]
+    public void GetByStatus_WhenQueued_ReturnsCommandsOrderedByPriorityThenQueuedAtThenId()
+    {
+        var baseTime = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        var lowPriorityEarly = new CommandModel
+        {
+            Name = "LowPriorityEarly",
+            Body = "{}",
+            Status = CommandStatus.Queued,
+            QueuedAt = baseTime,
+            Priority = 0,
+        };
+        var highPriorityLate = new CommandModel
+        {
+            Name = "HighPriorityLate",
+            Body = "{}",
+            Status = CommandStatus.Queued,
+            QueuedAt = baseTime.AddMinutes(10),
+            Priority = 10,
+        };
+        var lowPriorityLate = new CommandModel
+        {
+            Name = "LowPriorityLate",
+            Body = "{}",
+            Status = CommandStatus.Queued,
+            QueuedAt = baseTime.AddMinutes(5),
+            Priority = 0,
+        };
+
+        this.repository.Insert(lowPriorityLate);
+        this.repository.Insert(highPriorityLate);
+        this.repository.Insert(lowPriorityEarly);
+
+        var ordered = this.repository.GetByStatus(CommandStatus.Queued).Select(c => c.Name).ToList();
+
+        ordered.Should().Equal("HighPriorityLate", "LowPriorityEarly", "LowPriorityLate");
     }
 
     [Test]

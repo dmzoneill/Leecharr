@@ -28,7 +28,7 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
     {
         return this.ExecuteWithRetry(connection =>
             connection.Query<CommandModel>(
-                "SELECT * FROM \"Commands\" WHERE \"Status\" = @Status",
+                "SELECT * FROM \"Commands\" WHERE \"Status\" = @Status ORDER BY \"Priority\" DESC, \"QueuedAt\" ASC, \"Id\" ASC",
                 new { Status = (int)status }));
     }
 

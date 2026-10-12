@@ -142,6 +142,19 @@ public class CommandQueueManagerTest
     }
 
     [Test]
+    public void Push_PersistsCommandPriorityOnQueuedModel()
+    {
+        var command = new SampleTestCommand { Payload = "test", Priority = 7 };
+
+        this.commandQueueManager.Push(command, CommandTrigger.Manual);
+
+        this.repository.Received(1).FindOrInsert(
+            "SampleTestCommand",
+            Arg.Any<string>(),
+            Arg.Is<CommandModel>(m => m.Priority == 7));
+    }
+
+    [Test]
     public void Push_CreatesQueuedCommandModelAndInsertsIntoRepository()
     {
         var command = new SampleTestCommand { Payload = "test" };
