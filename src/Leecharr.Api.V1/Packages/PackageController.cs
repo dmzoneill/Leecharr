@@ -25,7 +25,7 @@ public class PackageExportRequest
 {
     public List<int> TorrentIds { get; set; } = new();
 
-    public bool IncludePayload { get; set; }
+    public bool? IncludePayload { get; set; }
 }
 
 [V1ApiController("packages")]
