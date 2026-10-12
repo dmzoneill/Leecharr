@@ -1329,7 +1329,7 @@ public class YamlScriptRunnerTest
             "  - name: 'Slow HTTP'\n" +
             "    http:\n" +
             "      method: 'GET'\n" +
-                   $"      url: 'http://127.0.0.1:{port}/slow'\n" +
+                    $"      url: 'http://127.0.0.1:{port}/slow'\n" +
             "      timeoutSeconds: 1\n" +
             "      continueOnError: true\n" +
             "  - name: 'After Timeout'\n" +
@@ -1480,13 +1480,13 @@ public class YamlScriptRunnerTest
             });
 
             var yaml = "name: 'Telegram'\n" +
-                       "steps:\n" +
-                       "  - name: 'Send'\n" +
-                       "    actions:\n" +
-                       "      - sendTelegramMessage:\n" +
-                       "          token: 'test-token'\n" +
-                       "          chatId: '12345'\n" +
-                       "          text: 'Release_name_with_underscore'\n";
+                        "steps:\n" +
+                        "  - name: 'Send'\n" +
+                        "    actions:\n" +
+                        "      - sendTelegramMessage:\n" +
+                        "          token: 'test-token'\n" +
+                        "          chatId: '12345'\n" +
+                        "          text: 'Release_name_with_underscore'\n";
 
             var script = new AutomationScript
             {
@@ -1534,13 +1534,13 @@ public class YamlScriptRunnerTest
             });
 
             var yaml = "name: 'Telegram fail'\n" +
-                       "steps:\n" +
-                       "  - name: 'Send'\n" +
-                       "    actions:\n" +
-                       "      - sendTelegramMessage:\n" +
-                       "          token: 'test-token'\n" +
-                       "          chatId: '12345'\n" +
-                       "          text: 'plain message'\n";
+                        "steps:\n" +
+                        "  - name: 'Send'\n" +
+                        "    actions:\n" +
+                        "      - sendTelegramMessage:\n" +
+                        "          token: 'test-token'\n" +
+                        "          chatId: '12345'\n" +
+                        "          text: 'plain message'\n";
 
             var script = new AutomationScript
             {
@@ -1586,14 +1586,14 @@ public class YamlScriptRunnerTest
             });
 
             var yaml = "name: 'Discord'\n" +
-                       "steps:\n" +
-                       "  - name: 'Send'\n" +
-                       "    actions:\n" +
-                       "      - sendDiscordWebhook:\n" +
-                       $"          webhookUrl: 'http://127.0.0.1:{port}/hook'\n" +
-                       "          embedObj:\n" +
-                       "            title: 'Download complete'\n" +
-                       "            description: 'Matrix.1999'\n";
+                        "steps:\n" +
+                        "  - name: 'Send'\n" +
+                        "    actions:\n" +
+                        "      - sendDiscordWebhook:\n" +
+                        $"          webhookUrl: 'http://127.0.0.1:{port}/hook'\n" +
+                        "          embedObj:\n" +
+                        "            title: 'Download complete'\n" +
+                        "            description: 'Matrix.1999'\n";
 
             var script = new AutomationScript
             {
@@ -1640,13 +1640,13 @@ public class YamlScriptRunnerTest
             });
 
             var yaml = "name: 'Discord fail'\n" +
-                       "steps:\n" +
-                       "  - name: 'Send'\n" +
-                       "    actions:\n" +
-                       "      - sendDiscordWebhook:\n" +
-                       $"          webhookUrl: 'http://127.0.0.1:{port}/hook'\n" +
-                       "          embedObj:\n" +
-                       "            title: 'Alert'\n";
+                        "steps:\n" +
+                        "  - name: 'Send'\n" +
+                        "    actions:\n" +
+                        "      - sendDiscordWebhook:\n" +
+                        $"          webhookUrl: 'http://127.0.0.1:{port}/hook'\n" +
+                        "          embedObj:\n" +
+                        "            title: 'Alert'\n";
 
             var script = new AutomationScript
             {
