@@ -1269,6 +1269,47 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetTorrentPeers_WithRidAheadOfServer_ReturnsFullUpdate()
+    {
+        var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
+        var downloadTask = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadTask>();
+        var peer = new NzbDrone.Core.BitTorrent.PeerInfo
+        {
+            Ip = "10.0.0.1",
+            Port = 6881,
+            Client = "Leecharr/1.0",
+            Flags = "uI",
+            Progress = 0.5,
+        };
+        downloadTask.GetPeers().Returns(new List<NzbDrone.Core.BitTorrent.PeerInfo> { peer });
+        downloadEngine.GetTask(1).Returns(downloadTask);
+
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var initialResult = controllerWithEngine.GetTorrentPeers("hash1", rid: 0);
+        var initialData = initialResult.Should().BeOfType<OkObjectResult>().Subject.Value;
+        ((bool)initialData!.GetType().GetProperty("full_update")!.GetValue(initialData)!).Should().BeTrue();
+        ((int)initialData!.GetType().GetProperty("rid")!.GetValue(initialData)!).Should().Be(1);
+
+        var staleResult = controllerWithEngine.GetTorrentPeers("hash1", rid: 50);
+        var staleData = staleResult.Should().BeOfType<OkObjectResult>().Subject.Value;
+        ((bool)staleData!.GetType().GetProperty("full_update")!.GetValue(staleData)!).Should().BeTrue();
+        ((int)staleData!.GetType().GetProperty("rid")!.GetValue(staleData)!).Should().Be(51);
+        var peerDict = (Dictionary<string, object>)staleData!.GetType().GetProperty("peers")!.GetValue(staleData)!;
+        peerDict.Should().ContainKey("10.0.0.1:6881");
+    }
+
+    [Test]
     public void GetPieceStates_WithValidHash_ReturnsMappedPieceStates()
     {
         var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
