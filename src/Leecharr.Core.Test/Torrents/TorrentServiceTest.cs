@@ -1489,7 +1489,29 @@ public class TorrentServiceTest
         this.service.GetEffectiveTargetSeedTimeMinutes(torrentOverride).Should().Be(240);
 
         this.service.GetEffectiveTargetRatio(torrentNoCategory).Should().Be(1.2);
-        this.service.GetEffectiveTargetSeedTimeMinutes(torrentNoCategory).Should().Be(0);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrentNoCategory).Should().Be(TorrentShareLimits.ApiNoMinuteLimit);
+    }
+
+    [Test]
+    public void GetEffectiveTargetRatio_WhenTorrentUnlimited_DoesNotInheritCategoryOrGlobal()
+    {
+        var category = new Category
+        {
+            Id = 1,
+            Name = "tv",
+            TargetRatio = 2.5,
+        };
+        this.categoryService.GetByName("tv").Returns(category);
+        this.configService.GlobalSeedRatioLimit.Returns(1.2);
+
+        var torrent = new Torrent
+        {
+            Id = 4,
+            Category = "tv",
+            TargetRatioLimitKind = TorrentShareLimitKind.Unlimited,
+        };
+
+        this.service.GetEffectiveTargetRatio(torrent).Should().Be(TorrentShareLimits.ApiNoRatioLimit);
     }
 
     [Test]

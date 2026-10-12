@@ -86,7 +86,17 @@ public class Torrent : ModelBase
 
     public double TargetRatio { get; set; }
 
+    public TorrentShareLimitKind TargetRatioLimitKind { get; set; }
+
     public int TargetSeedTimeMinutes { get; set; }
+
+    public TorrentShareLimitKind TargetSeedTimeLimitKind { get; set; }
+
+    public int InactiveSeedingTimeLimitMinutes { get; set; }
+
+    public TorrentShareLimitKind InactiveSeedingTimeLimitKind { get; set; }
+
+    public long CumulativeInactiveSeedingTimeSeconds { get; set; }
 
     public string ShareLimitAction { get; set; } = "Default";
 

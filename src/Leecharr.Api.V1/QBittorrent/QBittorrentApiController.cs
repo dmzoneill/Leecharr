@@ -723,8 +723,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["uploaded"] = t.Uploaded,
                 ["max_ratio"] = t.TargetRatio,
                 ["max_seeding_time"] = t.TargetSeedTimeMinutes,
-                ["ratio_limit"] = t.TargetRatio > 0 ? t.TargetRatio : -2.0,
-                ["seeding_time_limit"] = t.TargetSeedTimeMinutes > 0 ? t.TargetSeedTimeMinutes : -2,
+                ["ratio_limit"] = TorrentShareLimits.ToApiRatioLimit(t),
+                ["seeding_time_limit"] = TorrentShareLimits.ToApiSeedTimeLimitMinutes(t),
+                ["inactive_seeding_time_limit"] = TorrentShareLimits.ToApiInactiveSeedTimeLimitMinutes(t),
                 ["seeding_time"] = t.SeedingTimeSeconds,
                 ["last_activity"] = new DateTimeOffset(t.LastActive ?? t.DateAdded).ToUnixTimeSeconds(),
                 ["is_private"] = t.IsPrivate,
@@ -1095,15 +1096,21 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             needsUpdate = true;
         }
 
-        if (request.RatioLimit.HasValue && request.RatioLimit.Value > 0)
+        if (request.RatioLimit.HasValue)
         {
-            added.TargetRatio = request.RatioLimit.Value;
+            TorrentShareLimits.ApplyApiRatioLimit(added, request.RatioLimit.Value);
             needsUpdate = true;
         }
 
-        if (request.SeedingTimeLimit.HasValue && request.SeedingTimeLimit.Value >= 0)
+        if (request.SeedingTimeLimit.HasValue)
         {
-            added.TargetSeedTimeMinutes = (int)request.SeedingTimeLimit.Value;
+            TorrentShareLimits.ApplyApiSeedTimeLimit(added, request.SeedingTimeLimit.Value);
+            needsUpdate = true;
+        }
+
+        if (request.InactiveSeedingTimeLimit.HasValue)
+        {
+            TorrentShareLimits.ApplyApiInactiveSeedTimeLimit(added, request.InactiveSeedingTimeLimit.Value);
             needsUpdate = true;
         }
 
@@ -1131,13 +1138,19 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             var updated = false;
             if (ratioLimit.HasValue)
             {
-                torrent.TargetRatio = ratioLimit.Value >= 0 ? ratioLimit.Value : 0;
+                TorrentShareLimits.ApplyApiRatioLimit(torrent, ratioLimit.Value);
                 updated = true;
             }
 
             if (seedingTimeLimit.HasValue)
             {
-                torrent.TargetSeedTimeMinutes = seedingTimeLimit.Value >= 0 ? seedingTimeLimit.Value : 0;
+                TorrentShareLimits.ApplyApiSeedTimeLimit(torrent, seedingTimeLimit.Value);
+                updated = true;
+            }
+
+            if (inactiveSeedingTimeLimit.HasValue)
+            {
+                TorrentShareLimits.ApplyApiInactiveSeedTimeLimit(torrent, inactiveSeedingTimeLimit.Value);
                 updated = true;
             }
 

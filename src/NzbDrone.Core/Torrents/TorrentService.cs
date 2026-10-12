@@ -2043,9 +2043,21 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             return 0;
         }
 
-        if (torrent.TargetRatio > 0)
+        if (torrent.TargetRatioLimitKind == TorrentShareLimitKind.Unlimited)
+        {
+            return TorrentShareLimits.ApiNoRatioLimit;
+        }
+
+        if (torrent.TargetRatioLimitKind == TorrentShareLimitKind.Explicit ||
+            (torrent.TargetRatioLimitKind == TorrentShareLimitKind.Default && torrent.TargetRatio > 0))
         {
             return torrent.TargetRatio;
+        }
+
+        if (torrent.TargetRatioLimitKind == TorrentShareLimitKind.Global)
+        {
+            var globalRatio = this.configService?.GlobalSeedRatioLimit ?? 0;
+            return globalRatio > 0 ? globalRatio : TorrentShareLimits.ApiNoRatioLimit;
         }
 
         var cat = !string.IsNullOrWhiteSpace(torrent.Category)
@@ -2057,7 +2069,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             return cat.TargetRatio;
         }
 
-        return this.configService?.GlobalSeedRatioLimit ?? 0;
+        var inheritedGlobalRatio = this.configService?.GlobalSeedRatioLimit ?? 0;
+        return inheritedGlobalRatio > 0 ? inheritedGlobalRatio : TorrentShareLimits.ApiNoRatioLimit;
     }
 
     public int GetEffectiveTargetSeedTimeMinutes(Torrent torrent)
@@ -2067,9 +2080,20 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             return 0;
         }
 
-        if (torrent.TargetSeedTimeMinutes > 0)
+        if (torrent.TargetSeedTimeLimitKind == TorrentShareLimitKind.Unlimited)
+        {
+            return TorrentShareLimits.ApiNoMinuteLimit;
+        }
+
+        if (torrent.TargetSeedTimeLimitKind == TorrentShareLimitKind.Explicit ||
+            (torrent.TargetSeedTimeLimitKind == TorrentShareLimitKind.Default && torrent.TargetSeedTimeMinutes > 0))
         {
             return torrent.TargetSeedTimeMinutes;
+        }
+
+        if (torrent.TargetSeedTimeLimitKind == TorrentShareLimitKind.Global)
+        {
+            return TorrentShareLimits.ApiNoMinuteLimit;
         }
 
         var cat = !string.IsNullOrWhiteSpace(torrent.Category)
@@ -2081,7 +2105,32 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             return cat.TargetSeedTimeMinutes;
         }
 
-        return 0;
+        return TorrentShareLimits.ApiNoMinuteLimit;
+    }
+
+    public int GetEffectiveInactiveSeedingTimeMinutes(Torrent torrent)
+    {
+        if (torrent == null)
+        {
+            return TorrentShareLimits.ApiNoMinuteLimit;
+        }
+
+        if (torrent.InactiveSeedingTimeLimitKind == TorrentShareLimitKind.Unlimited)
+        {
+            return TorrentShareLimits.ApiNoMinuteLimit;
+        }
+
+        if (torrent.InactiveSeedingTimeLimitKind == TorrentShareLimitKind.Explicit)
+        {
+            return torrent.InactiveSeedingTimeLimitMinutes;
+        }
+
+        if (torrent.InactiveSeedingTimeLimitKind == TorrentShareLimitKind.Global)
+        {
+            return TorrentShareLimits.ApiNoMinuteLimit;
+        }
+
+        return TorrentShareLimits.ApiNoMinuteLimit;
     }
 
     public async Task PropagateCategoryLimitsAsync(Category category)

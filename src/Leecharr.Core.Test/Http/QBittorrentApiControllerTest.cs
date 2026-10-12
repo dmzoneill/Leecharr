@@ -1096,7 +1096,9 @@ public class QBittorrentApiControllerTest
 
         await this.controller.SetShareLimits("all", ratioLimit: 2.0, seedingTimeLimit: 120, maxRatioAction: 1);
         torrent1.TargetRatio.Should().Be(2.0);
+        torrent1.TargetRatioLimitKind.Should().Be(TorrentShareLimitKind.Explicit);
         torrent1.TargetSeedTimeMinutes.Should().Be(120);
+        torrent1.TargetSeedTimeLimitKind.Should().Be(TorrentShareLimitKind.Explicit);
         torrent1.ShareLimitAction.Should().Be("Remove");
     }
 
@@ -3829,6 +3831,7 @@ public class QBittorrentApiControllerTest
         var setRes = await this.controller.SetShareLimits("hash1", seedingTimeLimit: 120);
         setRes.Should().BeOfType<ContentResult>();
         torrent.TargetSeedTimeMinutes.Should().Be(120);
+        torrent.TargetSeedTimeLimitKind.Should().Be(TorrentShareLimitKind.Explicit);
 
         var infoRes = this.controller.GetTorrentsInfo();
         var okResult = infoRes.Result.Should().BeOfType<OkObjectResult>().Subject;
@@ -3849,6 +3852,27 @@ public class QBittorrentApiControllerTest
         });
 
         newTorrent.TargetSeedTimeMinutes.Should().Be(120);
+    }
+
+    [Test]
+    public async Task SetShareLimits_NoLimitRatio_StoresUnlimitedAndRoundTripsInTorrentsInfo()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.configService.GlobalSeedRatioLimit.Returns(2.0);
+
+        await this.controller.SetShareLimits("hash1", ratioLimit: -1, inactiveSeedingTimeLimit: 30);
+
+        torrent.TargetRatioLimitKind.Should().Be(TorrentShareLimitKind.Unlimited);
+        torrent.InactiveSeedingTimeLimitKind.Should().Be(TorrentShareLimitKind.Explicit);
+        torrent.InactiveSeedingTimeLimitMinutes.Should().Be(30);
+
+        var infoRes = this.controller.GetTorrentsInfo();
+        var okResult = infoRes.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<IEnumerable<Dictionary<string, object>>>().Subject.ToList();
+        list[0]["ratio_limit"].Should().Be(TorrentShareLimits.ApiNoRatioLimit);
+        list[0]["inactive_seeding_time_limit"].Should().Be(30);
     }
 
     [Test]
