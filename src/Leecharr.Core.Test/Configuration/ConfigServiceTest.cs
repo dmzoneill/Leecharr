@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -242,6 +243,47 @@ public class ConfigServiceTest
         this.service.GetValueDouble("TestDouble", 0.0).Should().BeApproximately(3.14159, 0.0001);
         this.service.GetValueDouble("TestDoubleInvalid", 1.5).Should().Be(1.5);
         this.service.GetValueDouble("NonExistent", 2.0).Should().Be(2.0);
+    }
+
+    [Test]
+    public void GetValueDouble_WhenStoredWithDotDecimal_UnderCommaCulture_ParsesCorrectly()
+    {
+        this.store.Add(new ConfigModel { Key = "GlobalSeedRatioLimit", Value = "1.5" });
+
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+
+            this.service.GlobalSeedRatioLimit.Should().Be(1.5);
+            this.service.GetValueDouble("GlobalSeedRatioLimit", 0.0).Should().Be(1.5);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
+    [Test]
+    public void SaveConfigDictionary_UnderCommaCulture_StoresDoublesWithInvariantFormat()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+
+            this.service.SaveConfigDictionary(new Dictionary<string, object>
+            {
+                { "GlobalSeedRatioLimit", 1.5 },
+            });
+
+            this.store.Should().ContainSingle(m => m.Key == "GlobalSeedRatioLimit" && m.Value == "1.5");
+            this.service.GlobalSeedRatioLimit.Should().Be(1.5);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Test]
