@@ -323,7 +323,9 @@ public class EmbeddedTrackerController : ControllerBase
             {
                 request.Downloaded = down;
             }
-            else if (string.Equals(key, "left", StringComparison.OrdinalIgnoreCase) && long.TryParse(val, out var left))
+            else if (string.Equals(key, "left", StringComparison.OrdinalIgnoreCase)
+                && long.TryParse(val, out var left)
+                && left >= 0)
             {
                 request.Left = left;
             }
