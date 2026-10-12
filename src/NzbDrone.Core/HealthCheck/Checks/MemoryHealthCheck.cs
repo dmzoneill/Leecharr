@@ -46,47 +46,47 @@ public class MemoryHealthCheck : IHealthCheck
                 workingSet = Process.GetCurrentProcess().WorkingSet64;
             }
 
+            if (totalBytes <= 0 && memoryLoadBytes <= 0 && workingSet <= 0)
+            {
+                return Task.FromResult(HealthCheckResult.Ok("Memory"));
+            }
+
+            long freeBytes;
+            double loadRatio;
+            long usedMb = memoryLoadBytes / (1024 * 1024);
+            long totalMb = totalBytes > 0 ? totalBytes / (1024 * 1024) : 0;
+            var workingSetMb = workingSet / (1024 * 1024);
+
             if (totalBytes > 0)
             {
-                var freeBytes = totalBytes - memoryLoadBytes;
-                var loadRatio = (double)memoryLoadBytes / totalBytes;
-                var usedMb = memoryLoadBytes / (1024 * 1024);
-                var totalMb = totalBytes / (1024 * 1024);
-                var workingSetMb = workingSet / (1024 * 1024);
+                freeBytes = totalBytes - memoryLoadBytes;
+                loadRatio = (double)memoryLoadBytes / totalBytes;
+            }
+            else if (workingSet > 0)
+            {
+                freeBytes = workingSet - memoryLoadBytes;
+                loadRatio = (double)memoryLoadBytes / workingSet;
+            }
+            else
+            {
+                freeBytes = 0;
+                loadRatio = 1.0;
+            }
 
-                if (this.memoryInfoProvider == null && (loadRatio >= WarningLoadThreshold || freeBytes < WarningFreeMemoryThresholdBytes))
-                {
-                    GC.Collect(2, GCCollectionMode.Forced, true, true);
-                    GC.WaitForPendingFinalizers();
+            if (loadRatio >= ErrorLoadThreshold || freeBytes < ErrorFreeMemoryThresholdBytes)
+            {
+                var totalLabel = totalMb > 0 ? $"{totalMb} MB" : "unknown";
+                return Task.FromResult(HealthCheckResult.Error(
+                    "Memory",
+                    $"Critical memory exhaustion: {usedMb} MB / {totalLabel} ({loadRatio:P1}) used. Process working set: {workingSetMb} MB."));
+            }
 
-                    var gcInfo = GC.GetGCMemoryInfo();
-                    totalBytes = gcInfo.TotalAvailableMemoryBytes;
-                    memoryLoadBytes = gcInfo.MemoryLoadBytes;
-                    workingSet = Process.GetCurrentProcess().WorkingSet64;
-
-                    if (totalBytes > 0)
-                    {
-                        freeBytes = totalBytes - memoryLoadBytes;
-                        loadRatio = (double)memoryLoadBytes / totalBytes;
-                        usedMb = memoryLoadBytes / (1024 * 1024);
-                        totalMb = totalBytes / (1024 * 1024);
-                        workingSetMb = workingSet / (1024 * 1024);
-                    }
-                }
-
-                if (loadRatio >= ErrorLoadThreshold || freeBytes < ErrorFreeMemoryThresholdBytes)
-                {
-                    return Task.FromResult(HealthCheckResult.Error(
-                        "Memory",
-                        $"Critical memory exhaustion: {usedMb} MB / {totalMb} MB ({loadRatio:P1}) used. Process working set: {workingSetMb} MB."));
-                }
-
-                if (loadRatio >= WarningLoadThreshold || freeBytes < WarningFreeMemoryThresholdBytes)
-                {
-                    return Task.FromResult(HealthCheckResult.Warning(
-                        "Memory",
-                        $"High memory usage: {usedMb} MB / {totalMb} MB ({loadRatio:P1}) used. Process working set: {workingSetMb} MB."));
-                }
+            if (loadRatio >= WarningLoadThreshold || freeBytes < WarningFreeMemoryThresholdBytes)
+            {
+                var totalLabel = totalMb > 0 ? $"{totalMb} MB" : "unknown";
+                return Task.FromResult(HealthCheckResult.Warning(
+                    "Memory",
+                    $"High memory usage: {usedMb} MB / {totalLabel} ({loadRatio:P1}) used. Process working set: {workingSetMb} MB."));
             }
 
             return Task.FromResult(HealthCheckResult.Ok("Memory"));

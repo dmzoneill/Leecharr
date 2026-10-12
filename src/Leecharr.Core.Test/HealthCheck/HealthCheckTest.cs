@@ -415,6 +415,17 @@ public class HealthCheckTest
     }
 
     [Test]
+    public async Task MemoryHealthCheck_ReturnsWarning_WhenTotalMemoryUnknownButUsageHigh()
+    {
+        var check = new MemoryHealthCheck(() => (0, 9L * 1024 * 1024 * 1024, 10L * 1024 * 1024 * 1024));
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Warning);
+        result.Source.Should().Be("Memory");
+        result.Message.Should().Contain("unknown");
+    }
+
+    [Test]
     public async Task HealthCheckService_ExecutesAllChecks()
     {
         var mockCheck1 = Substitute.For<IHealthCheck>();
