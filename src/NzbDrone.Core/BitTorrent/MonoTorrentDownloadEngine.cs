@@ -674,6 +674,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 () => Interlocked.Increment(ref this.blockedPeersCount),
                 maxHalfOpenConnections: this.configService.MaximumHalfOpenConnections > 0 ? this.configService.MaximumHalfOpenConnections : 50,
                 maxConnectionsPerIp: this.configService.MaxConnectionsPerIp > 0 ? this.configService.MaxConnectionsPerIp : 5,
+                handshakeTimeout: PeerProtocolPolicy.GetHandshakeTimeout(this.configService),
                 isHalted: () => this.isHaltedByKillSwitch,
                 configService: this.configService);
 
@@ -8034,7 +8035,7 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
         this.onPeerBlocked = onPeerBlocked;
         this.maxHalfOpenConnections = maxHalfOpenConnections > 0 ? maxHalfOpenConnections : 50;
         this.maxConnectionsPerIp = maxConnectionsPerIp > 0 ? maxConnectionsPerIp : 5;
-        this.handshakeTimeout = handshakeTimeout ?? TimeSpan.FromSeconds(15);
+        this.handshakeTimeout = handshakeTimeout ?? PeerProtocolPolicy.GetHandshakeTimeout(configService);
         this.isHalted = isHalted;
         this.configService = configService;
         this.inner.ConnectionReceived += this.OnInnerConnectionReceived;
