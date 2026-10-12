@@ -276,14 +276,6 @@ public class BitTorrentConfigController : ConfigController<BitTorrentConfigResou
             return this.BadRequest("Request body cannot be empty.");
         }
 
-        if (resource.NetworkInterfaceBinding != null)
-        {
-            this.configService.SaveConfigDictionary(new Dictionary<string, object>
-            {
-                { "BindInterface", resource.NetworkInterfaceBinding },
-            });
-        }
-
         return await base.SaveConfig(resource);
     }
 
