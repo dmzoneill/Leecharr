@@ -132,6 +132,7 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
 
         HttpTransportProviderSwitchedEvent switchedEvent = null;
         HttpTransportSwitchResult result;
+        IHttpTransportProvider previousProvider = null;
 
         await this.switchLock.WaitAsync();
         try
@@ -148,13 +149,14 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
                 };
             }
 
-            var previousProvider = Volatile.Read(ref this.activeProvider);
-            Volatile.Write(ref this.activeProvider, targetProvider);
+            previousProvider = Volatile.Read(ref this.activeProvider);
 
             this.configService?.SaveConfigDictionary(new Dictionary<string, object>
             {
                 { "ActiveHttpTransportProvider", targetProvider.ProviderId },
             });
+
+            Volatile.Write(ref this.activeProvider, targetProvider);
 
             this.logger.Info("HTTP transport provider switched: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
             switchedEvent = new HttpTransportProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
@@ -170,11 +172,18 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
         catch (Exception ex)
         {
             this.logger.Error(ex, "Error switching HTTP transport provider to {0}", targetProviderId);
+
+            if (previousProvider != null)
+            {
+                Volatile.Write(ref this.activeProvider, previousProvider);
+            }
+
+            var activeProviderId = previousProvider?.ProviderId ?? Volatile.Read(ref this.activeProvider)?.ProviderId;
             return new HttpTransportSwitchResult
             {
                 Success = false,
-                PreviousProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
-                ActiveProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
+                PreviousProvider = activeProviderId,
+                ActiveProvider = activeProviderId,
                 Error = $"Hot-swap failed: {ex.Message}",
             };
         }

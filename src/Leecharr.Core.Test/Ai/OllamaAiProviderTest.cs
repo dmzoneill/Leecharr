@@ -251,7 +251,7 @@ public class OllamaAiProviderTest
             var body = await req.Content.ReadAsStringAsync(ct);
             using var doc = System.Text.Json.JsonDocument.Parse(body);
             var prompt = doc.RootElement.GetProperty("prompt").GetString();
-            if (string.Equals(prompt, "tell me about ratio", StringComparison.OrdinalIgnoreCase))
+            if (prompt != null && prompt.StartsWith("block-until-release", StringComparison.Ordinal))
             {
                 await releaseFallbackCall.Task;
                 throw new HttpRequestException("Sidecar offline");
@@ -264,11 +264,11 @@ public class OllamaAiProviderTest
         });
 
         using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
 
         var fallbackFlow = Task.Run(async () =>
         {
-            using var provider = new OllamaAiProvider(this.configService, client);
-            var reply = await provider.GenerateChatResponseAsync("tell me about ratio");
+            var reply = await provider.GenerateChatResponseAsync("block-until-release How do I maintain good seed ratio?");
             return (reply, provider.LastChatUsedFallback);
         });
 
@@ -276,7 +276,6 @@ public class OllamaAiProviderTest
 
         var successFlow = Task.Run(async () =>
         {
-            using var provider = new OllamaAiProvider(this.configService, client);
             var reply = await provider.GenerateChatResponseAsync("quick-success");
             return (reply, provider.LastChatUsedFallback);
         });

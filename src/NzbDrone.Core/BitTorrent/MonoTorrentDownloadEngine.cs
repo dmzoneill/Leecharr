@@ -2357,7 +2357,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     for (var tierIndex = 0; tierIndex < tiers.Count; tierIndex++)
                     {
                         var tier = tiers[tierIndex];
-                        var tracker = this.multiTrackerFailover.SelectTrackerForTier(torrentId, tierIndex, tier, utcNow);
+                        var tracker = this.multiTrackerFailover.SelectTrackerForTier(torrentId, tierIndex, tier.Trackers, tier.ActiveTracker, utcNow);
                         if (await this.TryAnnounceTrackerAsync(manager, torrentId, tierIndex, tracker, utcNow).ConfigureAwait(false))
                         {
                             dispatchedCount++;
@@ -2376,7 +2376,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         for (var tierIndex = 0; tierIndex < tiers.Count; tierIndex++)
                         {
                             var tier = tiers[tierIndex];
-                            var tracker = this.multiTrackerFailover.SelectTrackerForTier(torrentId, tierIndex, tier, utcNow);
+                            var tracker = this.multiTrackerFailover.SelectTrackerForTier(torrentId, tierIndex, tier.Trackers, tier.ActiveTracker, utcNow);
                             if (await this.TryAnnounceTrackerAsync(manager, torrentId, tierIndex, tracker, utcNow).ConfigureAwait(false))
                             {
                                 dispatchedCount = 1;

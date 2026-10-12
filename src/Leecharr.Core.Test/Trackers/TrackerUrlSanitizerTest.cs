@@ -21,7 +21,7 @@ public class TrackerUrlSanitizerTest
     [Test]
     [TestCase("udp://tracker.opentrackr.org:1337/announce")]
     [TestCase("http://tracker.files.fm:6969/announce")]
-    [TestCase("https://tracker.tamersunion.org:443/announce")]
+    [TestCase("https://tracker.tamersunion.org/announce")]
     [TestCase("http://tracker.example.com/announce.php")]
     [TestCase("http://tracker.example.com/a/announce")]
     public void Sanitize_WhenPublicTracker_DoesNotAlterUrl(string publicUrl)

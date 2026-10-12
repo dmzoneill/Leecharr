@@ -287,6 +287,11 @@ public class ServarrSyncMetadataProviderTest
         var handler = new MockHttpMessageHandler(req =>
         {
             req.RequestUri!.AbsolutePath.Should().Contain("system/status");
+            if (!req.Headers.Contains("X-Api-Key"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+            }
+
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{}", Encoding.UTF8, "application/json"),

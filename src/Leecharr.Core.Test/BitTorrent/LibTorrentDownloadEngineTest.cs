@@ -44,6 +44,8 @@ public class LibTorrentDownloadEngineTest
         this.eventAggregator = Substitute.For<IEventAggregator>();
         this.networkBindingService = Substitute.For<INetworkBindingService>();
         this.vpnKillSwitchService = Substitute.For<IVpnKillSwitchService>();
+        this.configService.DhtAutoBootstrap.Returns(true);
+        this.configService.DhtRateLimitEnabled.Returns(true);
     }
 
     [Test]

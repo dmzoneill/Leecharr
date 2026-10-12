@@ -115,6 +115,9 @@ public class DynamicNetworkBindingProxyTest
             StatusMessage = "Not supported on this platform",
         }));
 
+        this.linuxBindProvider.ClearReceivedCalls();
+        this.managedSocketProvider.ClearReceivedCalls();
+
         var config = Substitute.For<IConfigService>();
         config.ActiveNetworkBindingProvider.Returns("LinuxBindToDevice");
 

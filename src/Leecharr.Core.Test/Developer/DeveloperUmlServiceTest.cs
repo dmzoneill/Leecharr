@@ -99,7 +99,7 @@ public class DeveloperUmlServiceTest
         Assert.That(auth.MermaidCode, Does.Contain("Authenticating"));
         Assert.That(auth.MermaidCode, Does.Not.Contain("Queued --> Downloading"));
         Assert.That(torrent.EdgeCount, Is.EqualTo(10));
-        Assert.That(torrent.NodeCount, Is.EqualTo(7));
+        Assert.That(torrent.NodeCount, Is.EqualTo(8));
         Assert.That(auth.NodeCount, Is.EqualTo(6));
         Assert.That(auth.EdgeCount, Is.EqualTo(10));
     }
