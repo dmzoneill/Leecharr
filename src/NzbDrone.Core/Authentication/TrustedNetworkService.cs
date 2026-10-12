@@ -74,21 +74,10 @@ public class TrustedNetworkService : ITrustedNetworkService
             {
                 return true;
             }
-
-            // 169.254.0.0/16 (Link Local)
-            if (bytes[0] == 169 && bytes[1] == 254)
-            {
-                return true;
-            }
         }
         else if (remoteIp.AddressFamily == AddressFamily.InterNetworkV6)
         {
-            // IPv6 Unique Local Address (fc00::/7) or Link-Local (fe80::/10)
-            if (remoteIp.IsIPv6LinkLocal || remoteIp.IsIPv6SiteLocal)
-            {
-                return true;
-            }
-
+            // IPv6 Unique Local Address (fc00::/7)
             var bytes = remoteIp.GetAddressBytes();
             if ((bytes[0] & 0xfe) == 0xfc)
             {
