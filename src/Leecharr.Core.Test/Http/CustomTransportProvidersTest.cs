@@ -741,6 +741,119 @@ public class CustomTransportProvidersTest
         fallbackCalled.Should().BeTrue();
     }
 
+    [Test]
+    public async Task ExecuteRequestAsync_FlareSolverr_UnsupportedMethods_UseDirectHttpClient()
+    {
+        var solverBodies = new List<string>();
+        var directMethods = new List<string>();
+
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            var isFlareSolverrCommand = req.RequestUri?.ToString().Contains("8191") == true;
+            if (isFlareSolverrCommand)
+            {
+                solverBodies.Add(body);
+
+                if (body.Contains("sessions.create"))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"status\":\"ok\",\"session\":\"sess_methods\"}"),
+                    };
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"solution\":{\"status\":200,\"response\":\"unused\"}}"),
+                };
+            }
+
+            directMethods.Add(req.Method.Method);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("direct"),
+            };
+        });
+
+        using var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var provider = new FlareSolverrTransportProvider(config, httpClient);
+
+        using (var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, "https://tracker.org/item/1"))
+        {
+            var deleteResponse = await provider.SendAsync(deleteRequest);
+            deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        using (var putRequest = new HttpRequestMessage(HttpMethod.Put, "https://tracker.org/item/1"))
+        {
+            putRequest.Content = new StringContent("{}");
+            var putResponse = await provider.SendAsync(putRequest);
+            putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        directMethods.Should().Equal("DELETE", "PUT");
+        solverBodies.Should().NotContain(b => b.Contains("request.get") && b.Contains("/item/1"));
+    }
+
+    [Test]
+    public async Task ExecuteRequestAsync_FlareSolverr_WhenPostFails_DoesNotRetryDirectly()
+    {
+        var directPostAttempts = 0;
+
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            var isFlareSolverrCommand = req.RequestUri?.ToString().Contains("8191") == true;
+            if (isFlareSolverrCommand)
+            {
+                if (body.Contains("sessions.create"))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"status\":\"ok\",\"session\":\"sess_post\"}"),
+                    };
+                }
+
+                if (body.Contains("request.post"))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"status\":\"error\",\"message\":\"solver rejected post\"}"),
+                    };
+                }
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                directPostAttempts++;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("direct"),
+            };
+        });
+
+        using var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var provider = new FlareSolverrTransportProvider(config, httpClient);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://tracker.org/login")
+        {
+            Content = new StringContent("username=alice&password=secret"),
+        };
+
+        var response = await provider.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
+        directPostAttempts.Should().Be(0);
+    }
+
     private static int GetFreePort()
     {
         using var socket = new TcpListener(IPAddress.Loopback, 0);
