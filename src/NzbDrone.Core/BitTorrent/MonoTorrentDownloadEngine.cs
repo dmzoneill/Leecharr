@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -2282,7 +2283,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 var (dispatchedCount, unit) = await this.AnnounceTrackersAsync(task.Manager, torrentId, isResumeOrStartup: false).ConfigureAwait(false);
                 try
                 {
+                    var scrapeStopwatch = Stopwatch.StartNew();
                     await task.Manager.TrackerManager.ScrapeAsync(CancellationToken.None).ConfigureAwait(false);
+                    var scrapeElapsedMs = TrackerMetricEventPublisher.MeasureElapsedMs(scrapeStopwatch);
+                    TrackerMetricEventPublisher.PublishScrapesForAllTrackers(this.eventAggregator, task.Manager, torrentId, scrapeElapsedMs);
                 }
                 catch (Exception ex)
                 {
@@ -2388,7 +2392,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     {
                         try
                         {
+                            var stopwatch = Stopwatch.StartNew();
                             await manager.TrackerManager.AnnounceAsync(CancellationToken.None).ConfigureAwait(false);
+                            var elapsedMs = TrackerMetricEventPublisher.MeasureElapsedMs(stopwatch);
+                            TrackerMetricEventPublisher.PublishAnnouncesForAllTrackers(this.eventAggregator, manager, torrentId, elapsedMs);
                             dispatchedCount = 1;
                         }
                         catch (Exception ex)
@@ -2431,14 +2438,30 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         try
         {
+            var stopwatch = Stopwatch.StartNew();
             await manager.TrackerManager.AnnounceAsync(tracker, CancellationToken.None).ConfigureAwait(false);
             var success = MultiTrackerAnnouncePolicy.IsAnnounceSuccessful(tracker);
             this.multiTrackerFailover.RecordAnnounceOutcome(torrentId, tierIndex, tracker, success, utcNow);
+            TrackerMetricEventPublisher.PublishAnnounce(
+                this.eventAggregator,
+                manager,
+                torrentId,
+                tracker,
+                TrackerMetricEventPublisher.MeasureElapsedMs(stopwatch),
+                success);
             return true;
         }
         catch (Exception ex)
         {
             this.multiTrackerFailover.RecordAnnounceOutcome(torrentId, tierIndex, tracker, false, utcNow);
+            TrackerMetricEventPublisher.PublishAnnounce(
+                this.eventAggregator,
+                manager,
+                torrentId,
+                tracker,
+                0,
+                false,
+                ex.Message);
             this.logger.Debug(ex, "Failed to announce to tracker {0} for torrent {1}", tracker.Uri, torrentId);
             return false;
         }
@@ -2525,10 +2548,27 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     {
                         try
                         {
+                            var stopwatch = Stopwatch.StartNew();
                             await task.Manager.TrackerManager.AnnounceAsync(tracker, CancellationToken.None).ConfigureAwait(false);
+                            var success = MultiTrackerAnnouncePolicy.IsAnnounceSuccessful(tracker);
+                            TrackerMetricEventPublisher.PublishAnnounce(
+                                this.eventAggregator,
+                                task.Manager,
+                                torrentId,
+                                tracker,
+                                TrackerMetricEventPublisher.MeasureElapsedMs(stopwatch),
+                                success);
                         }
                         catch (Exception ex)
                         {
+                            TrackerMetricEventPublisher.PublishAnnounce(
+                                this.eventAggregator,
+                                task.Manager,
+                                torrentId,
+                                tracker,
+                                0,
+                                false,
+                                ex.Message);
                             this.logger.Debug(ex, "Failed to announce newly added tracker {0} for torrent {1}", tracker.Uri, torrentId);
                         }
                     }

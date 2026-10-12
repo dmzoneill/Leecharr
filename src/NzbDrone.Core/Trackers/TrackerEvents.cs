@@ -34,6 +34,14 @@ public class TrackerAnnounceEvent : IEvent
 {
     public string TrackerUrl { get; set; }
 
+    public int TorrentId { get; set; }
+
+    public long Uploaded { get; set; }
+
+    public long Downloaded { get; set; }
+
+    public long Left { get; set; }
+
     public int Seeders { get; set; }
 
     public int Leechers { get; set; }
@@ -65,6 +73,8 @@ public class TrackerAnnounceEvent : IEvent
 public class TrackerScrapeEvent : IEvent
 {
     public string TrackerUrl { get; set; }
+
+    public int TorrentId { get; set; }
 
     public int Seeders { get; set; }
 
