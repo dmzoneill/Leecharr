@@ -141,7 +141,7 @@ public class TagControllerTest
     public void Create_WhenTagAlreadyExists_ReturnsExistingTagResource()
     {
         var existing = new Tag { Id = 3, Label = "existing-tag" };
-        this.tagRepository.GetByLabel("existing-tag").Returns(existing);
+        this.tagRepository.GetOrCreate(Arg.Any<Tag>()).Returns(existing);
 
         var result = this.controller.Create(new TagResource { Label = "existing-tag" });
         var okResult = result.Result as OkObjectResult;
@@ -151,14 +151,13 @@ public class TagControllerTest
         resource.Should().NotBeNull();
         resource!.Id.Should().Be(3);
         resource.Label.Should().Be("existing-tag");
-        this.tagRepository.DidNotReceive().Insert(Arg.Any<Tag>());
+        this.tagRepository.Received(1).GetOrCreate(Arg.Is<Tag>(t => t.Label == "existing-tag"));
     }
 
     [Test]
     public void Create_WhenValid_InsertsAndReturnsTagResource()
     {
-        this.tagRepository.GetByLabel("new-tag").Returns((Tag)null!);
-        this.tagRepository.Insert(Arg.Any<Tag>()).Returns(callInfo =>
+        this.tagRepository.GetOrCreate(Arg.Any<Tag>()).Returns(callInfo =>
         {
             var t = callInfo.Arg<Tag>();
             t.Id = 10;
@@ -173,14 +172,13 @@ public class TagControllerTest
         resource.Should().NotBeNull();
         resource!.Id.Should().Be(10);
         resource.Label.Should().Be("new-tag");
-        this.tagRepository.Received(1).Insert(Arg.Is<Tag>(t => t.Label == "new-tag"));
+        this.tagRepository.Received(1).GetOrCreate(Arg.Is<Tag>(t => t.Label == "new-tag"));
     }
 
     [Test]
     public void Create_WhenValidWithColorAndPolicies_InsertsAndReturnsTagResource()
     {
-        this.tagRepository.GetByLabel("seeding-tag").Returns((Tag)null!);
-        this.tagRepository.Insert(Arg.Any<Tag>()).Returns(callInfo =>
+        this.tagRepository.GetOrCreate(Arg.Any<Tag>()).Returns(callInfo =>
         {
             var t = callInfo.Arg<Tag>();
             t.Id = 11;
@@ -211,7 +209,7 @@ public class TagControllerTest
         resource.MinSeedRatio.Should().Be(2.5);
         resource.MinSeedTimeSeconds.Should().Be(86400);
 
-        this.tagRepository.Received(1).Insert(Arg.Is<Tag>(t =>
+        this.tagRepository.Received(1).GetOrCreate(Arg.Is<Tag>(t =>
             t.Label == "seeding-tag" &&
             t.Color == "#3b82f6" &&
             t.UploadLimitKbps == 1000 &&

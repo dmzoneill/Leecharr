@@ -74,12 +74,6 @@ public class TagController : Controller
             return this.BadRequest("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
         }
 
-        var existing = this.tagRepository.GetByLabel(trimmedLabel);
-        if (existing != null)
-        {
-            return this.Ok(ToResource(existing));
-        }
-
         var model = new Tag
         {
             Label = trimmedLabel,
@@ -90,8 +84,8 @@ public class TagController : Controller
             MinSeedTimeSeconds = resource.MinSeedTimeSeconds,
         };
 
-        var inserted = this.tagRepository.Insert(model);
-        return this.Ok(ToResource(inserted));
+        var tag = this.tagRepository.GetOrCreate(model);
+        return this.Ok(ToResource(tag));
     }
 
     [HttpPut]
