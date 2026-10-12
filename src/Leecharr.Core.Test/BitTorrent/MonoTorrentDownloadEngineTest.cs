@@ -4730,6 +4730,30 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task AddPeersAsync_WithValidEndpoints_RegistersPeersWithManager()
+    {
+        var torrent = new CoreTorrent
+        {
+            Id = 5680,
+            InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Name = "ManualPeerTorrent",
+            Status = TorrentStatus.Downloading,
+            TrackerUrl = "http://manual-peer-tracker.org/announce",
+        };
+
+        await this.engine.AddTorrentAsync(torrent, magnetUri: "magnet:?xt=urn:btih:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&tr=http%3A%2F%2Fmanual-peer-tracker.org%2Fannounce");
+
+        var result = await this.engine.AddPeersAsync(5680, new[] { "192.168.50.10:6881", "not-valid", "[2001:db8::2]:51413" });
+
+        result.Added.Should().Be(2);
+        result.Failed.Should().Be(1);
+
+        var task = this.engine.GetTask(5680) as MonoTorrentDownloadTask;
+        task.Should().NotBeNull();
+        task!.Manager!.Peers!.Available.Should().BeGreaterThanOrEqualTo(2);
+    }
+
+    [Test]
     public void BoundSocketConnector_WhenProxyActive_BlocksDatagramSocketCreation()
     {
         var mockConfig = Substitute.For<IConfigService>();
