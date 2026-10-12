@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Common.Instrumentation;
@@ -12,6 +13,7 @@ using NzbDrone.Core.Configuration;
 namespace Leecharr.Api.V1.System;
 
 [V1ApiController("log")]
+[Authorize(Policy = "RequireAdmin")]
 public class LogController : ControllerBase
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();

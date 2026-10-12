@@ -34,6 +34,8 @@ public class ControllerAuthorizationPolicyTest
     [TestCase(typeof(NetworkConfigController), "RequireAdmin")]
     [TestCase(typeof(BackupController), "RequireAdmin")]
     [TestCase(typeof(FileBrowserController), "RequireAdmin")]
+    [TestCase(typeof(LogController), "RequireAdmin")]
+    [TestCase(typeof(LogFileController), "RequireAdmin")]
     [TestCase(typeof(SystemMaintenanceController), "RequireAdmin")]
     [TestCase(typeof(SystemTaskController), "RequireAdmin")]
     [TestCase(typeof(SystemCommandController), "RequireAdmin")]
