@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### 🐛 Bug Fixes
 - fix(config): parse and store config doubles with invariant culture (fixes #1396)
+- fix(seeding): count all torrent statuses in GetStats and align active torrents with transfer activity (fixes #1398)
 - fix(notifications): use MailKit implicit TLS for SMTP port 465 email delivery (fixes #1408)
 - fix(config): accept `1` and `0` for boolean environment and config.xml settings (fixes #1412)
 - fix(extraction): sum sibling RAR and ZIP volumes for archive size estimates (fixes #1416)
