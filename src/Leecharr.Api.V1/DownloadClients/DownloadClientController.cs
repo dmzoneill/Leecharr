@@ -801,6 +801,12 @@ public class DownloadClientController : Controller
                     var ver = await resp.Content.ReadAsStringAsync();
                     return this.Ok(new DownloadClientTestResult { Success = true, Message = $"qBittorrent WebAPI connected (v{ver.Trim()})." });
                 }
+
+                return this.Ok(new DownloadClientTestResult
+                {
+                    Success = false,
+                    Message = $"Failed to reach qBittorrent WebAPI at {baseUrl} (HTTP {(int)resp.StatusCode}).",
+                });
             }
             else if (string.Equals(resource.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
             {
@@ -825,6 +831,12 @@ public class DownloadClientController : Controller
                 {
                     return this.Ok(new DownloadClientTestResult { Success = true, Message = "Transmission RPC endpoint reachable." });
                 }
+
+                return this.Ok(new DownloadClientTestResult
+                {
+                    Success = false,
+                    Message = $"Failed to reach Transmission RPC at {baseUrl} (HTTP {(int)resp.StatusCode}).",
+                });
             }
             else if (string.Equals(resource.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
             {
@@ -879,10 +891,26 @@ public class DownloadClientController : Controller
                         {
                             return this.Ok(new DownloadClientTestResult { Success = false, Message = "Authentication failed for Deluge: Password required." });
                         }
+
+                        return this.Ok(new DownloadClientTestResult
+                        {
+                            Success = false,
+                            Message = "Authentication failed for Deluge: Invalid password or session.",
+                        });
                     }
 
-                    return this.Ok(new DownloadClientTestResult { Success = true, Message = "Deluge JSON-RPC endpoint reachable." });
+                    return this.Ok(new DownloadClientTestResult
+                    {
+                        Success = false,
+                        Message = "Failed to verify Deluge JSON-RPC session.",
+                    });
                 }
+
+                return this.Ok(new DownloadClientTestResult
+                {
+                    Success = false,
+                    Message = $"Failed to reach Deluge JSON-RPC at {baseUrl} (HTTP {(int)resp.StatusCode}).",
+                });
             }
 
             using var probe = await http.GetAsync(baseUrl, HttpCompletionOption.ResponseHeadersRead, testToken);

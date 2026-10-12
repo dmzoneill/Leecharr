@@ -555,6 +555,122 @@ public class DownloadClientControllerTest
     }
 
     [Test]
+    public async Task Test_Deluge_WhenCheckSessionFalseWithPassword_ReturnsFailure()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            if (requests.Count == 1)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":true,\"error\":null,\"id\":1}", System.Text.Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":false,\"error\":null,\"id\":1}", System.Text.Encoding.UTF8, "application/json"),
+            };
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var clientDef = new DownloadClientDefinition
+        {
+            Id = 3,
+            Name = "DelugeAuth",
+            ClientType = "Deluge",
+            Host = "localhost",
+            Port = 8112,
+            Password = "wrongpassword",
+            Enable = true,
+        };
+        this.repository.Get(3).Returns(clientDef);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient);
+        var result = await controller.Test(3);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as DownloadClientTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("Invalid password or session");
+    }
+
+    [Test]
+    public async Task Test_QBittorrent_WhenWebApiVersionMissing_ReturnsFailureWithoutGenericProbe()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            if (req.RequestUri!.AbsolutePath == "/api/v2/app/webapiVersion")
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            throw new InvalidOperationException("Unexpected request during qBittorrent connection test.");
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var clientDef = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "qBit",
+            ClientType = "qBittorrent",
+            Host = "localhost",
+            Port = 8080,
+            Enable = true,
+        };
+        this.repository.Get(1).Returns(clientDef);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient);
+        var result = await controller.Test(1);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as DownloadClientTestResult;
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("Failed to reach qBittorrent WebAPI");
+        requests.Should().HaveCount(1);
+    }
+
+    [Test]
+    public async Task Test_Transmission_WhenRpcEndpointMissing_ReturnsFailureWithoutGenericProbe()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var clientDef = new DownloadClientDefinition
+        {
+            Id = 2,
+            Name = "Trans",
+            ClientType = "Transmission",
+            Host = "localhost",
+            Port = 9091,
+            Enable = true,
+        };
+        this.repository.Get(2).Returns(clientDef);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient);
+        var result = await controller.Test(2);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as DownloadClientTestResult;
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("Failed to reach Transmission RPC");
+        requests.Should().HaveCount(1);
+    }
+
+    [Test]
     public async Task QueryRemoteClientItemsAsync_Deluge_WithCredentials_AuthenticatesAndReturnsItems()
     {
         var requests = new List<HttpRequestMessage>();
