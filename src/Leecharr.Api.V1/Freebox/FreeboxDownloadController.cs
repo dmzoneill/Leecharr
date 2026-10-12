@@ -44,6 +44,9 @@ public class FreeboxLoginSessionRequest
 [ApiController]
 public class FreeboxDownloadController : ControllerBase
 {
+    private const string MissingDownloadPayloadError = "Missing download URL or file";
+    private const string FailedToAddDownloadError = "Failed to add download";
+
     private static readonly RpcSessionStore AuthenticatedSessions = new();
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
     private static readonly object LoginChallengeLock = new();
@@ -336,24 +339,28 @@ public class FreeboxDownloadController : ControllerBase
             }
         }
 
-        var addedId = 0;
+        var hasFileUpload = this.Request.HasFormContentType && this.Request.Form.Files.Count > 0;
+        if (string.IsNullOrWhiteSpace(download_url) && !hasFileUpload)
+        {
+            return this.FreeboxDownloadAddError(MissingDownloadPayloadError, "invalid_argument");
+        }
+
+        Torrent added = null;
         if (!string.IsNullOrWhiteSpace(download_url))
         {
             if (download_url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
             {
-                var added = await this.torrentService.AddFromMagnetAsync(download_url, null, effectiveDest, false);
-                addedId = added?.Id ?? 0;
+                added = await this.torrentService.AddFromMagnetAsync(download_url, null, effectiveDest, false);
             }
             else
             {
                 var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
                 var bytes = await this.safeHttpClientService.DownloadBytesAsync(download_url, maxSizeBytes: maxTorrentBytes);
                 var parsed = this.torrentFileParser.Parse(bytes);
-                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, effectiveDest, false, bytes);
-                addedId = added?.Id ?? 0;
+                added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, effectiveDest, false, bytes);
             }
         }
-        else if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
+        else if (hasFileUpload)
         {
             var file = this.Request.Form.Files[0];
             var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
@@ -371,14 +378,28 @@ public class FreeboxDownloadController : ControllerBase
 
             var bytes = ms.ToArray();
             var parsed = this.torrentFileParser.Parse(bytes);
-            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, effectiveDest, false, bytes);
-            addedId = added?.Id ?? 0;
+            added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, effectiveDest, false, bytes);
+        }
+
+        if (added == null || added.Id <= 0)
+        {
+            return this.FreeboxDownloadAddError(FailedToAddDownloadError, "download_add_failed");
         }
 
         return this.Ok(new
         {
             success = true,
-            result = new { id = addedId },
+            result = new { id = added.Id },
+        });
+    }
+
+    private IActionResult FreeboxDownloadAddError(string message, string errorCode)
+    {
+        return this.Ok(new
+        {
+            success = false,
+            msg = message,
+            error_code = errorCode,
         });
     }
 

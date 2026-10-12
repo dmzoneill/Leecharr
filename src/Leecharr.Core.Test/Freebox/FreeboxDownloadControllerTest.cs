@@ -551,6 +551,38 @@ public class FreeboxDownloadControllerTest
     }
 
     [Test]
+    public async Task AddDownload_WithoutUrlOrFile_ReturnsFailureResponse()
+    {
+        var result = await this.controller.AddDownload(null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+
+        doc.RootElement.GetProperty("success").GetBoolean().Should().BeFalse();
+        doc.RootElement.GetProperty("msg").GetString().Should().Be("Missing download URL or file");
+        doc.RootElement.GetProperty("error_code").GetString().Should().Be("invalid_argument");
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task AddDownload_WhenTorrentServiceReturnsNull_ReturnsFailureResponse()
+    {
+        var magnetUri = "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=Fail";
+        this.torrentService.AddFromMagnetAsync(magnetUri, null, null, false).Returns((Torrent)null!);
+
+        var result = await this.controller.AddDownload(magnetUri, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+
+        doc.RootElement.GetProperty("success").GetBoolean().Should().BeFalse();
+        doc.RootElement.GetProperty("msg").GetString().Should().Be("Failed to add download");
+        doc.RootElement.GetProperty("error_code").GetString().Should().Be("download_add_failed");
+    }
+
+    [Test]
     public async Task DeleteDownload_WhenNotAuthenticated_ReturnsUnauthorized()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
