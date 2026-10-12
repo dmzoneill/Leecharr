@@ -87,6 +87,9 @@ public class DiskProvider : IDiskProvider
 
         DriveInfo bestMatch = null;
         var longestMatchLength = -1;
+        var pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
 
         var normalizedFullPath = fullPath;
         if (!normalizedFullPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
@@ -121,8 +124,8 @@ public class DiskProvider : IDiskProvider
                 mountPath += Path.DirectorySeparatorChar;
             }
 
-            if (normalizedFullPath.StartsWith(mountPath, StringComparison.OrdinalIgnoreCase) ||
-                fullPath.Equals(drive.Name.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+            if (normalizedFullPath.StartsWith(mountPath, pathComparison) ||
+                fullPath.Equals(drive.Name.TrimEnd(Path.DirectorySeparatorChar), pathComparison))
             {
                 if (mountPath.Length > longestMatchLength)
                 {
