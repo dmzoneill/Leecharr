@@ -291,22 +291,12 @@ public class FreeboxDownloadController : ControllerBase
                 tx_bytes = t.Uploaded,
                 rx_rate = t.DownloadSpeed,
                 tx_rate = t.UploadSpeed,
-                status = t.Status switch
-                {
-                    TorrentStatus.Downloading => "downloading",
-                    TorrentStatus.Seeding => "seeding",
-                    TorrentStatus.Completed => "done",
-                    TorrentStatus.Checking => "checking",
-                    TorrentStatus.Paused => "stopped",
-                    TorrentStatus.Stopped => isDone ? "done" : "stopped",
-                    TorrentStatus.Error => "error",
-                    _ => "queued",
-                },
+                status = MapDownloadStatus(t.Status, isDone),
                 type = "bt",
                 queue_pos = t.QueuePosition,
                 io_priority = "normal",
                 stop_ratio = (int)(t.TargetRatio * 100),
-                error = "none",
+                error = MapDownloadError(t),
                 created_ts = t.DateAdded != default ? t.DateAdded.ToUnixTimeSecondsAsUtc() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 eta = t.Eta,
             };
@@ -519,6 +509,34 @@ public class FreeboxDownloadController : ControllerBase
         }
 
         return false;
+    }
+
+    private static string MapDownloadStatus(TorrentStatus status, bool isDone)
+    {
+        return status switch
+        {
+            TorrentStatus.Downloading => "downloading",
+            TorrentStatus.Seeding => "seeding",
+            TorrentStatus.Completed => "done",
+            TorrentStatus.Checking => "checking",
+            TorrentStatus.QueuedForChecking => "checking",
+            TorrentStatus.Paused => "stopped",
+            TorrentStatus.Stopped => isDone ? "done" : "stopped",
+            TorrentStatus.Error => "error",
+            TorrentStatus.Stalled => "retry",
+            TorrentStatus.Queued => "queued",
+            _ => "queued",
+        };
+    }
+
+    private static string MapDownloadError(Torrent torrent)
+    {
+        if (!string.IsNullOrWhiteSpace(torrent.ErrorMessage))
+        {
+            return torrent.ErrorMessage;
+        }
+
+        return torrent.Status == TorrentStatus.Error ? "error" : "none";
     }
 
     private string IssueLoginChallenge()

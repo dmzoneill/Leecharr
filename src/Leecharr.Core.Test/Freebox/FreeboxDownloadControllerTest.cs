@@ -277,6 +277,8 @@ public class FreeboxDownloadControllerTest
     [TestCase(TorrentStatus.Stopped, "stopped", 0.4, 4000L)]
     [TestCase(TorrentStatus.Error, "error", 0.0, 0L)]
     [TestCase(TorrentStatus.Queued, "queued", 0.0, 0L)]
+    [TestCase(TorrentStatus.Stalled, "retry", 0.3, 3000L)]
+    [TestCase(TorrentStatus.QueuedForChecking, "checking", 0.0, 0L)]
     public void GetDownloads_MapsAllTorrentStatusesAndProgressCalculations(
         TorrentStatus status,
         string expectedStatus,
@@ -331,7 +333,8 @@ public class FreeboxDownloadControllerTest
         item.GetProperty("queue_pos").GetInt32().Should().Be(2);
         item.GetProperty("stop_ratio").GetInt32().Should().Be(200);
         item.GetProperty("eta").GetInt32().Should().Be(120);
-        item.GetProperty("error").GetString().Should().Be("none");
+        var expectedError = status == TorrentStatus.Error ? "error" : "none";
+        item.GetProperty("error").GetString().Should().Be(expectedError);
         item.GetProperty("created_ts").GetInt64().Should().Be(new DateTime(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc).ToUnixTimeSecondsAsUtc());
 
         var b64Path = item.GetProperty("download_dir").GetString();
@@ -365,6 +368,33 @@ public class FreeboxDownloadControllerTest
 
         item.GetProperty("created_ts").GetInt64().Should().Be(stored.ToUnixTimeSecondsAsUtc());
         item.GetProperty("created_ts").GetInt64().Should().Be(1784109600L);
+    }
+
+    [Test]
+    public void GetDownloads_WhenTorrentHasErrorMessage_ReturnsMessageInErrorField()
+    {
+        var torrents = new List<Torrent>
+        {
+            new()
+            {
+                Id = 103,
+                Name = "Failed_Torrent",
+                Status = TorrentStatus.Error,
+                ErrorMessage = "tracker unreachable",
+            },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = this.controller.GetDownloads();
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var item = doc.RootElement.GetProperty("result")[0];
+        item.GetProperty("status").GetString().Should().Be("error");
+        item.GetProperty("error").GetString().Should().Be("tracker unreachable");
     }
 
     [Test]
