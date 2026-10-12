@@ -16,6 +16,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Tags;
 using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Torrents;
@@ -41,6 +42,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     private readonly ITorrentLogService torrentLogService;
     private readonly ISpeedSchedulerService speedSchedulerService;
     private readonly ITorrentProgressMilestoneService torrentProgressMilestoneService;
+    private readonly ITagRepository tagRepository;
     private readonly Logger logger;
 
     public TorrentService(
@@ -57,7 +59,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         IAppFolderInfo appFolderInfo = null,
         ITorrentLogService torrentLogService = null,
         ISpeedSchedulerService speedSchedulerService = null,
-        ITorrentProgressMilestoneService torrentProgressMilestoneService = null)
+        ITorrentProgressMilestoneService torrentProgressMilestoneService = null,
+        ITagRepository tagRepository = null)
     {
         this.torrentRepository = torrentRepository;
         this.fileRepository = fileRepository;
@@ -73,6 +76,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         this.torrentLogService = torrentLogService;
         this.speedSchedulerService = speedSchedulerService;
         this.torrentProgressMilestoneService = torrentProgressMilestoneService;
+        this.tagRepository = tagRepository;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -96,7 +100,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             context?.AppFolderInfo,
             context?.TorrentLogService,
             context?.SpeedSchedulerService,
-            context?.TorrentProgressMilestoneService)
+            context?.TorrentProgressMilestoneService,
+            context?.TagRepository)
     {
     }
 
@@ -2017,8 +2022,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             ? this.categoryService.GetByName(torrent.Category)
             : null;
         var categoryLimit = cat?.DefaultDownloadLimit ?? 0;
+        var tagPolicy = TagEffectivePolicy.Aggregate(this.GetTagsForTorrent(torrent));
+        var torrentOrTagLimit = torrent.DownloadLimit > 0 ? torrent.DownloadLimit : tagPolicy.DownloadLimitKbps;
 
-        return this.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, categoryLimit);
+        return this.ResolveEffectiveDownloadLimit(torrentOrTagLimit, categoryLimit);
     }
 
     public int GetEffectiveUploadLimit(Torrent torrent)
@@ -2032,8 +2039,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             ? this.categoryService.GetByName(torrent.Category)
             : null;
         var categoryLimit = cat?.DefaultUploadLimit ?? 0;
+        var tagPolicy = TagEffectivePolicy.Aggregate(this.GetTagsForTorrent(torrent));
+        var torrentOrTagLimit = torrent.UploadLimit > 0 ? torrent.UploadLimit : tagPolicy.UploadLimitKbps;
 
-        return this.ResolveEffectiveUploadLimit(torrent.UploadLimit, categoryLimit);
+        return this.ResolveEffectiveUploadLimit(torrentOrTagLimit, categoryLimit);
     }
 
     public double GetEffectiveTargetRatio(Torrent torrent)
@@ -2058,6 +2067,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         {
             var globalRatio = this.configService?.GlobalSeedRatioLimit ?? 0;
             return globalRatio > 0 ? globalRatio : TorrentShareLimits.ApiNoRatioLimit;
+        }
+
+        var tagPolicy = TagEffectivePolicy.Aggregate(this.GetTagsForTorrent(torrent));
+        if (tagPolicy.MinSeedRatio > 0)
+        {
+            return tagPolicy.MinSeedRatio;
         }
 
         var cat = !string.IsNullOrWhiteSpace(torrent.Category)
@@ -2096,6 +2111,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             return TorrentShareLimits.ApiNoMinuteLimit;
         }
 
+        var tagPolicy = TagEffectivePolicy.Aggregate(this.GetTagsForTorrent(torrent));
+        if (tagPolicy.MinSeedTimeMinutes > 0)
+        {
+            return tagPolicy.MinSeedTimeMinutes;
+        }
+
         var cat = !string.IsNullOrWhiteSpace(torrent.Category)
             ? this.categoryService?.GetByName(torrent.Category)
             : null;
@@ -2106,6 +2127,26 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
 
         return TorrentShareLimits.ApiNoMinuteLimit;
+    }
+
+    private IEnumerable<Tag> GetTagsForTorrent(Torrent torrent)
+    {
+        if (this.tagRepository == null || torrent?.TagIds == null || torrent.TagIds.Count == 0)
+        {
+            return Array.Empty<Tag>();
+        }
+
+        var tags = new List<Tag>(torrent.TagIds.Count);
+        foreach (var tagId in torrent.TagIds)
+        {
+            var tag = this.tagRepository.Get(tagId);
+            if (tag != null)
+            {
+                tags.Add(tag);
+            }
+        }
+
+        return tags;
     }
 
     public int GetEffectiveInactiveSeedingTimeMinutes(Torrent torrent)

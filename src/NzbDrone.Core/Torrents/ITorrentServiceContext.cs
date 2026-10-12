@@ -6,6 +6,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.MediaEnrichment;
+using NzbDrone.Core.Tags;
 using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Torrents;
@@ -31,6 +32,8 @@ public interface ITorrentServiceContext
     ISpeedSchedulerService SpeedSchedulerService { get; }
 
     ITorrentProgressMilestoneService TorrentProgressMilestoneService { get; }
+
+    ITagRepository TagRepository { get; }
 }
 
 public class TorrentServiceContext : ITorrentServiceContext
@@ -45,7 +48,8 @@ public class TorrentServiceContext : ITorrentServiceContext
         IAppFolderInfo appFolderInfo = null,
         ITorrentLogService torrentLogService = null,
         ISpeedSchedulerService speedSchedulerService = null,
-        ITorrentProgressMilestoneService torrentProgressMilestoneService = null)
+        ITorrentProgressMilestoneService torrentProgressMilestoneService = null,
+        ITagRepository tagRepository = null)
     {
         this.CategoryService = categoryService;
         this.MediaEnrichmentService = mediaEnrichmentService;
@@ -57,6 +61,7 @@ public class TorrentServiceContext : ITorrentServiceContext
         this.TorrentLogService = torrentLogService;
         this.SpeedSchedulerService = speedSchedulerService;
         this.TorrentProgressMilestoneService = torrentProgressMilestoneService;
+        this.TagRepository = tagRepository;
     }
 
     public ICategoryService CategoryService { get; }
@@ -78,4 +83,6 @@ public class TorrentServiceContext : ITorrentServiceContext
     public ISpeedSchedulerService SpeedSchedulerService { get; }
 
     public ITorrentProgressMilestoneService TorrentProgressMilestoneService { get; }
+
+    public ITagRepository TagRepository { get; }
 }
