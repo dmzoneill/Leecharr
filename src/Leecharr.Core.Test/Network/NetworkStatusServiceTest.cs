@@ -2,7 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -11,6 +14,7 @@ using NUnit.Framework;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.PortMapping;
 
 namespace Leecharr.Core.Test.Network;
@@ -230,5 +234,88 @@ public class NetworkStatusServiceTest
 
         status.Should().NotBeNull();
         status.VpnKillSwitchActive.Should().BeFalse();
+    }
+
+    [Test]
+    public void GetStatus_WhenBindInterfaceIsLiteralIp_UsesThatForLocalIp()
+    {
+        this.configService.BindInterface.Returns("203.0.113.50");
+        this.natPmpPortMapperService.ActiveMappings.Returns(new List<ActivePortMapping>());
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
+
+        var status = service.GetStatus();
+
+        status.LocalIp.Should().Be("203.0.113.50");
+        status.ActiveInterface.Should().Be("203.0.113.50");
+    }
+
+    [Test]
+    public void GetLocalAddresses_IncludesUsableIpv6WhenPresent()
+    {
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
+
+        var addresses = service.GetLocalAddresses();
+
+        addresses.Should().OnlyContain(a =>
+            IPAddress.TryParse(a, out var ip) &&
+            (ip.AddressFamily == AddressFamily.InterNetwork || ip.AddressFamily == AddressFamily.InterNetworkV6));
+
+        var hasGlobalIpv6 = NetworkInterface.GetAllNetworkInterfaces()
+            .Any(ni => ni.OperationalStatus == OperationalStatus.Up &&
+                       ni.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
+                       ni.GetIPProperties().UnicastAddresses.Any(u =>
+                           u.Address.AddressFamily == AddressFamily.InterNetworkV6 &&
+                           !u.Address.IsIPv6LinkLocal &&
+                           !u.Address.IsIPv6SiteLocal &&
+                           !u.Address.IsIPv6UniqueLocal));
+
+        if (hasGlobalIpv6)
+        {
+            addresses.Should().Contain(a => IPAddress.TryParse(a, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6);
+        }
+    }
+
+    [Test]
+    public void GetStatus_WhenBoundToSpecificInterface_LocalIpMatchesInterfaceAddress()
+    {
+        var nic = NetworkInterface.GetAllNetworkInterfaces()
+            .FirstOrDefault(n => n.OperationalStatus == OperationalStatus.Up &&
+                                 n.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
+                                 (ManagedSocketBindingProvider.GetInterfaceIp(n.Name, AddressFamily.InterNetwork) != null ||
+                                  ManagedSocketBindingProvider.GetInterfaceIp(n.Name, AddressFamily.InterNetworkV6) != null));
+
+        if (nic == null)
+        {
+            Assert.Ignore("No suitable network interface for bind test");
+        }
+
+        this.configService.BindInterface.Returns(nic.Name);
+        this.natPmpPortMapperService.ActiveMappings.Returns(new List<ActivePortMapping>());
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
+
+        var status = service.GetStatus();
+        var expected = ManagedSocketBindingProvider.GetInterfaceIp(nic.Name, AddressFamily.InterNetwork)
+            ?? ManagedSocketBindingProvider.GetInterfaceIp(nic.Name, AddressFamily.InterNetworkV6);
+
+        expected.Should().NotBeNull();
+        status.LocalIp.Should().Be(expected!.ToString());
+        status.LocalAddresses.Should().Contain(status.LocalIp);
     }
 }
