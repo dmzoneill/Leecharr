@@ -472,6 +472,53 @@ public class FloodApiControllerTest
     }
 
     [Test]
+    public void BuildTorrentListDiffChange_WhenTorrentRemoved_EmitsRemoveOperation()
+    {
+        var hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var previous = new Dictionary<string, object>
+        {
+            [hash] = new { name = "Old Torrent" },
+        };
+        var current = new Dictionary<string, object>();
+
+        var patch = FloodApiController.BuildTorrentListDiffChange(previous, current);
+
+        patch.Should().ContainSingle();
+        patch[0]["op"].Should().Be("remove");
+        patch[0]["path"].Should().Be("/" + hash);
+    }
+
+    [Test]
+    public void BuildTorrentListDiffChange_WhenTorrentAdded_EmitsAddOperation()
+    {
+        var hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        var previous = new Dictionary<string, object>();
+        var current = new Dictionary<string, object>
+        {
+            [hash] = new { name = "New Torrent" },
+        };
+
+        var patch = FloodApiController.BuildTorrentListDiffChange(previous, current);
+
+        patch.Should().ContainSingle();
+        patch[0]["op"].Should().Be("add");
+        patch[0]["path"].Should().Be("/" + hash);
+    }
+
+    [Test]
+    public void BuildTorrentListDiffChange_WhenUnchanged_ReturnsEmptyPatch()
+    {
+        var hash = "cccccccccccccccccccccccccccccccccccccccc";
+        var torrent = new { name = "Same Torrent", progress = 1.0 };
+        var previous = new Dictionary<string, object> { [hash] = torrent };
+        var current = new Dictionary<string, object> { [hash] = torrent };
+
+        var patch = FloodApiController.BuildTorrentListDiffChange(previous, current);
+
+        patch.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task AddFiles_WhenMultipartFileExceedsMaxSize_ReturnsBadRequest()
     {
         this.configService.MaxTorrentFileSizeBytes.Returns(100);
