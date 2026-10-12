@@ -2077,6 +2077,43 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetTorrentsInfo_UsesTaskDownloadSpeed_ForEta_WhenDatabaseSpeedIsZero()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Active Download",
+            InfoHash = "hash1",
+            Status = TorrentStatus.Downloading,
+            TotalSize = 100_000_000,
+            Downloaded = 20_000_000,
+            Progress = 0.2,
+            DownloadSpeed = 0,
+            Eta = 0,
+        };
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.DownloadSpeed.Returns(10_000_000L);
+        downloadTask.Progress.Returns(0.2);
+        downloadTask.DownloadedBytes.Returns(20_000_000L);
+        downloadTask.TotalBytes.Returns(100_000_000L);
+        downloadTask.Status.Returns(TorrentStatus.Downloading);
+        this.downloadEngine.GetTask(1).Returns(downloadTask);
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var actionResult = this.controller.GetTorrentsInfo();
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<IEnumerable<object>>().Subject.ToList();
+
+        list.Count.Should().Be(1);
+        var json = JsonSerializer.Serialize(list[0]);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("dlspeed").GetInt64().Should().Be(10_000_000);
+        doc.RootElement.GetProperty("eta").GetInt64().Should().Be(8);
+    }
+
+    [Test]
     public void GetTorrentsInfo_WithTag_FiltersMatchingTorrents()
     {
         var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Label = "movies, 4k" };
