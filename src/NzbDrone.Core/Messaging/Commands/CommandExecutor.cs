@@ -27,13 +27,13 @@ public class CommandExecutor : ICommandExecutor
     private static readonly Type UnknownCommandType = typeof(UnknownCommandTypeSentinel);
 
     private readonly IServiceFactory serviceFactory;
-    private readonly IBasicRepository<CommandModel> repository;
+    private readonly ICommandRepository repository;
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
 
     public CommandExecutor(
         IServiceFactory serviceFactory,
-        IBasicRepository<CommandModel> repository,
+        ICommandRepository repository,
         IEventAggregator eventAggregator = null)
     {
         this.serviceFactory = serviceFactory;
@@ -62,6 +62,34 @@ public class CommandExecutor : ICommandExecutor
                 this.logger.Info("Command {0} (ID: {1}) was cancelled, skipping execution", command.Name, command.Id);
                 return;
             }
+
+            var startedAt = DateTime.UtcNow;
+            if (!this.repository.TryClaimQueued(command.Id, startedAt))
+            {
+                var latest = this.repository.Get(command.Id);
+                if (latest?.Status == CommandStatus.Cancelled)
+                {
+                    this.logger.Info("Command {0} (ID: {1}) was cancelled, skipping execution", command.Name, command.Id);
+                }
+                else
+                {
+                    this.logger.Warn(
+                        "Skipping command {0} (ID: {1}); could not claim queued row (status: {2})",
+                        command.Name,
+                        command.Id,
+                        latest?.Status);
+                }
+
+                return;
+            }
+
+            command.Status = CommandStatus.Running;
+            command.StartedAt = startedAt;
+        }
+        else
+        {
+            command.Status = CommandStatus.Running;
+            command.StartedAt = DateTime.UtcNow;
         }
 
         this.logger.Trace("Executing {0}", command.Name);
@@ -70,10 +98,6 @@ public class CommandExecutor : ICommandExecutor
 
         try
         {
-            command.Status = CommandStatus.Running;
-            command.StartedAt = DateTime.UtcNow;
-            this.SafeUpdate(command);
-
             var commandType = FindCommandType(command.Name);
             if (commandType == null)
             {

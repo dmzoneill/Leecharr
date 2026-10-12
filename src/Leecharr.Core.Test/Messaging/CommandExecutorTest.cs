@@ -88,7 +88,7 @@ public class SampleCancellingAsyncCommandHandler : IExecuteAsync<SampleAsyncTest
 public class CommandExecutorTest
 {
     private IServiceFactory serviceFactory = null!;
-    private IBasicRepository<CommandModel> repository = null!;
+    private ICommandRepository repository = null!;
     private IEventAggregator eventAggregator = null!;
     private CommandExecutor executor = null!;
 
@@ -96,7 +96,8 @@ public class CommandExecutorTest
     public void SetUp()
     {
         this.serviceFactory = Substitute.For<IServiceFactory>();
-        this.repository = Substitute.For<IBasicRepository<CommandModel>>();
+        this.repository = Substitute.For<ICommandRepository>();
+        this.repository.TryClaimQueued(Arg.Any<int>(), Arg.Any<DateTime>()).Returns(true);
         this.eventAggregator = Substitute.For<IEventAggregator>();
         this.executor = new CommandExecutor(this.serviceFactory, this.repository, this.eventAggregator);
     }
@@ -149,7 +150,31 @@ public class CommandExecutorTest
         this.executor.Execute(commandModel);
 
         handler.Executed.Should().BeTrue();
-        statusHistory.Should().ContainInOrder(CommandStatus.Running, CommandStatus.Completed);
+        this.repository.Received(1).TryClaimQueued(1, Arg.Any<DateTime>());
+        statusHistory.Should().ContainSingle().Which.Should().Be(CommandStatus.Completed);
+    }
+
+    [Test]
+    public void Execute_WhenClaimFails_SkipsHandler()
+    {
+        var commandModel = new CommandModel
+        {
+            Id = 70,
+            Name = "SampleTest",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        var handler = new SampleTestCommandHandler();
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
+        this.repository.TryClaimQueued(70, Arg.Any<DateTime>()).Returns(false);
+        this.repository.Get(70).Returns(commandModel);
+
+        this.executor.Execute(commandModel);
+
+        handler.Executed.Should().BeFalse();
+        commandModel.Status.Should().Be(CommandStatus.Queued);
+        this.repository.DidNotReceive().Update(Arg.Any<CommandModel>());
     }
 
     [Test]

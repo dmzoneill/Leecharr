@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using Dapper;
 using NzbDrone.Core.Datastore;
 
@@ -116,6 +117,40 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
                 throw;
             }
         });
+    }
+
+    public bool TryClaimQueued(int id, DateTime startedAt)
+    {
+        if (id == 0)
+        {
+            return false;
+        }
+
+        const int maxRetries = 3;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var rows = this.ExecuteWithRetry(connection =>
+                    connection.Execute(
+                        @"UPDATE ""Commands"" SET ""Status"" = @Running, ""StartedAt"" = @StartedAt WHERE ""Id"" = @Id AND ""Status"" = @Queued",
+                        new
+                        {
+                            Id = id,
+                            Running = (int)CommandStatus.Running,
+                            Queued = (int)CommandStatus.Queued,
+                            StartedAt = startedAt,
+                        }));
+
+                return rows > 0;
+            }
+            catch (Exception) when (attempt < maxRetries)
+            {
+                Thread.Sleep(50 * attempt);
+            }
+        }
+
+        return false;
     }
 
     private static CommandModel FindExistingOnConnection(
