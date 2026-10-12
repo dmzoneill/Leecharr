@@ -138,8 +138,12 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
             normalizedDest = targetDir;
         }
 
-        var existingFiles = this.GetAllFiles(normalizedDest);
-        var existingDirectories = this.GetAllDirectories(normalizedDest);
+        if (!this.TryCaptureDestinationSnapshot(normalizedDest, out var existingFiles, out var existingDirectories))
+        {
+            this.logger.Warn("Unable to snapshot destination '{0}' before SharpCompress extraction; aborting.", normalizedDest);
+            return false;
+        }
+
         var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
         async Task<bool> ExtractActionAsync()
@@ -214,11 +218,9 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                             await entryStream.CopyToAsync(fileStream, this.bufferSize, cancellationToken);
                         }
 
-                        if (this.diskProvider.FileExists(targetFilePath))
+                        if (!this.TryBackupExistingFile(targetFilePath, backedUpOriginals))
                         {
-                            var backupPath = targetFilePath + ".leecharr.bak";
-                            this.diskProvider.MoveFile(targetFilePath, backupPath, overwrite: true);
-                            backedUpOriginals[targetFilePath] = backupPath;
+                            throw new IOException($"Failed to back up pre-existing file '{targetFilePath}' before overwrite.");
                         }
 
                         this.diskProvider.MoveFile(tempFilePath, targetFilePath, overwrite: true);
@@ -242,13 +244,13 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                 }
                 catch (OperationCanceledException)
                 {
-                    this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories, backedUpOriginals);
+                    this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories, backedUpOriginals, snapshotReliable: true);
                     this.logger.Warn("Extraction of '{0}' was canceled.", archivePath);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories, backedUpOriginals);
+                    this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories, backedUpOriginals, snapshotReliable: true);
                     lastException = ex;
                     if (passwordsToTry.Count > 1)
                     {
@@ -268,31 +270,37 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         return await ExtractActionAsync();
     }
 
-    private HashSet<string> GetAllFiles(string path)
+    private bool TryCaptureDestinationSnapshot(string path, out HashSet<string> files, out HashSet<string> directories)
     {
+        files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
         {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return true;
         }
 
         try
         {
-            return new HashSet<string>(this.diskProvider.GetFiles(path, recursive: true), StringComparer.OrdinalIgnoreCase);
+            files = new HashSet<string>(this.diskProvider.GetFiles(path, recursive: true), StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception ex)
         {
-            this.logger.Trace(ex, "Failed to snapshot files in '{0}'", path);
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            this.logger.Warn(ex, "Failed to snapshot files in '{0}' before extraction", path);
+            return false;
         }
+
+        return this.TrySnapshotDirectories(path, directories);
     }
 
-    private HashSet<string> GetAllDirectories(string path)
+    private bool TrySnapshotDirectories(string path, HashSet<string> directories)
     {
-        var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
         {
-            return dirs;
+            return true;
         }
+
+        var reliable = true;
 
         void Recurse(string current)
         {
@@ -300,7 +308,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
             {
                 foreach (var dir in this.diskProvider.GetDirectories(current))
                 {
-                    if (dirs.Add(dir))
+                    if (directories.Add(dir))
                     {
                         Recurse(dir);
                     }
@@ -308,12 +316,44 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
             }
             catch (Exception ex)
             {
-                this.logger.Trace(ex, "Failed to recurse into directory '{0}' during snapshot", current);
+                this.logger.Warn(ex, "Failed to recurse into directory '{0}' during snapshot", current);
+                reliable = false;
             }
         }
 
         Recurse(path);
-        return dirs;
+        return reliable;
+    }
+
+    private bool TryBackupExistingFile(string targetFilePath, Dictionary<string, string> backedUpOriginals)
+    {
+        if (!this.diskProvider.FileExists(targetFilePath))
+        {
+            return true;
+        }
+
+        if (backedUpOriginals.ContainsKey(targetFilePath))
+        {
+            return true;
+        }
+
+        var backupPath = targetFilePath + ".leecharr.bak";
+        if (this.diskProvider.FileExists(backupPath))
+        {
+            backupPath = targetFilePath + ".leecharr.bak." + Guid.NewGuid().ToString("N");
+        }
+
+        try
+        {
+            this.diskProvider.MoveFile(targetFilePath, backupPath, overwrite: false);
+            backedUpOriginals[targetFilePath] = backupPath;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to back up pre-existing file '{0}' before overwrite", targetFilePath);
+            return false;
+        }
     }
 
     private void DeleteBackupFiles(IEnumerable<string> backupPaths)
@@ -339,38 +379,52 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         }
     }
 
+    private void RestoreBackedUpOriginals(Dictionary<string, string> backedUpOriginals)
+    {
+        if (backedUpOriginals == null)
+        {
+            return;
+        }
+
+        foreach (var backup in backedUpOriginals)
+        {
+            try
+            {
+                if (this.diskProvider.FileExists(backup.Key))
+                {
+                    this.diskProvider.DeleteFile(backup.Key);
+                }
+
+                if (this.diskProvider.FileExists(backup.Value))
+                {
+                    this.diskProvider.MoveFile(backup.Value, backup.Key, overwrite: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to restore pre-existing file from backup: {0}", backup.Key);
+            }
+        }
+    }
+
     private void RollbackExtractedFiles(
         string targetDir,
         HashSet<string> existingFiles,
         HashSet<string> existingDirectories,
-        Dictionary<string, string> backedUpOriginals)
+        Dictionary<string, string> backedUpOriginals,
+        bool snapshotReliable)
     {
         if (this.diskProvider == null)
         {
             return;
         }
 
-        if (backedUpOriginals != null)
-        {
-            foreach (var backup in backedUpOriginals)
-            {
-                try
-                {
-                    if (this.diskProvider.FileExists(backup.Key))
-                    {
-                        this.diskProvider.DeleteFile(backup.Key);
-                    }
+        this.RestoreBackedUpOriginals(backedUpOriginals);
 
-                    if (this.diskProvider.FileExists(backup.Value))
-                    {
-                        this.diskProvider.MoveFile(backup.Value, backup.Key, overwrite: true);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to restore pre-existing file from backup: {0}", backup.Key);
-                }
-            }
+        if (!snapshotReliable)
+        {
+            this.logger.Warn("Skipping partial-file cleanup in '{0}' because the pre-extraction snapshot was incomplete.", targetDir);
+            return;
         }
 
         try
@@ -399,10 +453,14 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                 }
             }
 
-            var currentDirectories = this.GetAllDirectories(targetDir)
-                .OrderByDescending(d => d.Length);
+            var currentDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!this.TrySnapshotDirectories(targetDir, currentDirectories))
+            {
+                this.logger.Warn("Skipping directory cleanup in '{0}' because the directory snapshot failed during rollback.", targetDir);
+                return;
+            }
 
-            foreach (var dir in currentDirectories)
+            foreach (var dir in currentDirectories.OrderByDescending(d => d.Length))
             {
                 if (!existingDirectories.Contains(dir))
                 {
