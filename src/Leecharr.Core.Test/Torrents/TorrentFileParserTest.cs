@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Linq;
 using System.Text;
 using FluentAssertions;
 using MonoTorrent.BEncoding;
@@ -412,7 +413,31 @@ public class TorrentFileParserTest
         parsed.Files.Should().Contain(f => f.Path == "Season 1/video.mp4" && f.Size == 100000);
         parsed.TotalSize.Should().Be(150000);
         parsed.PieceLength.Should().Be(16384);
-        parsed.PieceCount.Should().Be((int)Math.Ceiling(150000.0 / 16384));
+        parsed.UsesV2PieceLayout.Should().BeTrue();
+        parsed.PieceCount.Should().Be(
+            TorrentFileParser.CalculateFilePieceCount(50000, 16384)
+            + TorrentFileParser.CalculateFilePieceCount(100000, 16384));
+        var readme = parsed.Files.Single(f => f.Path == "readme.txt");
+        var video = parsed.Files.Single(f => f.Path == "Season 1/video.mp4");
+        var videoPieceCount = TorrentFileParser.CalculateFilePieceCount(100000, 16384);
+        video.ByteOffset.Should().Be(0);
+        readme.ByteOffset.Should().Be((long)videoPieceCount * 16384);
+    }
+
+    [Test]
+    public void Parse_WhenV2OnlyWithMultipleSmallFiles_SumsPerFilePieceCounts()
+    {
+        var pieceLength = 16384;
+        var bytes = CreateV2TorrentBytes((1, "a.bin"), (1, "b.bin"));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.UsesV2PieceLayout.Should().BeTrue();
+        parsed.PieceLength.Should().Be(pieceLength);
+        parsed.PieceCount.Should().Be(2);
+        parsed.Files.Should().HaveCount(2);
+        parsed.Files[0].ByteOffset.Should().Be(0);
+        parsed.Files[1].ByteOffset.Should().Be(pieceLength);
     }
 
     [Test]

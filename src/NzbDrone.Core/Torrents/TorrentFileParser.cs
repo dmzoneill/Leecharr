@@ -43,6 +43,11 @@ public class ParsedTorrent
     public List<List<string>> AnnounceList { get; set; }
 
     public List<ParsedTorrentFile> Files { get; set; }
+
+    /// <summary>
+    /// True for v2-only torrents (no v1 piece layer). Each file is piece-aligned per BEP 52.
+    /// </summary>
+    public bool UsesV2PieceLayout { get; set; }
 }
 
 public class ParsedTorrentFile
@@ -214,6 +219,8 @@ public class TorrentFileParser : ITorrentFileParser
 
             result.InfoHash = result.V1InfoHash ?? result.V2InfoHash;
 
+            result.UsesV2PieceLayout = isV2 && !hasV1Pieces;
+
             if (torrent.ContainsKey("creation date") && torrent["creation date"] is BNumber creationDateNum)
             {
                 result.CreationDate = DateTimeOffset.FromUnixTimeSeconds(creationDateNum.Value).UtcDateTime;
@@ -328,7 +335,15 @@ public class TorrentFileParser : ITorrentFileParser
             }
             else
             {
-                result.PieceCount = CalculatePieceCount(result.TotalSize, result.PieceLength);
+                if (result.UsesV2PieceLayout)
+                {
+                    AssignV2PieceAlignedLayout(result.Files, result.PieceLength);
+                    result.PieceCount = CalculateV2PieceCount(result.Files, result.PieceLength);
+                }
+                else
+                {
+                    result.PieceCount = CalculatePieceCount(result.TotalSize, result.PieceLength);
+                }
             }
 
             return result;
@@ -599,6 +614,43 @@ public class TorrentFileParser : ITorrentFileParser
         }
 
         return total;
+    }
+
+    public static int CalculateFilePieceCount(long fileSize, int pieceLength) => CalculatePieceCount(fileSize, pieceLength);
+
+    public static int CalculateV2PieceCount(IReadOnlyList<ParsedTorrentFile> files, int pieceLength)
+    {
+        if (files == null || files.Count == 0 || pieceLength <= 0)
+        {
+            return 0;
+        }
+
+        long totalPieces = 0;
+        foreach (var file in files)
+        {
+            totalPieces += CalculatePieceCount(file.Size, pieceLength);
+            if (totalPieces > int.MaxValue)
+            {
+                throw new InvalidTorrentFileException("Total file size exceeds maximum supported value.");
+            }
+        }
+
+        return (int)totalPieces;
+    }
+
+    private static void AssignV2PieceAlignedLayout(List<ParsedTorrentFile> files, int pieceLength)
+    {
+        if (files == null || files.Count == 0 || pieceLength <= 0)
+        {
+            return;
+        }
+
+        var globalPieceIndex = 0;
+        foreach (var file in files)
+        {
+            file.ByteOffset = (long)globalPieceIndex * pieceLength;
+            globalPieceIndex += CalculatePieceCount(file.Size, pieceLength);
+        }
     }
 
     private static int CalculatePieceCount(long totalSize, int pieceLength)
