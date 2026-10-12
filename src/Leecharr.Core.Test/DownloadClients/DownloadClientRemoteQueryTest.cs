@@ -94,6 +94,66 @@ public class DownloadClientRemoteQueryTest
     }
 
     [Test]
+    public async Task PauseTorrentAsync_DelugeRpcError_ReturnsFalse()
+    {
+        var rpcResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                "{\"error\":{\"message\":\"Unknown torrent\",\"code\":2},\"id\":1}",
+                Encoding.UTF8,
+                "application/json"),
+        };
+
+        var handler = new MockHttpMessageHandler(_ => rpcResponse);
+        using var httpClient = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Name = "Deluge",
+            ClientType = "Deluge",
+            Host = "127.0.0.1",
+            Port = 8112,
+        };
+
+        var result = await DownloadClientRemoteQuery.PauseTorrentAsync(
+            client,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            httpClient);
+
+        result.Should().BeFalse();
+        rpcResponse.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task PauseTorrentAsync_DelugeResultFalse_ReturnsFalse()
+    {
+        var rpcResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                "{\"result\":false,\"id\":1}",
+                Encoding.UTF8,
+                "application/json"),
+        };
+
+        var handler = new MockHttpMessageHandler(_ => rpcResponse);
+        using var httpClient = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Name = "Deluge",
+            ClientType = "Deluge",
+            Host = "127.0.0.1",
+            Port = 8112,
+        };
+
+        var result = await DownloadClientRemoteQuery.ResumeTorrentAsync(
+            client,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            httpClient);
+
+        result.Should().BeFalse();
+        rpcResponse.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
     public async Task PauseTorrentAsync_TransmissionRpcError_ReturnsFalse()
     {
         var rpcResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK)
