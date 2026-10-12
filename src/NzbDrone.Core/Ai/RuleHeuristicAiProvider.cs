@@ -225,13 +225,18 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 5. Quality
+        var teleSyncMatch = Regex.Match(working, @"(?i)\bTeleSync\b", RegexOptions.None, TimeSpan.FromSeconds(2));
         var qualityMatch = QualityRegex.Match(working);
         if (qualityMatch.Success && IsTrailingTsMediaExtensionMisparse(working, qualityMatch))
         {
             qualityMatch = Match.Empty;
         }
 
-        if (qualityMatch.Success)
+        if (teleSyncMatch.Success)
+        {
+            result.Quality = "TeleSync";
+        }
+        else if (qualityMatch.Success)
         {
             var qualityToken = qualityMatch.Groups["quality"].Value;
             if (qualityToken.Equals("CAM", StringComparison.OrdinalIgnoreCase)
@@ -311,7 +316,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         var groupMatch = ReleaseGroupRegex.Match(working);
         if (groupMatch.Success)
         {
-            result.ReleaseGroup = groupMatch.Groups["group"].Value;
+            result.ReleaseGroup = StripTrailingMediaExtensionFromReleaseGroup(groupMatch.Groups["group"].Value);
         }
 
         // 12. Clean Title Extraction
@@ -1295,5 +1300,23 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             "RUS" or "RUSSIAN" => "Russian",
             _ => token,
         };
+    }
+
+    private static string StripTrailingMediaExtensionFromReleaseGroup(string group)
+    {
+        if (string.IsNullOrWhiteSpace(group))
+        {
+            return group;
+        }
+
+        foreach (var ext in MediaExtensions)
+        {
+            if (group.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+            {
+                return group[..^ext.Length];
+            }
+        }
+
+        return group;
     }
 }

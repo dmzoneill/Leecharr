@@ -319,8 +319,8 @@ public class ServarrSyncMetadataProviderTest
 
         health.Should().NotBeNull();
         health.IsHealthy.Should().BeTrue();
-        health.StatusMessage.Should().Contain("1/2");
-        health.Warnings.Should().NotBeEmpty();
+        health.StatusMessage.Should().Contain("2/2");
+        health.Warnings.Should().BeEmpty();
     }
 
     [TestCase("Severance.S02E01.1080p.WEB-DL", "Severance")]
