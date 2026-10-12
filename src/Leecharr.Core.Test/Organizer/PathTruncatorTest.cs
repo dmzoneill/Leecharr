@@ -93,6 +93,16 @@ public class PathTruncatorTest
     }
 
     [Test]
+    public void TruncatePath_WhenShortDirectoriesHitFloor_StillRespectsMaxPathChars()
+    {
+        var path = "abcd/abcd/abcd/abcd/ab.mkv";
+        var result = this.truncator.TruncatePath(path, maxPathChars: 20, maxComponentBytes: 255);
+
+        result.Length.Should().BeLessThanOrEqualTo(20);
+        result.Should().EndWith(".mkv");
+    }
+
+    [Test]
     public void TruncatePath_WhenCutFallsOnSurrogatePair_DoesNotLeaveUnpairedSurrogate()
     {
         var emoji = char.ConvertFromUtf32(0x1F600);

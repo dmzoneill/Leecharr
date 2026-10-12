@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -190,25 +191,32 @@ public class PathTruncator : IPathTruncator
         }
         else
         {
-            // Truncate directory segments from deepest parent backwards
-            for (var i = segments.Count - 2; i >= 0 && excessChars > 0; i--)
-            {
-                var dir = segments[i];
-                var reduction = Math.Min(excessChars, Math.Max(0, dir.Length - 4));
-                if (reduction > 0)
-                {
-                    segments[i] = TruncatePrefixByCharCount(dir, dir.Length - reduction).TrimEnd(' ', '-', '.', '_');
-                    excessChars -= reduction;
-                }
-            }
-
-            if (excessChars > 0 && fileBase.Length > 1)
-            {
-                var newBaseLength = Math.Max(1, fileBase.Length - excessChars);
-                segments[^1] = TruncatePrefixByCharCount(fileBase, newBaseLength).TrimEnd(' ', '-', '.', '_') + fileExt;
-            }
+            ReducePathSegments(segments, ref excessChars, minDirectoryChars: 4, minFileBaseChars: 1);
         }
 
+        var result = BuildPathFromSegments(segments, isUnc, isAbsolute, normalized);
+        if (result.Length <= maxPathChars)
+        {
+            return result;
+        }
+
+        var remainingExcess = result.Length - maxPathChars;
+        ReducePathSegments(segments, ref remainingExcess, minDirectoryChars: 1, minFileBaseChars: 0);
+        result = BuildPathFromSegments(segments, isUnc, isAbsolute, normalized);
+        if (result.Length > maxPathChars)
+        {
+            result = TruncatePathToMaxLength(result, maxPathChars);
+        }
+
+        return result;
+    }
+
+    private static string BuildPathFromSegments(
+        List<string> segments,
+        bool isUnc,
+        bool isAbsolute,
+        string normalized)
+    {
         var result = string.Join('/', segments);
         if (isUnc)
         {
@@ -220,6 +228,61 @@ public class PathTruncator : IPathTruncator
         }
 
         return result;
+    }
+
+    private static void ReducePathSegments(
+        List<string> segments,
+        ref int excessChars,
+        int minDirectoryChars,
+        int minFileBaseChars)
+    {
+        if (excessChars <= 0 || segments.Count == 0)
+        {
+            return;
+        }
+
+        var fileName = segments[^1];
+        var fileBase = Path.GetFileNameWithoutExtension(fileName) ?? string.Empty;
+        var fileExt = Path.GetExtension(fileName) ?? string.Empty;
+
+        for (var i = segments.Count - 2; i >= 0 && excessChars > 0; i--)
+        {
+            var dir = segments[i];
+            var reduction = Math.Min(excessChars, Math.Max(0, dir.Length - minDirectoryChars));
+            if (reduction <= 0)
+            {
+                continue;
+            }
+
+            segments[i] = TruncatePrefixByCharCount(dir, dir.Length - reduction).TrimEnd(' ', '-', '.', '_');
+            excessChars -= reduction;
+        }
+
+        if (excessChars > 0 && fileBase.Length > minFileBaseChars)
+        {
+            var newBaseLength = Math.Max(minFileBaseChars, fileBase.Length - excessChars);
+            var truncatedBase = TruncatePrefixByCharCount(fileBase, newBaseLength).TrimEnd(' ', '-', '.', '_');
+            segments[^1] = truncatedBase + fileExt;
+            excessChars -= fileBase.Length - truncatedBase.Length;
+        }
+    }
+
+    private static string TruncatePathToMaxLength(string path, int maxPathChars)
+    {
+        if (path.Length <= maxPathChars)
+        {
+            return path;
+        }
+
+        var extension = Path.GetExtension(path) ?? string.Empty;
+        if (string.IsNullOrEmpty(extension) || extension.Length >= maxPathChars)
+        {
+            return TruncatePrefixByCharCount(path, maxPathChars);
+        }
+
+        var baseLength = maxPathChars - extension.Length;
+        var pathWithoutExtension = path.Substring(0, path.Length - extension.Length);
+        return TruncatePrefixByCharCount(pathWithoutExtension, baseLength) + extension;
     }
 
     private static string TruncatePrefixByCharCount(string text, int charCount)
