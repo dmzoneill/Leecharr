@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.NzbVortex;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -72,8 +73,10 @@ public class NzbVortexApiControllerTest
         var json = JsonSerializer.Serialize(okResult.Value);
         using var doc = JsonDocument.Parse(json);
 
-        doc.RootElement.GetProperty("authNonce").GetString().Should().Be("leecharr-vortex-nonce");
-        doc.RootElement.GetProperty("nonce").GetString().Should().Be("leecharr-vortex-nonce");
+        var authNonce = doc.RootElement.GetProperty("authNonce").GetString();
+        authNonce.Should().NotBeNullOrWhiteSpace();
+        authNonce.Should().NotBe("leecharr-vortex-nonce");
+        doc.RootElement.GetProperty("nonce").GetString().Should().Be(authNonce);
         doc.RootElement.GetProperty("error").GetInt32().Should().Be(0);
         doc.RootElement.GetProperty("result").GetInt32().Should().Be(0);
     }
@@ -100,6 +103,7 @@ public class NzbVortexApiControllerTest
     public void Login_WhenAuthenticationEnabledAndNotAuthenticated_ReturnsAuthFailure()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("master-api-key");
 
         var result = this.controller.Login();
 
@@ -111,6 +115,35 @@ public class NzbVortexApiControllerTest
         doc.RootElement.GetProperty("loginResult").GetInt32().Should().Be(1);
         doc.RootElement.GetProperty("auth").GetBoolean().Should().BeFalse();
         doc.RootElement.GetProperty("error").GetInt32().Should().Be(401);
+    }
+
+    [Test]
+    public void Login_WhenAuthenticationEnabledWithValidVortexHash_ReturnsSession()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("master-api-key");
+
+        var nonceResult = this.controller.GetNonce();
+        var nonceOk = (OkObjectResult)nonceResult;
+        var nonceJson = JsonSerializer.Serialize(nonceOk.Value);
+        using var nonceDoc = JsonDocument.Parse(nonceJson);
+        var serverNonce = nonceDoc.RootElement.GetProperty("authNonce").GetString()!;
+        const string cnonce = "client-nonce-99";
+        var hash = NzbVortexAuthenticationHelper.ComputeLoginHash(serverNonce, cnonce, "master-api-key");
+
+        this.httpContext.Request.QueryString = new QueryString(
+            $"?nonce={Uri.EscapeDataString(serverNonce)}&cnonce={Uri.EscapeDataString(cnonce)}&hash={Uri.EscapeDataString(hash)}");
+
+        var result = this.controller.Login();
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        doc.RootElement.GetProperty("loginResult").GetInt32().Should().Be(0);
+        doc.RootElement.GetProperty("auth").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("session").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     [Test]

@@ -99,10 +99,11 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     [Route("api/v1/auth/nonce")]
     public IActionResult GetNonce()
     {
+        var authNonce = NzbVortexAuthenticationHelper.IssueNonce();
         return this.Ok(new
         {
-            authNonce = "leecharr-vortex-nonce",
-            nonce = "leecharr-vortex-nonce",
+            authNonce,
+            nonce = authNonce,
             error = 0,
             result = 0,
         });
@@ -118,8 +119,11 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     {
         if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
         {
-            var isAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
-            if (!isAuth)
+            var apiKey = this.configFileProvider.ApiKey;
+            var nonce = this.ReadLoginParameter("nonce");
+            var cnonce = this.ReadLoginParameter("cnonce");
+            var hash = this.ReadLoginParameter("hash");
+            if (!NzbVortexAuthenticationHelper.TryValidateLogin(nonce, cnonce, hash, apiKey))
             {
                 return this.Ok(new
                 {
@@ -139,9 +143,26 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
             loginResult = 0,
             auth = true,
             session = sessionToken,
+            sessionID = sessionToken,
             error = 0,
             result = 0,
         });
+    }
+
+    private string ReadLoginParameter(string name)
+    {
+        var fromQuery = this.Request.Query[name].ToString();
+        if (!string.IsNullOrWhiteSpace(fromQuery))
+        {
+            return fromQuery;
+        }
+
+        if (this.Request.HasFormContentType)
+        {
+            return this.Request.Form[name].ToString();
+        }
+
+        return string.Empty;
     }
 
     [HttpGet]
