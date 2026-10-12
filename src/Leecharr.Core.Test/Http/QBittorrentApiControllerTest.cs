@@ -2192,6 +2192,70 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetTorrentsInfo_WithFilterActive_UsesLiveEngineSpeedAndStatus()
+    {
+        var activeInDb = new Torrent
+        {
+            Id = 1,
+            InfoHash = "h1",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.2,
+            DownloadSpeed = 0,
+            UploadSpeed = 0,
+        };
+
+        var stalledInDb = new Torrent
+        {
+            Id = 2,
+            InfoHash = "h2",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            DownloadSpeed = 0,
+            UploadSpeed = 0,
+        };
+
+        var activeTask = Substitute.For<IDownloadTask>();
+        activeTask.DownloadSpeed.Returns(5_000_000L);
+        activeTask.UploadSpeed.Returns(0L);
+        activeTask.Progress.Returns(0.2);
+        activeTask.Status.Returns(TorrentStatus.Downloading);
+        this.downloadEngine.GetTask(1).Returns(activeTask);
+
+        var stalledTask = Substitute.For<IDownloadTask>();
+        stalledTask.DownloadSpeed.Returns(0L);
+        stalledTask.UploadSpeed.Returns(0L);
+        stalledTask.Progress.Returns(0.5);
+        stalledTask.Status.Returns(TorrentStatus.Downloading);
+        this.downloadEngine.GetTask(2).Returns(stalledTask);
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { activeInDb, stalledInDb });
+
+        var downloadingResponse = this.controller.GetTorrentsInfo(filter: "downloading");
+        var downloadingList = downloadingResponse.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        downloadingList.Should().HaveCount(1);
+        downloadingList[0]["hash"].Should().Be("h1");
+
+        var activeResponse = this.controller.GetTorrentsInfo(filter: "active");
+        var activeList = activeResponse.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        activeList.Should().HaveCount(1);
+        activeList[0]["hash"].Should().Be("h1");
+
+        var inactiveResponse = this.controller.GetTorrentsInfo(filter: "inactive");
+        var inactiveList = inactiveResponse.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        inactiveList.Should().HaveCount(1);
+        inactiveList[0]["hash"].Should().Be("h2");
+
+        var stalledResponse = this.controller.GetTorrentsInfo(filter: "stalled");
+        var stalledList = stalledResponse.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        stalledList.Should().HaveCount(1);
+        stalledList[0]["hash"].Should().Be("h2");
+    }
+
+    [Test]
     public void GetTorrentsInfo_WithTag_FiltersMatchingTorrents()
     {
         var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Label = "movies, 4k" };

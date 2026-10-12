@@ -593,112 +593,29 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
         }
 
-        if (!string.IsNullOrEmpty(filter))
-        {
-            switch (filter.ToLowerInvariant())
-            {
-                case "downloading":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Downloading);
-                    break;
-                case "seeding":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Seeding || (t.Status == TorrentStatus.Queued && t.Progress >= 1.0));
-                    break;
-                case "completed":
-                    torrents = torrents.Where(t => t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed);
-                    break;
-                case "queued":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Queued || t.Status == TorrentStatus.QueuedForChecking);
-                    break;
-                case "paused":
-                case "stopped":
-                    torrents = torrents.Where(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed);
-                    break;
-                case "active":
-                    torrents = torrents.Where(t => t.DownloadSpeed > 0 || t.UploadSpeed > 0);
-                    break;
-                case "inactive":
-                    torrents = torrents.Where(t => t.DownloadSpeed == 0 && t.UploadSpeed == 0);
-                    break;
-                case "stalled":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Stalled || (t.Status == TorrentStatus.Downloading && t.DownloadSpeed == 0) || (t.Status == TorrentStatus.Seeding && t.UploadSpeed == 0));
-                    break;
-                case "stalled_downloading":
-                    torrents = torrents.Where(t => (t.Status == TorrentStatus.Stalled && t.Progress < 1.0) || (t.Status == TorrentStatus.Downloading && t.DownloadSpeed == 0));
-                    break;
-                case "stalled_uploading":
-                    torrents = torrents.Where(t => (t.Status == TorrentStatus.Stalled && t.Progress >= 1.0) || (t.Status == TorrentStatus.Seeding && t.UploadSpeed == 0));
-                    break;
-                case "checking":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Checking || t.Status == TorrentStatus.QueuedForChecking);
-                    break;
-                case "errored":
-                case "error":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Error);
-                    break;
-                case "resumed":
-                case "running":
-                    torrents = torrents.Where(t => t.Status is not (TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed));
-                    break;
-            }
-        }
-
         var torrentList = torrents.ToList();
+        var filterKey = string.IsNullOrWhiteSpace(filter) ? null : filter.Trim().ToLowerInvariant();
         var filesByTorrent = this.torrentFileService?.GetFilesForTorrents(torrentList.Select(t => t.Id)) ?? new Dictionary<int, List<TorrentFile>>();
 
         var result = torrentList.Select(t =>
         {
             var task = this.downloadEngine?.GetTask(t.Id) ?? this.torrentService?.GetDownloadTask(t.Id);
-            var isInactive = (t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error) ||
-                (t.Status == TorrentStatus.Queued && t.DownloadSpeed == 0 && t.UploadSpeed == 0);
-
-            var effectiveProgress = t.Progress;
-            var effectiveStatus = t.Status;
-            var effectiveDlSpeed = isInactive ? 0 : t.DownloadSpeed;
-            var effectiveUlSpeed = isInactive ? 0 : t.UploadSpeed;
-            var effectiveDownloaded = t.Downloaded;
-            var effectiveTotalSize = t.TotalSize;
-            var effectiveSeeders = isInactive ? 0 : t.Seeders;
-            var effectiveLeechers = isInactive ? 0 : t.Leechers;
-
-            if (task != null)
-            {
-                if (task.Progress > 0 || t.Progress == 0)
-                {
-                    effectiveProgress = task.Progress;
-                }
-
-                if (task.DownloadedBytes > 0)
-                {
-                    effectiveDownloaded = task.DownloadedBytes;
-                }
-
-                if (effectiveTotalSize <= 0 && task.TotalBytes > 0)
-                {
-                    effectiveTotalSize = task.TotalBytes;
-                }
-
-                if (!isInactive)
-                {
-                    effectiveDlSpeed = task.DownloadSpeed > 0 ? task.DownloadSpeed : t.DownloadSpeed;
-                    effectiveUlSpeed = task.UploadSpeed > 0 ? task.UploadSpeed : t.UploadSpeed;
-                    effectiveSeeders = task.ConnectedSeeders > 0 ? task.ConnectedSeeders : t.Seeders;
-                    effectiveLeechers = task.ConnectedLeechers > 0 ? task.ConnectedLeechers : t.Leechers;
-                }
-
-                if (task.Status != TorrentStatus.Downloading || t.Status != TorrentStatus.Checking)
-                {
-                    effectiveStatus = task.Status;
-                }
-
-                if (task.Progress >= 1.0 || task.IsFilesMovedToCompleted)
-                {
-                    effectiveProgress = 1.0;
-                    if (effectiveStatus == TorrentStatus.Downloading)
-                    {
-                        effectiveStatus = TorrentStatus.Seeding;
-                    }
-                }
-            }
+            var snapshot = ResolveTorrentInfoLiveSnapshot(t, task);
+            return (Torrent: t, Snapshot: snapshot);
+        })
+        .Where(pair => filterKey == null || MatchesTorrentInfoFilter(filterKey, pair.Snapshot))
+        .Select(pair =>
+        {
+            var t = pair.Torrent;
+            var snapshot = pair.Snapshot;
+            var effectiveProgress = snapshot.Progress;
+            var effectiveStatus = snapshot.Status;
+            var effectiveDlSpeed = snapshot.DownloadSpeed;
+            var effectiveUlSpeed = snapshot.UploadSpeed;
+            var effectiveDownloaded = snapshot.Downloaded;
+            var effectiveTotalSize = snapshot.TotalSize;
+            var effectiveSeeders = snapshot.Seeders;
+            var effectiveLeechers = snapshot.Leechers;
 
             var state = MapToQBitState(effectiveStatus, effectiveProgress, effectiveDlSpeed, effectiveUlSpeed);
             var (resolvedSavePath, resolvedContentPath) = this.ResolvePaths(t, filesByTorrent);
@@ -3726,6 +3643,130 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             TorrentStatus.Stalled => progress >= 1.0 ? "stalledUP" : "stalledDL",
             _ => "unknown",
         };
+    }
+
+    internal readonly struct TorrentInfoLiveSnapshot
+    {
+        public TorrentStatus Status { get; init; }
+
+        public double Progress { get; init; }
+
+        public long DownloadSpeed { get; init; }
+
+        public long UploadSpeed { get; init; }
+
+        public long Downloaded { get; init; }
+
+        public long TotalSize { get; init; }
+
+        public int Seeders { get; init; }
+
+        public int Leechers { get; init; }
+    }
+
+    internal static TorrentInfoLiveSnapshot ResolveTorrentInfoLiveSnapshot(Torrent torrent, IDownloadTask task)
+    {
+        var isInactive = (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error) ||
+            (torrent.Status == TorrentStatus.Queued && torrent.DownloadSpeed == 0 && torrent.UploadSpeed == 0);
+
+        var effectiveProgress = torrent.Progress;
+        var effectiveStatus = torrent.Status;
+        var effectiveDlSpeed = isInactive ? 0 : torrent.DownloadSpeed;
+        var effectiveUlSpeed = isInactive ? 0 : torrent.UploadSpeed;
+        var effectiveDownloaded = torrent.Downloaded;
+        var effectiveTotalSize = torrent.TotalSize;
+        var effectiveSeeders = isInactive ? 0 : torrent.Seeders;
+        var effectiveLeechers = isInactive ? 0 : torrent.Leechers;
+
+        if (task != null)
+        {
+            if (task.Progress > 0 || torrent.Progress == 0)
+            {
+                effectiveProgress = task.Progress;
+            }
+
+            if (task.DownloadedBytes > 0)
+            {
+                effectiveDownloaded = task.DownloadedBytes;
+            }
+
+            if (effectiveTotalSize <= 0 && task.TotalBytes > 0)
+            {
+                effectiveTotalSize = task.TotalBytes;
+            }
+
+            if (!isInactive)
+            {
+                effectiveDlSpeed = task.DownloadSpeed > 0 ? task.DownloadSpeed : torrent.DownloadSpeed;
+                effectiveUlSpeed = task.UploadSpeed > 0 ? task.UploadSpeed : torrent.UploadSpeed;
+                effectiveSeeders = task.ConnectedSeeders > 0 ? task.ConnectedSeeders : torrent.Seeders;
+                effectiveLeechers = task.ConnectedLeechers > 0 ? task.ConnectedLeechers : torrent.Leechers;
+            }
+
+            if (task.Status != TorrentStatus.Downloading || torrent.Status != TorrentStatus.Checking)
+            {
+                effectiveStatus = task.Status;
+            }
+
+            if (task.Progress >= 1.0 || task.IsFilesMovedToCompleted)
+            {
+                effectiveProgress = 1.0;
+                if (effectiveStatus == TorrentStatus.Downloading)
+                {
+                    effectiveStatus = TorrentStatus.Seeding;
+                }
+            }
+        }
+
+        return new TorrentInfoLiveSnapshot
+        {
+            Status = effectiveStatus,
+            Progress = effectiveProgress,
+            DownloadSpeed = effectiveDlSpeed,
+            UploadSpeed = effectiveUlSpeed,
+            Downloaded = effectiveDownloaded,
+            TotalSize = effectiveTotalSize,
+            Seeders = effectiveSeeders,
+            Leechers = effectiveLeechers,
+        };
+    }
+
+    internal static bool MatchesTorrentInfoFilter(string filter, in TorrentInfoLiveSnapshot snapshot)
+    {
+        switch (filter)
+        {
+            case "downloading":
+                return snapshot.Status == TorrentStatus.Downloading;
+            case "seeding":
+                return snapshot.Status == TorrentStatus.Seeding || (snapshot.Status == TorrentStatus.Queued && snapshot.Progress >= 1.0);
+            case "completed":
+                return snapshot.Progress >= 1.0 || snapshot.Status == TorrentStatus.Seeding || snapshot.Status == TorrentStatus.Completed;
+            case "queued":
+                return snapshot.Status == TorrentStatus.Queued || snapshot.Status == TorrentStatus.QueuedForChecking;
+            case "paused":
+            case "stopped":
+                return snapshot.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed;
+            case "active":
+                return snapshot.DownloadSpeed > 0 || snapshot.UploadSpeed > 0;
+            case "inactive":
+                return snapshot.DownloadSpeed == 0 && snapshot.UploadSpeed == 0;
+            case "stalled":
+                return snapshot.Status == TorrentStatus.Stalled || (snapshot.Status == TorrentStatus.Downloading && snapshot.DownloadSpeed == 0) || (snapshot.Status == TorrentStatus.Seeding && snapshot.UploadSpeed == 0);
+            case "stalled_downloading":
+                return (snapshot.Status == TorrentStatus.Stalled && snapshot.Progress < 1.0) || (snapshot.Status == TorrentStatus.Downloading && snapshot.DownloadSpeed == 0);
+            case "stalled_uploading":
+                return (snapshot.Status == TorrentStatus.Stalled && snapshot.Progress >= 1.0) || (snapshot.Status == TorrentStatus.Seeding && snapshot.UploadSpeed == 0);
+            case "checking":
+                return snapshot.Status == TorrentStatus.Checking || snapshot.Status == TorrentStatus.QueuedForChecking;
+            case "errored":
+            case "error":
+                return snapshot.Status == TorrentStatus.Error;
+            case "resumed":
+            case "running":
+                return snapshot.Status is not (TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed);
+            default:
+                return true;
+        }
     }
 
     internal static long CalculateEta(Torrent t)
