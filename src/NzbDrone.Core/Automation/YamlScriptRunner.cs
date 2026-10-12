@@ -348,7 +348,7 @@ public class YamlScriptRunner : IScriptRunner
                             {
                                 var path = SubstituteVariables(sDict.TryGetValue("path", out var pVal) ? pVal?.ToString() ?? string.Empty : string.Empty, variableContext);
                                 var timeout = sDict.TryGetValue("timeout", out var toVal) && int.TryParse(toVal?.ToString(), out var toParsed) ? toParsed : 60;
-                                var argsObj = sDict.TryGetValue("args", out var aVal) ? aVal : null;
+                                var argsObj = sDict.TryGetValue("args", out var aVal) ? SubstituteScriptArguments(aVal, variableContext) : null;
                                 systemContext.runScript(path, argsObj, timeout);
                                 logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] runScript: {path} (timeout={timeout}s)");
                             }
@@ -1291,6 +1291,37 @@ public class YamlScriptRunner : IScriptRunner
 
         var octal = Convert.ToInt32(trimmed, 8);
         return (UnixFileMode)octal;
+    }
+
+    private static object? SubstituteScriptArguments(object? args, Dictionary<string, object?> context)
+    {
+        if (args == null)
+        {
+            return null;
+        }
+
+        if (args is string argStr)
+        {
+            return SubstituteVariables(argStr, context);
+        }
+
+        if (args is IEnumerable<object> objList)
+        {
+            var substituted = new List<object>();
+            foreach (var item in objList)
+            {
+                if (item == null)
+                {
+                    continue;
+                }
+
+                substituted.Add(SubstituteVariables(item.ToString() ?? string.Empty, context));
+            }
+
+            return substituted;
+        }
+
+        return SubstituteVariables(args.ToString() ?? string.Empty, context);
     }
 
     private static string SubstituteVariables(string template, Dictionary<string, object?> context)
