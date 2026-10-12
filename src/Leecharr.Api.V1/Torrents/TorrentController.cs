@@ -730,8 +730,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return null;
         }
 
-        var canonicalBaseDir = Path.GetFullPath(baseDir);
-        var canonicalBase = canonicalBaseDir.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         var cleanRelPath = relativeFilePath.Replace('\\', '/').TrimStart('/');
 
         var candidateBases = new List<string> { baseDir };
@@ -755,13 +753,26 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
             foreach (var cand in candidates)
             {
-                var full = Path.GetFullPath(cand);
-                var isSafe = full.StartsWith(canonicalBase, StringComparison.Ordinal) ||
-                    string.Equals(full, canonicalBaseDir, StringComparison.Ordinal);
-
-                if (isSafe && global::System.IO.File.Exists(full))
+                try
                 {
-                    return full;
+                    var full = Path.GetFullPath(cand);
+                    if (!TorrentPathValidator.IsStrictSubPath(baseDir, full))
+                    {
+                        continue;
+                    }
+
+                    if (global::System.IO.File.Exists(full))
+                    {
+                        return full;
+                    }
+                }
+                catch (IOException)
+                {
+                    // Ignore invalid candidate paths.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Ignore inaccessible candidate paths.
                 }
             }
         }
