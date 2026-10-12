@@ -938,10 +938,14 @@ public class AiAssistantAndPromptServiceTest
         this.configService.OllamaHost.Returns("http://192.168.1.100:11434///");
         this.configService.OllamaModel.Returns("deepseek-r1:8b");
 
-        HttpRequestMessage capturedRequest = null!;
+        var versionRequestUri = string.Empty;
         var handler = new MockHttpMessageHandler((req, ct) =>
         {
-            capturedRequest = req;
+            if (req.RequestUri?.AbsolutePath == "/api/version")
+            {
+                versionRequestUri = req.RequestUri!.ToString();
+            }
+
             if (req.RequestUri?.AbsolutePath == "/api/version")
             {
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
@@ -968,7 +972,7 @@ public class AiAssistantAndPromptServiceTest
 
         health.IsHealthy.Should().BeTrue();
         health.ModelName.Should().Be("deepseek-r1:8b");
-        capturedRequest.RequestUri!.ToString().Should().Be("http://192.168.1.100:11434/api/version");
+        versionRequestUri.Should().Be("http://192.168.1.100:11434/api/version");
     }
 
     [Test]
