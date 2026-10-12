@@ -562,6 +562,84 @@ public class FloodApiControllerTest
     }
 
     [Test]
+    public void GetFloodBytesDone_UsesVerifiedProgressNotTransferCounter()
+    {
+        var hashCheckedComplete = new Torrent
+        {
+            TotalSize = 10_000,
+            Downloaded = 0,
+            Progress = 1.0,
+        };
+        FloodApiController.GetFloodBytesDone(hashCheckedComplete).Should().Be(10_000);
+
+        var halfVerified = new Torrent
+        {
+            TotalSize = 1_000,
+            Downloaded = 0,
+            Progress = 0.5,
+        };
+        FloodApiController.GetFloodBytesDone(halfVerified).Should().Be(500);
+    }
+
+    [Test]
+    public void GetFloodEtaSeconds_UsesVerifiedRemainderNotTransferCounter()
+    {
+        var complete = new Torrent { TotalSize = 1_000, Downloaded = 0, Progress = 1.0, Eta = 0 };
+        FloodApiController.GetFloodEtaSeconds(complete).Should().Be(0);
+
+        var almostDone = new Torrent
+        {
+            TotalSize = 1_000,
+            Downloaded = 0,
+            Progress = 0.9,
+            DownloadSpeed = 100,
+            Eta = 0,
+        };
+        FloodApiController.GetFloodEtaSeconds(almostDone).Should().Be(1);
+
+        var stalled = new Torrent
+        {
+            TotalSize = 1_000,
+            Downloaded = 900,
+            Progress = 0.1,
+            DownloadSpeed = 0,
+            Eta = 0,
+        };
+        FloodApiController.GetFloodEtaSeconds(stalled).Should().Be(8640000);
+
+        FloodApiController.GetFloodEtaSeconds(new Torrent { Eta = 42 }).Should().Be(42);
+    }
+
+    [Test]
+    public void GetTorrents_ReportsBytesDoneFromVerifiedProgress()
+    {
+        var torrent = new Torrent
+        {
+            Id = 81,
+            Name = "Hash-checked Torrent",
+            InfoHash = "abcd112233445566778899abcd11223344556677",
+            Status = TorrentStatus.Seeding,
+            TotalSize = 8_192,
+            Downloaded = 0,
+            Progress = 1.0,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var result = this.controller.GetTorrents();
+        result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var item = doc.RootElement.GetProperty("torrents").GetProperty("abcd112233445566778899abcd11223344556677");
+
+        item.GetProperty("bytesDone").GetInt64().Should().Be(8_192);
+        item.GetProperty("percentComplete").GetDouble().Should().Be(100.0);
+        item.GetProperty("eta").GetInt64().Should().Be(0);
+    }
+
+    [Test]
     public async Task SetTags_WhenTagMatchesCategory_CallsSetCategoryAsyncAndStoresRemainingLabels()
     {
         var torrent = new Torrent
