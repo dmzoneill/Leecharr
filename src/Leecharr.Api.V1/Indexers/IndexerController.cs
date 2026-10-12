@@ -1066,9 +1066,7 @@ public class IndexerController : Controller
             });
         }
 
-        var isProwlarr = (!string.IsNullOrWhiteSpace(indexer.Implementation) && indexer.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase))
-            || (!string.IsNullOrWhiteSpace(indexer.Url) && indexer.Url.Contains("9696", StringComparison.OrdinalIgnoreCase))
-            || (!string.IsNullOrWhiteSpace(indexer.Name) && indexer.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase));
+        var isProwlarr = ProwlarrInstanceDiscovery.IsSyncTarget(indexer);
 
         if (isProwlarr)
         {

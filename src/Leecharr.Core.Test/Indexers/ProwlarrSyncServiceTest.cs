@@ -1149,6 +1149,88 @@ public class ProwlarrSyncServiceTest
         this.repository.Received().All();
     }
 
+    [Test]
+    public void IsConfigured_WhenTorznabUrlOnlyContains9696Substring_ReturnsFalse()
+    {
+        this.repository.All().Returns(new List<IndexerDefinition>
+        {
+            new()
+            {
+                Name = "Prowlarr",
+                Url = "https://tracker.example.com/1/api?apikey=9696deadbeef",
+                ApiKey = "secret",
+                Implementation = "Torznab",
+            },
+        });
+
+        var service = new ProwlarrSyncService(this.repository);
+
+        service.IsConfigured().Should().BeFalse();
+    }
+
+    [Test]
+    public void IsConfigured_WhenNameContainsProwlarrOnNonInstanceUrl_ReturnsFalse()
+    {
+        this.repository.All().Returns(new List<IndexerDefinition>
+        {
+            new()
+            {
+                Name = "Backup Prowlarr mirror",
+                Url = "https://tracker.example.com/api",
+                ApiKey = "secret",
+                Implementation = "Torznab",
+            },
+        });
+
+        var service = new ProwlarrSyncService(this.repository);
+
+        service.IsConfigured().Should().BeFalse();
+    }
+
+    [TestCase("https://tracker.example.com/1/api?apikey=9696deadbeef")]
+    [TestCase("http://indexer.local:19696/1/api")]
+    public void ProwlarrInstanceDiscovery_IsSyncTarget_RejectsSubstringAndNonDefaultPorts(string url)
+    {
+        var indexer = new IndexerDefinition
+        {
+            Name = "Prowlarr",
+            Url = url,
+            ApiKey = "secret",
+            Implementation = "Torznab",
+        };
+
+        ProwlarrInstanceDiscovery.IsSyncTarget(indexer).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SyncAllAsync_WhenOnlyMisidentifiedTorznabConfigured_DoesNotQueryProwlarrApi()
+    {
+        var called = false;
+        var handler = new MockHttpMessageHandler(_ =>
+        {
+            called = true;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        this.repository.All().Returns(new List<IndexerDefinition>
+        {
+            new()
+            {
+                Name = "Prowlarr",
+                Url = "https://tracker.example.com/1/api?apikey=9696deadbeef",
+                ApiKey = "secret",
+                Implementation = "Torznab",
+            },
+        });
+
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+        var synced = await service.SyncAllAsync();
+
+        synced.Should().Be(0);
+        called.Should().BeFalse();
+    }
+
     private sealed class DisposableHttpResponseMessage : HttpResponseMessage
     {
         public DisposableHttpResponseMessage(HttpStatusCode statusCode, HttpContent content)
