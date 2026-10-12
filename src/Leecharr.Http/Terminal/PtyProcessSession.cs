@@ -13,7 +13,20 @@ namespace Leecharr.Http.Terminal;
 
 public sealed class PtyProcessSession : ITerminalSession
 {
-    private const string PythonPtyScript = @"import os, pty, struct, fcntl, termios, sys, select, signal
+    private const string PythonPtyScript = @"import os, pty, struct, fcntl, termios, sys, select, signal, errno
+
+def write_all(fd, data):
+    offset = 0
+    while offset < len(data):
+        try:
+            n = os.write(fd, data[offset:])
+        except OSError as e:
+            if e.errno == errno.EINTR:
+                continue
+            raise
+        if n <= 0:
+            break
+        offset += n
 
 cwd = sys.argv[1] if len(sys.argv) > 1 else '/tmp'
 cols = int(sys.argv[2]) if len(sys.argv) > 2 else 80
@@ -66,7 +79,7 @@ else:
                     data = os.read(0, 4096)
                     if not data:
                         break
-                    os.write(master, data)
+                    write_all(master, data)
                 except OSError:
                     break
             if master in r:
@@ -74,7 +87,7 @@ else:
                     data = os.read(master, 4096)
                     if not data:
                         break
-                    os.write(1, data)
+                    write_all(1, data)
                 except OSError:
                     break
             if ctrl_fd is not None and ctrl_fd in r:
