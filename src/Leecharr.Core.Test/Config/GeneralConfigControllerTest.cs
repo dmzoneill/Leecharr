@@ -240,6 +240,67 @@ public class GeneralConfigControllerTest
     }
 
     [Test]
+    public async Task SaveConfig_WhenPortIsInvalid_ReturnsBadRequestWithoutPersistingConfigFile()
+    {
+        var resource = new GeneralConfigResource
+        {
+            Port = 0,
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        actionResult.Result.Should().BeOfType<BadRequestObjectResult>();
+        this.configFileProvider.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenSslPortMatchesHttpPort_ReturnsBadRequestWithoutPersistingConfigFile()
+    {
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            EnableSsl = true,
+            SslPort = 7889,
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        actionResult.Result.Should().BeOfType<BadRequestObjectResult>();
+        this.configFileProvider.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenValidationFails_DoesNotInvalidateSessionsEvenIfAuthFieldsChanged()
+    {
+        var rpcStore = new RpcSessionStore();
+        rpcStore.SetSession("token-session-invalid", TimeSpan.FromMinutes(10));
+        rpcStore.IsValid("token-session-invalid").Should().BeTrue();
+
+        MessageHub.AddConnectionForTesting("signalr-conn-invalid");
+        MessageHub.IsConnected.Should().BeTrue();
+
+        this.configFileProvider.ApiKey.Returns("old-api-key");
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+
+        var resource = new GeneralConfigResource
+        {
+            Port = 0,
+            ApiKey = "new-api-key",
+            AuthenticationEnabled = false,
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        actionResult.Result.Should().BeOfType<BadRequestObjectResult>();
+        rpcStore.IsValid("token-session-invalid").Should().BeTrue();
+        MessageHub.IsConnected.Should().BeTrue();
+
+        MessageHub.ResetForTesting();
+        RpcSessionStore.InvalidateAllSessions();
+    }
+
+    [Test]
     public async Task SaveConfig_WhenApiKeyChanges_InvalidatesRpcSessionsAndDisconnectsSignalR()
     {
         var rpcStore = new RpcSessionStore();

@@ -88,6 +88,12 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             resource.Branch = "main";
         }
 
+        var validationResult = this.SharedValidator.Validate(resource);
+        if (!validationResult.IsValid)
+        {
+            return this.BadRequest(validationResult.Errors);
+        }
+
         var fileUpdates = new Dictionary<string, object>
         {
             ["Port"] = resource.Port,
@@ -112,6 +118,13 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
 
         this.configFileProvider.SaveConfigDictionary(fileUpdates);
 
+        var saveResult = await base.SaveConfig(resource);
+        if (saveResult.Result is BadRequestObjectResult ||
+            (saveResult.Result is ObjectResult errorResult && errorResult.StatusCode is >= 400))
+        {
+            return saveResult;
+        }
+
         if (!string.Equals(previousApiKey, resource.ApiKey, StringComparison.Ordinal) ||
             previousAuthEnabled != resource.AuthenticationEnabled ||
             previousAuthRequired != resource.AuthenticationRequired)
@@ -120,7 +133,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             MessageHub.DisconnectAllConnections();
         }
 
-        return await base.SaveConfig(resource);
+        return saveResult;
     }
 
     [HttpGet("api-key")]
