@@ -553,6 +553,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                         };
 
                         var heuristic = await this.fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
+                        EnrichNaturalLanguageSearchFromHeuristic(searchParams, heuristic);
                         if (ShouldDeferNaturalLanguageSearchToHeuristic(searchParams, heuristic))
                         {
                             return heuristic;
@@ -714,6 +715,59 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
         }
 
         return false;
+    }
+
+    private static void EnrichNaturalLanguageSearchFromHeuristic(AiSearchParameters ollama, AiSearchParameters heuristic)
+    {
+        if (ollama == null || heuristic == null)
+        {
+            return;
+        }
+
+        if (!ollama.Year.HasValue && heuristic.Year.HasValue)
+        {
+            ollama.Year = heuristic.Year;
+        }
+
+        if (!ollama.Season.HasValue && heuristic.Season.HasValue)
+        {
+            ollama.Season = heuristic.Season;
+        }
+
+        if (!ollama.Episode.HasValue && heuristic.Episode.HasValue)
+        {
+            ollama.Episode = heuristic.Episode;
+        }
+
+        if (string.IsNullOrWhiteSpace(ollama.Resolution) && !string.IsNullOrWhiteSpace(heuristic.Resolution))
+        {
+            ollama.Resolution = heuristic.Resolution;
+        }
+
+        if (string.IsNullOrWhiteSpace(ollama.Source) && !string.IsNullOrWhiteSpace(heuristic.Source))
+        {
+            ollama.Source = heuristic.Source;
+        }
+
+        if (string.IsNullOrWhiteSpace(ollama.Category) && !string.IsNullOrWhiteSpace(heuristic.Category))
+        {
+            ollama.Category = heuristic.Category;
+        }
+
+        if (ollama.MinSeeders == 0 && heuristic.MinSeeders > 0)
+        {
+            ollama.MinSeeders = heuristic.MinSeeders;
+        }
+
+        if (!ollama.FreeleechOnly && heuristic.FreeleechOnly)
+        {
+            ollama.FreeleechOnly = heuristic.FreeleechOnly;
+        }
+
+        if (!ollama.MaxAgeDays.HasValue && heuristic.MaxAgeDays.HasValue)
+        {
+            ollama.MaxAgeDays = heuristic.MaxAgeDays;
+        }
     }
 
     private static bool ShouldDeferNaturalLanguageSearchToHeuristic(AiSearchParameters ollama, AiSearchParameters heuristic)
