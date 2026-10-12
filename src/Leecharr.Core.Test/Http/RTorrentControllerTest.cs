@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
@@ -1807,6 +1808,76 @@ public class RTorrentControllerTest
         var result = (ContentResult)await this.controller.HandleXmlRpc();
         result.Content.Should().Contain("<i4>0</i4>");
         await this.torrentService.Received(1).DeleteAsync(18, true);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DeleteTied_DoesNotEraseTorrentOrData()
+    {
+        var hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var torrent = new Torrent { Id = 19, InfoHash = hash };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.delete_tied</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.DidNotReceive().DeleteAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DeleteTied_RemovesCachedTorrentMetafileOnly()
+    {
+        var hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr-delete-tied-" + System.Guid.NewGuid().ToString("N"));
+        var torrentsDir = Path.Combine(tempRoot, "Torrents");
+        Directory.CreateDirectory(torrentsDir);
+        var metaPath = Path.Combine(torrentsDir, $"{hash}.torrent");
+        await File.WriteAllBytesAsync(metaPath, new byte[] { 0x64, 0x38 });
+
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(tempRoot);
+        this.controller = new RTorrentController(
+            this.torrentService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.torrentFileService,
+            this.configFileProvider,
+            appFolderInfo: appFolderInfo);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.delete_tied</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+        File.Exists(metaPath).Should().BeFalse();
+        await this.torrentService.DidNotReceive().DeleteAsync(Arg.Any<int>(), Arg.Any<bool>());
+
+        try
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+        catch
+        {
+            // best-effort cleanup
+        }
     }
 
     [Test]
