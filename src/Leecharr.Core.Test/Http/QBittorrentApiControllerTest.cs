@@ -3503,37 +3503,39 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
-    public async Task AddTrackers_WithUrlEncodedTrackers_UnescapesUrlsBeforeAdding()
+    public async Task AddTrackers_WithFormBoundTrackerUrl_PreservesPercentEncodingInPasskey()
     {
         var torrent = new Torrent { Id = 30, InfoHash = "hash30", Name = "T30", IsPrivate = false };
         this.torrentService.GetByInfoHash("hash30").Returns(torrent);
         this.trackerEntryRepository.GetByTorrentId(30).Returns(new List<TrackerEntry>());
 
-        var result = await this.controller.AddTrackers(hash: "hash30", urls: "http%3A%2F%2Ftracker3.org%2Fannounce");
+        const string trackerUrl = "http://tracker3.org/announce?passkey=abc%2Fdef";
+        var result = await this.controller.AddTrackers(hash: "hash30", urls: trackerUrl);
 
         result.Should().BeOfType<ContentResult>();
-        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 30 && t.Url == "http://tracker3.org/announce"));
-        await this.downloadEngine.Received(1).AddTrackersAsync(30, Arg.Is<List<string>>(l => l.Contains("http://tracker3.org/announce")));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 30 && t.Url == trackerUrl));
+        await this.downloadEngine.Received(1).AddTrackersAsync(30, Arg.Is<List<string>>(l => l.Contains(trackerUrl)));
     }
 
     [Test]
-    public async Task RemoveTrackers_WithBatchHashesAndUrlEncodedTrackers_RemovesMatchingTrackers()
+    public async Task RemoveTrackers_WithBatchHashesAndFormBoundTrackerUrl_RemovesMatchingTrackers()
     {
         var torrent1 = new Torrent { Id = 41, InfoHash = "hash41", Name = "T41" };
         var torrent2 = new Torrent { Id = 42, InfoHash = "hash42", Name = "T42" };
         this.torrentService.GetByInfoHash("hash41").Returns(torrent1);
         this.torrentService.GetByInfoHash("hash42").Returns(torrent2);
 
+        const string trackerUrl = "http://tracker-rm.org/announce?passkey=abc%2Fdef";
         this.trackerEntryRepository.GetByTorrentId(41).Returns(new List<TrackerEntry>
         {
-            new TrackerEntry { Id = 101, TorrentId = 41, Url = "http://tracker-rm.org/announce" },
+            new TrackerEntry { Id = 101, TorrentId = 41, Url = trackerUrl },
         });
         this.trackerEntryRepository.GetByTorrentId(42).Returns(new List<TrackerEntry>
         {
-            new TrackerEntry { Id = 102, TorrentId = 42, Url = "http://tracker-rm.org/announce" },
+            new TrackerEntry { Id = 102, TorrentId = 42, Url = trackerUrl },
         });
 
-        var result = await this.controller.RemoveTrackers(hash: "hash41|hash42", urls: "http%3A%2F%2Ftracker-rm.org%2Fannounce");
+        var result = await this.controller.RemoveTrackers(hash: "hash41|hash42", urls: trackerUrl);
 
         result.Should().BeOfType<ContentResult>();
         this.trackerEntryRepository.Received(1).Delete(101);
