@@ -182,30 +182,26 @@ public class DynamicMediaInspectorProxyTest
     {
         await this.proxy.SwitchProviderAsync("MediaInfo");
 
-        using var healthProbeGate = new ManualResetEventSlim(false);
-        this.ffprobeProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                healthProbeGate.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue("FFprobe health probe should not time out");
-                return Task.FromResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
-            });
+        var ffprobeProbe = new TaskCompletionSource<MediaInspectorHealthCheckResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.ffprobeProvider.ProbeHealthAsync(Arg.Any<CancellationToken>()).Returns(ffprobeProbe.Task);
 
         var switchToFfprobe = this.proxy.SwitchProviderAsync("FFprobe");
         await Task.Delay(50);
+        switchToFfprobe.IsCompleted.Should().BeFalse("FFprobe switch should block on health probe");
 
         var alreadyActiveTask = this.proxy.SwitchProviderAsync("MediaInfo");
         await Task.Delay(50);
+        alreadyActiveTask.IsCompleted.Should().BeTrue("already-active switch should not block on another provider's health probe");
 
-        healthProbeGate.IsSet.Should().BeFalse("concurrent switch should still be waiting on health probe");
-        alreadyActiveTask.IsCompleted.Should().BeFalse("already-active switch must wait for switchLock");
-
-        healthProbeGate.Set();
-        var ffprobeResult = await switchToFfprobe;
         var alreadyActiveResult = await alreadyActiveTask;
+        alreadyActiveResult.Success.Should().BeTrue();
+        alreadyActiveResult.ActiveProvider.Should().Be("MediaInfo");
+
+        ffprobeProbe.TrySetResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
+        var ffprobeResult = await switchToFfprobe;
 
         ffprobeResult.ActiveProvider.Should().Be("FFprobe");
-        alreadyActiveResult.Success.Should().BeTrue();
-        alreadyActiveResult.ActiveProvider.Should().Be(this.proxy.ActiveProviderId);
+        this.proxy.ActiveProviderId.Should().Be("FFprobe");
     }
 
     [Test]
@@ -232,6 +228,35 @@ public class DynamicMediaInspectorProxyTest
         result.Success.Should().BeFalse();
         result.Error.Should().Contain("health check failed");
         this.proxy.ActiveProviderId.Should().Be("TagLib");
+    }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_QueuedSwitchUsesLatestConfiguredProvider()
+    {
+        var configuredProvider = "TagLib";
+        this.configService.ActiveMediaInspector.Returns(_ => configuredProvider);
+
+        using var mediaInfoSwitchGate = new ManualResetEventSlim(false);
+        this.mediaInfoProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                mediaInfoSwitchGate.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue("MediaInfo health probe should not time out");
+                return Task.FromResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
+            });
+
+        configuredProvider = "MediaInfo";
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        configuredProvider = "FFprobe";
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        await Task.Delay(100);
+        this.proxy.ActiveProviderId.Should().Be("FFprobe");
+
+        mediaInfoSwitchGate.Set();
+        await Task.Delay(300);
+
+        this.proxy.ActiveProviderId.Should().Be("FFprobe");
     }
 
     [Test]
