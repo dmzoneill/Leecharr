@@ -281,31 +281,37 @@ public class UTorrentWebUiController : ControllerBase
                     {
                         var target = this.torrentService.GetByInfoHash(effHash.Trim());
                         var pVal = this.Request.Query["p"].ToString();
-                        var fVal = this.Request.Query["f"].ToString();
                         if (string.IsNullOrEmpty(pVal) && this.Request.HasFormContentType)
                         {
                             pVal = this.Request.Form["p"].ToString();
                         }
 
-                        if (string.IsNullOrEmpty(fVal) && this.Request.HasFormContentType)
+                        var fValues = this.Request.Query["f"];
+                        if (fValues.Count == 0 && this.Request.HasFormContentType)
                         {
-                            fVal = this.Request.Form["f"].ToString();
+                            fValues = this.Request.Form["f"];
                         }
 
-                        if (target != null && int.TryParse(pVal, out var prio) && int.TryParse(fVal, out var fileIdx))
+                        if (target != null && int.TryParse(pVal, out var prio))
                         {
-                            var files = this.torrentFileService.GetFiles(target.Id).ToList();
-                            if (fileIdx >= 0 && fileIdx < files.Count)
+                            var internalPrio = prio switch
                             {
-                                var internalPrio = prio switch
+                                0 => 0,
+                                1 => 2,
+                                2 => 3,
+                                3 => 4,
+                                _ => 3,
+                            };
+                            var files = this.torrentFileService.GetFiles(target.Id).ToList();
+                            foreach (var fRaw in fValues)
+                            {
+                                foreach (var fPart in fRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                                 {
-                                    0 => 0,
-                                    1 => 2,
-                                    2 => 3,
-                                    3 => 4,
-                                    _ => 3,
-                                };
-                                await this.torrentFileService.SetPriorityAsync(files[fileIdx].Id, internalPrio);
+                                    if (int.TryParse(fPart, out var fileIdx) && fileIdx >= 0 && fileIdx < files.Count)
+                                    {
+                                        await this.torrentFileService.SetPriorityAsync(files[fileIdx].Id, internalPrio);
+                                    }
+                                }
                             }
                         }
                     }
