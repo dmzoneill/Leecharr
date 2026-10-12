@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using NzbDrone.Common.Disk;
 
 namespace Leecharr.Http.Terminal;
 
@@ -62,18 +63,7 @@ public static class TerminalEnvironmentSanitizer
     public static string GetSafeTempDirectory()
     {
         var privateDir = Path.Combine(Path.GetTempPath(), "leecharr-" + Environment.ProcessId);
-        if (!Directory.Exists(privateDir))
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                Directory.CreateDirectory(privateDir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            }
-            else
-            {
-                Directory.CreateDirectory(privateDir);
-            }
-        }
-
+        UnixPrivatePermissions.EnsurePrivateTempDirectory(privateDir);
         return privateDir;
     }
 
