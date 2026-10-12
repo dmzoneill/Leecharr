@@ -43,6 +43,14 @@ public class FloodApiControllerTest
 
         this.configFileProvider.AuthenticationEnabled.Returns(false);
 
+        var addedTorrent = new Torrent { InfoHash = "addedhashaddedhashaddedhashaddedhashab", Name = "Added" };
+        this.torrentService
+            .AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>())
+            .Returns(addedTorrent);
+        this.torrentService
+            .AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+
         this.controller = new FloodApiController(
             this.torrentService,
             this.torrentFileService,
@@ -516,6 +524,42 @@ public class FloodApiControllerTest
         var patch = FloodApiController.BuildTorrentListDiffChange(previous, current);
 
         patch.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task AddUrls_WhenUrlsMissing_ReturnsBadRequest()
+    {
+        var result = await this.controller.AddUrls(null);
+        result.Should().BeOfType<BadRequestObjectResult>();
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task AddUrls_WhenAddReturnsNull_ReturnsBadRequest()
+    {
+        this.torrentService
+            .AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns((Torrent)null);
+
+        var result = await this.controller.AddUrls(new FloodAddUrlsRequest
+        {
+            Urls = ["magnet:?xt=urn:btih:abcdefabcdefabcdefabcdefabcdefabcdefab"],
+        });
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task AddFiles_WhenJsonBodyEmpty_ReturnsBadRequest()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.ContentType = "application/json";
+        httpContext.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = await this.controller.AddFiles();
+        result.Should().BeOfType<BadRequestObjectResult>();
+        this.torrentFileParser.DidNotReceive().Parse(Arg.Any<byte[]>());
     }
 
     [Test]
