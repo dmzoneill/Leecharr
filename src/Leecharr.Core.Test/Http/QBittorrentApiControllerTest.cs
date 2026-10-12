@@ -2253,6 +2253,38 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetTorrentsInfo_WithFilterPausedOrStopped_IncludesCompletedTorrents()
+    {
+        var downloading = new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Downloading };
+        var paused = new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Paused, Progress = 1.0 };
+        var stopped = new Torrent { Id = 3, InfoHash = "h3", Status = TorrentStatus.Stopped };
+        var completed = new Torrent { Id = 4, InfoHash = "h4", Status = TorrentStatus.Completed, Progress = 1.0 };
+        this.torrentService.GetAll().Returns(new List<Torrent> { downloading, paused, stopped, completed });
+
+        var pausedResponse = this.controller.GetTorrentsInfo(filter: "paused");
+        var pausedList = pausedResponse.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        pausedList.Should().HaveCount(3);
+        pausedList.Select(d => d["hash"]).Should().BeEquivalentTo(new[] { "h2", "h3", "h4" });
+        pausedList.Single(d => (string)d["hash"] == "h4")["state"].Should().Be("pausedUP");
+
+        var stoppedResponse = this.controller.GetTorrentsInfo(filter: "stopped");
+        var stoppedList = stoppedResponse.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        stoppedList.Should().HaveCount(3);
+        stoppedList.Select(d => d["hash"]).Should().BeEquivalentTo(new[] { "h2", "h3", "h4" });
+
+        var runningResponse = this.controller.GetTorrentsInfo(filter: "running");
+        var runningList = runningResponse.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        runningList.Should().HaveCount(1);
+        runningList[0]["hash"].Should().Be("h1");
+    }
+
+    [Test]
     public void GetMainData_FullUpdate_IncludesCategoriesWithSavePath()
     {
         var category1 = new Category { Id = 1, Name = "tv", SavePath = "/downloads/tv" };

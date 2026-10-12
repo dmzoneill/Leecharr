@@ -602,7 +602,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     break;
                 case "paused":
                 case "stopped":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped);
+                    torrents = torrents.Where(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed);
                     break;
                 case "active":
                     torrents = torrents.Where(t => t.DownloadSpeed > 0 || t.UploadSpeed > 0);
@@ -628,7 +628,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     break;
                 case "resumed":
                 case "running":
-                    torrents = torrents.Where(t => t.Status != TorrentStatus.Paused && t.Status != TorrentStatus.Stopped);
+                    torrents = torrents.Where(t => t.Status is not (TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed));
                     break;
             }
         }
