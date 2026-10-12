@@ -6,7 +6,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Seeding;
@@ -80,10 +82,12 @@ public class SeedingController : Controller
     private static DateTime lastSampleTime = DateTime.MinValue;
 
     private readonly ITorrentService torrentService;
+    private readonly IDownloadEngine downloadEngine;
 
-    public SeedingController(ITorrentService torrentService)
+    public SeedingController(ITorrentService torrentService, IDownloadEngine downloadEngine = null)
     {
         this.torrentService = torrentService;
+        this.downloadEngine = downloadEngine;
     }
 
     [HttpGet("stats")]
@@ -153,6 +157,23 @@ public class SeedingController : Controller
     [HttpPost("start/{id:int}")]
     public async Task<ActionResult> Start(int id)
     {
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        if (!CanResume(torrent))
+        {
+            return this.Conflict(new { message = "Torrent is already active." });
+        }
+
+        var blocked = this.ResumeBlockedByKillSwitch();
+        if (blocked != null)
+        {
+            return blocked;
+        }
+
         await this.torrentService.ResumeAsync(id);
         return this.Ok();
     }
@@ -160,6 +181,17 @@ public class SeedingController : Controller
     [HttpPost("stop/{id:int}")]
     public async Task<ActionResult> Stop(int id)
     {
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        if (!CanPause(torrent))
+        {
+            return this.Conflict(new { message = "Torrent is already paused or stopped." });
+        }
+
         await this.torrentService.PauseAsync(id);
         return this.Ok();
     }
@@ -167,7 +199,18 @@ public class SeedingController : Controller
     [HttpPost("start-all")]
     public async Task<ActionResult> StartAll()
     {
-        var torrents = this.torrentService.GetAll();
+        var blocked = this.ResumeBlockedByKillSwitch();
+        if (blocked != null)
+        {
+            return blocked;
+        }
+
+        var torrents = this.torrentService.GetAll().Where(CanResume).ToList();
+        if (torrents.Count == 0)
+        {
+            return this.Conflict(new { message = "No torrents were started." });
+        }
+
         foreach (var t in torrents)
         {
             await this.torrentService.ResumeAsync(t.Id);
@@ -179,13 +222,44 @@ public class SeedingController : Controller
     [HttpPost("stop-all")]
     public async Task<ActionResult> StopAll()
     {
-        var torrents = this.torrentService.GetAll();
+        var torrents = this.torrentService.GetAll().Where(CanPause).ToList();
+        if (torrents.Count == 0)
+        {
+            return this.Conflict(new { message = "No torrents were stopped." });
+        }
+
         foreach (var t in torrents)
         {
             await this.torrentService.PauseAsync(t.Id);
         }
 
         return this.Ok();
+    }
+
+    private static bool CanResume(Torrent torrent)
+    {
+        return torrent.Status is TorrentStatus.Paused
+            or TorrentStatus.Stopped
+            or TorrentStatus.Queued
+            or TorrentStatus.Error
+            or TorrentStatus.Stalled;
+    }
+
+    private static bool CanPause(Torrent torrent)
+    {
+        return torrent.Status != TorrentStatus.Paused && torrent.Status != TorrentStatus.Stopped;
+    }
+
+    private ActionResult ResumeBlockedByKillSwitch()
+    {
+        if (this.downloadEngine?.IsHaltedByKillSwitch == true)
+        {
+            return this.StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                new { message = "VPN kill switch is active. Cannot resume torrents until the VPN interface is restored." });
+        }
+
+        return null;
     }
 
     private static bool IsActiveTorrent(Torrent torrent)
