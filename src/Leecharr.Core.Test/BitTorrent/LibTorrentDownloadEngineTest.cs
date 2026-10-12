@@ -387,6 +387,46 @@ public class LibTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task SetSuperSeedingAsync_DispatchesSetSuperSeedingRpc()
+    {
+        string capturedBody = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult()!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"super_seeding_set\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns("/downloads");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>()).Returns("/downloads");
+
+        var torrent = new Torrent
+        {
+            Id = 16,
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef02",
+            Name = "super-seed-test",
+        };
+        await engine.AddTorrentAsync(torrent);
+
+        await engine.SetSuperSeedingAsync(16, true);
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        doc.RootElement.GetProperty("method").GetString().Should().Be("set_super_seeding");
+        var paramsObj = doc.RootElement.GetProperty("params");
+        paramsObj.GetProperty("info_hash").GetString().Should().Be(torrent.InfoHash);
+        paramsObj.GetProperty("enabled").GetBoolean().Should().BeTrue();
+
+        var task = (LibTorrentDownloadTask)engine.GetTask(16)!;
+        task.IsSuperSeeding.Should().BeTrue();
+    }
+
+    [Test]
     public async Task SetFirstLastPiecePriorityAsync_DispatchesSetFirstLastPiecePriorityRpc()
     {
         string capturedBody = null!;

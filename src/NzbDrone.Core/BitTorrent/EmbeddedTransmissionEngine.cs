@@ -343,6 +343,8 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                 }
             }
 
+            task.IsSuperSeeding = torrent.InitialSeeding;
+
             this.logger.Info("Transmission: Ingested torrent {0} ({1}) to {2}", torrent.Name, torrent.InfoHash, savePath);
         }
         catch (Exception ex)
@@ -911,6 +913,31 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
     }
 
+    public async Task SetSuperSeedingAsync(int torrentId, bool enabled)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    await this.SendRpcRequestAsync("torrent-set", new Dictionary<string, object>
+                    {
+                        ["ids"] = rpcIds,
+                        ["seedMode"] = enabled,
+                    });
+                    task.IsSuperSeeding = enabled;
+                    this.logger.Info("Transmission: Set super seeding for torrent id {0}: {1}", torrentId, enabled);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting super seeding in Transmission for {0}", torrentId);
+            }
+        }
+    }
+
     public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
@@ -1096,7 +1123,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                     "id", "hashString", "name", "status", "percentDone",
                     "rateDownload", "rateUpload", "peersConnected", "peersSendingToUs",
                     "peersGettingFromUs", "totalSize", "downloadedEver", "uploadedEver",
-                    "pieceCount", "pieces", "peers", "availability",
+                    "pieceCount", "pieces", "peers", "availability", "seedMode",
                 };
 
                 var response = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
@@ -1139,6 +1166,12 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                                 6 => TorrentStatus.Seeding,
                                 _ => TorrentStatus.Downloading,
                             };
+
+                            if (item.TryGetProperty("seedMode", out var seedMode) &&
+                                (seedMode.ValueKind == JsonValueKind.True || seedMode.ValueKind == JsonValueKind.False))
+                            {
+                                task.SyncSuperSeedingFromEngine(seedMode.GetBoolean());
+                            }
 
                             if (item.TryGetProperty("peersSendingToUs", out var seeds))
                             {

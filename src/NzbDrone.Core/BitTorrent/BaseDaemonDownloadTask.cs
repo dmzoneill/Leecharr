@@ -13,6 +13,8 @@ public abstract class BaseDaemonDownloadTask : IDownloadTask
     private long uploadSpeed;
     private int connectedSeeders;
     private int connectedLeechers;
+    private bool isSuperSeeding;
+    private bool wasSuperSeedingActive;
     private IReadOnlyList<PeerInfo> peers = Array.Empty<PeerInfo>();
 
     protected BaseDaemonDownloadTask(int torrentId, string infoHash, string name, long totalSize, string category = null)
@@ -108,5 +110,34 @@ public abstract class BaseDaemonDownloadTask : IDownloadTask
     public void SetPeers(IEnumerable<PeerInfo> peerList)
     {
         this.peers = peerList?.ToList() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
+    }
+
+    public bool IsSuperSeeding
+    {
+        get => this.isSuperSeeding;
+        set
+        {
+            this.isSuperSeeding = value;
+            if (!value)
+            {
+                this.wasSuperSeedingActive = false;
+            }
+        }
+    }
+
+    public void SyncSuperSeedingFromEngine(bool engineIsSuperSeeding)
+    {
+        if (engineIsSuperSeeding)
+        {
+            this.wasSuperSeedingActive = true;
+            this.isSuperSeeding = true;
+            return;
+        }
+
+        if (this.wasSuperSeedingActive)
+        {
+            this.isSuperSeeding = false;
+            this.wasSuperSeedingActive = false;
+        }
     }
 }

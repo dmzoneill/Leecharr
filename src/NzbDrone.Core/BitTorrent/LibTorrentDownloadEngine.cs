@@ -393,6 +393,13 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 addArgs["first_last_piece_priority"] = true;
             }
 
+            if (torrent.InitialSeeding)
+            {
+                addArgs["super_seeding"] = true;
+            }
+
+            task.IsSuperSeeding = torrent.InitialSeeding;
+
             await this.SendRpcRequestAsync("add_torrent", addArgs);
             this.logger.Info("libtorrent: Ingested torrent {0} ({1}) to {2}", torrent.Name, torrent.InfoHash, savePath);
         }
@@ -751,6 +758,27 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error setting first/last piece priority in libtorrent for {0}", torrentId);
+            }
+        }
+    }
+
+    public async Task SetSuperSeedingAsync(int torrentId, bool enabled)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                await this.SendRpcRequestAsync("set_super_seeding", new Dictionary<string, object>
+                {
+                    ["info_hash"] = task.InfoHash,
+                    ["enabled"] = enabled,
+                });
+                task.IsSuperSeeding = enabled;
+                this.logger.Info("libtorrent: Set super seeding for torrent id {0}: {1}", torrentId, enabled);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting super seeding in libtorrent for {0}", torrentId);
             }
         }
     }
@@ -1178,6 +1206,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
                             var state = item.TryGetProperty("state", out var s) ? s.GetString() : string.Empty;
                             task.Status = MapDaemonTorrentState(state, task.Progress);
+
+                            if (item.TryGetProperty("super_seeding", out var superSeeding) &&
+                                (superSeeding.ValueKind == JsonValueKind.True || superSeeding.ValueKind == JsonValueKind.False))
+                            {
+                                task.SyncSuperSeedingFromEngine(superSeeding.GetBoolean());
+                            }
 
                             if (item.TryGetProperty("num_seeds", out var seeds))
                             {
