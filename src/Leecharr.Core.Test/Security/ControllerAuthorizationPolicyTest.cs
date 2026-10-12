@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using FluentAssertions;
 using Leecharr.Api.V1.ArrIntegration;
+using Leecharr.Api.V1.Automation;
 using Leecharr.Api.V1.Backup;
 using Leecharr.Api.V1.BitTorrent;
 using Leecharr.Api.V1.Categories;
@@ -62,6 +63,7 @@ public class ControllerAuthorizationPolicyTest
     [TestCase(typeof(TagController), "RequireOperator")]
     [TestCase(typeof(TrackerBoostController), "RequireOperator")]
     [TestCase(typeof(PackageController), "RequireOperator")]
+    [TestCase(typeof(AutomationController), "RequireOperator")]
     public void OperatorControllers_HaveRequireOperatorPolicy(Type controllerType, string expectedPolicy)
     {
         var authAttr = controllerType.GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
