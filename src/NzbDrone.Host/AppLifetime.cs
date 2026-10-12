@@ -438,22 +438,32 @@ public class AppLifetime : IHostedService, IDisposable
                                 if (torrent != null && torrent.Status == TorrentStatus.Seeding)
                                 {
                                     torrent.CumulativeSeedingTimeSeconds += elapsedSeconds;
+                                    if (torrent.UploadSpeed > 0)
+                                    {
+                                        torrent.CumulativeInactiveSeedingTimeSeconds = 0;
+                                    }
+                                    else
+                                    {
+                                        torrent.CumulativeInactiveSeedingTimeSeconds += elapsedSeconds;
+                                    }
+
                                     await this.services.TorrentService.UpdateAsync(torrent);
 
-                                    var category = !string.IsNullOrWhiteSpace(torrent.Category) ? this.services.CategoryService?.GetByName(torrent.Category) : null;
-                                    var serviceRatio = this.services.TorrentService?.GetEffectiveTargetRatio(torrent) ?? 0;
-                                    var effectiveRatio = serviceRatio > 0
-                                        ? serviceRatio
-                                        : (torrent.TargetRatio > 0 ? torrent.TargetRatio : ((category?.TargetRatio ?? 0) > 0 ? category.TargetRatio : (this.services.ConfigService?.GlobalSeedRatioLimit ?? 0)));
-                                    var serviceSeedTime = this.services.TorrentService?.GetEffectiveTargetSeedTimeMinutes(torrent) ?? 0;
-                                    var effectiveSeedTime = serviceSeedTime > 0
-                                        ? serviceSeedTime
-                                        : (torrent.TargetSeedTimeMinutes > 0 ? torrent.TargetSeedTimeMinutes : (category?.TargetSeedTimeMinutes ?? 0));
+                                    var effectiveRatio = this.services.TorrentService?.GetEffectiveTargetRatio(torrent) ?? 0;
+                                    var effectiveSeedTime = this.services.TorrentService?.GetEffectiveTargetSeedTimeMinutes(torrent) ?? 0;
+                                    var effectiveInactiveSeedTime = this.services.TorrentService?.GetEffectiveInactiveSeedingTimeMinutes(torrent) ?? 0;
 
-                                    var ratioReached = effectiveRatio > 0 && torrent.Ratio >= effectiveRatio;
-                                    var timeReached = effectiveSeedTime > 0 && torrent.SeedTimeMinutes >= effectiveSeedTime;
+                                    var ratioReached = effectiveRatio switch
+                                    {
+                                        < 0 => false,
+                                        0 => true,
+                                        _ => torrent.Ratio >= effectiveRatio,
+                                    };
+                                    var timeReached = effectiveSeedTime >= 0 && torrent.SeedTimeMinutes >= effectiveSeedTime;
+                                    var inactiveTimeReached = effectiveInactiveSeedTime >= 0 &&
+                                        (torrent.CumulativeInactiveSeedingTimeSeconds / 60) >= effectiveInactiveSeedTime;
 
-                                    if (ratioReached || timeReached)
+                                    if (ratioReached || timeReached || inactiveTimeReached)
                                     {
                                         if (ratioReached && this.ratioReachedTorrents.TryAdd(torrent.Id, true))
                                         {

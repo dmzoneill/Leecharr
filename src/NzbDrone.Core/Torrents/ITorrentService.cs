@@ -69,6 +69,8 @@ public interface ITorrentService
 
     int GetEffectiveTargetSeedTimeMinutes(Torrent torrent);
 
+    int GetEffectiveInactiveSeedingTimeMinutes(Torrent torrent);
+
     int ResolveEffectiveDownloadLimit(int torrentLimit, int categoryLimit);
 
     int ResolveEffectiveUploadLimit(int torrentLimit, int categoryLimit);

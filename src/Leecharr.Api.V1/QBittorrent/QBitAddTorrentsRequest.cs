@@ -38,6 +38,8 @@ public class QBitAddTorrentsRequest
 
     public int? SeedingTimeLimit { get; set; }
 
+    public int? InactiveSeedingTimeLimit { get; set; }
+
     public string ContentLayout { get; set; }
 
     public string Rename { get; set; }
