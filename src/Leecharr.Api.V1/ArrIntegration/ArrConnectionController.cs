@@ -276,6 +276,7 @@ public class ArrConnectionController : Controller
             SavePath = model.SavePath,
             SyncCategories = model.SyncCategories,
             RefreshIntervalMinutes = model.SyncIntervalMinutes,
+            LastSync = model.LastSyncUtc,
         };
     }
 

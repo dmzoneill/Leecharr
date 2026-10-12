@@ -33,7 +33,8 @@ public class ArrSyncController : Controller
     [HttpPost("sync")]
     public async Task<ActionResult<SyncResultResource>> Sync()
     {
-        var connections = this.arrRepository.GetEnabled().ToList();
+        var utcNow = DateTime.UtcNow;
+        var connections = ArrSyncConnectionFilter.SelectForSync(this.arrRepository.GetEnabled(), utcNow, enforceRefreshInterval: false).ToList();
         var syncedCount = 0;
         var skippedCount = 0;
         var failedCount = 0;
@@ -85,6 +86,7 @@ public class ArrSyncController : Controller
                 if (connected)
                 {
                     syncedCount++;
+                    ArrSyncConnectionFilter.RecordSuccessfulSync(this.arrRepository, conn, utcNow);
                 }
                 else
                 {
@@ -100,7 +102,7 @@ public class ArrSyncController : Controller
 
         var success = syncedCount > 0;
         var message = connections.Count == 0
-            ? "Arr sync did not run: no enabled Arr connections."
+            ? "Arr sync did not run: no Arr connections with sync enabled."
             : success
                 ? $"Arr sync completed successfully ({syncedCount}/{connections.Count} connected)."
                 : $"Arr sync failed ({syncedCount}/{connections.Count} connected).";

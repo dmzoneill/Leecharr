@@ -56,6 +56,10 @@ public class ArrSyncService : IArrSyncService, IExecute<SyncArrCommand>, IExecut
             connections = connections.Where(c => string.Equals(c.ArrType, appType, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
+        var enforceRefreshInterval = !instanceId.HasValue && string.IsNullOrWhiteSpace(appType);
+        var utcNow = DateTime.UtcNow;
+        connections = ArrSyncConnectionFilter.SelectForSync(connections, utcNow, enforceRefreshInterval).ToList();
+
         var syncedCount = 0;
         var client = this.httpClient ?? DefaultHttpClient;
 
@@ -100,6 +104,7 @@ public class ArrSyncService : IArrSyncService, IExecute<SyncArrCommand>, IExecut
                     if (connected)
                     {
                         syncedCount++;
+                        ArrSyncConnectionFilter.RecordSuccessfulSync(this.arrRepository, conn, utcNow);
                         this.logger.Info("Successfully synced Arr connection {0} ({1})", conn.Name, conn.Url);
                     }
                     else
