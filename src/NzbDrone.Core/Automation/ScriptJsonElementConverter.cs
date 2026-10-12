@@ -61,4 +61,28 @@ internal static class ScriptJsonElementConverter
 
         return dict;
     }
+
+    public static void RegisterInputVariables(
+        Dictionary<string, object?> variableContext,
+        string prefix,
+        IReadOnlyDictionary<string, object?> inputs)
+    {
+        foreach (var kvp in inputs)
+        {
+            RegisterInputVariable(variableContext, $"{prefix}.{kvp.Key}", kvp.Value);
+        }
+    }
+
+    private static void RegisterInputVariable(Dictionary<string, object?> variableContext, string key, object? value)
+    {
+        variableContext[key] = value;
+
+        if (value is Dictionary<string, object?> objectValue)
+        {
+            foreach (var child in objectValue)
+            {
+                RegisterInputVariable(variableContext, $"{key}.{child.Key}", child.Value);
+            }
+        }
+    }
 }

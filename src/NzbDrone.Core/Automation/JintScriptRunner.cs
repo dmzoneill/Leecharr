@@ -93,7 +93,7 @@ public class JintScriptRunner : IScriptRunner
                     {
                         foreach (var kvp in parsed)
                         {
-                            mergedInputs[kvp.Key] = JsonElementToObject(kvp.Value);
+                            mergedInputs[kvp.Key] = ScriptJsonElementConverter.ToScriptValue(kvp.Value);
                         }
                     }
                 }
@@ -205,20 +205,6 @@ public class JintScriptRunner : IScriptRunner
         sb.AppendLine(line.ToString());
     }
 
-    private static object? JsonElementToObject(JsonElement element)
-    {
-        return element.ValueKind switch
-        {
-            JsonValueKind.String => element.GetString(),
-            JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDouble(),
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.Null => null,
-            JsonValueKind.Array => element.ToString(),
-            JsonValueKind.Object => element.ToString(),
-            _ => element.ToString(),
-        };
-    }
 }
 
 #pragma warning disable SA1300 // Element should begin with upper-case letter (DSL wrapper)

@@ -77,7 +77,7 @@ public class YamlScriptRunner : IScriptRunner
                     {
                         foreach (var kvp in parsed)
                         {
-                            mergedInputs[kvp.Key] = JsonElementToObject(kvp.Value);
+                            mergedInputs[kvp.Key] = ScriptJsonElementConverter.ToScriptValue(kvp.Value);
                         }
                     }
                 }
@@ -95,11 +95,8 @@ public class YamlScriptRunner : IScriptRunner
                 }
             }
 
-            foreach (var kvp in mergedInputs)
-            {
-                variableContext[$"inputs.{kvp.Key}"] = kvp.Value;
-                variableContext[$"secrets.{kvp.Key}"] = kvp.Value;
-            }
+            ScriptJsonElementConverter.RegisterInputVariables(variableContext, "inputs", mergedInputs);
+            ScriptJsonElementConverter.RegisterInputVariables(variableContext, "secrets", mergedInputs);
 
             // Populate torrent context
             ScriptTorrentContext? torrentCtx = null;
@@ -1490,20 +1487,6 @@ string.Equals(val, "off", StringComparison.OrdinalIgnoreCase))
         return false;
     }
 
-    private static object? JsonElementToObject(JsonElement element)
-    {
-        return element.ValueKind switch
-        {
-            JsonValueKind.String => element.GetString(),
-            JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDouble(),
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.Null => null,
-            JsonValueKind.Array => element.ToString(),
-            JsonValueKind.Object => element.ToString(),
-            _ => element.ToString(),
-        };
-    }
 }
 
 public class YamlWorkflowModel
