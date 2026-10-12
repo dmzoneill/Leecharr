@@ -1208,16 +1208,6 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                                 task.SyncSuperSeedingFromEngine(seedMode.GetBoolean());
                             }
 
-                            if (item.TryGetProperty("peersSendingToUs", out var seeds))
-                            {
-                                task.ConnectedSeeders = seeds.GetInt32();
-                            }
-
-                            if (item.TryGetProperty("peersGettingFromUs", out var leechers))
-                            {
-                                task.ConnectedLeechers = leechers.GetInt32();
-                            }
-
                             if (item.TryGetProperty("availability", out var pieceAvailability) && pieceAvailability.ValueKind == JsonValueKind.Array)
                             {
                                 var availability = new int[pieceAvailability.GetArrayLength()];
@@ -1274,6 +1264,15 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                                 }
 
                                 task.SetPeers(peerList);
+                                var (connectedSeeders, connectedLeechers) = ResolveConnectedPeerCountsFromTransmissionPoll(item, peerList);
+                                task.ConnectedSeeders = connectedSeeders;
+                                task.ConnectedLeechers = connectedLeechers;
+                            }
+                            else
+                            {
+                                var (connectedSeeders, connectedLeechers) = ResolveConnectedPeerCountsFromTransmissionPoll(item, null);
+                                task.ConnectedSeeders = connectedSeeders;
+                                task.ConnectedLeechers = connectedLeechers;
                             }
                         }
                     }
@@ -1650,6 +1649,21 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         var normalized = requestedPath.Replace('\\', '/').TrimStart('/');
         var name = transmissionFileName.Replace('\\', '/').TrimStart('/');
         return name.Equals(normalized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static (int Seeders, int Leechers) ResolveConnectedPeerCountsFromTransmissionPoll(JsonElement torrent, IReadOnlyList<PeerInfo> peers)
+    {
+        if (peers != null && peers.Count > 0)
+        {
+            return (peers.Count(p => p.Progress >= 1.0), peers.Count(p => p.Progress < 1.0));
+        }
+
+        if (torrent.TryGetProperty("peersConnected", out var peersConnected) && peersConnected.TryGetInt32(out var total) && total > 0)
+        {
+            return (0, total);
+        }
+
+        return (0, 0);
     }
 
     internal string ResolveBoundIpv4Address()
