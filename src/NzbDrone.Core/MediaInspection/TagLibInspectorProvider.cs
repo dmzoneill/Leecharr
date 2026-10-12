@@ -3393,18 +3393,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                         : (ushort)0;
 
                     var (codecName, score) = GetWaveFormatInfo(wFormatTag);
-                    var channelsStr = nChannels switch
-                    {
-                        1 => "1.0",
-                        2 => "2.0",
-                        6 => "5.1",
-                        8 => "7.1",
-                        _ => nChannels > 0 ? $"{nChannels}.0" : null,
-                    };
+                    var channelsStr = FormatAudioChannels(nChannels);
 
                     if (!string.IsNullOrEmpty(codecName))
                     {
-                        ApplyAudioCodec(info, codecName, channelsStr ?? "2.0", score);
+                        ApplyAudioCodec(info, codecName, channelsStr, score);
                     }
                     else if (!string.IsNullOrEmpty(channelsStr) && string.IsNullOrEmpty(info.AudioChannels))
                     {
