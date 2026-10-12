@@ -57,6 +57,7 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
             Status = CommandStatus.Queued,
             QueuedAt = command.QueuedAt,
             Trigger = (int)trigger,
+            Priority = command.Priority,
         };
 
         var result = this.repository.FindOrInsert(command.Name, body, model);
