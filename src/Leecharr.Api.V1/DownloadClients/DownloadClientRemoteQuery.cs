@@ -9,6 +9,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.DataProtection;
 using NLog;
 using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Http;
@@ -25,9 +26,10 @@ public static class DownloadClientRemoteQuery
         DownloadClientDefinition client,
         HttpClient httpClient = null,
         ISafeHttpClientService safeHttpClientService = null,
-        bool filterByCategory = true)
+        bool filterByCategory = true,
+        IDataProtector protector = null)
     {
-        var result = await QueryRemoteClientItemsDetailedAsync(client, httpClient, safeHttpClientService, filterByCategory);
+        var result = await QueryRemoteClientItemsDetailedAsync(client, httpClient, safeHttpClientService, filterByCategory, protector);
         return result.Items;
     }
 
@@ -35,7 +37,8 @@ public static class DownloadClientRemoteQuery
         DownloadClientDefinition client,
         HttpClient httpClient = null,
         ISafeHttpClientService safeHttpClientService = null,
-        bool filterByCategory = true)
+        bool filterByCategory = true,
+        IDataProtector protector = null)
     {
         var items = new List<DownloadClientRemoteItem>();
         if (client == null)
@@ -339,19 +342,19 @@ public static class DownloadClientRemoteQuery
         return targets.Any(target => candidateTokens.Contains(target));
     }
 
-    public static Task<bool> PauseTorrentAsync(DownloadClientDefinition client, string infoHash, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)
+    public static Task<bool> PauseTorrentAsync(DownloadClientDefinition client, string infoHash, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null, IDataProtector protector = null)
     {
-        return ExecuteTorrentActionAsync(client, infoHash, "pause", false, httpClient, safeHttpClientService);
+        return ExecuteTorrentActionAsync(client, infoHash, "pause", false, httpClient, safeHttpClientService, protector);
     }
 
-    public static Task<bool> ResumeTorrentAsync(DownloadClientDefinition client, string infoHash, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)
+    public static Task<bool> ResumeTorrentAsync(DownloadClientDefinition client, string infoHash, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null, IDataProtector protector = null)
     {
-        return ExecuteTorrentActionAsync(client, infoHash, "resume", false, httpClient, safeHttpClientService);
+        return ExecuteTorrentActionAsync(client, infoHash, "resume", false, httpClient, safeHttpClientService, protector);
     }
 
-    public static Task<bool> DeleteTorrentAsync(DownloadClientDefinition client, string infoHash, bool deleteData = false, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)
+    public static Task<bool> DeleteTorrentAsync(DownloadClientDefinition client, string infoHash, bool deleteData = false, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null, IDataProtector protector = null)
     {
-        return ExecuteTorrentActionAsync(client, infoHash, "delete", deleteData, httpClient, safeHttpClientService);
+        return ExecuteTorrentActionAsync(client, infoHash, "delete", deleteData, httpClient, safeHttpClientService, protector);
     }
 
     private static async Task<bool> ExecuteTorrentActionAsync(
@@ -360,7 +363,8 @@ public static class DownloadClientRemoteQuery
         string action,
         bool deleteData = false,
         HttpClient httpClient = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IDataProtector protector = null)
     {
         if (client == null || string.IsNullOrWhiteSpace(infoHash))
         {
