@@ -754,8 +754,18 @@ public class ConfigService : IConfigService
             return defaultValue;
         }
 
-        if (double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var result)
-            || double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out result))
+        var styles = NumberStyles.Float | NumberStyles.AllowThousands;
+
+        if (value.Contains(',') && !value.Contains('.'))
+        {
+            if (double.TryParse(value, styles, CultureInfo.CurrentCulture, out var commaCultureResult))
+            {
+                return commaCultureResult;
+            }
+        }
+
+        if (double.TryParse(value, styles, CultureInfo.InvariantCulture, out var result)
+            || double.TryParse(value, styles, CultureInfo.CurrentCulture, out result))
         {
             return result;
         }
