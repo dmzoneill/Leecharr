@@ -320,18 +320,18 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                         }
 
                         trackerEntries.Add(new TrackerEntry
-                            {
-                                TorrentId = inserted.Id,
-                                Url = trimmedUrl,
-                                Tier = tier,
-                                Enabled = true,
-                                Status = 0,
-                                AnnounceInterval = defaultAnnounceInterval,
-                                LastAnnounce = null,
-                                NextAnnounce = inserted.DateAdded.AddSeconds(defaultAnnounceInterval),
-                                TotalAnnounces = 0,
-                                SuccessfulAnnounces = 0,
-                            });
+                        {
+                            TorrentId = inserted.Id,
+                            Url = trimmedUrl,
+                            Tier = tier,
+                            Enabled = true,
+                            Status = 0,
+                            AnnounceInterval = defaultAnnounceInterval,
+                            LastAnnounce = null,
+                            NextAnnounce = inserted.DateAdded.AddSeconds(defaultAnnounceInterval),
+                            TotalAnnounces = 0,
+                            SuccessfulAnnounces = 0,
+                        });
                     }
                 }
 
@@ -2346,11 +2346,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             if (!string.IsNullOrWhiteSpace(category) && string.Equals(relativeSegments, category, StringComparison.OrdinalIgnoreCase))
             {
                 return defaultDownloadDir;
-            }
-
-            if (!CategoryService.IsRootOrSystemDirectory(normalizedPath))
-            {
-                return normalizedPath;
             }
 
             this.logger.Warn("Save path '{0}' is outside allowed media directories. Falling back to '{1}'", savePath, defaultDownloadDir);
