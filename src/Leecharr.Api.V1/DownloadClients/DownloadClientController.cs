@@ -220,7 +220,7 @@ public class DownloadClientController : Controller
         {
             try
             {
-                var queryResult = await DownloadClientRemoteQuery.QueryRemoteClientItemsDetailedAsync(client, http, this.safeHttpClientService);
+                var queryResult = await DownloadClientRemoteQuery.QueryRemoteClientItemsDetailedAsync(client, http, this.safeHttpClientService, protector: this.protector);
                 if (!queryResult.IsSuccess)
                 {
                     failures.Add(new DownloadClientQueryFailureResource
@@ -279,7 +279,7 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService);
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService, protector: this.protector);
         foreach (var item in items)
         {
             item.ClientId = client.Id;
@@ -318,7 +318,7 @@ public class DownloadClientController : Controller
             return this.BadRequest(hashError);
         }
 
-        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService, filterByCategory: false);
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService, filterByCategory: false, protector: this.protector);
         var remoteItem = items.FirstOrDefault(i => string.Equals(i.InfoHash, hash, StringComparison.OrdinalIgnoreCase));
         if (remoteItem == null)
         {
@@ -393,7 +393,7 @@ public class DownloadClientController : Controller
         {
             try
             {
-                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService, filterByCategory: false);
+                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService, filterByCategory: false, protector: this.protector);
                 foreach (var item in items.Where(i => !string.IsNullOrWhiteSpace(i.InfoHash)))
                 {
                     if (!itemMap.ContainsKey(item.InfoHash))
@@ -481,7 +481,7 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        var success = await DownloadClientRemoteQuery.PauseTorrentAsync(client, infoHash, this.GetHttpClient(), this.safeHttpClientService);
+        var success = await DownloadClientRemoteQuery.PauseTorrentAsync(client, infoHash, this.GetHttpClient(), this.safeHttpClientService, this.protector);
         if (!success)
         {
             return this.StatusCode((int)HttpStatusCode.BadGateway, new { success = false, message = $"Failed to pause torrent on {client.Name}" });
@@ -499,7 +499,7 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        var success = await DownloadClientRemoteQuery.ResumeTorrentAsync(client, infoHash, this.GetHttpClient(), this.safeHttpClientService);
+        var success = await DownloadClientRemoteQuery.ResumeTorrentAsync(client, infoHash, this.GetHttpClient(), this.safeHttpClientService, this.protector);
         if (!success)
         {
             return this.StatusCode((int)HttpStatusCode.BadGateway, new { success = false, message = $"Failed to resume torrent on {client.Name}" });
@@ -517,7 +517,7 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        var success = await DownloadClientRemoteQuery.DeleteTorrentAsync(client, infoHash, deleteData, this.GetHttpClient(), this.safeHttpClientService);
+        var success = await DownloadClientRemoteQuery.DeleteTorrentAsync(client, infoHash, deleteData, this.GetHttpClient(), this.safeHttpClientService, this.protector);
         if (!success)
         {
             return this.StatusCode((int)HttpStatusCode.BadGateway, new { success = false, message = $"Failed to delete torrent on {client.Name}" });
@@ -539,7 +539,7 @@ public class DownloadClientController : Controller
         {
             try
             {
-                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService);
+                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService, protector: this.protector);
                 if (items.Any(i => string.Equals(i.InfoHash, infoHash, StringComparison.OrdinalIgnoreCase)))
                 {
                     return client;

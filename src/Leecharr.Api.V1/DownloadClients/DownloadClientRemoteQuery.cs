@@ -74,7 +74,7 @@ public static class DownloadClientRemoteQuery
             };
         }
 
-        var password = DownloadClientPasswordHelper.Unprotect(client.Password);
+        var password = DownloadClientPasswordHelper.Unprotect(client.Password, protector);
 
         HttpClient localHttp = null;
         if (httpClient == null)
@@ -389,7 +389,7 @@ public static class DownloadClientRemoteQuery
             return false;
         }
 
-        var password = DownloadClientPasswordHelper.Unprotect(client.Password);
+        var password = DownloadClientPasswordHelper.Unprotect(client.Password, protector);
 
         HttpClient localHttp = null;
         if (httpClient == null)
