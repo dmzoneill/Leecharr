@@ -298,7 +298,15 @@ public class DynamicMediaMetadataProxyTest
         var arrRepo = Substitute.For<IArrConnectionRepository>();
         var connections = new List<ArrConnectionDefinition>
         {
-            new() { Id = 1, Name = "Sonarr 4K", ArrType = "Sonarr", Url = "http://127.0.0.1:8989", ApiKey = "sonarr-key", Enable = true },
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr 4K",
+                ArrType = "Sonarr",
+                Url = "http://127.0.0.1:8989",
+                ApiKey = "sonarr-key",
+                Enable = true,
+            },
         };
         arrRepo.All().Returns(connections);
         arrRepo.GetEnabled().Returns(connections);
@@ -436,18 +444,18 @@ public class DynamicMediaMetadataProxyTest
         }
     }
 
-    private class MockHttpMessageHandler : HttpMessageHandler
+    private sealed class MockHttpMessageHandler : HttpMessageHandler
     {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> responder;
 
-        public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
+        public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder)
         {
-            this.handler = handler;
+            this.responder = responder;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            return Task.FromResult(this.handler(request));
+            return Task.FromResult(this.responder(request));
         }
     }
 }

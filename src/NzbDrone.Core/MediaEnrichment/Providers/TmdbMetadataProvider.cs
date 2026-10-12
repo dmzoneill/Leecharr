@@ -103,7 +103,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
                     (category ?? string.Empty).Contains("show", StringComparison.OrdinalIgnoreCase) ||
                     (category ?? string.Empty).Contains("series", StringComparison.OrdinalIgnoreCase) ||
                     (category ?? string.Empty).Contains("sonarr", StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2))))
+                    (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}E\d{1,3}|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2))))
                     && !(category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase)
                     && !(category ?? string.Empty).Contains("radarr", StringComparison.OrdinalIgnoreCase);
 
@@ -320,7 +320,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         var cleaned = Regex.Replace(rawTitle, @"[._]", " ", RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip TV season/episode markers (e.g. S01E01, S01E01-E04, S01E01E02, 1x05, Season 1, Episode 01, E05)
-        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
+        cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(S\d{1,2}[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip edition tags if not at start of title and followed by quality tags, years, or end of string
         cleaned = Regex.Replace(cleaned, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
