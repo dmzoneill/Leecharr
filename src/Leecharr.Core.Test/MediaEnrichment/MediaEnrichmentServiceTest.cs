@@ -728,6 +728,19 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
         metadata.MediaType.Should().Be("Movie");
     }
 
+    [TestCase("Galaxy.S10.Review", "Galaxy S10 Review", "Movie")]
+    [TestCase("Product.S8.1080p", "Product S8", "Movie")]
+    public async Task TmdbProvider_FetchMetadataAsync_BareSeasonTokenWithoutEpisode_ClassifiedAsMovie(
+        string releaseName, string expectedTitle, string expectedType)
+    {
+        var provider = new TmdbMetadataProvider();
+        var metadata = await provider.FetchMetadataAsync(releaseName);
+
+        metadata.Should().NotBeNull();
+        metadata!.Title.Should().Be(expectedTitle);
+        metadata.MediaType.Should().Be(expectedType);
+    }
+
     [TestCase("Show.S1E01", "Show")]
     [TestCase("Show.1x05", "Show")]
     [TestCase("Season.of.the.Witch.2011.1080p", "Season of the Witch")]
@@ -737,6 +750,8 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     [TestCase("1917.2019.1080p", "1917")]
     [TestCase("1984.1956.720p", "1984")]
     [TestCase("2012.2009.1080p", "2012")]
+    [TestCase("Galaxy.S10.Review", "Galaxy S10 Review")]
+    [TestCase("Product.S8.1080p", "Product S8")]
     public void CleanTitle_StripsEpisodicTagsAndYears_AcrossProviders(string raw, string expected)
     {
         TmdbMetadataProvider.CleanTitle(raw).Should().Be(expected);

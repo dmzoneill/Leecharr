@@ -145,7 +145,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var cleanTitle = CleanTitle(title);
         var cat = (category ?? string.Empty).ToLowerInvariant();
         var isTv = cat.Contains("tv") || cat.Contains("sonarr") || cat.Contains("show") || cat.Contains("series") ||
-            (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}(?:E\d{1,3})?|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2)));
+            (!string.IsNullOrEmpty(title) && Regex.IsMatch(title, @"(?i)\b(S\d{1,2}E\d{1,3}|\d{1,2}x\d{1,3}|Season[.\s_-]*(?!19\d\d|20\d\d)\d+|Episode[.\s_-]*\d+|E\d{2,3})\b", RegexOptions.None, TimeSpan.FromSeconds(2)));
         var isMusic = cat.Contains("music") || cat.Contains("lidarr") || cat.Contains("album") || cat.Contains("audio") || cat.Contains("flac");
         var preferredType = isMusic ? "Lidarr" : isTv ? "Sonarr" : "Radarr";
 
@@ -961,7 +961,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         clean = clean.Replace('\uE000', '.');
 
         // Strip TV season/episode markers (e.g. S01E01, S01E01-E04, S01E01E02, 1x05, Season 1, Episode 01, E05)
-        clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
+        clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(S\d{1,2}[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
 
         // Strip edition tags if not at start of title and followed by quality tags, years, or end of string
         clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(repack|proper|internal|extended|unrated|multi|complete|limited|theatrical|remastered|director'?s\s*cut)\b(?=\s+(?:1080p|720p|2160p|4k|8k|uhd|hdr|remux|bluray|blu-ray|web|webrip|web-dl|hdtv|dvdrip|bdrip|x264|x265|hevc|h264|h265|dts|aac|edition|cut|version|series|season|\d{4}|$)|$).*$", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2));
