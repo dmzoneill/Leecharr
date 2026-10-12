@@ -399,9 +399,13 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
     private static bool IsLeecharrArrWebhookUrl(string url)
     {
-        return !string.IsNullOrWhiteSpace(url) &&
-               (url.Contains("/api/v1/webhook/arr", StringComparison.OrdinalIgnoreCase) ||
-                url.Contains("/api/v1/webhooks/arr", StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        return url.Contains("/api/v1/webhook/arr", StringComparison.OrdinalIgnoreCase)
+            || url.Contains("/api/v1/webhooks/arr", StringComparison.OrdinalIgnoreCase);
     }
 
     private int? FindExistingDownloadClientId(ArrConnectionDefinition connection, string apiVersion)
