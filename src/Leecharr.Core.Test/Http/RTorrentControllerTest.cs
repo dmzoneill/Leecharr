@@ -588,6 +588,92 @@ public class RTorrentControllerTest
     }
 
     [Test]
+    public async Task HandleXmlRpc_ThrottleGlobalDownMaxRateSet_WithBytes_SavesConfigInKb()
+    {
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>throttle.global_down.max_rate.set</methodName>
+                <params>
+                <param><value><i8>1048576</i8></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxDownloadSpeedKbps"] == 1024));
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_ThrottleGlobalUpMaxRateSet_WithBytes_SavesConfigInKb()
+    {
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>throttle.global_up.max_rate.set</methodName>
+                <params>
+                <param><value><i8>524288</i8></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxUploadSpeedKbps"] == 512));
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_ThrottleGlobalDownMaxRateGet_WithStoredKb_ReturnsBytes()
+    {
+        this.configService.MaxDownloadSpeedKbps.Returns(1024);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>throttle.global_down.max_rate</methodName>
+                <params></params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i8>1048576</i8>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_ThrottleGlobalUpMaxRateGet_WithStoredKb_ReturnsBytes()
+    {
+        this.configService.MaxUploadSpeedKbps.Returns(512);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>throttle.global_up.max_rate</methodName>
+                <params></params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i8>524288</i8>");
+    }
+
+    [Test]
     public async Task HandleXmlRpc_SetDownloadRate_WithBytes_SavesConfigInKb()
     {
         var xml = """
