@@ -40,9 +40,7 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         this.logger = LogManager.GetCurrentClassLogger();
 
         var desiredProviderId = this.configService?.ActiveNetworkBindingProvider;
-        this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
-            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ManagedSocket", StringComparison.OrdinalIgnoreCase))
-            ?? this.availableProviders.FirstOrDefault();
+        this.activeProvider = this.ResolveInitialProvider(desiredProviderId);
 
         if (this.activeProvider == null)
         {
@@ -50,6 +48,36 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         }
 
         this.logger.Info("DynamicNetworkBindingProxy initialized with active provider: {0} ({1})", this.activeProvider.DisplayName, this.activeProvider.ProviderId);
+    }
+
+    private INetworkBindingProvider ResolveInitialProvider(string desiredProviderId)
+    {
+        var fallback = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("ManagedSocket", StringComparison.OrdinalIgnoreCase))
+            ?? this.availableProviders.FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(desiredProviderId))
+        {
+            return fallback;
+        }
+
+        var desired = this.GetProvider(desiredProviderId);
+        if (desired == null)
+        {
+            return fallback;
+        }
+
+        var desiredHealth = desired.ProbeHealthAsync().GetAwaiter().GetResult();
+        if (desiredHealth.IsHealthy)
+        {
+            return desired;
+        }
+
+        if (fallback != null && !ReferenceEquals(fallback, desired))
+        {
+            fallback.ProbeHealthAsync().GetAwaiter().GetResult();
+        }
+
+        return fallback ?? desired;
     }
 
     public IEnumerable<INetworkBindingProvider> GetProviders()
