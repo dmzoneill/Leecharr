@@ -46,7 +46,7 @@ public class ArrSyncControllerTest
         result.Added.Should().Be(0);
         result.Skipped.Should().Be(0);
         result.Failed.Should().Be(0);
-        result.Message.Should().Be("Arr sync did not run: no enabled Arr connections.");
+        result.Message.Should().Be("Arr sync did not run: no Arr connections with sync enabled.");
     }
 
     [Test]

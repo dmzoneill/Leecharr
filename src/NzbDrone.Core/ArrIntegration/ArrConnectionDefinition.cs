@@ -30,6 +30,8 @@ public class ArrConnectionDefinition : ModelBase
 
     public bool SyncEnabled { get; set; } = true;
 
+    public DateTime? LastSyncUtc { get; set; }
+
     public bool EnableAutomaticAdd { get; set; } = true;
 
     public bool WebhookEnabled { get; set; } = true;

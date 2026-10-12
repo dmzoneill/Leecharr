@@ -181,6 +181,84 @@ public class ArrSyncServiceTest
     }
 
     [Test]
+    public async Task SyncAsync_SkipsConnectionsWithSyncDisabled()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new HttpClient(handler);
+        var service = new ArrSyncService(this.arrRepository, httpClient);
+
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new() { Id = 1, Name = "Sonarr", ArrType = "Sonarr", Url = "http://127.0.0.1:8989", ApiKey = "key", SyncEnabled = false },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var count = await service.SyncAsync();
+
+        count.Should().Be(0);
+        handler.RequestCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task SyncAsync_WhenScheduledAndIntervalNotElapsed_SkipsConnection()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new HttpClient(handler);
+        var service = new ArrSyncService(this.arrRepository, httpClient);
+
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr",
+                ArrType = "Sonarr",
+                Url = "http://127.0.0.1:8989",
+                ApiKey = "key",
+                SyncEnabled = true,
+                SyncIntervalMinutes = 60,
+                LastSyncUtc = DateTime.UtcNow.AddMinutes(-5),
+            },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var count = await service.SyncAsync();
+
+        count.Should().Be(0);
+        handler.RequestCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task SyncAsync_WhenTargetedByInstanceId_IgnoresRefreshInterval()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new HttpClient(handler);
+        var service = new ArrSyncService(this.arrRepository, httpClient);
+
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr",
+                ArrType = "Sonarr",
+                Url = "http://127.0.0.1:8989",
+                ApiKey = "key",
+                SyncEnabled = true,
+                SyncIntervalMinutes = 60,
+                LastSyncUtc = DateTime.UtcNow.AddMinutes(-5),
+            },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var count = await service.SyncAsync(instanceId: 1);
+
+        count.Should().Be(1);
+        handler.RequestCount.Should().BeGreaterThan(0);
+        this.arrRepository.Received(1).Update(Arg.Is<ArrConnectionDefinition>(c => c.Id == 1 && c.LastSyncUtc.HasValue));
+    }
+
+    [Test]
     public void SyncArrCommand_Properties_CanBeSetAndRetrieved()
     {
         var cmd = new SyncArrCommand
