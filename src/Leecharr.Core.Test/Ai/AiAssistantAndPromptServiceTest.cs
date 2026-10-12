@@ -28,12 +28,15 @@ public class AiAssistantAndPromptServiceTest
 {
     private IConfigService configService = null!;
     private string originalEnvKey;
+    private string originalOllamaHost;
 
     [SetUp]
     public void SetUp()
     {
         this.originalEnvKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
         Environment.SetEnvironmentVariable("GEMINI_API_KEY", null);
+        this.originalOllamaHost = Environment.GetEnvironmentVariable("OLLAMA_HOST");
+        Environment.SetEnvironmentVariable("OLLAMA_HOST", null);
 
         this.configService = Substitute.For<IConfigService>();
         this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns("mock-gemini-key");
@@ -46,6 +49,7 @@ public class AiAssistantAndPromptServiceTest
     public void TearDown()
     {
         Environment.SetEnvironmentVariable("GEMINI_API_KEY", this.originalEnvKey);
+        Environment.SetEnvironmentVariable("OLLAMA_HOST", this.originalOllamaHost);
     }
 
     [Test]
@@ -930,16 +934,30 @@ public class AiAssistantAndPromptServiceTest
     public async Task Ollama_HostConfiguration_TrimsTrailingSlashesAndReadsOllamaHost()
     {
         this.configService.OllamaHost.Returns("http://192.168.1.100:11434///");
+        this.configService.OllamaModel.Returns("deepseek-r1:8b");
         this.configService.GetValue("OllamaModel", Arg.Any<string>()).Returns("deepseek-r1:8b");
 
         HttpRequestMessage capturedRequest = null!;
         var handler = new MockHttpMessageHandler((req, ct) =>
         {
-            capturedRequest = req;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            if (req.RequestUri?.AbsolutePath == "/api/version")
             {
-                Content = new StringContent("{\"version\": \"0.5.1\"}"),
-            });
+                capturedRequest = req;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"version\": \"0.5.1\"}"),
+                });
+            }
+
+            if (req.RequestUri?.AbsolutePath == "/api/tags")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"models\":[{\"name\":\"deepseek-r1:8b\"}]}"),
+                });
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         });
 
         using var client = new HttpClient(handler);
@@ -955,6 +973,7 @@ public class AiAssistantAndPromptServiceTest
     [Test]
     public async Task Ollama_ModelConfiguration_PassesCustomModelNameInPayload()
     {
+        this.configService.OllamaModel.Returns("mistral:7b");
         this.configService.GetValue("OllamaModel", Arg.Any<string>()).Returns("mistral:7b");
 
         var capturedBody = string.Empty;
