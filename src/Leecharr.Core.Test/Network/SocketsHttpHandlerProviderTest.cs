@@ -81,6 +81,46 @@ public class SocketsHttpHandlerProviderTest
     }
 
     [Test]
+    public async Task ConnectCallback_CurlImpersonate_WhenBindInterfaceConfigured_BindsSocket()
+    {
+        this.configService.BindInterface.Returns("tun0");
+
+        using var provider = new CurlImpersonateTransportProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
+        var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 80));
+
+        try
+        {
+            await provider.Handler.ConnectCallback!(context, CancellationToken.None);
+        }
+        catch
+        {
+            // Ignored if connection fails after socket is created and bound
+        }
+
+        this.networkBindingService.Received().BindSocket(Arg.Any<Socket>(), "tun0");
+    }
+
+    [Test]
+    public async Task ConnectCallback_FlareSolverrFallback_WhenBindInterfaceConfigured_BindsSocket()
+    {
+        this.configService.BindInterface.Returns("tun0");
+
+        using var provider = new FlareSolverrTransportProvider(this.configService, networkBindingService: this.networkBindingService, vpnKillSwitchService: this.vpnKillSwitchService);
+        var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 80));
+
+        try
+        {
+            await provider.FallbackHandler.ConnectCallback!(context, CancellationToken.None);
+        }
+        catch
+        {
+            // Ignored if connection fails after socket is created and bound
+        }
+
+        this.networkBindingService.Received().BindSocket(Arg.Any<Socket>(), "tun0");
+    }
+
+    [Test]
     public async Task DynamicHttpTransportProxy_SendAsync_WhenKillSwitchFailClosedActive_ThrowsNetworkUnreachable()
     {
         this.vpnKillSwitchService.IsFailClosedActive.Returns(true);

@@ -14,12 +14,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Http.Transport;
 
 public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutboundProxyRefreshable, IDisposable
 {
     private readonly IConfigService configService;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
     private readonly HttpClient solverHttpClient;
     private readonly HttpClient fallbackHttpClient;
     private readonly SocketsHttpHandler solverHandler;
@@ -59,9 +63,15 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
 
     internal SocketsHttpHandler FallbackHandler => this.fallbackHandler;
 
-    public FlareSolverrTransportProvider(IConfigService configService = null, HttpClient httpClient = null)
+    public FlareSolverrTransportProvider(
+        IConfigService configService = null,
+        HttpClient httpClient = null,
+        INetworkBindingService networkBindingService = null,
+        IVpnKillSwitchService vpnKillSwitchService = null)
     {
         this.configService = configService;
+        this.networkBindingService = networkBindingService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
 
         if (httpClient != null)
         {
@@ -84,6 +94,11 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
             this.fallbackHandler = new SocketsHttpHandler
             {
                 AutomaticDecompression = DecompressionMethods.All,
+                ConnectCallback = SocketsHttpHandlerConnectCallbackFactory.Create(
+                    this.configService,
+                    this.networkBindingService,
+                    this.vpnKillSwitchService,
+                    this.logger),
             };
 
             this.RefreshOutboundProxy();
