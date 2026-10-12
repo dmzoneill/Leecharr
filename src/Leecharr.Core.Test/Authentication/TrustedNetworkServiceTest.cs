@@ -26,6 +26,9 @@ public class TrustedNetworkServiceTest
     [TestCase("192.168.1.100", true)]
     [TestCase("8.8.8.8", false)]
     [TestCase("1.1.1.1", false)]
+    [TestCase("169.254.1.1", false)]
+    [TestCase("fe80::1", false)]
+    [TestCase("fd12:3456:789a:1::1", true)]
     public void IsLocalOrPrivateNetwork_ShouldIdentifyCorrectly(string ipStr, bool expected)
     {
         var ip = IPAddress.Parse(ipStr);
@@ -100,6 +103,8 @@ public class TrustedNetworkServiceTest
     [TestCase("10.0.0.1", true)]
     [TestCase("172.16.0.1", true)]
     [TestCase("8.8.8.8", false)]
+    [TestCase("169.254.169.254", false)]
+    [TestCase("fe80::1", false)]
     public void IsAuthenticationBypassed_WhenDisabledForLocalAddresses_AllowsPrivateAndLoopback(string ipStr, bool expected)
     {
         var ip = IPAddress.Parse(ipStr);
