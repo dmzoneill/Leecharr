@@ -2,6 +2,7 @@
 #pragma warning disable SA1300
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -247,39 +248,7 @@ public class ScriptHttpContext : IDisposable
 
             if (body != null)
             {
-                if (body is string strBody)
-                {
-                    var contentType = "text/plain";
-                    if (options != null && options.TryGetValue("contentType", out var ct) && ct != null)
-                    {
-                        contentType = ct.ToString()!;
-                    }
-                    else if (strBody.TrimStart().StartsWith('{') || strBody.TrimStart().StartsWith('['))
-                    {
-                        contentType = "application/json";
-                    }
-
-                    request.Content = CreateStringContent(strBody, contentType);
-                }
-                else if (body is IDictionary<string, object> formDict)
-                {
-                    var isJson = options != null && options.TryGetValue("json", out var jsonOpt) && jsonOpt is true;
-                    if (isJson)
-                    {
-                        var jsonStr = JsonSerializer.Serialize(formDict);
-                        request.Content = new StringContent(jsonStr, Encoding.UTF8, "application/json");
-                    }
-                    else
-                    {
-                        var formList = new List<KeyValuePair<string, string>>();
-                        foreach (var kvp in formDict)
-                        {
-                            formList.Add(new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
-                        }
-
-                        request.Content = new FormUrlEncodedContent(formList);
-                    }
-                }
+                request.Content = CreateRequestContent(body, options);
             }
 
             var timeoutSeconds = 15;
@@ -435,6 +404,81 @@ public class ScriptHttpContext : IDisposable
                 request.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value);
             }
         }
+    }
+
+    private static HttpContent CreateRequestContent(object body, IDictionary<string, object>? options)
+    {
+        if (body is string strBody)
+        {
+            var contentType = "text/plain";
+            if (options != null && options.TryGetValue("contentType", out var ct) && ct != null)
+            {
+                contentType = ct.ToString()!;
+            }
+            else if (strBody.TrimStart().StartsWith('{') || strBody.TrimStart().StartsWith('['))
+            {
+                contentType = "application/json";
+            }
+
+            return CreateStringContent(strBody, contentType);
+        }
+
+        var sendAsJson = options != null && options.TryGetValue("json", out var jsonOpt) && jsonOpt is true;
+        if (body is IList)
+        {
+            sendAsJson = true;
+        }
+
+        if (body is IDictionary<string, object?> nullableFormDict)
+        {
+            if (!sendAsJson && !ContainsStructuredValues(nullableFormDict.Values))
+            {
+                var formList = new List<KeyValuePair<string, string>>();
+                foreach (var kvp in nullableFormDict)
+                {
+                    formList.Add(new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
+                }
+
+                return new FormUrlEncodedContent(formList);
+            }
+
+            sendAsJson = true;
+        }
+        else if (body is IDictionary<string, object> formDict)
+        {
+            if (!sendAsJson && !ContainsStructuredValues(formDict.Values))
+            {
+                var formList = new List<KeyValuePair<string, string>>();
+                foreach (var kvp in formDict)
+                {
+                    formList.Add(new KeyValuePair<string, string>(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
+                }
+
+                return new FormUrlEncodedContent(formList);
+            }
+
+            sendAsJson = true;
+        }
+        else if (body is IDictionary)
+        {
+            sendAsJson = true;
+        }
+
+        var jsonStr = JsonSerializer.Serialize(body);
+        return new StringContent(jsonStr, Encoding.UTF8, "application/json");
+    }
+
+    private static bool ContainsStructuredValues(IEnumerable values)
+    {
+        foreach (var value in values)
+        {
+            if (value is IList or IDictionary)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static StringContent CreateStringContent(string body, string contentType)
