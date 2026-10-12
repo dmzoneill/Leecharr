@@ -12,11 +12,6 @@ internal static class AiUntrustedPromptXml
         var safeValue = value ?? string.Empty;
         if (safeValue.Contains('<', StringComparison.Ordinal) || safeValue.Contains('&', StringComparison.Ordinal))
         {
-            if (!safeValue.Contains("]]>", StringComparison.Ordinal))
-            {
-                return $"<{tagName}><![CDATA[{safeValue}]]></{tagName}>";
-            }
-
             return $"<{tagName}>{Escape(safeValue)}</{tagName}>";
         }
 
