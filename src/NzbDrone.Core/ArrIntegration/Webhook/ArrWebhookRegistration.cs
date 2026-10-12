@@ -366,6 +366,14 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
                     }
                 }
 
+                var notificationName = notification.TryGetProperty("name", out var nameProp)
+                    ? nameProp.GetString()
+                    : null;
+                if (!string.Equals(notificationName, "Leecharr", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var implementation = notification.TryGetProperty("implementation", out var implProp)
                     ? implProp.GetString()
                     : null;
