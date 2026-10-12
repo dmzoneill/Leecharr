@@ -11,6 +11,7 @@ using System.Xml;
 using FluentAssertions;
 using Leecharr.Api.V1.Auth;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
@@ -133,6 +134,59 @@ public class SamlSecurityTest
         var redirect = (RedirectResult)result;
         redirect.Url.Should().Contain("RelayState=%2F");
         redirect.Url.Should().NotContain("evil.com");
+    }
+
+    [Test]
+    public void ChallengeSaml_UsesConfiguredPublicUrl_IgnoresRequestHost()
+    {
+        var priorUrl = Environment.GetEnvironmentVariable("LEECHARR_URL");
+        Environment.SetEnvironmentVariable("LEECHARR_URL", "https://trusted.example.com");
+        try
+        {
+            this.controller.ControllerContext.HttpContext.Request.Host = new HostString("evil.attacker.com");
+            this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+            {
+                ProviderId = "saml1",
+                ProviderType = IdentityProviderType.Saml,
+                IssuerUrl = "https://idp.example.com/sso",
+                IsEnabled = true,
+            });
+
+            var result = this.controller.ChallengeSaml("saml1", "/");
+            result.Should().BeOfType<RedirectResult>();
+            var redirect = (RedirectResult)result;
+            var idpUri = new Uri(redirect.Url);
+            var query = QueryHelpers.ParseQuery(idpUri.Query);
+            query.TryGetValue("SAMLRequest", out var samlRequestValues).Should().BeTrue();
+            var xml = Encoding.UTF8.GetString(Convert.FromBase64String(samlRequestValues.ToString()));
+            xml.Should().Contain("AssertionConsumerServiceURL=\"https://trusted.example.com/api/v1/auth/callback/saml/saml1\"");
+            xml.Should().NotContain("evil.attacker.com");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LEECHARR_URL", priorUrl);
+        }
+    }
+
+    [Test]
+    public void GetSamlMetadata_UsesConfiguredPublicUrl_IgnoresRequestHost()
+    {
+        var priorUrl = Environment.GetEnvironmentVariable("LEECHARR_URL");
+        Environment.SetEnvironmentVariable("LEECHARR_URL", "https://trusted.example.com");
+        try
+        {
+            this.controller.ControllerContext.HttpContext.Request.Host = new HostString("evil.attacker.com");
+
+            var result = this.controller.GetSamlMetadata();
+            result.Should().BeOfType<ContentResult>();
+            var content = ((ContentResult)result).Content;
+            content.Should().Contain("https://trusted.example.com/api/v1/auth/callback/saml");
+            content.Should().NotContain("evil.attacker.com");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LEECHARR_URL", priorUrl);
+        }
     }
 
     #endregion

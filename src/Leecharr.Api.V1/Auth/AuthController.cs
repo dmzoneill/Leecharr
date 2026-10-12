@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -330,14 +331,23 @@ public class AuthController : ControllerBase
             return this.NotFound("SAML Identity Provider not found");
         }
 
-        var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}";
+        if (!ApplicationPublicUrlResolver.TryResolvePublicBaseUrl(this.configFileProvider, out var baseUrl))
+        {
+            return this.BadRequest("Unable to determine application public URL for SAML. Configure LEECHARR_URL or BindAddress.");
+        }
+
         var acsUrl = $"{baseUrl}/api/v1/auth/callback/saml/{providerId}";
+        var issuerEntityId = $"{baseUrl}/saml/metadata";
         var id = "_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         var issueInstant = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
         RegisterPendingSamlRequest(id);
 
-        var samlRequest = $@"<samlp:AuthnRequest xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion"" ID=""{id}"" Version=""2.0"" IssueInstant=""{issueInstant}"" Destination=""{provider.IssuerUrl}"" AssertionConsumerServiceURL=""{acsUrl}""><saml:Issuer>{baseUrl}/saml/metadata</saml:Issuer><samlp:NameIDPolicy Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"" AllowCreate=""true""/></samlp:AuthnRequest>";
+        var escapedDestination = SecurityElement.Escape(provider.IssuerUrl) ?? string.Empty;
+        var escapedAcsUrl = SecurityElement.Escape(acsUrl) ?? string.Empty;
+        var escapedIssuer = SecurityElement.Escape(issuerEntityId) ?? string.Empty;
+
+        var samlRequest = $@"<samlp:AuthnRequest xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion"" ID=""{id}"" Version=""2.0"" IssueInstant=""{issueInstant}"" Destination=""{escapedDestination}"" AssertionConsumerServiceURL=""{escapedAcsUrl}""><saml:Issuer>{escapedIssuer}</saml:Issuer><samlp:NameIDPolicy Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"" AllowCreate=""true""/></samlp:AuthnRequest>";
 
         var b64Request = Convert.ToBase64String(Encoding.UTF8.GetBytes(samlRequest));
         var redirectUrl = $"{provider.IssuerUrl}{(provider.IssuerUrl.Contains('?') ? "&" : "?")}SAMLRequest={Uri.EscapeDataString(b64Request)}&RelayState={Uri.EscapeDataString(safeReturnUrl)}";
@@ -733,9 +743,13 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public ActionResult GetSamlMetadata()
     {
-        var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}";
-        var entityId = $"{baseUrl}/saml/metadata";
-        var acsUrl = $"{baseUrl}/api/v1/auth/callback/saml";
+        if (!ApplicationPublicUrlResolver.TryResolvePublicBaseUrl(this.configFileProvider, out var baseUrl))
+        {
+            return this.BadRequest("Unable to determine application public URL for SAML. Configure LEECHARR_URL or BindAddress.");
+        }
+
+        var entityId = SecurityElement.Escape($"{baseUrl}/saml/metadata") ?? string.Empty;
+        var acsUrl = SecurityElement.Escape($"{baseUrl}/api/v1/auth/callback/saml") ?? string.Empty;
 
         var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <md:EntityDescriptor xmlns:md=""urn:oasis:names:tc:SAML:2.0:metadata"" entityID=""{entityId}"">
