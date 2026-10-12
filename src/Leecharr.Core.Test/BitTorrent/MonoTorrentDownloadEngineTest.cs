@@ -6573,7 +6573,7 @@ public class MonoTorrentDownloadEngineTest
         task.Picker.GetPiecePriority(0).Should().Be(3);
         task.Manager.Should().NotBeNull();
         task.Manager!.Files.Should().NotBeEmpty();
-        task.Manager.Files.First().Priority.Should().Be(MonoTorrent.Priority.Highest);
+        task.Manager.Files.First().Priority.Should().Be(MonoTorrent.Priority.Normal);
 
         await this.engine.SetFirstLastPiecePriorityAsync(795, false);
         task.FirstLastPiecePriority.Should().BeFalse();
@@ -6600,20 +6600,25 @@ public class MonoTorrentDownloadEngineTest
         task.Should().NotBeNull();
         task.FirstLastPiecePriority.Should().BeFalse();
 
+        var firstFile = task.Manager!.Files.OrderBy(f => f.StartPieceIndex).First();
+        var lastFile = task.Manager.Files.OrderByDescending(f => f.EndPieceIndex).First();
+        await task.Manager.SetFilePriorityAsync(firstFile, MonoTorrent.Priority.High);
+
         await this.engine.SetFirstLastPiecePriorityAsync(796, true);
         task.FirstLastPiecePriority.Should().BeTrue();
         task.Picker.Should().NotBeNull();
         task.Picker.GetPiecePriority(0).Should().Be(3);
+        task.Picker.GetPiecePriority(task.Picker.PieceCount - 1).Should().Be(3);
         task.Manager.Should().NotBeNull();
         task.Manager!.Files.Count.Should().BeGreaterThan(1);
-        task.Manager.Files.First().Priority.Should().Be(MonoTorrent.Priority.Highest);
-        task.Manager.Files.Last().Priority.Should().Be(MonoTorrent.Priority.Highest);
+        firstFile.Priority.Should().Be(MonoTorrent.Priority.High);
+        lastFile.Priority.Should().Be(MonoTorrent.Priority.Normal);
 
         await this.engine.SetFirstLastPiecePriorityAsync(796, false);
         task.FirstLastPiecePriority.Should().BeFalse();
-        task.Picker.GetPiecePriority(0).Should().Be(1);
-        task.Manager.Files.First().Priority.Should().Be(MonoTorrent.Priority.Normal);
-        task.Manager.Files.Last().Priority.Should().Be(MonoTorrent.Priority.Normal);
+        task.Picker.GetPiecePriority(0).Should().Be(2);
+        firstFile.Priority.Should().Be(MonoTorrent.Priority.High);
+        lastFile.Priority.Should().Be(MonoTorrent.Priority.Normal);
     }
 
     [Test]

@@ -674,7 +674,6 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 () => Interlocked.Increment(ref this.blockedPeersCount),
                 maxHalfOpenConnections: this.configService.MaximumHalfOpenConnections > 0 ? this.configService.MaximumHalfOpenConnections : 50,
                 maxConnectionsPerIp: this.configService.MaxConnectionsPerIp > 0 ? this.configService.MaxConnectionsPerIp : 5,
-                handshakeTimeout: PeerProtocolPolicy.GetHandshakeTimeout(this.configService),
                 isHalted: () => this.isHaltedByKillSwitch,
                 configService: this.configService);
 
@@ -3126,7 +3125,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    public async Task SetFirstLastPiecePriorityAsync(int torrentId, bool enabled)
+    public Task SetFirstLastPiecePriorityAsync(int torrentId, bool enabled)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
@@ -3138,65 +3137,83 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     var headCount = Math.Max(1, Math.Min(4, pieceCount / 10));
                     var tailCount = Math.Max(1, Math.Min(2, pieceCount / 20));
-                    var priority = enabled ? 3 : 1;
+                    var pieces = new HashSet<int>();
 
                     for (var i = 0; i < headCount && i < pieceCount; i++)
                     {
-                        task.Picker.SetPiecePriority(i, priority);
+                        pieces.Add(i);
                     }
 
                     for (var i = Math.Max(0, pieceCount - tailCount); i < pieceCount; i++)
                     {
-                        task.Picker.SetPiecePriority(i, priority);
+                        pieces.Add(i);
                     }
 
-                    if (task.Manager?.Files != null && task.Manager.Files.Count > 0)
+                    if (task.Manager?.Files != null)
                     {
                         foreach (var file in task.Manager.Files)
                         {
                             if (file.StartPieceIndex >= 0 && file.StartPieceIndex < pieceCount)
                             {
-                                task.Picker.SetPiecePriority(file.StartPieceIndex, priority);
+                                pieces.Add(file.StartPieceIndex);
                             }
 
                             if (file.EndPieceIndex >= 0 && file.EndPieceIndex < pieceCount)
                             {
-                                task.Picker.SetPiecePriority(file.EndPieceIndex, priority);
+                                pieces.Add(file.EndPieceIndex);
                             }
                         }
                     }
-                }
-            }
 
-            if (task.Manager != null && task.Manager.Files != null && task.Manager.Files.Count > 0)
-            {
-                try
-                {
-                    var files = task.Manager.Files;
-                    var firstFile = files.OrderBy(f => f.StartPieceIndex).FirstOrDefault() ?? files[0];
-                    var lastPieceIndex = (task.Manager.Torrent?.PieceCount ?? task.Picker?.PieceCount ?? 0) - 1;
-                    var lastFile = files.OrderByDescending(f => f.EndPieceIndex).FirstOrDefault() ?? files[^1];
-
-                    var targetPriority = enabled ? MonoTorrent.Priority.Highest : MonoTorrent.Priority.Normal;
-
-                    if (firstFile.Priority != MonoTorrent.Priority.DoNotDownload)
+                    var managerFiles = task.Manager?.Files;
+                    foreach (var pieceIndex in pieces)
                     {
-                        await task.Manager.SetFilePriorityAsync(firstFile, targetPriority).ConfigureAwait(false);
-                    }
+                        if (enabled)
+                        {
+                            task.Picker.SetPiecePriority(pieceIndex, 3);
+                            continue;
+                        }
 
-                    if (lastFile != firstFile && lastFile.Priority != MonoTorrent.Priority.DoNotDownload)
-                    {
-                        await task.Manager.SetFilePriorityAsync(lastFile, targetPriority).ConfigureAwait(false);
+                        if (managerFiles == null || managerFiles.Count == 0)
+                        {
+                            task.Picker.SetPiecePriority(pieceIndex, 1);
+                            continue;
+                        }
+
+                        var effectivePickerPrio = 0;
+                        var hasOverlappingFile = false;
+                        foreach (var file in managerFiles)
+                        {
+                            if (pieceIndex < file.StartPieceIndex || pieceIndex > file.EndPieceIndex)
+                            {
+                                continue;
+                            }
+
+                            hasOverlappingFile = true;
+                            var filePrio = file.Priority switch
+                            {
+                                MonoTorrent.Priority.DoNotDownload => 0,
+                                MonoTorrent.Priority.Lowest or MonoTorrent.Priority.Low => 1,
+                                MonoTorrent.Priority.Normal => 1,
+                                MonoTorrent.Priority.High => 2,
+                                MonoTorrent.Priority.Highest => 3,
+                                _ => 1,
+                            };
+                            if (filePrio > effectivePickerPrio)
+                            {
+                                effectivePickerPrio = filePrio;
+                            }
+                        }
+
+                        task.Picker.SetPiecePriority(pieceIndex, hasOverlappingFile ? effectivePickerPrio : 1);
                     }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to apply first/last piece priority to manager for torrent {0}", torrentId);
                 }
             }
 
             this.logger.Info("Updated first/last piece priority for torrent {0}: {1}", torrentId, enabled);
         }
+
+        return Task.CompletedTask;
     }
 
     public Task SetTorrentCategoryAsync(int torrentId, string category)
@@ -8042,7 +8059,7 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
         this.onPeerBlocked = onPeerBlocked;
         this.maxHalfOpenConnections = maxHalfOpenConnections > 0 ? maxHalfOpenConnections : 50;
         this.maxConnectionsPerIp = maxConnectionsPerIp > 0 ? maxConnectionsPerIp : 5;
-        this.handshakeTimeout = handshakeTimeout ?? PeerProtocolPolicy.GetHandshakeTimeout(configService);
+        this.handshakeTimeout = handshakeTimeout ?? TimeSpan.FromSeconds(15);
         this.isHalted = isHalted;
         this.configService = configService;
         this.inner.ConnectionReceived += this.OnInnerConnectionReceived;
