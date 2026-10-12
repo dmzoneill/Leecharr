@@ -327,6 +327,53 @@ public class SamlSecurityTest
     }
 
     [Test]
+    public async Task SamlCallback_WhenSignatureVerificationFails_DoesNotConsumePendingInResponseTo()
+    {
+        const string requestId = "_req_sig_fail_preserve";
+        AuthController.RegisterPendingSamlRequest(requestId);
+
+        const string assertionId = "_assertion_sig_fail_preserve";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "bob@example.com",
+            "User",
+            injectDuplicateAssertion: false,
+            inResponseTo: requestId);
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
+            IsEnabled = true,
+        });
+
+        var badSigResult = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+        badSigResult.Should().BeOfType<UnauthorizedObjectResult>();
+        AuthController.IsPendingSamlRequestValid(requestId).Should().BeTrue();
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        this.userService.GetByUsername("bob").Returns(new User
+        {
+            Id = 106,
+            Username = "bob",
+            Email = "bob@example.com",
+        });
+
+        var goodSigResult = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+        goodSigResult.Should().BeOfType<RedirectResult>();
+    }
+
+    [Test]
     public async Task SamlCallback_WhenAssertionReplayed_RejectsSecondAttemptWithUnauthorized()
     {
         const string assertionId = "_assertion_replay_test_999";

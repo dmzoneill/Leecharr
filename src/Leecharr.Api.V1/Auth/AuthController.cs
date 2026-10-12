@@ -396,7 +396,7 @@ public class AuthController : ControllerBase
                 return this.Unauthorized("SAML response is missing required InResponseTo attribute (unsolicited responses rejected).");
             }
 
-            if (!ValidateAndConsumePendingSamlRequest(inResponseTo))
+            if (!IsPendingSamlRequestValid(inResponseTo))
             {
                 return this.Unauthorized("Invalid or expired SAML InResponseTo value (Login CSRF detected)");
             }
@@ -527,6 +527,11 @@ public class AuthController : ControllerBase
             if (!isSignatureValid || verifiedElement == null)
             {
                 return this.Unauthorized("SAML digital signature verification failed");
+            }
+
+            if (!ConsumePendingSamlRequest(inResponseTo))
+            {
+                return this.Unauthorized("Invalid or expired SAML InResponseTo value (Login CSRF detected)");
             }
 
             var isResponseSigned = string.Equals(verifiedElement.LocalName, "Response", StringComparison.OrdinalIgnoreCase);
@@ -876,7 +881,17 @@ public class AuthController : ControllerBase
         }
     }
 
-    public static bool ValidateAndConsumePendingSamlRequest(string inResponseTo)
+    public static bool IsPendingSamlRequestValid(string inResponseTo)
+    {
+        if (string.IsNullOrWhiteSpace(inResponseTo))
+        {
+            return false;
+        }
+
+        return PendingSamlRequests.TryGetValue(inResponseTo, out var expiry) && DateTime.UtcNow <= expiry;
+    }
+
+    public static bool ConsumePendingSamlRequest(string inResponseTo)
     {
         if (string.IsNullOrWhiteSpace(inResponseTo))
         {
@@ -889,6 +904,16 @@ public class AuthController : ControllerBase
         }
 
         return false;
+    }
+
+    public static bool ValidateAndConsumePendingSamlRequest(string inResponseTo)
+    {
+        if (!IsPendingSamlRequestValid(inResponseTo))
+        {
+            return false;
+        }
+
+        return ConsumePendingSamlRequest(inResponseTo);
     }
 
     public static bool TryRecordSamlAssertion(string assertionId)
