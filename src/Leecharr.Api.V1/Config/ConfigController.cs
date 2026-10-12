@@ -600,8 +600,10 @@ public class AiConfigController : ConfigController<AiConfigResource>
                 return this.BadRequest(failureReason);
             }
 
-            resource.ActiveAiProvider = this.aiManager.ActiveProviderId;
-            return this.Accepted(resource);
+            var response = this.ToResource(this.configService);
+            response.Id = resource.Id > 0 ? resource.Id : 1;
+            response.ActiveAiProvider = this.aiManager.ActiveProviderId;
+            return this.Accepted(response);
         }
 
         return await base.SaveConfig(resource);
