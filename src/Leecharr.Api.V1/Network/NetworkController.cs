@@ -140,6 +140,7 @@ public class NetworkController : Controller
         var encryptedCount = 0;
         var plaintextCount = 0;
         var activeConnections = 0;
+        var peerEnumerationSucceeded = this.downloadEngine == null;
 
         if (this.downloadEngine != null)
         {
@@ -168,17 +169,19 @@ public class NetworkController : Controller
                         }
                     }
                 }
+
+                peerEnumerationSucceeded = true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Engine query fallback
+                this.logger.Warn(ex, "Failed to query peer encryption statistics from download engine.");
             }
         }
 
         var totalPeers = encryptedCount + plaintextCount;
         var encPct = totalPeers > 0
             ? Math.Round((double)encryptedCount / totalPeers * 100.0, 1)
-            : 100.0;
+            : peerEnumerationSucceeded ? 100.0 : 0.0;
 
         var portMappings = status.PortMappings?.Select(pm => new PortMappingResource
         {
