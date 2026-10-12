@@ -553,12 +553,12 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                         };
 
                         var heuristic = await this.fallbackProvider.ProcessNaturalLanguageSearchAsync(naturalQuery);
-                        EnrichNaturalLanguageSearchFromHeuristic(searchParams, heuristic);
                         if (ShouldDeferNaturalLanguageSearchToHeuristic(searchParams, heuristic))
                         {
                             return heuristic;
                         }
 
+                        EnrichNaturalLanguageSearchFromHeuristic(searchParams, heuristic);
                         return searchParams;
                     }
                 }
@@ -798,16 +798,6 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
         }
 
         if (!string.IsNullOrWhiteSpace(heuristic.Source) && string.IsNullOrWhiteSpace(ollama.Source))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(heuristic.Category) && string.IsNullOrWhiteSpace(ollama.Category))
-        {
-            return true;
-        }
-
-        if (heuristic.MinSeeders > 0 && ollama.MinSeeders == 0)
         {
             return true;
         }
