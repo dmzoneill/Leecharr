@@ -158,32 +158,40 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
                         userClaims.Add(new Claim(ClaimTypes.Role, role));
                     }
 
-                    var identity = new ClaimsIdentity(userClaims, "Cookies");
-                    context.Principal = new ClaimsPrincipal(identity);
-
                     var userSessionRepository = context.HttpContext?.RequestServices?.GetService<IUserSessionRepository>() ??
                                                 this.serviceProvider?.GetService<IUserSessionRepository>();
-                    if (userSessionRepository != null && user != null)
+                    if (userSessionRepository == null || user == null)
                     {
-                        try
-                        {
-                            var session = new UserSession
-                            {
-                                UserId = user.Id,
-                                SessionToken = sessionToken,
-                                IpAddress = context.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1",
-                                UserAgent = context.HttpContext?.Request?.Headers?["User-Agent"].ToString() ?? string.Empty,
-                                CreatedAt = DateTime.UtcNow,
-                                Expiry = DateTime.UtcNow.AddDays(30),
-                                LastActivity = DateTime.UtcNow,
-                            };
-                            userSessionRepository.Insert(session);
-                        }
-                        catch (Exception ex)
-                        {
-                            this.logger.Error(ex, "Failed to insert UserSession for OIDC user {0}", finalUsername);
-                        }
+                        this.logger.Error(
+                            "Cannot persist UserSession for OIDC user {0}: session repository or user unavailable",
+                            finalUsername);
+                        context.Fail("Unable to create login session.");
+                        return Task.CompletedTask;
                     }
+
+                    try
+                    {
+                        var session = new UserSession
+                        {
+                            UserId = user.Id,
+                            SessionToken = sessionToken,
+                            IpAddress = context.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                            UserAgent = context.HttpContext?.Request?.Headers?["User-Agent"].ToString() ?? string.Empty,
+                            CreatedAt = DateTime.UtcNow,
+                            Expiry = DateTime.UtcNow.AddDays(30),
+                            LastActivity = DateTime.UtcNow,
+                        };
+                        userSessionRepository.Insert(session);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Failed to insert UserSession for OIDC user {0}", finalUsername);
+                        context.Fail("Unable to create login session.");
+                        return Task.CompletedTask;
+                    }
+
+                    var identity = new ClaimsIdentity(userClaims, "Cookies");
+                    context.Principal = new ClaimsPrincipal(identity);
 
                     return Task.CompletedTask;
                 },
