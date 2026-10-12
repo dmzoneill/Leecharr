@@ -687,10 +687,10 @@ public class HadoukenRpcControllerTest
     public async Task HandleRpc_TorrentsSetProps_UpdatesTorrentProperties()
     {
         var hash = "ccdd11223344556677889900aabbccddeeff0011";
-        var torrent = new Torrent { Id = 50, InfoHash = hash, Category = "old", DownloadLimit = 0, UploadLimit = 0 };
+        var torrent = new Torrent { Id = 50, InfoHash = hash, Category = "old", SavePath = "/downloads/old", DownloadLimit = 0, UploadLimit = 0 };
         this.torrentService.GetByInfoHash(hash).Returns(torrent);
 
-        var requestJson = $"{{\"method\":\"torrents.set_props\",\"params\":[\"{hash}\",{{\"tags\":[\"updated_tag\"],\"download_limit\":1024,\"upload_limit\":512}}],\"id\":51}}";
+        var requestJson = $"{{\"method\":\"torrents.set_props\",\"params\":[\"{hash}\",{{\"label\":\"label_category\",\"save_path\":\"/downloads/new\",\"tags\":[\"updated_tag\"],\"download_limit\":1024,\"upload_limit\":512}}],\"id\":51}}";
         using var doc = JsonDocument.Parse(requestJson);
         var request = new HadoukenRpcRequest
         {
@@ -703,6 +703,7 @@ public class HadoukenRpcControllerTest
         result.Should().BeOfType<OkObjectResult>();
 
         torrent.Category.Should().Be("updated_tag");
+        torrent.SavePath.Should().Be("/downloads/new");
         torrent.DownloadLimit.Should().Be(1024);
         torrent.UploadLimit.Should().Be(512);
         await this.torrentService.Received(1).UpdateAsync(torrent);
