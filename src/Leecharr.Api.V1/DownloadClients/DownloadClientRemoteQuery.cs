@@ -416,11 +416,12 @@ public static class DownloadClientRemoteQuery
 
                 if (action == "pause")
                 {
-                    var content = new FormUrlEncodedContent(new Dictionary<string, string> { { "hashes", infoHash } });
+                    using var content = CreateQbittorrentHashesContent(infoHash);
                     using var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/pause", content);
                     if (resp.StatusCode == HttpStatusCode.NotFound)
                     {
-                        using var fallback = await http.PostAsync($"{baseUrl}/api/v2/torrents/stop", content);
+                        using var fallbackContent = CreateQbittorrentHashesContent(infoHash);
+                        using var fallback = await http.PostAsync($"{baseUrl}/api/v2/torrents/stop", fallbackContent);
                         return fallback.IsSuccessStatusCode;
                     }
 
@@ -428,11 +429,12 @@ public static class DownloadClientRemoteQuery
                 }
                 else if (action == "resume")
                 {
-                    var content = new FormUrlEncodedContent(new Dictionary<string, string> { { "hashes", infoHash } });
+                    using var content = CreateQbittorrentHashesContent(infoHash);
                     using var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/resume", content);
                     if (resp.StatusCode == HttpStatusCode.NotFound)
                     {
-                        using var fallback = await http.PostAsync($"{baseUrl}/api/v2/torrents/start", content);
+                        using var fallbackContent = CreateQbittorrentHashesContent(infoHash);
+                        using var fallback = await http.PostAsync($"{baseUrl}/api/v2/torrents/start", fallbackContent);
                         return fallback.IsSuccessStatusCode;
                     }
 
@@ -649,6 +651,9 @@ public static class DownloadClientRemoteQuery
 
         return true;
     }
+
+    private static FormUrlEncodedContent CreateQbittorrentHashesContent(string infoHash) =>
+        new(new Dictionary<string, string> { { "hashes", infoHash } });
 
     private static HttpRequestMessage CreateTransmissionRpcRequest(
         string baseUrl,
