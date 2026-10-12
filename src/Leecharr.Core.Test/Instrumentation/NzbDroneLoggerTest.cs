@@ -54,6 +54,9 @@ public class NzbDroneLoggerTest
         var fileTarget = config.FindTargetByName<FileTarget>("file");
         fileTarget.Should().NotBeNull();
 
+        var fileRules = config.LoggingRules.Where(r => r.Targets.Contains(fileTarget)).ToList();
+        fileRules.Any(r => r.Levels.Contains(LogLevel.Off)).Should().BeTrue();
+
         var expectedLogDir = Path.Combine(this.tempAppDataFolder, "logs");
         Directory.Exists(expectedLogDir).Should().BeTrue();
     }
@@ -103,6 +106,18 @@ public class NzbDroneLoggerTest
         var consoleRules = config.LoggingRules.Where(r => r.Targets.Contains(consoleTarget)).ToList();
         consoleRules.Should().NotBeEmpty();
         consoleRules.Any(r => r.Levels.Contains(expectedLevel)).Should().BeTrue();
+    }
+
+    [Test]
+    public void ResolveConsoleLevel_KeepsMoreVerboseStartupLevel()
+    {
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(this.tempAppDataFolder);
+        var startupContext = new StartupContext(new[] { "--log-level=trace" });
+
+        NzbDroneLogger.Register(startupContext, appFolderInfo);
+
+        NzbDroneLogger.ResolveConsoleLevel("info").Should().Be(LogLevel.Trace);
     }
 
     [Test]

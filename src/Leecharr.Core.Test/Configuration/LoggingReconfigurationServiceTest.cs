@@ -72,6 +72,39 @@ public class LoggingReconfigurationServiceTest
     }
 
     [Test]
+    public void Handle_ConfigSavedEvent_PreservesStartupTraceOverConfigInfo()
+    {
+        var startupContext = new StartupContext(new[] { "--log-level=trace" });
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(this.tempAppDataFolder);
+        NzbDroneLogger.Register(startupContext, appFolderInfo);
+
+        this.configFileProvider.LogLevel.Returns("info");
+
+        this.service.Handle(new ConfigSavedEvent());
+
+        var config = LogManager.Configuration;
+        var consoleTarget = config!.FindTargetByName<ColoredConsoleTarget>("console");
+        var consoleRules = config.LoggingRules.Where(r => r.Targets.Contains(consoleTarget)).ToList();
+        consoleRules.Any(r => r.Levels.Contains(LogLevel.Trace)).Should().BeTrue();
+    }
+
+    [Test]
+    public void Handle_ApplicationStartedEvent_AppliesFileLogLevel()
+    {
+        this.configFileProvider.LogLevel.Returns("info");
+        this.configService.LogToFile.Returns(true);
+        this.configService.FileLogLevel.Returns("warn");
+
+        this.service.Handle(new ApplicationStartedEvent());
+
+        var config = LogManager.Configuration;
+        var fileTarget = config!.FindTargetByName<FileTarget>("file");
+        var fileRules = config.LoggingRules.Where(r => r.Targets.Contains(fileTarget)).ToList();
+        fileRules.Any(r => r.Levels.Contains(LogLevel.Warn)).Should().BeTrue();
+    }
+
+    [Test]
     public void Handle_ApplicationStartedEvent_AppliesConfigFileLogLevel()
     {
         this.configFileProvider.LogLevel.Returns("error");

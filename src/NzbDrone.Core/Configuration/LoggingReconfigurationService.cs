@@ -31,11 +31,7 @@ public class LoggingReconfigurationService :
 
     private void ApplyLoggingConfiguration()
     {
-        var consoleLevel = _configFileProvider.LogLevel;
-        if (string.IsNullOrWhiteSpace(consoleLevel))
-        {
-            consoleLevel = "Info";
-        }
+        var consoleLevel = NzbDroneLogger.ResolveConsoleLevel(_configFileProvider.LogLevel).Name;
 
         var fileLevel = "Off";
         if (_configService.LogToFile)
