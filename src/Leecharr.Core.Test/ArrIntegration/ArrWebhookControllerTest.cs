@@ -303,15 +303,20 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public async Task HandleLidarr_WhenRenameEvent_UpdatesTorrentImportState()
+    public async Task HandleLidarr_WhenRenameEvent_DoesNotUpdateTorrentImportState()
     {
         var hash = "abcdef0123456789abcdef0123456789abcdef01";
+        var importedAt = new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc);
         var torrent = new Torrent
         {
             Id = 3,
             Name = "Pink Floyd - The Dark Side of the Moon (1973) [FLAC]",
             InfoHash = hash,
-            IsImported = false,
+            Category = "music",
+            IsImported = true,
+            ImportedAt = importedAt,
+            ImportPath = "/media/music/Pink Floyd/Dark Side/01.flac",
+            ImportedByArr = "Lidarr",
         };
 
         this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
@@ -344,13 +349,54 @@ public class ArrWebhookControllerTest
         var res = okResult!.Value as ArrWebhookResult;
         res.Should().NotBeNull();
         res!.Success.Should().BeTrue();
-        res.Updated.Should().BeTrue();
+        res.Updated.Should().BeFalse();
 
-        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
-            t.Id == 3 &&
-            t.IsImported == true &&
-            t.ImportPath == "/media/music/Pink Floyd/1973 - The Dark Side of the Moon/01 - Speak to Me.flac" &&
-            t.ImportedByArr == "Lidarr"));
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenSeriesRenameEvent_DoesNotUpdateTorrentImportState()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var importedAt = new DateTime(2024, 3, 15, 8, 30, 0, DateTimeKind.Utc);
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "Severance.S02E01.1080p.WEB-DL.mkv",
+            InfoHash = hash,
+            Category = "tv-sonarr",
+            IsImported = true,
+            ImportedAt = importedAt,
+            ImportPath = "/media/tv/Severance/Season 02/Severance - S02E01.mkv",
+            ImportedByArr = "Sonarr",
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "SeriesRename",
+            InstanceName = "Sonarr-Main",
+            DownloadClientId = hash,
+            Series = new ArrWebhookSeries
+            {
+                Id = 42,
+                Title = "Severance",
+                Path = "/media/tv/Severance Renamed",
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeFalse();
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
     }
 
     [Test]
