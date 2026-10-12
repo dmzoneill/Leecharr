@@ -92,7 +92,7 @@ public class UpdateCheckService : IUpdateCheckService
                 return this.cachedUpdates;
             }
 
-            return GetDefaultInstalledReleaseList();
+            return new List<UpdatePackage>();
         }
         finally
         {
@@ -238,31 +238,6 @@ public class UpdateCheckService : IUpdateCheckService
             this.logger.Warn(ex, "Failed to fetch updates from GitHub releases");
             return null;
         }
-    }
-
-    private static List<UpdatePackage> GetDefaultInstalledReleaseList()
-    {
-        var currentVersion = BuildInfo.Version?.ToString() ?? "1.0.25";
-        return new List<UpdatePackage>
-        {
-            new()
-            {
-                Version = currentVersion,
-                ReleaseDate = DateTime.UtcNow,
-                FileName = GetPackageFileName(currentVersion),
-                Url = "https://github.com/dmzoneill/Leecharr/releases",
-                Installed = true,
-                Latest = true,
-                Changes = new UpdatePackageChanges
-                {
-                    New = new List<string>
-                    {
-                        "Integrated health diagnostics and telemetry updates",
-                    },
-                    Fixed = new List<string>(),
-                },
-            },
-        };
     }
 
     private static UpdatePackageChanges ParseChanges(string body)

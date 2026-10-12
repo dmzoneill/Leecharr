@@ -150,7 +150,7 @@ public class UpdateCheckServiceTest
     }
 
     [Test]
-    public async Task GetAvailableUpdatesAsync_WhenGitHubFailsOrReturnsError_FallsBackToDefaultList()
+    public async Task GetAvailableUpdatesAsync_WhenGitHubFailsOrReturnsError_ReturnsEmptyList()
     {
         var handler = new MockHttpMessageHandler
         {
@@ -162,12 +162,11 @@ public class UpdateCheckServiceTest
         var updates = await service.GetAvailableUpdatesAsync();
 
         updates.Should().NotBeNull();
-        updates.Should().NotBeEmpty();
-        updates[0].Installed.Should().BeTrue();
+        updates.Should().BeEmpty();
     }
 
     [Test]
-    public async Task GetAvailableUpdatesAsync_WhenHttpThrowsException_GracefullyFallsBackToDefault()
+    public async Task GetAvailableUpdatesAsync_WhenHttpThrowsException_ReturnsEmptyList()
     {
         var handler = new MockHttpMessageHandler
         {
@@ -179,8 +178,7 @@ public class UpdateCheckServiceTest
         var updates = await service.GetAvailableUpdatesAsync();
 
         updates.Should().NotBeNull();
-        updates.Should().NotBeEmpty();
-        updates[0].Installed.Should().BeTrue();
+        updates.Should().BeEmpty();
     }
 
     [Test]

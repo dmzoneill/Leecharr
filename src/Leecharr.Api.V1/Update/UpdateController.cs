@@ -37,6 +37,10 @@ public class UpdateController : Controller
     {
         var service = this.updateCheckService ?? new UpdateCheckService();
         var packages = await service.GetAvailableUpdatesAsync(cancellationToken).ConfigureAwait(false);
+        if (packages == null || packages.Count == 0)
+        {
+            return this.StatusCode(503, new { message = "Failed to check for updates from GitHub releases." });
+        }
 
         var id = 1;
         var isContainer = OsInfo.IsContainer;
