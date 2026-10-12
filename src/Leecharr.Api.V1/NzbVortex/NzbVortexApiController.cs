@@ -223,6 +223,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
             {
                 TorrentStatus.Downloading => 1,
                 TorrentStatus.Seeding => 20,
+                TorrentStatus.Completed => 20,
                 TorrentStatus.Stopped => IsComplete(t) ? 20 : 0,
                 TorrentStatus.Paused => 0,
                 TorrentStatus.Error => 21,

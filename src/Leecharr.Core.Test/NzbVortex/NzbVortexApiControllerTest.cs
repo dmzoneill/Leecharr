@@ -193,6 +193,7 @@ public class NzbVortexApiControllerTest
 
     [TestCase(TorrentStatus.Downloading, 1, false)]
     [TestCase(TorrentStatus.Seeding, 20, false)]
+    [TestCase(TorrentStatus.Completed, 20, false, 1.0, 1000L, 1000L)]
     [TestCase(TorrentStatus.Stopped, 20, false, 1.0, 1000L, 1000L)]
     [TestCase(TorrentStatus.Stopped, 0, true, 0.4, 400L, 1000L)]
     [TestCase(TorrentStatus.Paused, 0, true)]
