@@ -133,11 +133,7 @@ public class StoragePathService : IStoragePathService
             return incompleteDir;
         }
 
-        var sanitizedName = TorrentPathValidator.SanitizeRelativePath(torrentName);
-        if (string.IsNullOrWhiteSpace(sanitizedName))
-        {
-            sanitizedName = torrentName;
-        }
+        var sanitizedName = TorrentPathValidator.ResolveStorageRelativePath(torrentName, infoHash);
 
         return Path.Combine(incompleteDir, sanitizedName);
     }
@@ -150,13 +146,7 @@ public class StoragePathService : IStoragePathService
             return completedDir;
         }
 
-        var sanitizedName = TorrentPathValidator.SanitizeRelativePath(torrentName);
-        if (string.IsNullOrWhiteSpace(sanitizedName))
-        {
-            sanitizedName = torrentName;
-        }
-
-        return Path.Combine(completedDir, sanitizedName);
+        return this.CombineUnderCompletedDirectory(completedDir, torrentName);
     }
 
     public bool MoveToCompleted(string sourcePath, string category, string torrentName, out string finalDestination)
@@ -235,11 +225,7 @@ public class StoragePathService : IStoragePathService
                 targetFileName = torrentName;
             }
 
-            var sanitizedTarget = TorrentPathValidator.SanitizeRelativePath(targetFileName);
-            if (string.IsNullOrWhiteSpace(sanitizedTarget))
-            {
-                sanitizedTarget = targetFileName;
-            }
+            var sanitizedTarget = TorrentPathValidator.ResolveStorageRelativePath(targetFileName);
 
             var isFolderWithSingleFile = !string.IsNullOrWhiteSpace(torrentName) &&
                 !string.IsNullOrWhiteSpace(sourceExt) &&
@@ -248,13 +234,7 @@ public class StoragePathService : IStoragePathService
 
             if (isFolderWithSingleFile)
             {
-                var sanitizedFolder = TorrentPathValidator.SanitizeRelativePath(torrentName);
-                if (string.IsNullOrWhiteSpace(sanitizedFolder))
-                {
-                    sanitizedFolder = torrentName;
-                }
-
-                var targetDir = Path.Combine(completedDir, sanitizedFolder);
+                var targetDir = this.CombineUnderCompletedDirectory(completedDir, torrentName);
                 if (!this.diskProvider.FolderExists(targetDir))
                 {
                     this.diskProvider.CreateFolder(targetDir);
@@ -264,18 +244,12 @@ public class StoragePathService : IStoragePathService
             }
             else
             {
-                finalDestination = Path.Combine(completedDir, sanitizedTarget);
+                finalDestination = this.CombineUnderCompletedDirectory(completedDir, sanitizedTarget);
             }
         }
         else
         {
-            var sanitizedTarget = TorrentPathValidator.SanitizeRelativePath(torrentName);
-            if (string.IsNullOrWhiteSpace(sanitizedTarget))
-            {
-                sanitizedTarget = torrentName;
-            }
-
-            finalDestination = Path.Combine(completedDir, sanitizedTarget);
+            finalDestination = this.CombineUnderCompletedDirectory(completedDir, torrentName);
         }
 
         if (string.Equals(sourcePath, finalDestination, StringComparison.OrdinalIgnoreCase) ||
@@ -896,5 +870,21 @@ public class StoragePathService : IStoragePathService
         }
 
         return rawSavePath;
+    }
+
+    private string CombineUnderCompletedDirectory(string completedDir, string torrentRelativeName)
+    {
+        var sanitizedName = TorrentPathValidator.ResolveStorageRelativePath(torrentRelativeName);
+        var combined = Path.Combine(completedDir, sanitizedName);
+        if (!TorrentPathValidator.IsStrictSubPath(completedDir, combined))
+        {
+            this.logger.Warn(
+                "Refusing to use torrent path '{0}' under completed directory '{1}'; using safe fallback.",
+                torrentRelativeName,
+                completedDir);
+            combined = Path.Combine(completedDir, "_");
+        }
+
+        return combined;
     }
 }

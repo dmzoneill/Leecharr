@@ -118,6 +118,9 @@ public class TorrentPathValidatorTest
         sanitized.Should().Be("Show - Season 1");
     }
 
+    [TestCase("/", "")]
+    [TestCase("///", "")]
+    [TestCase("\\", "")]
     [TestCase("Show: Title/Season 01/Ep*01: Pilot?.mkv", "Show - Title/Season 01/Ep01 - Pilot.mkv")]
     [TestCase("folder/CON/file:name.mkv", "folder/_CON/file - name.mkv")]
     [TestCase("Movie: Title (2024)", "Movie - Title (2024)")]
@@ -129,6 +132,21 @@ public class TorrentPathValidatorTest
     {
         var result = TorrentPathValidator.SanitizeRelativePath(input);
         result.Should().Be(expected);
+    }
+
+    [TestCase("/", "_")]
+    [TestCase("///", "_")]
+    [TestCase("\\", "_")]
+    [TestCase("Movie.mkv", "Movie.mkv")]
+    public void ResolveStorageRelativePath_WhenSanitizedEmpty_UsesSafeFallback(string input, string expected)
+    {
+        TorrentPathValidator.ResolveStorageRelativePath(input).Should().Be(expected);
+    }
+
+    [Test]
+    public void ResolveStorageRelativePath_WhenSanitizedEmpty_UsesAlternateFallback()
+    {
+        TorrentPathValidator.ResolveStorageRelativePath("/", "abc123hash").Should().Be("abc123hash");
     }
 
     [Test]

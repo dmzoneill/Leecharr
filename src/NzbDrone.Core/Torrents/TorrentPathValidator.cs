@@ -315,6 +315,26 @@ public static class TorrentPathValidator
         return string.Join('/', sanitizedSegments);
     }
 
+    public static string ResolveStorageRelativePath(string torrentName, string alternateFallback = null)
+    {
+        var sanitized = SanitizeRelativePath(torrentName);
+        if (!string.IsNullOrWhiteSpace(sanitized))
+        {
+            return sanitized;
+        }
+
+        if (!string.IsNullOrWhiteSpace(alternateFallback))
+        {
+            sanitized = SanitizeRelativePath(alternateFallback);
+            if (!string.IsNullOrWhiteSpace(sanitized))
+            {
+                return sanitized;
+            }
+        }
+
+        return "_";
+    }
+
     public static string SanitizeTorrentName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))

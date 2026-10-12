@@ -788,4 +788,52 @@ public class StoragePathServiceTest
         finalDestination.Should().Be(expectedFolder);
         this.diskProvider.Received(1).MoveFolder(source, expectedFolder);
     }
+
+    [TestCase("/")]
+    [TestCase("///")]
+    [TestCase("\\")]
+    public void GetFinalPath_WhenTorrentNameIsOnlySlashes_UsesSafeFallbackUnderCompletedDir(string torrentName)
+    {
+        this.categoryService.GetSavePathForCategory("movies").Returns("/downloads/movies");
+        this.diskProvider.FolderExists("/downloads/movies").Returns(true);
+
+        var path = this.storagePathService.GetFinalPath("movies", torrentName);
+
+        path.Should().Be(Path.Combine("/downloads/movies", "_"));
+        path.Should().NotBe("/");
+    }
+
+    [Test]
+    public void GetWorkingPath_WhenTorrentNameIsOnlySlashes_UsesInfoHashFallback()
+    {
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+
+        var path = this.storagePathService.GetWorkingPath("abc123deadbeef", "/");
+
+        path.Should().Be(Path.Combine("/downloads/incomplete", "abc123deadbeef"));
+        path.Should().NotBe("/");
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenTorrentNameIsOnlySlash_MovesUnderCompletedDirectory()
+    {
+        var source = "/downloads/incomplete/data.bin";
+        var dest = Path.Combine("/downloads/movies", "_");
+
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("movies").Returns("/downloads/movies");
+        this.diskProvider.FolderExists("/downloads/movies").Returns(true);
+        this.diskProvider.FileExists(source).Returns(false);
+        this.diskProvider.FolderExists(source).Returns(true);
+        this.diskProvider.FolderExists(dest).Returns(false);
+
+        var success = this.storagePathService.MoveToCompleted(source, "movies", "/", out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(dest);
+        finalDestination.Should().NotBe("/");
+        this.diskProvider.Received(1).MoveFolder(source, dest);
+    }
 }
