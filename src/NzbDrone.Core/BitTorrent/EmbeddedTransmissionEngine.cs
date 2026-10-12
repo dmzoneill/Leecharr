@@ -328,6 +328,33 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
 
         var savePath = this.ResolveSavePath(torrent);
+        var addArgs = new Dictionary<string, object>
+        {
+            ["download-dir"] = savePath,
+            ["paused"] = false,
+        };
+
+        if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+        {
+            addArgs["metainfo"] = Convert.ToBase64String(torrentFileBytes);
+        }
+        else if (!string.IsNullOrWhiteSpace(magnetUri))
+        {
+            addArgs["filename"] = magnetUri;
+        }
+        else
+        {
+            var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
+            addArgs["filename"] = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
+        }
+
+        var response = await this.SendRpcRequestAsync("torrent-add", addArgs);
+        if (!TryGetTransmissionTorrentIdFromAddResponse(response, out var transmissionId))
+        {
+            throw new InvalidOperationException(
+                $"Transmission torrent-add for '{torrent.Name}' did not return a daemon torrent id.");
+        }
+
         var task = new TransmissionDownloadTask(this, torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
         this.tasks[torrent.Id] = task;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
@@ -336,49 +363,10 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             this.infoHashToId[torrent.V2InfoHash] = torrent.Id;
         }
 
-        try
-        {
-            var addArgs = new Dictionary<string, object>
-            {
-                ["download-dir"] = savePath,
-                ["paused"] = false,
-            };
+        this.torrentIdToTransmissionId[torrent.Id] = transmissionId;
+        task.IsSuperSeeding = torrent.InitialSeeding;
 
-            if (torrentFileBytes != null && torrentFileBytes.Length > 0)
-            {
-                addArgs["metainfo"] = Convert.ToBase64String(torrentFileBytes);
-            }
-            else if (!string.IsNullOrWhiteSpace(magnetUri))
-            {
-                addArgs["filename"] = magnetUri;
-            }
-            else
-            {
-                var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
-                addArgs["filename"] = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
-            }
-
-            var response = await this.SendRpcRequestAsync("torrent-add", addArgs);
-            if (response.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args)
-            {
-                if (args.TryGetProperty("torrent-added", out var added) || args.TryGetProperty("torrent-duplicate", out added))
-                {
-                    if (added.TryGetProperty("id", out var idProp))
-                    {
-                        var transmissionId = idProp.GetInt64();
-                        this.torrentIdToTransmissionId[torrent.Id] = transmissionId;
-                    }
-                }
-            }
-
-            task.IsSuperSeeding = torrent.InitialSeeding;
-
-            this.logger.Info("Transmission: Ingested torrent {0} ({1}) to {2}", torrent.Name, torrent.InfoHash, savePath);
-        }
-        catch (Exception ex)
-        {
-            this.logger.Warn(ex, "Failed to dispatch torrent-add to Transmission daemon for {0}. Ingested in local state.", torrent.Name);
-        }
+        this.logger.Info("Transmission: Ingested torrent {0} ({1}) to {2}", torrent.Name, torrent.InfoHash, savePath);
 
         return task;
     }
@@ -1066,6 +1054,43 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         return string.Equals(resultObj.ToString(), "success", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static void EnsureTransmissionRpcSuccess(Dictionary<string, object> response, string method)
+    {
+        if (IsTransmissionRpcSuccess(response))
+        {
+            return;
+        }
+
+        var resultText = response != null && response.TryGetValue("result", out var resultObj) && resultObj != null
+            ? resultObj is JsonElement resultElement && resultElement.ValueKind == JsonValueKind.String
+                ? resultElement.GetString()
+                : resultObj.ToString()
+            : "unknown";
+
+        throw new InvalidOperationException($"Transmission RPC '{method}' failed with result '{resultText}'.");
+    }
+
+    private static bool TryGetTransmissionTorrentIdFromAddResponse(Dictionary<string, object> response, out long transmissionId)
+    {
+        transmissionId = 0;
+        if (response == null || !response.TryGetValue("arguments", out var argsObj) || argsObj is not JsonElement args)
+        {
+            return false;
+        }
+
+        if (!args.TryGetProperty("torrent-added", out var added) && !args.TryGetProperty("torrent-duplicate", out added))
+        {
+            return false;
+        }
+
+        if (!added.TryGetProperty("id", out var idProp) || !idProp.TryGetInt64(out transmissionId))
+        {
+            return false;
+        }
+
+        return transmissionId > 0;
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         this.tasks.TryGetValue(torrentId, out var task);
@@ -1392,13 +1417,17 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                 var retryResponse = await this.httpClient.SendAsync(retryRequest);
                 retryResponse.EnsureSuccessStatusCode();
                 var retryContent = await retryResponse.Content.ReadAsStringAsync();
-                return retryContent.FromJson<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+                var retryDict = retryContent.FromJson<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+                EnsureTransmissionRpcSuccess(retryDict, method);
+                return retryDict;
             }
         }
 
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
-        return content.FromJson<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+        var responseDict = content.FromJson<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+        EnsureTransmissionRpcSuccess(responseDict, method);
+        return responseDict;
     }
 
     private List<object> GetRpcIdsForTorrent(int torrentId, string infoHash)
@@ -1684,19 +1713,19 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
     private async Task EnsureDaemonRunningAsync()
     {
         var binary = GetDaemonBinaryPath();
-        if (string.IsNullOrWhiteSpace(binary))
-        {
-            return;
-        }
 
         try
         {
-            // Test if already answering
-            await this.SendRpcRequestAsync("session-get", new Dictionary<string, object>());
+            await this.VerifyRpcSessionAsync();
             return;
         }
         catch (Exception ex)
         {
+            if (string.IsNullOrWhiteSpace(binary))
+            {
+                throw;
+            }
+
             this.logger.Trace(ex, "Transmission daemon probe failed, starting daemon child process");
         }
 
@@ -1729,12 +1758,32 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             };
 
             this.daemonProcess = Process.Start(startInfo);
-            await Task.Delay(500, this.syncCts?.Token ?? CancellationToken.None);
         }
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Failed to start transmission-daemon child process automatically.");
         }
+
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            await Task.Delay(250, this.syncCts?.Token ?? CancellationToken.None);
+            try
+            {
+                await this.VerifyRpcSessionAsync();
+                return;
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "Waiting for transmission-daemon RPC after start (attempt {0})", attempt + 1);
+            }
+        }
+
+        throw new InvalidOperationException("Transmission daemon is not reachable after start attempt.");
+    }
+
+    private Task VerifyRpcSessionAsync()
+    {
+        return this.SendRpcRequestAsync("session-get", new Dictionary<string, object>());
     }
 
     private string ResolveSavePath(Torrent torrent)
