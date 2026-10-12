@@ -27,7 +27,7 @@ public class TorrentResource : RestResource
 
     public DateTime? CreationDate { get; set; }
 
-    public bool IsPrivate { get; set; }
+    public bool? IsPrivate { get; set; }
 
     public string Status { get; set; }
 
@@ -83,11 +83,11 @@ public class TorrentResource : RestResource
 
     public int? NextUpdate { get; set; }
 
-    public int Threshold { get; set; } = 1;
+    public int? Threshold { get; set; }
 
-    public int SmallTorrentLimit { get; set; } = 50;
+    public int? SmallTorrentLimit { get; set; }
 
-    public bool? Active { get; set; } = true;
+    public bool? Active { get; set; }
 
     public double? TargetRatio { get; set; }
 

@@ -285,6 +285,77 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public async Task Update_WhenPartialPayloadOnPausedPrivateTorrent_PreservesStatusPrivacyAndLimits()
+    {
+        var existing = new Torrent
+        {
+            Id = 11,
+            Name = "Paused Private Torrent",
+            Status = TorrentStatus.Paused,
+            IsPrivate = true,
+            Threshold = 7,
+            SmallTorrentLimit = 120,
+            Category = "series",
+            DateAdded = DateTime.UtcNow.AddHours(-2),
+        };
+
+        this.torrentService.Get(11).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+        this.trackerEntryRepository.GetByTorrentId(11).Returns(new List<TrackerEntry>());
+
+        var resource = new TorrentResource
+        {
+            Category = "movies",
+        };
+
+        var response = await this.controller.Update(11, resource);
+
+        existing.Status.Should().Be(TorrentStatus.Paused);
+        existing.IsPrivate.Should().BeTrue();
+        existing.Threshold.Should().Be(7);
+        existing.SmallTorrentLimit.Should().Be(120);
+        existing.Category.Should().Be("movies");
+
+        await this.torrentService.DidNotReceive().ResumeAsync(11);
+        await this.downloadEngine.DidNotReceive().SetTorrentPrivateStatusAsync(Arg.Any<int>(), Arg.Any<bool>());
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resultResource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resultResource.Active.Should().BeFalse();
+        resultResource.IsPrivate.Should().BeTrue();
+        resultResource.Threshold.Should().Be(7);
+        resultResource.SmallTorrentLimit.Should().Be(120);
+    }
+
+    [Test]
+    public async Task Update_WhenIsPrivateProvided_UpdatesEngine()
+    {
+        var existing = new Torrent
+        {
+            Id = 14,
+            Name = "Public Torrent",
+            Status = TorrentStatus.Seeding,
+            IsPrivate = false,
+            DateAdded = DateTime.UtcNow,
+        };
+
+        this.torrentService.Get(14).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+        this.trackerEntryRepository.GetByTorrentId(14).Returns(new List<TrackerEntry>());
+
+        var resource = new TorrentResource
+        {
+            IsPrivate = true,
+        };
+
+        var response = await this.controller.Update(14, resource);
+
+        existing.IsPrivate.Should().BeTrue();
+        await this.downloadEngine.Received(1).SetTorrentPrivateStatusAsync(14, true);
+        response.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
     public async Task Update_WhenAnnounceIntervalOmitted_DoesNotResetTrackerAnnounceInterval()
     {
         var existing = new Torrent
