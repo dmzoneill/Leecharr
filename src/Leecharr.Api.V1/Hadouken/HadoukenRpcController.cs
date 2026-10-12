@@ -598,6 +598,16 @@ public class HadoukenRpcController : ControllerBase
                         if (tProps != null && request.Params[1].ValueKind == JsonValueKind.Object)
                         {
                             var propsObj = request.Params[1];
+                            if (propsObj.TryGetProperty("label", out var labelProp))
+                            {
+                                tProps.Category = labelProp.GetString();
+                            }
+
+                            if (propsObj.TryGetProperty("save_path", out var savePathProp))
+                            {
+                                tProps.SavePath = savePathProp.GetString();
+                            }
+
                             if (propsObj.TryGetProperty("tags", out var tProp) && tProp.ValueKind == JsonValueKind.Array && tProp.GetArrayLength() > 0)
                             {
                                 tProps.Category = tProp[0].GetString();
