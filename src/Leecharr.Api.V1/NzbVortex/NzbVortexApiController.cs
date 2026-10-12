@@ -181,7 +181,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         {
             groupName = c.Name,
             destinationPath = c.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
-            isDefault = false,
+            isDefault = c.IsDefault,
         }).ToList();
 
         return this.Ok(new

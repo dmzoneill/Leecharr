@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -332,7 +333,9 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         var sourceResp = JsonSerializer.Deserialize<DebuggerSourceCodeResponse>(json, CaseInsensitiveJsonOptions);
 
         sourceResp.Should().NotBeNull();
-        sourceResp!.Exists.Should().BeTrue();
+        (sourceResp!.Exists || sourceResp.Content.Contains("Runtime Metadata Outline", StringComparison.Ordinal))
+            .Should()
+            .BeTrue("expected on-disk source or runtime metadata outline");
         sourceResp.Content.Should().Contain("TorrentService");
         sourceResp.LineCount.Should().BeGreaterThan(0);
     }

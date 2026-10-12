@@ -156,8 +156,8 @@ public class NzbVortexApiControllerTest
     {
         var categories = new List<Category>
         {
-            new() { Id = 1, Name = "Movies", SavePath = "/downloads/movies" },
-            new() { Id = 2, Name = "TV", SavePath = null },
+            new() { Id = 1, Name = "Movies", SavePath = "/downloads/movies", IsDefault = true },
+            new() { Id = 2, Name = "TV", SavePath = null, IsDefault = false },
         };
         this.categoryService.GetAll().Returns(categories);
 
@@ -173,7 +173,9 @@ public class NzbVortexApiControllerTest
 
         groups[0].GetProperty("groupName").GetString().Should().Be("Movies");
         groups[0].GetProperty("destinationPath").GetString().Should().Be("/downloads/movies");
-        groups[0].GetProperty("isDefault").GetBoolean().Should().BeFalse();
+        groups[0].GetProperty("isDefault").GetBoolean().Should().BeTrue();
+
+        groups[1].GetProperty("isDefault").GetBoolean().Should().BeFalse();
 
         groups[1].GetProperty("groupName").GetString().Should().Be("TV");
         groups[1].GetProperty("destinationPath").GetString().Should().Be("/downloads");
