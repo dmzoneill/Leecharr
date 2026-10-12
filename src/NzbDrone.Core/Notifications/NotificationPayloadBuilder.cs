@@ -918,27 +918,34 @@ public static class NotificationPayloadBuilder
 
         if (string.Equals(implementation, "Slack", StringComparison.OrdinalIgnoreCase))
         {
-            var text = torrent != null
-                ? $"*Leecharr [{eventType}]* - *{torrent.Name}*\nCategory: {torrent.Category ?? "None"} | Status: {torrent.Status} | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
-                : $"*Leecharr [{eventType}]*\n{ExtractMessage(genericPayload, eventType)}";
-
+            string text;
             object[] sectionFields;
             if (torrent != null)
             {
+                var torrentName = EscapeSlackMrkdwn(torrent.Name);
+                var category = EscapeSlackMrkdwn(torrent.Category ?? "None");
+                var status = EscapeSlackMrkdwn(torrent.Status.ToString());
+                var sizeMb = $"{torrent.TotalSize / (1024.0 * 1024.0):F2} MB";
+
+                text = $"*Leecharr [{eventType}]* - *{torrentName}*\nCategory: {category} | Status: {status} | Size: {sizeMb}";
                 sectionFields = new object[]
                 {
-                    new { type = "mrkdwn", text = $"*Torrent:*\n{torrent.Name}" },
-                    new { type = "mrkdwn", text = $"*Category:*\n{torrent.Category ?? "None"}" },
-                    new { type = "mrkdwn", text = $"*Status:*\n{torrent.Status}" },
-                    new { type = "mrkdwn", text = $"*Size:*\n{torrent.TotalSize / (1024.0 * 1024.0):F2} MB" },
+                    new { type = "mrkdwn", text = $"*Torrent:*\n{torrentName}" },
+                    new { type = "mrkdwn", text = $"*Category:*\n{category}" },
+                    new { type = "mrkdwn", text = $"*Status:*\n{status}" },
+                    new { type = "mrkdwn", text = $"*Size:*\n{sizeMb}" },
                 };
             }
             else
             {
+                var message = EscapeSlackMrkdwn(ExtractMessage(genericPayload, eventType));
+                var eventLabel = EscapeSlackMrkdwn(eventType);
+
+                text = $"*Leecharr [{eventLabel}]*\n{message}";
                 sectionFields = new object[]
                 {
-                    new { type = "mrkdwn", text = $"*Event:*\n{eventType}" },
-                    new { type = "mrkdwn", text = $"*Message:*\n{ExtractMessage(genericPayload, eventType)}" },
+                    new { type = "mrkdwn", text = $"*Event:*\n{eventLabel}" },
+                    new { type = "mrkdwn", text = $"*Message:*\n{message}" },
                 };
             }
 
