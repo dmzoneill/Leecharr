@@ -966,6 +966,20 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return 3;
     }
 
+    private IEnumerable<TorrentTrackerDetection> OrderBoostCandidates(IEnumerable<TorrentTrackerDetection> detections)
+    {
+        return detections
+            .OrderBy(d =>
+            {
+                var tr = this.trackerRepository.Get(d.TrackerId);
+                return tr != null
+                    ? CalculateDynamicTier(tr.Status, tr.LatencyMs)
+                    : CalculateDynamicTier(d.HealthStatus, d.LatencyMs);
+            })
+            .ThenByDescending(d => d.Seeders + d.Leechers)
+            .ThenBy(d => d.LatencyMs > 0 ? d.LatencyMs : 9999);
+    }
+
     internal static async Task<IPAddress[]> ResolveHostAddressesAsync(string host, CancellationToken cancellationToken = default)
     {
         return await ResolveHostAddressesAsync(host, null, cancellationToken).ConfigureAwait(false);
@@ -1223,17 +1237,11 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         var settings = this.GetSettings();
         var maxToAdd = settings.MaxTrackersPerTorrent;
 
-        var candidateDetections = inspection.Detections
-            .Where(d => IsValidPublicTrackerUrl(d.TrackerUrl))
-            .Where(d => !existingTrackers.Contains(d.TrackerUrl.Trim().ToLowerInvariant()))
-            .Where(d => !onlyVerified || d.IsVerified)
-            .OrderBy(d =>
-            {
-                var tr = this.trackerRepository.Get(d.TrackerId);
-                return tr != null
-                    ? CalculateDynamicTier(tr.Status, tr.LatencyMs)
-                    : CalculateDynamicTier(d.HealthStatus, d.LatencyMs);
-            })
+        var candidateDetections = this.OrderBoostCandidates(
+                inspection.Detections
+                    .Where(d => IsValidPublicTrackerUrl(d.TrackerUrl))
+                    .Where(d => !existingTrackers.Contains(d.TrackerUrl.Trim().ToLowerInvariant()))
+                    .Where(d => !onlyVerified || d.IsVerified))
             .Take(maxToAdd)
             .ToList();
 
@@ -1377,9 +1385,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         var settings = this.GetSettings();
         var maxToAdd = settings.MaxTrackersPerTorrent;
 
-        var candidateDetections = inspection.Detections
-            .Where(d => IsValidPublicTrackerUrl(d.TrackerUrl))
-            .Where(d => !onlyVerified || d.IsVerified)
+        var candidateDetections = this.OrderBoostCandidates(
+                inspection.Detections
+                    .Where(d => IsValidPublicTrackerUrl(d.TrackerUrl))
+                    .Where(d => !onlyVerified || d.IsVerified))
             .Take(maxToAdd)
             .ToList();
 
@@ -2774,7 +2783,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                             detection.Seeders = Math.Max(detection.Seeders, scrape.Seeders);
                             detection.Leechers = Math.Max(detection.Leechers, scrape.Leechers);
                             detection.Downloaded = scrape.Downloaded;
-                            detection.IsVerified = scrape.Seeders > 0 || scrape.Leechers > 0 || scrape.Downloaded > 0;
+                            detection.IsVerified = scrape.Seeders > 0 || scrape.Leechers > 0;
 
                             if (tracker.Status == TrackerHealthStatus.Untested)
                             {
