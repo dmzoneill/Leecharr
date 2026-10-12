@@ -1491,6 +1491,84 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public async Task TransferSetDownloadLimit_CallsSpeedSchedulerService()
+    {
+        var scheduler = Substitute.For<ISpeedSchedulerService>();
+        var controllerWithScheduler = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            speedSchedulerService: scheduler);
+
+        var result = await controllerWithScheduler.SetTransferDownloadLimit(10485760);
+        result.Should().BeOfType<ContentResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxDownloadSpeedKbps"] == 10240));
+        await scheduler.Received(1).ApplyCurrentLimitsAsync();
+    }
+
+    [Test]
+    public async Task TransferSetUploadLimit_CallsSpeedSchedulerService()
+    {
+        var scheduler = Substitute.For<ISpeedSchedulerService>();
+        var controllerWithScheduler = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            speedSchedulerService: scheduler);
+
+        var result = await controllerWithScheduler.SetTransferUploadLimit(5242880);
+        result.Should().BeOfType<ContentResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxUploadSpeedKbps"] == 5120));
+        await scheduler.Received(1).ApplyCurrentLimitsAsync();
+    }
+
+    [Test]
+    public async Task SetPreferences_SpeedLimits_CallsSpeedSchedulerService()
+    {
+        var scheduler = Substitute.For<ISpeedSchedulerService>();
+        var controllerWithScheduler = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            speedSchedulerService: scheduler);
+
+        var result = await controllerWithScheduler.SetPreferencesAsync("{\"alt_dl_limit\":5242880}");
+        result.Should().BeOfType<ContentResult>();
+
+        await scheduler.Received(1).ApplyCurrentLimitsAsync();
+    }
+
+    [Test]
+    public async Task SetPreferences_NonSpeedFields_DoesNotCallSpeedSchedulerService()
+    {
+        var scheduler = Substitute.For<ISpeedSchedulerService>();
+        var controllerWithScheduler = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            speedSchedulerService: scheduler);
+
+        var result = await controllerWithScheduler.SetPreferencesAsync("{\"dht\":true}");
+        result.Should().BeOfType<ContentResult>();
+
+        await scheduler.DidNotReceive().ApplyCurrentLimitsAsync();
+    }
+
+    [Test]
     public async Task EditTracker_WhenValid_UpdatesTrackerInRepositoryAndEngine()
     {
         var torrent = new Torrent { Id = 1, InfoHash = "hash1" };
