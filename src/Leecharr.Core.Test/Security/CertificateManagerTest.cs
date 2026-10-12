@@ -3,8 +3,13 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -435,6 +440,109 @@ public class CertificateManagerTest
         result.Should().NotBeNull();
         result.IsValid.Should().BeTrue(result.Message);
         result.SubjectAlternativeNames.Should().Contain("media.home.arpa");
+    }
+
+    [Test]
+    public async Task ValidateCertificateAsync_WhenTlsServerPresentsDifferentCertificate_DoesNotReportHandshakeSuccess()
+    {
+        using var serverRsa = RSA.Create(2048);
+        var serverReq = new CertificateRequest("CN=TlsProbeServer", serverRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var listeningCert = serverReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddYears(1));
+
+        using var probeRsa = RSA.Create(2048);
+        var probeReq = new CertificateRequest("CN=TlsProbeClient", probeRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var probeCert = probeReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddYears(1));
+        var probePfxPath = Path.Combine(this.tempDir, "probe-cert.pfx");
+        File.WriteAllBytes(probePfxPath, probeCert.Export(X509ContentType.Pfx, string.Empty));
+
+        using var cts = new CancellationTokenSource();
+        var port = await StartMinimalTlsServerAsync(listeningCert, cts.Token);
+
+        var result = await this.certificateManager.ValidateCertificateAsync(
+            certPath: probePfxPath,
+            keyPath: string.Empty,
+            password: string.Empty,
+            bindAddress: "127.0.0.1",
+            sslPort: port,
+            testTlsHandshake: true);
+
+        result.IsValid.Should().BeTrue(result.Message);
+        result.HandshakeSucceeded.Should().BeFalse();
+        result.Message.Should().Contain("HTTPS listener will activate");
+
+        cts.Cancel();
+    }
+
+    [Test]
+    public async Task ValidateCertificateAsync_WhenTlsServerPresentsMatchingCertificate_ReportsHandshakeSuccess()
+    {
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest("CN=TlsProbeMatch", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddYears(1));
+        var pfxPath = Path.Combine(this.tempDir, "matching-server.pfx");
+        File.WriteAllBytes(pfxPath, cert.Export(X509ContentType.Pfx, string.Empty));
+
+        using var cts = new CancellationTokenSource();
+        var port = await StartMinimalTlsServerAsync(cert, cts.Token);
+
+        var result = await this.certificateManager.ValidateCertificateAsync(
+            certPath: pfxPath,
+            keyPath: string.Empty,
+            password: string.Empty,
+            bindAddress: "127.0.0.1",
+            sslPort: port,
+            testTlsHandshake: true);
+
+        result.IsValid.Should().BeTrue(result.Message);
+        result.HandshakeSucceeded.Should().BeTrue();
+        result.Message.Should().Contain("TLS handshake succeeded");
+
+        cts.Cancel();
+    }
+
+    private static async Task<int> StartMinimalTlsServerAsync(X509Certificate2 serverCertificate, CancellationToken cancellationToken)
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        _ = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        var client = await listener.AcceptTcpClientAsync(cancellationToken);
+                        _ = Task.Run(
+                            async () =>
+                            {
+                                await using var tcpClient = client;
+                                await using var sslStream = new SslStream(tcpClient.GetStream(), leaveInnerStreamOpen: false);
+                                await sslStream.AuthenticateAsServerAsync(serverCertificate, cancellationToken);
+
+                                var buffer = new byte[4096];
+                                await sslStream.ReadAsync(buffer, cancellationToken);
+
+                                var response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+                                var responseBytes = Encoding.ASCII.GetBytes(response);
+                                await sslStream.WriteAsync(responseBytes, cancellationToken);
+                            },
+                            cancellationToken);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                finally
+                {
+                    listener.Stop();
+                }
+            },
+            cancellationToken);
+
+        await Task.Delay(50, cancellationToken);
+        return port;
     }
 
     private static (string FullChainPem, string KeyPem, string LeafPem, string CaPem) GenerateTestChain(

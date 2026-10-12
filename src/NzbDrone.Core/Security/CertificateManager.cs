@@ -187,14 +187,15 @@ public class CertificateManager : ICertificateManager
                                     return false;
                                 }
 
+                                if (!string.IsNullOrEmpty(cert?.Thumbprint))
+                                {
+                                    var serverX509 = serverCert as X509Certificate2 ?? new X509Certificate2(serverCert);
+                                    return string.Equals(serverX509.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase);
+                                }
+
                                 if (errors == SslPolicyErrors.None)
                                 {
                                     return true;
-                                }
-
-                                if (serverCert is X509Certificate2 x509Cert && !string.IsNullOrEmpty(cert?.Thumbprint))
-                                {
-                                    return string.Equals(x509Cert.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase);
                                 }
 
                                 return chain != null && chain.Build(new X509Certificate2(serverCert));
