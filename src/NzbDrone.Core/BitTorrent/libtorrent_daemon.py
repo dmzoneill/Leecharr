@@ -57,6 +57,43 @@ def _file_index_for_path(files, rel_path):
     return -1
 
 
+def _apply_first_last_piece_priority(handle, enabled):
+    if not handle.is_valid() or not handle.has_metadata():
+        return False
+
+    ti = handle.torrent_file()
+    piece_count = ti.num_pieces()
+    if piece_count <= 0:
+        return False
+
+    head_count = max(1, min(4, piece_count // 10))
+    tail_count = max(1, min(2, piece_count // 20))
+    priority = 7 if enabled else 4
+
+    indices = set()
+    for i in range(min(head_count, piece_count)):
+        indices.add(i)
+    for i in range(max(0, piece_count - tail_count), piece_count):
+        indices.add(i)
+
+    files = ti.files()
+    for fi in range(files.num_files()):
+        start = files.piece_index_at_file(fi)
+        if 0 <= start < piece_count:
+            indices.add(start)
+        offset = files.file_offset(fi)
+        size = files.file_size(fi)
+        if size > 0:
+            end_piece = files.piece_index_at_offset(offset + size - 1)
+            if 0 <= end_piece < piece_count:
+                indices.add(end_piece)
+
+    for piece_index in indices:
+        handle.piece_priority(piece_index, priority)
+
+    return True
+
+
 class LibTorrentManager:
     def __init__(self, listen_interfaces="0.0.0.0:6882", version_target="2.1.1"):
         self.lock = threading.Lock()
@@ -70,6 +107,7 @@ class LibTorrentManager:
             "enable_natpmp": True,
         }
         self.session = lt.session(settings)
+        self.pending_first_last = {}
 
     def find_handle(self, info_hash):
         if not info_hash:
@@ -126,6 +164,13 @@ class LibTorrentManager:
         ih_str = params.get("info_hash")
         existing = self.find_handle(ih_str) if ih_str else None
         if existing:
+            with self.lock:
+                if "sequential_download" in params:
+                    existing.set_sequential_download(bool(params["sequential_download"]))
+                if "first_last_piece_priority" in params:
+                    enabled = bool(params["first_last_piece_priority"])
+                    if not _apply_first_last_piece_priority(existing, enabled):
+                        self.pending_first_last[ih_str.lower()] = enabled
             return {"status": "already_added", "info_hash": ih_str}
 
         with self.lock:
@@ -144,6 +189,16 @@ class LibTorrentManager:
                     h.resume()
             except Exception:
                 pass
+
+            if "sequential_download" in params:
+                try:
+                    h.set_sequential_download(bool(params["sequential_download"]))
+                except Exception:
+                    pass
+            if "first_last_piece_priority" in params:
+                enabled = bool(params["first_last_piece_priority"])
+                if not _apply_first_last_piece_priority(h, enabled) and ih_str:
+                    self.pending_first_last[ih_str.lower()] = enabled
 
             st = h.status()
             ih = str(st.info_hashes.v1) if hasattr(st, "info_hashes") and st.info_hashes.has_v1() else str(st.info_hash)
@@ -296,6 +351,28 @@ class LibTorrentManager:
                             break
             return {"status": "priorities_set"}
         return {"status": "not_found"}
+
+    def set_sequential_download(self, params):
+        h = self.find_handle(params.get("info_hash"))
+        if not h:
+            return {"status": "not_found"}
+        enabled = bool(params.get("enabled", False))
+        with self.lock:
+            h.set_sequential_download(enabled)
+        return {"status": "sequential_set", "enabled": enabled}
+
+    def set_first_last_piece_priority(self, params):
+        ih = (params.get("info_hash") or "").lower()
+        h = self.find_handle(params.get("info_hash"))
+        if not h:
+            return {"status": "not_found"}
+        enabled = bool(params.get("enabled", False))
+        with self.lock:
+            if _apply_first_last_piece_priority(h, enabled):
+                self.pending_first_last.pop(ih, None)
+                return {"status": "priorities_set", "enabled": enabled}
+            self.pending_first_last[ih] = enabled
+        return {"status": "pending_metadata", "enabled": enabled}
 
     def set_settings(self, params):
         settings = {}
@@ -597,6 +674,14 @@ class LibTorrentManager:
                 except Exception:
                     pass
 
+                ih_key = ih.lower()
+                if ih_key in self.pending_first_last and h.has_metadata():
+                    pending_enabled = self.pending_first_last.pop(ih_key)
+                    try:
+                        _apply_first_last_piece_priority(h, pending_enabled)
+                    except Exception:
+                        self.pending_first_last[ih_key] = pending_enabled
+
                 piece_availability = []
                 try:
                     piece_availability = [int(x) for x in h.piece_availability()]
@@ -703,6 +788,10 @@ class RpcHandler(BaseHTTPRequestHandler):
                 result = manager.remove_trackers(params)
             elif method == "set_file_priorities":
                 result = manager.set_file_priorities(params)
+            elif method == "set_sequential_download":
+                result = manager.set_sequential_download(params)
+            elif method == "set_first_last_piece_priority":
+                result = manager.set_first_last_piece_priority(params)
             elif method == "set_settings":
                 result = manager.set_settings(params)
             elif method == "set_torrent_limits":
