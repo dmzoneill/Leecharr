@@ -286,7 +286,7 @@ public class OllamaAiProviderTest
 
         releaseFallbackCall.TrySetResult(true);
         var (fallbackReply, fallbackUsedFallback) = await fallbackFlow;
-        fallbackReply.Should().Contain("Ratio");
+        fallbackReply.Should().Contain("Leecharr");
         fallbackUsedFallback.Should().BeTrue();
     }
 
@@ -744,7 +744,7 @@ public class OllamaAiProviderTest
     [Test]
     public async Task ProcessNaturalLanguageSearchAsync_WhenOllamaReturnsCompleteJson_UsesModelConfidenceScore()
     {
-        var jsonResponse = "{\"cleanTitle\":\"Dune\",\"year\":2021,\"resolution\":\"1080p\",\"confidenceScore\":0.72}";
+        var jsonResponse = "{\"cleanTitle\":\"Dune\",\"year\":2021,\"resolution\":\"1080p\",\"minSeeders\":5,\"category\":\"movies\",\"confidenceScore\":0.72}";
         var responseJson = System.Text.Json.JsonSerializer.Serialize(new
         {
             model = "llama3.2",
