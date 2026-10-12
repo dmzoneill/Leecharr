@@ -397,7 +397,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     [Route("api/v1/file/{fileId}/unignore")]
     public async Task<IActionResult> UnignoreFile(int fileId)
     {
-        await this.torrentFileService.SetPriorityAsync(fileId, 1);
+        await this.torrentFileService.SetPriorityAsync(fileId, 3);
         return this.Ok(new { error = 0, result = 0 });
     }
 
