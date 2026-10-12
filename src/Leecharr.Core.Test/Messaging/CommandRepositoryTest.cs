@@ -274,4 +274,40 @@ public class CommandRepositoryTest
         result.Id.Should().Be(model.Id);
         this.repository.All().Should().ContainSingle();
     }
+
+    [Test]
+    public void TryClaimQueued_WhenQueued_UpdatesStatusToRunning()
+    {
+        var model = new CommandModel
+        {
+            Name = "BackupCommand",
+            Body = "{}",
+            Status = CommandStatus.Queued,
+            QueuedAt = DateTime.UtcNow,
+        };
+        this.repository.Insert(model);
+
+        var startedAt = DateTime.UtcNow;
+        this.repository.TryClaimQueued(model.Id, startedAt).Should().BeTrue();
+
+        var stored = this.repository.Get(model.Id);
+        stored!.Status.Should().Be(CommandStatus.Running);
+        stored.StartedAt.Should().BeCloseTo(startedAt, TimeSpan.FromSeconds(1));
+    }
+
+    [Test]
+    public void TryClaimQueued_WhenNotQueued_ReturnsFalse()
+    {
+        var model = new CommandModel
+        {
+            Name = "BackupCommand",
+            Body = "{}",
+            Status = CommandStatus.Running,
+            QueuedAt = DateTime.UtcNow,
+            StartedAt = DateTime.UtcNow,
+        };
+        this.repository.Insert(model);
+
+        this.repository.TryClaimQueued(model.Id, DateTime.UtcNow).Should().BeFalse();
+    }
 }
