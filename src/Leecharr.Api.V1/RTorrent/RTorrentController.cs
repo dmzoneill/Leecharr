@@ -26,6 +26,7 @@ namespace Leecharr.Api.V1.RTorrent;
 public class RTorrentController : ControllerBase
 {
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> CustomFieldsStore = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, byte> ClosedTorrentsStore = new(StringComparer.OrdinalIgnoreCase);
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ITorrentFileService torrentFileService;
@@ -701,7 +702,6 @@ public class RTorrentController : ControllerBase
 
             case "d.stop":
             case "d.pause":
-            case "d.close":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToStop)
                 {
                     var t = this.torrentService.GetByInfoHash(hashToStop);
@@ -713,14 +713,35 @@ public class RTorrentController : ControllerBase
 
                 return new XElement("i4", 0);
 
+            case "d.close":
+                if (paramValues.Count > 0 && paramValues[0] is string hashToClose)
+                {
+                    var t = this.torrentService.GetByInfoHash(hashToClose);
+                    if (t != null)
+                    {
+                        SetTorrentClosed(hashToClose, true);
+                        await this.torrentService.PauseAsync(t.Id);
+                    }
+                }
+
+                return new XElement("i4", 0);
+
+            case "d.open":
+                if (paramValues.Count > 0 && paramValues[0] is string hashToOpen)
+                {
+                    SetTorrentClosed(hashToOpen, false);
+                }
+
+                return new XElement("i4", 0);
+
             case "d.start":
             case "d.resume":
-            case "d.open":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToStart)
                 {
                     var t = this.torrentService.GetByInfoHash(hashToStart);
                     if (t != null)
                     {
+                        SetTorrentClosed(hashToStart, false);
                         await this.torrentService.ResumeAsync(t.Id);
                     }
                 }
@@ -1140,8 +1161,10 @@ public class RTorrentController : ControllerBase
                 return new XElement("i8", torrent.UploadSpeed);
 
             case "d.is_active":
-            case "d.is_open":
                 return new XElement("i4", (torrent.Status == TorrentStatus.Downloading || torrent.Status == TorrentStatus.Seeding) ? 1 : 0);
+
+            case "d.is_open":
+                return new XElement("i4", IsTorrentClosed(torrent.InfoHash) ? 0 : 1);
 
             case "d.complete":
             case "d.is_complete":
@@ -1467,6 +1490,35 @@ public class RTorrentController : ControllerBase
         }
 
         CustomFieldsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
+        ClosedTorrentsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
+    }
+
+    private static bool IsTorrentClosed(string infoHash)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return false;
+        }
+
+        return ClosedTorrentsStore.ContainsKey(infoHash.Trim().ToLowerInvariant());
+    }
+
+    private static void SetTorrentClosed(string infoHash, bool closed)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return;
+        }
+
+        var normalizedHash = infoHash.Trim().ToLowerInvariant();
+        if (closed)
+        {
+            ClosedTorrentsStore[normalizedHash] = 0;
+        }
+        else
+        {
+            ClosedTorrentsStore.TryRemove(normalizedHash, out _);
+        }
     }
 
     private static string GetTorrentCustomFieldValue(Torrent torrent, string fieldName)
