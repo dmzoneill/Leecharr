@@ -818,6 +818,21 @@ public class ConfigService : IConfigService
         return snapshot.ContainsKey(key);
     }
 
+    private int GetAliasedConfigInt(string primaryKey, string aliasKey, int defaultValue)
+    {
+        if (this.ConfigKeyExists(primaryKey))
+        {
+            return this.GetValueInt(primaryKey, defaultValue);
+        }
+
+        if (this.ConfigKeyExists(aliasKey))
+        {
+            return this.GetValueInt(aliasKey, defaultValue);
+        }
+
+        return defaultValue;
+    }
+
     private bool GetTransmissionScriptEnabled(string enabledKey, string filenameKey)
     {
         if (this.ConfigKeyExists(enabledKey))
@@ -1012,9 +1027,9 @@ public class ConfigService : IConfigService
 
     public int MaxUploadSlots => this.GetValueInt("MaxUploadSlots", 8);
 
-    public int MaxActiveDownloads => this.GetValueInt("MaxActiveDownloads", this.GetValueInt("DownloadQueueSize", 3));
+    public int MaxActiveDownloads => this.GetAliasedConfigInt("MaxActiveDownloads", "DownloadQueueSize", 3);
 
-    public int MaxActiveUploads => this.GetValueInt("MaxActiveUploads", this.GetValueInt("SeedQueueSize", 3));
+    public int MaxActiveUploads => this.GetAliasedConfigInt("MaxActiveUploads", "SeedQueueSize", 3);
 
     public int MaxActiveTorrents => this.GetValueInt("MaxActiveTorrents", 10);
 
@@ -1118,9 +1133,9 @@ public class ConfigService : IConfigService
     public string Umask => this.GetValue("Umask", "022");
 
     // Queue & Concurrency Management
-    public int DownloadQueueSize => this.GetValueInt("DownloadQueueSize", this.GetValueInt("MaxActiveDownloads", 5));
+    public int DownloadQueueSize => this.GetAliasedConfigInt("DownloadQueueSize", "MaxActiveDownloads", 3);
 
-    public int SeedQueueSize => this.GetValueInt("SeedQueueSize", this.GetValueInt("MaxActiveUploads", 10));
+    public int SeedQueueSize => this.GetAliasedConfigInt("SeedQueueSize", "MaxActiveUploads", 3);
 
     public bool QueueStalledEnabled => this.GetValueBoolean("QueueStalledEnabled", true);
 
