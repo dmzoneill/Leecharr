@@ -64,13 +64,32 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     private readonly IBandwidthDistributionService bandwidthDistributionService;
     private readonly System.Threading.Timer timer;
     private readonly Logger logger;
+    private readonly object schedulerPauseLock = new();
     private readonly HashSet<int> schedulerPausedTorrentIds = new();
     private bool wasPausedByScheduler;
     private bool speedThresholdExceeded;
 
-    public bool WasPausedByScheduler => this.wasPausedByScheduler;
+    public bool WasPausedByScheduler
+    {
+        get
+        {
+            lock (this.schedulerPauseLock)
+            {
+                return this.wasPausedByScheduler;
+            }
+        }
+    }
 
-    public IReadOnlyCollection<int> SchedulerPausedTorrentIds => this.schedulerPausedTorrentIds.ToList();
+    public IReadOnlyCollection<int> SchedulerPausedTorrentIds
+    {
+        get
+        {
+            lock (this.schedulerPauseLock)
+            {
+                return this.schedulerPausedTorrentIds.ToList();
+            }
+        }
+    }
 
     public SpeedSchedulerService(
         ISpeedScheduleRepository repository,
@@ -109,25 +128,31 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                 var limits = this.GetCurrentLimits();
                 if (limits.IsDownloadPaused && limits.IsUploadPaused)
                 {
-                    if (!this.wasPausedByScheduler || this.schedulerPausedTorrentIds.Count == 0)
+                    var shouldPauseAll = false;
+                    lock (this.schedulerPauseLock)
                     {
                         if (this.TryCaptureSchedulerPausedTorrentIds(out var snapshot))
                         {
-                            this.schedulerPausedTorrentIds.Clear();
+                            if (!this.wasPausedByScheduler)
+                            {
+                                this.schedulerPausedTorrentIds.Clear();
+                                this.wasPausedByScheduler = true;
+                            }
+
                             foreach (var id in snapshot)
                             {
                                 this.schedulerPausedTorrentIds.Add(id);
                             }
 
-                            this.wasPausedByScheduler = true;
+                            shouldPauseAll = this.wasPausedByScheduler;
                         }
-                        else if (this.wasPausedByScheduler)
+                        else
                         {
-                            this.wasPausedByScheduler = false;
+                            shouldPauseAll = this.wasPausedByScheduler;
                         }
                     }
 
-                    if (this.wasPausedByScheduler)
+                    if (shouldPauseAll)
                     {
                         await this.downloadEngine.PauseAllAsync();
                     }
@@ -137,11 +162,19 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                     var downloadLimit = limits.IsDownloadPaused ? 1 : limits.MaxDownloadSpeedKbps;
                     var uploadLimit = limits.IsUploadPaused ? 1 : limits.MaxUploadSpeedKbps;
 
-                    if (this.wasPausedByScheduler)
+                    var resumeSchedulerTorrents = false;
+                    List<int> toResume;
+                    lock (this.schedulerPauseLock)
+                    {
+                        resumeSchedulerTorrents = this.wasPausedByScheduler;
+                        toResume = resumeSchedulerTorrents
+                            ? this.schedulerPausedTorrentIds.ToList()
+                            : new List<int>();
+                    }
+
+                    if (resumeSchedulerTorrents)
                     {
                         await this.downloadEngine.SetRateLimitsAsync(downloadLimit, uploadLimit);
-
-                        var toResume = this.schedulerPausedTorrentIds.ToList();
 
                         foreach (var torrentId in toResume)
                         {
@@ -153,14 +186,14 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                                     if (torrent == null)
                                     {
                                         this.logger.Info("Skipping scheduler resume for torrent {0}: torrent was deleted", torrentId);
-                                        this.schedulerPausedTorrentIds.Remove(torrentId);
+                                        this.RemoveSchedulerPausedTorrentId(torrentId);
                                         continue;
                                     }
 
                                     if (torrent.Status is TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Completed or TorrentStatus.QueuedForChecking)
                                     {
                                         this.logger.Info("Skipping scheduler resume for torrent {0}: database status is {1}", torrentId, torrent.Status);
-                                        this.schedulerPausedTorrentIds.Remove(torrentId);
+                                        this.RemoveSchedulerPausedTorrentId(torrentId);
                                         continue;
                                     }
                                 }
@@ -170,7 +203,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                                     if (taskCheck != null && taskCheck.Status is TorrentStatus.Queued or TorrentStatus.QueuedForChecking)
                                     {
                                         this.logger.Info("Skipping scheduler resume for torrent {0}: task status is {1}", torrentId, taskCheck.Status);
-                                        this.schedulerPausedTorrentIds.Remove(torrentId);
+                                        this.RemoveSchedulerPausedTorrentId(torrentId);
                                         continue;
                                     }
                                 }
@@ -179,7 +212,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                                 if (task != null && task.Status is TorrentStatus.Stopped or TorrentStatus.Completed or TorrentStatus.Queued or TorrentStatus.QueuedForChecking)
                                 {
                                     this.logger.Info("Skipping scheduler resume for torrent {0}: task status is {1}", torrentId, task.Status);
-                                    this.schedulerPausedTorrentIds.Remove(torrentId);
+                                    this.RemoveSchedulerPausedTorrentId(torrentId);
                                     continue;
                                 }
 
@@ -187,7 +220,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
 
                                 if (this.SchedulerResumeSucceeded(torrentId))
                                 {
-                                    this.schedulerPausedTorrentIds.Remove(torrentId);
+                                    this.RemoveSchedulerPausedTorrentId(torrentId);
                                 }
                                 else
                                 {
@@ -200,9 +233,12 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                             }
                         }
 
-                        if (this.schedulerPausedTorrentIds.Count == 0)
+                        lock (this.schedulerPauseLock)
                         {
-                            this.wasPausedByScheduler = false;
+                            if (this.schedulerPausedTorrentIds.Count == 0)
+                            {
+                                this.wasPausedByScheduler = false;
+                            }
                         }
 
                         if (this.queueManagerService != null)
@@ -434,12 +470,23 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
 
     public bool ShouldSuppressEnginePausedStatus(int torrentId)
     {
-        return this.wasPausedByScheduler && this.schedulerPausedTorrentIds.Contains(torrentId);
+        lock (this.schedulerPauseLock)
+        {
+            return this.wasPausedByScheduler && this.schedulerPausedTorrentIds.Contains(torrentId);
+        }
     }
 
     public void RevokeSchedulerResume(int torrentId)
     {
-        this.schedulerPausedTorrentIds.Remove(torrentId);
+        this.RemoveSchedulerPausedTorrentId(torrentId);
+    }
+
+    private void RemoveSchedulerPausedTorrentId(int torrentId)
+    {
+        lock (this.schedulerPauseLock)
+        {
+            this.schedulerPausedTorrentIds.Remove(torrentId);
+        }
     }
 
     private bool SchedulerResumeSucceeded(int torrentId)
