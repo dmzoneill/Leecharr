@@ -373,6 +373,32 @@ public class HadoukenRpcControllerTest
         rows.GetArrayLength().Should().Be(7);
     }
 
+    [TestCase(TorrentStatus.Stalled, 129)]
+    [TestCase(TorrentStatus.Completed, 160)]
+    [TestCase(TorrentStatus.QueuedForChecking, 194)]
+    public async Task HandleRpc_WebUiList_MapsExtendedStatusFlags(TorrentStatus status, int expectedStatusFlag)
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "abc12345abcdef1234567890abcdef12345678",
+            Name = "status.torrent",
+            Status = status,
+            DateAdded = DateTime.UtcNow,
+            TotalSize = 1000,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var request = new HadoukenRpcRequest { Method = "webui.list", Id = 15 };
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        var row = doc.RootElement.GetProperty("result").GetProperty("torrents")[0];
+        row[1].GetInt32().Should().Be(expectedStatusFlag);
+    }
+
     [Test]
     public async Task HandleRpc_WebUiList_SeparatesConnectedAndSwarmPeerCounts()
     {

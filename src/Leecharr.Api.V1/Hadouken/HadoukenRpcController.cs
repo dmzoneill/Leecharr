@@ -222,6 +222,18 @@ public class HadoukenRpcController : ControllerBase
                         {
                             statusFlag = 64 | 128;
                         }
+                        else if (t.Status == TorrentStatus.Stalled)
+                        {
+                            statusFlag = 1 | 128;
+                        }
+                        else if (t.Status == TorrentStatus.Completed)
+                        {
+                            statusFlag = 32 | 128;
+                        }
+                        else if (t.Status == TorrentStatus.QueuedForChecking)
+                        {
+                            statusFlag = 2 | 64 | 128;
+                        }
 
                         var addedUnix = t.DateAdded.ToUnixTimeSecondsAsUtc();
                         var completedUnix = t.DateCompleted.HasValue ? t.DateCompleted.Value.ToUnixTimeSecondsAsUtc() : 0;
