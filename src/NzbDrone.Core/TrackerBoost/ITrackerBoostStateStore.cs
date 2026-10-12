@@ -24,7 +24,7 @@ public interface ITrackerBoostStateStore
 
     int TotalVerifiedMatchesCount { get; set; }
 
-    ConcurrentDictionary<string, (DateTime BoostedAt, HashSet<string> InjectedTrackers)> BoostHistory { get; }
+    ConcurrentDictionary<string, (DateTime BoostedAt, ConcurrentDictionary<string, byte> InjectedTrackers)> BoostHistory { get; }
 
     ConcurrentDictionary<string, (IPAddress[] Addresses, DateTime ExpiresUtc)> DnsCache { get; }
 
@@ -76,7 +76,7 @@ public class TrackerBoostStateStore : ITrackerBoostStateStore
         set => Volatile.Write(ref this.totalVerifiedMatchesCount, value);
     }
 
-    public ConcurrentDictionary<string, (DateTime BoostedAt, HashSet<string> InjectedTrackers)> BoostHistory { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentDictionary<string, (DateTime BoostedAt, ConcurrentDictionary<string, byte> InjectedTrackers)> BoostHistory { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public ConcurrentDictionary<string, (IPAddress[] Addresses, DateTime ExpiresUtc)> DnsCache { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -111,7 +111,7 @@ public class TrackerBoostStateStore : ITrackerBoostStateStore
         this.TotalTorrentsBoosted = 0;
         this.TotalTrackersInjected = 0;
         this.TotalVerifiedMatchesCount = 0;
-        this.nextLogId = 0;
+        Interlocked.Exchange(ref this.nextLogId, 0);
         this.BoostHistory.Clear();
         this.DnsCache.Clear();
         this.LogBuffer.Clear();

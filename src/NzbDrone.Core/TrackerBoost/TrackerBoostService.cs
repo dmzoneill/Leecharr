@@ -1301,10 +1301,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             this.stateStore.IncrementTrackersInjected(addedList.Count);
             this.stateStore.IncrementVerifiedMatches(addedList.Count);
 
-            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(torrent.InfoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(torrent.InfoHash, _ => (DateTime.UtcNow, new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase)));
             foreach (var url in addedList)
             {
-                existingHistory.InjectedTrackers.Add(url);
+                existingHistory.InjectedTrackers.TryAdd(url, 0);
             }
 
             this.stateStore.BoostHistory[torrent.InfoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
@@ -1392,10 +1392,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         if (injected > 0)
         {
-            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase)));
             foreach (var url in addedList)
             {
-                existingHistory.InjectedTrackers.Add(url);
+                existingHistory.InjectedTrackers.TryAdd(url, 0);
             }
 
             this.stateStore.BoostHistory[infoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
@@ -1573,8 +1573,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         var injected = await this.InjectIntoDownloadClientsAsync(infoHash, new[] { trackerTrimmed }).ConfigureAwait(false);
         if (injected > 0)
         {
-            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
-            existingHistory.InjectedTrackers.Add(trackerTrimmed);
+            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase)));
+            existingHistory.InjectedTrackers.TryAdd(trackerTrimmed, 0);
             this.stateStore.BoostHistory[infoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
 
             this.LogActivity("Success", "Inject", $"Injected tracker {trackerTrimmed} into hash {infoHash} across {injected} client(s)", trackerTrimmed, infoHash);
