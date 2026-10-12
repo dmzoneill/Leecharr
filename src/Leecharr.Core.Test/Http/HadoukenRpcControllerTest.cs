@@ -12,6 +12,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
@@ -403,6 +404,37 @@ public class HadoukenRpcControllerTest
         row[13].GetInt32().Should().Be(15, "index 13 is swarm leechers");
         row[14].GetInt32().Should().Be(2, "index 14 is connected seeders");
         row[15].GetInt32().Should().Be(8, "index 15 is swarm seeders");
+    }
+
+    [Test]
+    public async Task HandleRpc_WebUiList_UnspecifiedDatabaseTimestamps_UseUtcUnixSeconds()
+    {
+        var added = new DateTime(2026, 7, 15, 10, 0, 0, DateTimeKind.Unspecified);
+        var completed = new DateTime(2026, 7, 16, 12, 30, 0, DateTimeKind.Unspecified);
+        var lastActive = new DateTime(2026, 7, 17, 8, 15, 0, DateTimeKind.Unspecified);
+        var hash = "aabbccddeeff00112233445566778899aabbccdd";
+        var torrent = new Torrent
+        {
+            Id = 51,
+            InfoHash = hash,
+            Name = "Timestamps",
+            Status = TorrentStatus.Seeding,
+            DateAdded = added,
+            DateCompleted = completed,
+            LastActive = lastActive,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var request = new HadoukenRpcRequest { Method = "webui.list", Id = 14 };
+        var result = await this.controller.HandleRpc(request);
+
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        var row = doc.RootElement.GetProperty("result").GetProperty("torrents")[0];
+
+        row[23].GetInt64().Should().Be(added.ToUnixTimeSecondsAsUtc());
+        row[24].GetInt64().Should().Be(completed.ToUnixTimeSecondsAsUtc());
+        row[28].GetInt64().Should().Be(lastActive.ToUnixTimeSecondsAsUtc());
     }
 
     [Test]

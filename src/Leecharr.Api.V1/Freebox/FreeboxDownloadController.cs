@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Common.Extensions;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -306,7 +307,7 @@ public class FreeboxDownloadController : ControllerBase
                 io_priority = "normal",
                 stop_ratio = (int)(t.TargetRatio * 100),
                 error = "none",
-                created_ts = t.DateAdded != default ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                created_ts = t.DateAdded != default ? t.DateAdded.ToUnixTimeSecondsAsUtc() : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 eta = t.Eta,
             };
         }).ToList();
