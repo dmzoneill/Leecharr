@@ -680,6 +680,80 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     }
 
     [Test]
+    public async Task TmdbProvider_FetchMetadataAsync_TvSearch_OmitsEpisodeYearFromFirstAirDateFilter()
+    {
+        var mockConfig = Substitute.For<IConfigService>();
+        mockConfig.TmdbApiKey.Returns("tmdb-test-api-key");
+
+        var searchResponse = @"{
+            ""results"": [
+                {
+                    ""id"": 94997,
+                    ""name"": ""Severance"",
+                    ""first_air_date"": ""2022-02-18"",
+                    ""vote_average"": 8.7,
+                    ""overview"": ""Short search overview""
+                }
+            ]
+        }";
+
+        var detailsResponse = @"{
+            ""id"": 94997,
+            ""name"": ""Severance"",
+            ""first_air_date"": ""2022-02-18"",
+            ""overview"": ""Employees undergo a procedure to separate work and personal memories."",
+            ""vote_average"": 8.7,
+            ""poster_path"": ""/poster.jpg"",
+            ""backdrop_path"": ""/backdrop.jpg"",
+            ""genres"": [
+                { ""id"": 18, ""name"": ""Drama"" }
+            ],
+            ""external_ids"": {
+                ""imdb_id"": ""tt11280740"",
+                ""tvdb_id"": 371980
+            },
+            ""credits"": {
+                ""cast"": [
+                    { ""id"": 1, ""name"": ""Adam Scott"" }
+                ]
+            }
+        }";
+
+        string tvSearchQuery = null;
+        var httpClient = new HttpClient(new TestHttpMessageHandlerWrapper(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/search/tv"))
+            {
+                tvSearchQuery = req.RequestUri.Query;
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(searchResponse, System.Text.Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (req.RequestUri!.AbsolutePath.Contains("/tv/94997"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(detailsResponse, System.Text.Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        var provider = new TmdbMetadataProvider(mockConfig, httpClient);
+        var result = await provider.FetchMetadataAsync("Severance.S02E01.2024.1080p.WEB-DL", "tv");
+
+        tvSearchQuery.Should().NotBeNull();
+        tvSearchQuery.Should().NotContain("first_air_date_year");
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("Severance");
+        result.Year.Should().Be(2022);
+        result.TmdbId.Should().Be("94997");
+    }
+
+    [Test]
     public async Task TvdbProvider_FetchMetadataAsync_CleansTvTitleAndExtractsMetadata()
     {
         var provider = new TvdbMetadataProvider();
