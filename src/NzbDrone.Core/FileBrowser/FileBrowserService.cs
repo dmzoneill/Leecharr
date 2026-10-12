@@ -278,6 +278,8 @@ public class FileBrowserService : IFileBrowserService
             throw new InvalidOperationException("Cannot copy a directory into one of its subdirectories.");
         }
 
+        this.EnsureSourcePathExists(source);
+
         if (!this.diskProvider.FolderExists(destDir))
         {
             this.diskProvider.CreateFolder(destDir);
@@ -292,7 +294,7 @@ public class FileBrowserService : IFileBrowserService
         {
             this.CopyDirectoryRecursive(source, target);
         }
-        else if (this.diskProvider.FileExists(source) || File.Exists(source))
+        else
         {
             this.diskProvider.CopyFile(source, target, overwrite: false);
         }
@@ -341,6 +343,8 @@ public class FileBrowserService : IFileBrowserService
             throw new InvalidOperationException("Cannot move a directory into one of its subdirectories.");
         }
 
+        this.EnsureSourcePathExists(source);
+
         if (!this.diskProvider.FolderExists(destDir))
         {
             this.diskProvider.CreateFolder(destDir);
@@ -359,7 +363,7 @@ public class FileBrowserService : IFileBrowserService
                 this.diskProvider.DeleteFolder(source, true);
             }
         }
-        else if (this.diskProvider.FileExists(source) || File.Exists(source))
+        else
         {
             try
             {
@@ -371,6 +375,16 @@ public class FileBrowserService : IFileBrowserService
                 this.diskProvider.CopyFile(source, target, overwrite: true);
                 this.diskProvider.DeleteFile(source);
             }
+        }
+    }
+
+    private void EnsureSourcePathExists(string source)
+    {
+        if (!this.diskProvider.FolderExists(source) &&
+            !this.diskProvider.FileExists(source) &&
+            !File.Exists(source))
+        {
+            throw new InvalidOperationException($"Source '{source}' does not exist.");
         }
     }
 
