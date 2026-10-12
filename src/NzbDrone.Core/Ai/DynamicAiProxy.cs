@@ -26,12 +26,13 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
     private IAiEngineProvider activeProvider;
     private long configSavedSwitchGeneration;
     private bool disposed;
+    private bool lastChatUsedFallback;
 
     public string ActiveProviderId => Volatile.Read(ref this.activeProvider)?.ProviderId ?? "RuleHeuristic";
 
     public IAiEngineProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
 
-    public bool LastChatUsedFallback => AiChatFallbackContext.LastChatUsedFallbackValue;
+    public bool LastChatUsedFallback => this.lastChatUsedFallback;
 
     public DynamicAiProxy(
         IEnumerable<IAiEngineProvider> availableProviders,
@@ -273,14 +274,9 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             var result = await provider.GenerateChatResponseAsync(userMessage, systemContext);
             if (result != null)
             {
-                if (provider is IFallbackAwareAiProvider fallbackAware && fallbackAware.LastChatUsedFallback)
-                {
-                    AiChatFallbackContext.SetLastChatUsedFallback(true);
-                }
-                else
-                {
-                    AiChatFallbackContext.SetLastChatUsedFallback(string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase));
-                }
+                var usedFallback = (provider is IFallbackAwareAiProvider fallbackAware && fallbackAware.LastChatUsedFallback)
+                    || string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase);
+                this.MarkChatFallback(usedFallback);
 
                 return result;
             }
@@ -290,8 +286,14 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             this.logger.Debug(ex, "Active AI provider '{0}' failed to generate chat response, falling back to heuristic assistant.", provider.ProviderId);
         }
 
-        AiChatFallbackContext.SetLastChatUsedFallback(true);
+        this.MarkChatFallback(true);
         return await this.defaultFallback.GenerateChatResponseAsync(userMessage, systemContext);
+    }
+
+    private void MarkChatFallback(bool usedFallback)
+    {
+        this.lastChatUsedFallback = usedFallback;
+        AiChatFallbackContext.SetLastChatUsedFallback(usedFallback);
     }
 
     public void Dispose()
