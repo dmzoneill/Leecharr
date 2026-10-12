@@ -93,6 +93,37 @@ public class TorrentFileParserTest
         return rootDict.Encode();
     }
 
+    private static byte[] WithRootKey(byte[] torrentBytes, string key, BEncodedNumber value)
+    {
+        var root = BEncodedDictionary.Decode(torrentBytes);
+        root[key] = value;
+        return root.Encode();
+    }
+
+    [Test]
+    public void Parse_WhenCreationDateIsValid_SetsCreationDate()
+    {
+        var expected = new DateTime(2024, 4, 7, 12, 0, 0, DateTimeKind.Utc);
+        var bytes = WithRootKey(CreateTorrentBytes(), "creation date", new BEncodedNumber(new DateTimeOffset(expected).ToUnixTimeSeconds()));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.CreationDate.Should().Be(expected);
+    }
+
+    [TestCase(1712500000000L)]
+    [TestCase(-62135596801L)]
+    [TestCase(253402300800L)]
+    public void Parse_WhenCreationDateIsOutOfRange_SucceedsWithoutCreationDate(long badUnixTimestamp)
+    {
+        var bytes = WithRootKey(CreateTorrentBytes(), "creation date", new BEncodedNumber(badUnixTimestamp));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.CreationDate.Should().BeNull();
+        parsed.Name.Should().Be("sample.iso");
+    }
+
     [Test]
     public void Parse_WhenPrivateBNumberIsOne_ReturnsIsPrivateTrue()
     {
