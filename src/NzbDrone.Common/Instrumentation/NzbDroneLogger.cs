@@ -12,6 +12,26 @@ namespace NzbDrone.Common.Instrumentation;
 
 public static class NzbDroneLogger
 {
+    private static LogLevel _startupConsoleLevel = LogLevel.Info;
+
+    public static LogLevel ResolveConsoleLevel(string configConsoleLevel)
+    {
+        var configLevel = LogLevel.Info;
+        if (!string.IsNullOrWhiteSpace(configConsoleLevel))
+        {
+            try
+            {
+                configLevel = LogLevel.FromString(configConsoleLevel);
+            }
+            catch (ArgumentException)
+            {
+                // Unrecognized config level; keep default.
+            }
+        }
+
+        return _startupConsoleLevel.Ordinal < configLevel.Ordinal ? _startupConsoleLevel : configLevel;
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "NLog LoggingConfiguration takes ownership of targets and disposes them on shutdown")]
     public static void Register(StartupContext startupContext = null, IAppFolderInfo appFolderInfo = null)
     {
@@ -38,6 +58,8 @@ public static class NzbDroneLogger
                 consoleLevel = LogLevel.Debug;
             }
         }
+
+        _startupConsoleLevel = consoleLevel;
 
         var consoleTarget = new ColoredConsoleTarget("console")
         {
@@ -67,7 +89,7 @@ public static class NzbDroneLogger
             };
 
             config.AddTarget(fileTarget);
-            config.AddRule(LogLevel.Debug, LogLevel.Fatal, fileTarget);
+            config.AddRule(LogLevel.Off, LogLevel.Fatal, fileTarget);
         }
         catch (Exception ex)
         {
