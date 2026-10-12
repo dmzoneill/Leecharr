@@ -1762,6 +1762,100 @@ public class AutomationServiceTest
     }
 
     [Test]
+    public void ShouldDelegateToTorrentServiceSetLocationAsync_WhenScriptRequestsMoveFiles()
+    {
+        var torrent = new Torrent
+        {
+            Id = 54,
+            Name = "MoveFilesTorrent",
+            SavePath = "/downloads/old",
+            Status = TorrentStatus.Seeding,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 14,
+            Name = "MoveFilesScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.moveFiles('/downloads/new');",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.NewSavePath.Should().Be("/downloads/new");
+        torrent.SavePath.Should().Be("/downloads/new");
+        _torrentService.Received(1).SetLocationAsync(54, "/downloads/new", moveFiles: true);
+        _torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public void ShouldDelegateToTorrentServiceSetLocationAsync_WhenScriptCallsSetSavePath()
+    {
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "SetSavePathTorrent",
+            SavePath = "/downloads/old",
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 15,
+            Name = "SetSavePathScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.setSavePath('/downloads/renamed');",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        _torrentService.Received(1).SetLocationAsync(55, "/downloads/renamed", moveFiles: true);
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldUpdateRepositoryOnly_WhenTorrentServiceIsNullAndNewSavePathSet()
+    {
+        var torrent = new Torrent
+        {
+            Id = 56,
+            Name = "FallbackSavePathTorrent",
+            SavePath = "/downloads/old",
+        };
+        var result = new AutomationExecutionResult
+        {
+            NewSavePath = "/downloads/fallback",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        torrent.SavePath.Should().Be("/downloads/fallback");
+        _torrentRepository.Received(1).Update(torrent);
+    }
+
+    [Test]
     public void ShouldDelegateToTorrentServiceResumeAsync_WhenScriptRequestsResume()
     {
         var torrent = new Torrent

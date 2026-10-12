@@ -432,11 +432,11 @@ public class AutomationService : IAutomationService
             changed = true;
         }
 
-        // Save Path
-        if (!string.IsNullOrWhiteSpace(result.NewSavePath) && !string.Equals(torrent.SavePath, result.NewSavePath, StringComparison.OrdinalIgnoreCase))
+        string? pendingSavePath = null;
+        if (!string.IsNullOrWhiteSpace(result.NewSavePath)
+            && !string.Equals(torrent.SavePath, result.NewSavePath, StringComparison.OrdinalIgnoreCase))
         {
-            torrent.SavePath = result.NewSavePath;
-            changed = true;
+            pendingSavePath = result.NewSavePath.Trim();
         }
 
         // Upload limit
@@ -628,6 +628,20 @@ public class AutomationService : IAutomationService
                     NewStatus = torrent.Status,
                     Reason = "Auto-resumed by automation rule/action",
                 });
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(pendingSavePath))
+        {
+            if (_torrentService != null)
+            {
+                await _torrentService.SetLocationAsync(torrent.Id, pendingSavePath, moveFiles: true).ConfigureAwait(false);
+                torrent.SavePath = pendingSavePath;
+            }
+            else
+            {
+                torrent.SavePath = pendingSavePath;
+                changed = true;
             }
         }
 
