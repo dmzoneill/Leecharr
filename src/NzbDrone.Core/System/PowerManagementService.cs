@@ -32,6 +32,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
     private readonly object lockObj = new();
 
     private int activeLeaseCount;
+    private bool manualSetSleepInhibitLeaseActive;
     private bool isSleepInhibited;
     private uint osxAssertionId;
     private Process linuxInhibitProcess;
@@ -153,19 +154,31 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         {
             if (inhibit)
             {
-                if (this.activeLeaseCount == 0)
+                if (!this.manualSetSleepInhibitLeaseActive)
                 {
-                    this.activeLeaseCount = 1;
-                    this.ApplySleepInhibition(true, reason);
+                    this.manualSetSleepInhibitLeaseActive = true;
+                    this.activeLeaseCount++;
+                    if (this.activeLeaseCount == 1)
+                    {
+                        this.ApplySleepInhibition(true, reason);
+                    }
                 }
             }
-            else
+            else if (this.manualSetSleepInhibitLeaseActive)
             {
-                if (this.activeLeaseCount > 0 || this.isSleepInhibited)
+                this.manualSetSleepInhibitLeaseActive = false;
+                if (this.activeLeaseCount > 0)
                 {
-                    this.activeLeaseCount = 0;
-                    this.ApplySleepInhibition(false, reason);
+                    this.activeLeaseCount--;
+                    if (this.activeLeaseCount == 0)
+                    {
+                        this.ApplySleepInhibition(false, reason);
+                    }
                 }
+            }
+            else if (this.isSleepInhibited && this.activeLeaseCount == 0)
+            {
+                this.ApplySleepInhibition(false, reason);
             }
         }
     }
@@ -243,6 +256,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             }
 
             this.activeLeaseCount = 0;
+            this.manualSetSleepInhibitLeaseActive = false;
         }
 
         this.DisposeWindowsSleepInhibitionWorker();

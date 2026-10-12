@@ -418,6 +418,35 @@ public class PowerManagementServiceTest
     }
 
     [Test]
+    public void SetSleepInhibited_False_DoesNotDropOutstandingInhibitSleepLeases()
+    {
+        var service = new PowerManagementService
+        {
+            ContainerDetector = () => true,
+        };
+
+        var downloadToken = service.InhibitSleep("Leecharr active torrent downloads in progress");
+        service.ActiveSleepInhibitionLeases.Should().Be(1);
+        service.IsSleepInhibited.Should().BeTrue();
+
+        service.SetSleepInhibited(false, "Manual disable");
+        service.ActiveSleepInhibitionLeases.Should().Be(1);
+        service.IsSleepInhibited.Should().BeTrue();
+
+        var newToken = service.InhibitSleep("New download");
+        service.ActiveSleepInhibitionLeases.Should().Be(2);
+        service.IsSleepInhibited.Should().BeTrue();
+
+        downloadToken.Dispose();
+        service.ActiveSleepInhibitionLeases.Should().Be(1);
+        service.IsSleepInhibited.Should().BeTrue();
+
+        newToken.Dispose();
+        service.ActiveSleepInhibitionLeases.Should().Be(0);
+        service.IsSleepInhibited.Should().BeFalse();
+    }
+
+    [Test]
     public void SetSleepInhibited_TrueAndFalse_UpdatesInhibitionStateAndLeases()
     {
         var service = new PowerManagementService
