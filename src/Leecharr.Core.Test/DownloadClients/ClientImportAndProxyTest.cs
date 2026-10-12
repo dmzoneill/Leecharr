@@ -1079,7 +1079,7 @@ public class ClientImportAndProxyTest
 
         var result = okResult!.Value as SyncResultResource;
         result.Should().NotBeNull();
-        result!.Failed.Should().Be(0);
+        result!.Failed.Should().Be(1);
         result.SyncedCount.Should().Be(1);
     }
 

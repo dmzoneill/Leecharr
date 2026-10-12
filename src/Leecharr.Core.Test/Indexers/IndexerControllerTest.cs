@@ -2084,11 +2084,14 @@ public class IndexerControllerTest
             SupportsMovieSearch = false,
         };
 
+        IndexerDefinition updated = null!;
+        this.indexerRepository
+            .When(r => r.Update(Arg.Any<IndexerDefinition>()))
+            .Do(ci => updated = ci.Arg<IndexerDefinition>());
+
         var result = this.controller.Update(7, resource);
         result.Result.Should().BeOfType<OkObjectResult>();
-
-        IndexerDefinition updated = null!;
-        this.indexerRepository.Received(1).Update(Arg.Do<IndexerDefinition>(idx => updated = idx));
+        this.indexerRepository.Received(1).Update(Arg.Any<IndexerDefinition>());
 
         var parsed = System.Text.Json.JsonSerializer.Deserialize<IndexerSettings>(updated.Settings!);
         parsed.Should().NotBeNull();
