@@ -16,6 +16,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -34,6 +35,7 @@ public class TorrentServiceTest
     private ITrackerEntryRepository trackerEntryRepository = null!;
     private IStoragePathService storagePathService = null!;
     private ISpeedSchedulerService speedSchedulerService = null!;
+    private ITagRepository tagRepository = null!;
     private TorrentService service = null!;
 
     [SetUp]
@@ -49,6 +51,7 @@ public class TorrentServiceTest
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.speedSchedulerService = Substitute.For<ISpeedSchedulerService>();
+        this.tagRepository = Substitute.For<ITagRepository>();
 
         this.speedSchedulerService.ResolveEffectiveDownloadLimit(Arg.Any<int>(), Arg.Any<int>())
             .Returns(callInfo =>
@@ -90,7 +93,8 @@ public class TorrentServiceTest
             this.trackerEntryRepository,
             queueManagerService: null,
             storagePathService: this.storagePathService,
-            speedSchedulerService: this.speedSchedulerService);
+            speedSchedulerService: this.speedSchedulerService,
+            tagRepository: this.tagRepository);
     }
 
     [Test]
@@ -1403,6 +1407,52 @@ public class TorrentServiceTest
         this.service.GetEffectiveTargetSeedTimeMinutes(result).Should().Be(60);
 
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(result.Id, 12000, 6000);
+    }
+
+    [Test]
+    public void GetEffectiveLimits_WhenTagPoliciesSet_AppliesBetweenTorrentAndCategory()
+    {
+        var category = new Category
+        {
+            Id = 1,
+            Name = "tv",
+            DefaultDownloadLimit = 25000,
+            DefaultUploadLimit = 10000,
+            TargetRatio = 1.0,
+            TargetSeedTimeMinutes = 30,
+        };
+        this.categoryService.GetByName("tv").Returns(category);
+        this.configService.GlobalSeedRatioLimit.Returns(0.5);
+
+        var tag = new Tag
+        {
+            Id = 9,
+            Label = "strict",
+            DownloadLimitKbps = 4000,
+            UploadLimitKbps = 2000,
+            MinSeedRatio = 2.5,
+            MinSeedTimeSeconds = 600,
+        };
+        this.tagRepository.Get(9).Returns(tag);
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Category = "tv",
+            TagIds = new List<int> { 9 },
+            DownloadLimit = 0,
+            UploadLimit = 0,
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(4000, 25000).Returns(4000);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(2000, 10000).Returns(2000);
+
+        this.service.GetEffectiveDownloadLimit(torrent).Should().Be(4000);
+        this.service.GetEffectiveUploadLimit(torrent).Should().Be(2000);
+        this.service.GetEffectiveTargetRatio(torrent).Should().Be(2.5);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrent).Should().Be(10);
     }
 
     [Test]
