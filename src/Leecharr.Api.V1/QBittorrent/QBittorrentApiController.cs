@@ -1949,17 +1949,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 return this.BadRequest("Cannot add public trackers to private torrents");
             }
 
-            var decodedUrls = urls;
-            try
-            {
-                decodedUrls = Uri.UnescapeDataString(urls);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Trace(ex, "Failed to unescape tracker URLs, using raw");
-            }
-
-            var rawLines = decodedUrls.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var rawLines = urls.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
             var now = DateTime.UtcNow;
 
             foreach (var torrent in torrents)
@@ -1972,17 +1962,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 var existingTrackers = (this.trackerEntryRepository.GetByTorrentId(torrent.Id) ?? Enumerable.Empty<TrackerEntry>()).ToList();
                 var existingUrls = existingTrackers
                     .Where(t => !string.IsNullOrWhiteSpace(t.Url))
-                    .Select(t =>
-                    {
-                        try
-                        {
-                            return Uri.UnescapeDataString(t.Url.Trim());
-                        }
-                        catch
-                        {
-                            return t.Url.Trim();
-                        }
-                    })
+                    .Select(t => t.Url.Trim())
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 var validUrls = new List<string>();
@@ -1992,14 +1972,6 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 foreach (var rawLine in rawLines)
                 {
                     var trimmed = rawLine.Trim();
-                    try
-                    {
-                        trimmed = Uri.UnescapeDataString(trimmed).Trim();
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Trace(ex, "Failed to unescape tracker line, using raw");
-                    }
 
                     if (string.IsNullOrWhiteSpace(trimmed))
                     {
@@ -2066,18 +2038,6 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 }
 
                 urlSet.Add(trimmed);
-                try
-                {
-                    var unescaped = Uri.UnescapeDataString(trimmed).Trim();
-                    if (!string.IsNullOrWhiteSpace(unescaped))
-                    {
-                        urlSet.Add(unescaped);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Trace(ex, "Failed to unescape tracker line for removal, using raw");
-                }
             }
 
             foreach (var torrent in torrents)
@@ -2093,22 +2053,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     foreach (var t in existing)
                     {
                         var trackerUrl = t.Url?.Trim();
-                        string unescapedTrackerUrl = null;
-                        if (trackerUrl != null)
-                        {
-                            try
-                            {
-                                unescapedTrackerUrl = Uri.UnescapeDataString(trackerUrl).Trim();
-                            }
-                            catch (Exception ex)
-                            {
-                                // Malformed percent-encoding in tracker URI; fallback to original trackerUrl
-                                this.logger.Trace(ex, "Failed to unescape tracker URL '{0}'", trackerUrl);
-                            }
-                        }
-
-                        if ((trackerUrl != null && urlSet.Contains(trackerUrl)) ||
-                            (unescapedTrackerUrl != null && urlSet.Contains(unescapedTrackerUrl)))
+                        if (trackerUrl != null && urlSet.Contains(trackerUrl))
                         {
                             this.trackerEntryRepository.Delete(t.Id);
                         }
