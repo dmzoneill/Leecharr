@@ -84,7 +84,7 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
             ResponseType = OpenIdConnectResponseType.Code,
             ResponseMode = OpenIdConnectResponseMode.Query,
             GetClaimsFromUserInfoEndpoint = true,
-            SaveTokens = true,
+            SaveTokens = false,
             CallbackPath = $"/signin-oidc-{provider.ProviderId}",
             RequireHttpsMetadata = provider.IssuerUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase),
             DataProtectionProvider = dataProtection,
