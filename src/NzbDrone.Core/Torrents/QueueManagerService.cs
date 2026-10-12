@@ -97,6 +97,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                 ? this.configService.SeedQueueSize
                 : this.configService.MaxActiveUploads;
             var maxTotal = this.configService.MaxActiveTorrents;
+            if (!this.configService.GetValueBoolean("QueueingEnabled", true))
+            {
+                maxDownloads = 0;
+                maxUploads = 0;
+                maxTotal = 0;
+            }
             var ignoreSlow = this.configService.IgnoreSlowTorrents;
             var slowDownThreshold = this.configService.SlowTorrentDownloadRateThreshold;
             var slowUpThreshold = this.configService.SlowTorrentUploadRateThreshold;

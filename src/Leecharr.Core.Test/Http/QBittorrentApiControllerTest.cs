@@ -1443,6 +1443,56 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public async Task SetPreferences_PersistsPreferenceFieldsReturnedByGet()
+    {
+        var json = "{\"temp_path_enabled\":false,\"dont_count_slow_torrents\":true,\"slow_torrent_dl_rate_threshold\":1024,\"slow_torrent_ul_rate_threshold\":512,\"incomplete_files_ext\":false,\"queueing_enabled\":false,\"anonymous_mode\":true,\"auto_shutdown_on_downloads_finished\":false}";
+        this.configService.AutoShutdownAction.Returns("Shutdown");
+
+        var result = await this.controller.SetPreferencesAsync(json);
+        result.Should().BeOfType<ContentResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (bool)d["EnableIncompleteDir"] == false &&
+            (bool)d["IgnoreSlowTorrents"] == true &&
+            (long)d["SlowTorrentDownloadRateThreshold"] == 1024L &&
+            (long)d["SlowTorrentUploadRateThreshold"] == 512L &&
+            (bool)d["AppendIncompleteExtension"] == false &&
+            (bool)d["QueueingEnabled"] == false &&
+            (bool)d["AnonymousMode"] == true &&
+            (string)d["AutoShutdownAction"] == "None"));
+    }
+
+    [Test]
+    public async Task SetPreferences_EnableAutoShutdown_WhenUnset_SetsDefaultActionAndCondition()
+    {
+        this.configService.AutoShutdownAction.Returns("None");
+        this.configService.AutoShutdownCondition.Returns("None");
+
+        var result = await this.controller.SetPreferencesAsync("{\"auto_shutdown_on_downloads_finished\":true}");
+        result.Should().BeOfType<ContentResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (string)d["AutoShutdownAction"] == "Shutdown" &&
+            (string)d["AutoShutdownCondition"] == "WhenDownloadsComplete"));
+    }
+
+    [Test]
+    public async Task SetPreferences_InvalidJson_ReturnsBadRequest()
+    {
+        var result = await this.controller.SetPreferencesAsync("not-json");
+        result.Should().BeOfType<BadRequestResult>();
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+    }
+
+    [Test]
+    public async Task SetPreferences_EmptyJson_ReturnsBadRequest()
+    {
+        var result = await this.controller.SetPreferencesAsync("   ");
+        result.Should().BeOfType<BadRequestResult>();
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+    }
+
+    [Test]
     public async Task SpeedLimitsMode_GetAndToggle_UpdatesStateAndCallsSpeedSchedulerService()
     {
         this.configService.AlternativeSpeedEnabled.Returns(false);
