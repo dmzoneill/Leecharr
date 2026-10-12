@@ -99,7 +99,31 @@ public class PackageManagementTest
 
         this.torrentService.Get(Arg.Any<int>()).Returns((Torrent)null!);
         var actMissingTorrents = async () => await this.packageExportService.ExportPackageAsync(stream, new[] { 99 }, false);
-        await actMissingTorrents.Should().ThrowAsync<ArgumentException>().WithMessage("*None of the specified torrents were found*");
+        await actMissingTorrents.Should().ThrowAsync<PackageExportTorrentsNotFoundException>()
+            .Where(ex => ex.MissingTorrentIds.SequenceEqual(new[] { 99 }));
+    }
+
+    [Test]
+    public async Task ExportPackageAsync_PartialMissingTorrents_ThrowsWithMissingIds()
+    {
+        using var stream = new MemoryStream();
+        var found = new Torrent { Id = 1, Name = "Found" };
+        this.torrentService.Get(1).Returns(found);
+        this.torrentService.Get(2).Returns((Torrent)null!);
+
+        var act = async () => await this.packageExportService.ExportPackageAsync(stream, new[] { 1, 2 }, false);
+        await act.Should().ThrowAsync<PackageExportTorrentsNotFoundException>()
+            .Where(ex => ex.MissingTorrentIds.SequenceEqual(new[] { 2 }));
+    }
+
+    [Test]
+    public async Task ExportPackageAsync_LookupThrows_PropagatesException()
+    {
+        using var stream = new MemoryStream();
+        this.torrentService.Get(1).Throws(new InvalidOperationException("database unavailable"));
+
+        var act = async () => await this.packageExportService.ExportPackageAsync(stream, new[] { 1 }, false);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("database unavailable");
     }
 
     [Test]
@@ -783,6 +807,20 @@ public class PackageManagementTest
         var fileResult = result.Should().BeOfType<FileStreamResult>().Subject;
         fileResult.ContentType.Should().Be("application/x-leecharr-package");
         fileResult.FileDownloadName.Should().Be("Debian 12 Bookworm (Official).leecharr");
+    }
+
+    [Test]
+    public async Task PackageController_Export_PartialMissingTorrents_ReturnsNotFoundWithMissingIds()
+    {
+        var t1 = new Torrent { Id = 1, Name = "Torrent 1" };
+        this.torrentService.Get(1).Returns(t1);
+        this.torrentService.Get(2).Returns((Torrent)null!);
+
+        var controller = new PackageController(this.packageExportService, this.torrentService);
+        var result = await controller.Export("1,2", false);
+
+        var notFound = result.Should().BeOfType<NotFoundObjectResult>().Subject;
+        notFound.Value.Should().NotBeNull();
     }
 
     [Test]
