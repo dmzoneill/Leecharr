@@ -12,6 +12,7 @@ using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Torrents;
 
@@ -410,7 +411,7 @@ public class NotificationEventHandler :
         {
             eventType,
             instanceName = "Leecharr",
-            applicationVersion = "1.0.0",
+            applicationVersion = BuildInfo.Version?.ToString() ?? "1.0.0",
             timestamp = DateTime.UtcNow.ToString("o"),
             torrent = new
             {
