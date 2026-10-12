@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Http.Transport;
 
@@ -16,6 +18,8 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOut
     private readonly HttpClient fallbackClient;
     private readonly SocketsHttpHandler handler;
     private readonly IConfigService configService;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
     private bool disposed;
 
     internal SocketsHttpHandler Handler => this.handler;
@@ -42,13 +46,22 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOut
         SupportsCookieExtraction = true,
     };
 
-    public CurlImpersonateTransportProvider(IConfigService configService = null)
+    public CurlImpersonateTransportProvider(
+        IConfigService configService = null,
+        INetworkBindingService networkBindingService = null,
+        IVpnKillSwitchService vpnKillSwitchService = null)
     {
         this.configService = configService;
+        this.networkBindingService = networkBindingService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
         this.handler = new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
             EnableMultipleHttp2Connections = true,
+            ConnectCallback = SocketsHttpHandlerConnectCallbackFactory.Create(
+                this.configService,
+                this.networkBindingService,
+                this.vpnKillSwitchService),
         };
 
         this.RefreshOutboundProxy();
