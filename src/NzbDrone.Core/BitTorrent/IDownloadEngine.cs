@@ -102,6 +102,8 @@ public interface IDownloadEngine
     Task RecheckNetworkInterfacesAsync(bool forceRebind, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     Task ClearDhtCacheAsync(bool bootstrapNodes, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    Task<bool> DisconnectPeerAsync(string ip) => Task.FromResult(false);
 }
 
 public interface IDownloadTask

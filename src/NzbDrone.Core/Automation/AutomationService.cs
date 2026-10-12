@@ -772,43 +772,20 @@ public class AutomationService : IAutomationService
                 {
                     try
                     {
-                        var blockMethod = _blocklistService.GetType().GetMethod("AddBlockedIp", new[] { typeof(string) })
-                            ?? _blocklistService.GetType().GetMethod("BlockIp", new[] { typeof(string) });
-                        if (blockMethod != null)
+                        var task = _blocklistService.AddRulesAsync(new[] { ip });
+                        if (task != null)
                         {
-                            var ret = blockMethod.Invoke(_blocklistService, new object[] { ip });
-                            if (ret is Task task)
-                            {
-                                task.ContinueWith(
-                                    t =>
+                            task.ContinueWith(
+                                t =>
+                                {
+                                    if (t.IsFaulted && t.Exception != null)
                                     {
-                                        if (t.IsFaulted && t.Exception != null)
-                                        {
-                                            _logger.Error(t.Exception.GetBaseException(), "Failed to add peer {0} to blocklist", ip);
-                                        }
-                                    },
-                                    CancellationToken.None,
-                                    TaskContinuationOptions.OnlyOnFaulted,
-                                    TaskScheduler.Default);
-                            }
-                        }
-                        else
-                        {
-                            var task = _blocklistService.LoadRulesAsync(new[] { ip });
-                            if (task != null)
-                            {
-                                task.ContinueWith(
-                                    t =>
-                                    {
-                                        if (t.IsFaulted && t.Exception != null)
-                                        {
-                                            _logger.Error(t.Exception.GetBaseException(), "Failed to load peer rule {0} into blocklist", ip);
-                                        }
-                                    },
-                                    CancellationToken.None,
-                                    TaskContinuationOptions.OnlyOnFaulted,
-                                    TaskScheduler.Default);
-                            }
+                                        _logger.Error(t.Exception.GetBaseException(), "Failed to add peer {0} to blocklist", ip);
+                                    }
+                                },
+                                CancellationToken.None,
+                                TaskContinuationOptions.OnlyOnFaulted,
+                                TaskScheduler.Default);
                         }
                     }
                     catch (Exception ex)
@@ -821,26 +798,20 @@ public class AutomationService : IAutomationService
                 {
                     try
                     {
-                        var disconnectMethod = _downloadEngine.GetType().GetMethod("DisconnectPeerAsync", new[] { typeof(int), typeof(string) })
-                            ?? _downloadEngine.GetType().GetMethod("DisconnectPeer", new[] { typeof(int), typeof(string) })
-                            ?? _downloadEngine.GetType().GetMethod("BanPeerAsync", new[] { typeof(int), typeof(string) });
-                        if (disconnectMethod != null)
+                        var task = _downloadEngine.DisconnectPeerAsync(ip);
+                        if (task != null)
                         {
-                            var ret = disconnectMethod.Invoke(_downloadEngine, new object[] { torrent.Id, ip });
-                            if (ret is Task task)
-                            {
-                                task.ContinueWith(
-                                    t =>
+                            task.ContinueWith(
+                                t =>
+                                {
+                                    if (t.IsFaulted && t.Exception != null)
                                     {
-                                        if (t.IsFaulted && t.Exception != null)
-                                        {
-                                            _logger.Error(t.Exception.GetBaseException(), "Failed to disconnect peer {0} on torrent {1}", ip, torrent.Id);
-                                        }
-                                    },
-                                    CancellationToken.None,
-                                    TaskContinuationOptions.OnlyOnFaulted,
-                                    TaskScheduler.Default);
-                            }
+                                        _logger.Error(t.Exception.GetBaseException(), "Failed to disconnect peer {0} on torrent {1}", ip, torrent.Id);
+                                    }
+                                },
+                                CancellationToken.None,
+                                TaskContinuationOptions.OnlyOnFaulted,
+                                TaskScheduler.Default);
                         }
                     }
                     catch (Exception ex)

@@ -1323,7 +1323,8 @@ public class AutomationServiceTest
 
         result.Success.Should().BeTrue();
         result.PeersToBan.Should().Contain("198.51.100.42");
-        _blocklistService.Received(1).LoadRulesAsync(Arg.Is<IEnumerable<string>>(r => r.Contains("198.51.100.42")));
+        _blocklistService.Received(1).AddRulesAsync(Arg.Is<IEnumerable<string>>(r => r.Contains("198.51.100.42")));
+        _downloadEngine.Received(1).DisconnectPeerAsync("198.51.100.42");
     }
 
     [Test]
