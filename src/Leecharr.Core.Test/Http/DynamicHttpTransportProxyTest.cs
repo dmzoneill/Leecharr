@@ -307,7 +307,7 @@ public class DynamicHttpTransportProxyTest
     [Test]
     public async Task ConcreteProviders_CurlImpersonateTransportProvider_Tests()
     {
-        using var provider = new CurlImpersonateTransportProvider();
+        using var provider = CurlImpersonateTestHelper.CreateProvider();
         provider.ProviderId.Should().Be("CurlImpersonate");
         provider.DisplayName.Should().NotBeNullOrEmpty();
         provider.Capabilities.SupportsBrowserFingerprintEmulation.Should().BeTrue();

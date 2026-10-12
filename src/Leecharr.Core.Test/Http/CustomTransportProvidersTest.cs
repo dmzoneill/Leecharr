@@ -23,7 +23,7 @@ public class CustomTransportProvidersTest
     [Test]
     public void CanHandle_CurlImpersonate_ExposesExpectedCapabilitiesAndMetadata()
     {
-        using var provider = new CurlImpersonateTransportProvider();
+        using var provider = CurlImpersonateTestHelper.CreateProvider();
 
         provider.ProviderId.Should().Be("CurlImpersonate");
         provider.DisplayName.Should().Contain("curl-impersonate");
@@ -62,12 +62,22 @@ public class CustomTransportProvidersTest
     [Test]
     public async Task ProbeHealthAsync_CurlImpersonate_ReturnsHealthy_WithAppropriateMode()
     {
-        using var provider = new CurlImpersonateTransportProvider();
+        using var provider = CurlImpersonateTestHelper.CreateProvider();
         var health = await provider.ProbeHealthAsync();
 
         health.Should().NotBeNull();
         health.IsHealthy.Should().BeTrue();
         health.StatusMessage.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_CurlImpersonate_WhenBinaryMissing_ReturnsUnhealthy()
+    {
+        using var provider = new CurlImpersonateTransportProvider();
+        var health = await provider.ProbeHealthAsync();
+
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("not detected");
     }
 
     [Test]
@@ -210,7 +220,7 @@ public class CustomTransportProvidersTest
         config.ProxyUsername.Returns("proxyuser");
         config.ProxyPassword.Returns("proxypass");
 
-        using var provider = new CurlImpersonateTransportProvider(config);
+        using var provider = CurlImpersonateTestHelper.CreateProvider(config);
         var proxy = provider.Proxy;
 
         proxy.Should().NotBeNull();
@@ -249,7 +259,7 @@ public class CustomTransportProvidersTest
             response.OutputStream.Close();
         });
 
-        using var provider = new CurlImpersonateTransportProvider();
+        using var provider = CurlImpersonateTestHelper.CreateProvider();
         using var request = new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{port}/api/test");
 
         var response = await provider.SendAsync(request);
@@ -282,7 +292,7 @@ public class CustomTransportProvidersTest
             response.OutputStream.Close();
         });
 
-        using var provider = new CurlImpersonateTransportProvider();
+        using var provider = CurlImpersonateTestHelper.CreateProvider();
         using var request = new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{port}/api/custom");
         request.Headers.Add("User-Agent", "CustomCrawler/1.0");
 
@@ -296,7 +306,7 @@ public class CustomTransportProvidersTest
     [Test]
     public async Task ExecuteRequestAsync_CurlImpersonate_ThrowsArgumentNullException_WhenRequestIsNull()
     {
-        using var provider = new CurlImpersonateTransportProvider();
+        using var provider = CurlImpersonateTestHelper.CreateProvider();
         var act = async () => await provider.SendAsync(null!);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
