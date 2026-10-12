@@ -15,18 +15,21 @@ public class ScriptSystemContext
     private readonly AutomationExecutionResult? _result;
     private readonly ScriptExecutionBudget? _executionBudget;
     private readonly bool _abortScriptOnStop;
+    private readonly bool _dryRun;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public ScriptSystemContext(
         IManageCommandQueue? commandQueue = null,
         AutomationExecutionResult? result = null,
         ScriptExecutionBudget? executionBudget = null,
-        bool abortScriptOnStop = false)
+        bool abortScriptOnStop = false,
+        bool dryRun = false)
     {
         _commandQueue = commandQueue;
         _result = result;
         _executionBudget = executionBudget;
         _abortScriptOnStop = abortScriptOnStop;
+        _dryRun = dryRun;
     }
 
     public static long diskFreeSpace
@@ -97,6 +100,17 @@ public class ScriptSystemContext
             return null;
         }
 
+        if (_dryRun)
+        {
+            _logger.Info("[DRY-RUN] Would queue system command '{0}' from automation script", commandName.Trim());
+            return new
+            {
+                id = (int?)null,
+                name = commandName.Trim(),
+                status = "DryRun",
+            };
+        }
+
         var jsonBody = payload != null ? JsonSerializer.Serialize(payload) : "{}";
         var cmdResult = _commandQueue.PushRaw(commandName.Trim(), jsonBody, CommandTrigger.Manual);
         _logger.Info("Queued system command '{0}' (Id={1}) from automation script", commandName, cmdResult?.Id);
@@ -151,6 +165,12 @@ public class ScriptSystemContext
     {
         if (string.IsNullOrWhiteSpace(path))
         {
+            return;
+        }
+
+        if (_dryRun)
+        {
+            _logger.Info("[DRY-RUN] Would queue external script '{0}' from automation script", path.Trim());
             return;
         }
 

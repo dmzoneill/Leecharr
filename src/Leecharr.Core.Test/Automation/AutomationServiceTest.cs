@@ -508,6 +508,51 @@ public class AutomationServiceTest
     }
 
     [Test]
+    public void TestScript_YamlFilesystemActions_DoNotMutateDisk()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var junkFile = Path.Combine(tempDir, "sample.nfo");
+            File.WriteAllText(junkFile, "delete-me");
+
+            var script = new AutomationScript
+            {
+                Name = "Test YAML clean",
+                Language = AutomationLanguage.Yaml,
+                Code = "name: 'Test clean'\n" +
+                       "steps:\n" +
+                       "  - name: 'Clean'\n" +
+                       "    actions:\n" +
+                       "      - cleanExtensions:\n" +
+                       $"          directory: '{tempDir}'\n" +
+                       "          extensions: 'nfo'\n",
+            };
+
+            var service = new AutomationService(
+                _scriptRepository,
+                _torrentRepository,
+                _tagRepository,
+                _eventAggregator);
+
+            var result = service.TestScript(script);
+
+            result.Success.Should().BeTrue();
+            File.Exists(junkFile).Should().BeTrue();
+            result.OutputLog.Should().Contain("[DRY-RUN]");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public void ExecuteScript_RecordsSuccessStatsAndOutputLog()
     {
         var torrent = new Torrent { Id = 30, Name = "LogTorrent" };

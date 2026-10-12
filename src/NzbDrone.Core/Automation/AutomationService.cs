@@ -364,7 +364,7 @@ public class AutomationService : IAutomationService
         }
 
         IScriptRunner runner = script.Language == AutomationLanguage.Yaml ? _yamlRunner : _jintRunner;
-        return runner.Execute(script, torrent, torrentTags, customInputs);
+        return runner.Execute(script, torrent, torrentTags, customInputs, dryRun: true);
     }
 
     private void ApplyTorrentMutations(Torrent torrent, AutomationExecutionResult result)

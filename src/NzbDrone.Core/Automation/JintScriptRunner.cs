@@ -17,7 +17,7 @@ namespace NzbDrone.Core.Automation;
 
 public interface IScriptRunner
 {
-    AutomationExecutionResult Execute(AutomationScript script, Torrent? torrent = null, List<string>? torrentTags = null, Dictionary<string, object>? customInputs = null);
+    AutomationExecutionResult Execute(AutomationScript script, Torrent? torrent = null, List<string>? torrentTags = null, Dictionary<string, object>? customInputs = null, bool dryRun = false);
 }
 
 public class JintScriptRunner : IScriptRunner
@@ -38,7 +38,8 @@ public class JintScriptRunner : IScriptRunner
         AutomationScript script,
         Torrent? torrent = null,
         List<string>? torrentTags = null,
-        Dictionary<string, object>? customInputs = null)
+        Dictionary<string, object>? customInputs = null,
+        bool dryRun = false)
     {
         var result = new AutomationExecutionResult();
         var logBuilder = new StringBuilder();
@@ -67,7 +68,7 @@ public class JintScriptRunner : IScriptRunner
             engine.SetValue("api", apiContext);
 
             // System / Command context
-            var systemContext = new ScriptSystemContext(_commandQueue, result, executionBudget, abortScriptOnStop: true);
+            var systemContext = new ScriptSystemContext(_commandQueue, result, executionBudget, abortScriptOnStop: true, dryRun: dryRun);
             engine.SetValue("system", systemContext);
 
             // HTML context
