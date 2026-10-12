@@ -621,7 +621,9 @@ public class CategoryService : ICategoryService
             }
         }
 
-        var defaultCategoryName = this.repository.GetDefault()?.Name ?? string.Empty;
+        var defaultCategory = this.repository.GetDefault();
+        var defaultCategoryName = defaultCategory?.Name ?? string.Empty;
+        var defaultCategoryId = defaultCategory?.Id ?? 0;
         var affectedTorrentIds = new List<int>();
         if (this.torrentRepository != null && !string.IsNullOrWhiteSpace(cat.Name))
         {
@@ -642,7 +644,7 @@ public class CategoryService : ICategoryService
             var rules = this.rssRuleRepository.All().Where(r => r.CategoryId == id).ToList();
             foreach (var rule in rules)
             {
-                rule.CategoryId = 0;
+                rule.CategoryId = defaultCategoryId;
                 this.rssRuleRepository.Update(rule);
             }
         }

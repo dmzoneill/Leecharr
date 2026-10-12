@@ -8,6 +8,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Categories;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
@@ -168,6 +169,56 @@ public class CategoryServiceTest
         this.torrentRepository.Received(1).Update(torrent2);
         this.repository.Received(1).Delete(5);
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryDeletedEvent>(e => e.CategoryId == 5 && e.CategoryName == "movies"));
+    }
+
+    [Test]
+    public void Delete_WhenDefaultCategoryExists_ReassignsAffectedRssRulesToDefaultCategory()
+    {
+        var category = new Category { Id = 5, Name = "movies", IsDefault = false };
+        this.repository.Get(5).Returns(category);
+        this.repository.GetDefault().Returns(new Category { Id = 1, Name = "general", IsDefault = true });
+
+        var rule1 = new RssRule { Id = 10, Name = "Rule1", CategoryId = 5 };
+        var rule2 = new RssRule { Id = 11, Name = "Rule2", CategoryId = 5 };
+        var rssRuleRepository = Substitute.For<IRssRuleRepository>();
+        rssRuleRepository.All().Returns(new List<RssRule> { rule1, rule2 });
+
+        var service = new CategoryService(
+            this.repository,
+            this.eventAggregator,
+            this.torrentRepository,
+            rssRuleRepository: rssRuleRepository);
+
+        service.Delete(5);
+
+        rule1.CategoryId.Should().Be(1);
+        rule2.CategoryId.Should().Be(1);
+        rssRuleRepository.Received(1).Update(rule1);
+        rssRuleRepository.Received(1).Update(rule2);
+        this.repository.Received(1).Delete(5);
+    }
+
+    [Test]
+    public void Delete_WhenNoDefaultCategory_ClearsRssRuleCategoryId()
+    {
+        var category = new Category { Id = 5, Name = "movies", IsDefault = false };
+        this.repository.Get(5).Returns(category);
+        this.repository.GetDefault().Returns((Category)null!);
+
+        var rule = new RssRule { Id = 10, Name = "Rule1", CategoryId = 5 };
+        var rssRuleRepository = Substitute.For<IRssRuleRepository>();
+        rssRuleRepository.All().Returns(new List<RssRule> { rule });
+
+        var service = new CategoryService(
+            this.repository,
+            this.eventAggregator,
+            this.torrentRepository,
+            rssRuleRepository: rssRuleRepository);
+
+        service.Delete(5);
+
+        rule.CategoryId.Should().Be(0);
+        rssRuleRepository.Received(1).Update(rule);
     }
 
     [Test]
