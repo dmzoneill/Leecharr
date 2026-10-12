@@ -29,6 +29,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly ConcurrentDictionary<int, bool> ratioReachedTorrents = new();
     private readonly ConcurrentDictionary<int, bool> seedingTimeReachedTorrents = new();
     private readonly ConcurrentDictionary<int, bool> stalledTorrents = new();
+    private readonly ConcurrentDictionary<int, DateTime> zeroDownloadSpeedSince = new();
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
     private Task rssLoopTask;
@@ -676,18 +677,20 @@ public class AppLifetime : IHostedService, IDisposable
                                     var torrent = this.services.TorrentService?.Get(task.TorrentId);
                                     if (torrent != null)
                                     {
-                                        var minutes = (DateTime.UtcNow - torrent.DateAdded).TotalMinutes;
-                                        if (minutes >= 5)
+                                        var zeroSince = this.zeroDownloadSpeedSince.GetOrAdd(torrent.Id, _ => DateTime.UtcNow);
+                                        var stalledMinutes = (int)(DateTime.UtcNow - zeroSince).TotalMinutes;
+                                        if (stalledMinutes >= 5)
                                         {
                                             if (this.stalledTorrents.TryAdd(torrent.Id, true))
                                             {
-                                                this.services.EventAggregator?.PublishEvent(new TorrentStalledEvent(torrent, (int)minutes));
+                                                this.services.EventAggregator?.PublishEvent(new TorrentStalledEvent(torrent, stalledMinutes));
                                             }
                                         }
                                     }
                                 }
                                 else
                                 {
+                                    this.zeroDownloadSpeedSince.TryRemove(task.TorrentId, out _);
                                     this.stalledTorrents.TryRemove(task.TorrentId, out _);
                                 }
                             }

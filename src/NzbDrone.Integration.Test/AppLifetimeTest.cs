@@ -1,9 +1,11 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -730,6 +732,87 @@ public class AppLifetimeTest
 
         await this.torrentService.Received(1).SetSuperSeedingAsync(12, true);
         await this.torrentService.Received(1).PauseAsync(12);
+    }
+
+    [Test]
+    public async Task BackgroundLoop_WhenTorrentIsOldButBrieflyZeroSpeed_DoesNotPublishTorrentStalledEvent()
+    {
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(20);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        mockTask.DownloadSpeed.Returns(0L);
+        mockTask.Progress.Returns(0.5);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        var torrent = new Torrent
+        {
+            Id = 20,
+            Name = "Old torrent brief stall",
+            Status = TorrentStatus.Downloading,
+            DateAdded = DateTime.UtcNow.AddHours(-2),
+        };
+        this.torrentService.Get(20).Returns(torrent);
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(200);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStalledEvent>());
+    }
+
+    [Test]
+    public async Task BackgroundLoop_WhenZeroSpeedPersists_PublishesTorrentStalledEventWithElapsedMinutes()
+    {
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(21);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        mockTask.DownloadSpeed.Returns(0L);
+        mockTask.Progress.Returns(0.5);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        var torrent = new Torrent
+        {
+            Id = 21,
+            Name = "Sustained zero speed",
+            Status = TorrentStatus.Downloading,
+            DateAdded = DateTime.UtcNow.AddHours(-2),
+        };
+        this.torrentService.Get(21).Returns(torrent);
+
+        var stallTcs = new TaskCompletionSource<TorrentStalledEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.eventAggregator
+            .When(x => x.PublishEvent(Arg.Any<TorrentStalledEvent>()))
+            .Do(ci => stallTcs.TrySetResult(ci.Arg<TorrentStalledEvent>()));
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+
+        var zeroField = typeof(AppLifetime).GetField("zeroDownloadSpeedSince", BindingFlags.Instance | BindingFlags.NonPublic);
+        zeroField.Should().NotBeNull();
+        var zeroDict = (ConcurrentDictionary<int, DateTime>)zeroField!.GetValue(lifetime)!;
+        zeroDict[21] = DateTime.UtcNow.AddMinutes(-6);
+
+        var completed = await Task.WhenAny(stallTcs.Task, Task.Delay(2000));
+        completed.Should().Be(stallTcs.Task, "watchdog should publish after sustained zero download speed");
+
+        var stalledEvent = await stallTcs.Task;
+        stalledEvent.StalledMinutes.Should().BeGreaterThanOrEqualTo(5);
+        stalledEvent.StalledMinutes.Should().BeLessThan(10);
+
+        await lifetime.StopAsync(CancellationToken.None);
     }
 
     private static bool CheckRatioInSpeedPulse(object body, int expectedId, double expectedRatio)
