@@ -150,7 +150,10 @@ public class TagController : Controller
     public ActionResult Delete(int id)
     {
         var tag = this.tagRepository.Get(id);
-        this.tagRepository.Delete(id);
+        if (tag == null)
+        {
+            return this.NotFound();
+        }
 
         if (this.torrentRepository != null)
         {
@@ -165,7 +168,7 @@ public class TagController : Controller
                         updated = true;
                     }
 
-                    if (tag != null && !string.IsNullOrEmpty(torrent.Label))
+                    if (!string.IsNullOrEmpty(torrent.Label))
                     {
                         var remaining = torrent.Label.Split(',', StringSplitOptions.RemoveEmptyEntries)
                             .Select(t => t.Trim())
@@ -231,6 +234,8 @@ public class TagController : Controller
                 }
             }
         }
+
+        this.tagRepository.Delete(id);
 
         return this.Ok();
     }

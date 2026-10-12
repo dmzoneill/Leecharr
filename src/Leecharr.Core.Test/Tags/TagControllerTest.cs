@@ -308,10 +308,25 @@ public class TagControllerTest
     }
 
     [Test]
+    public void Delete_WhenNotFound_ReturnsNotFoundAndDoesNotCascade()
+    {
+        this.tagRepository.Get(99).Returns((Tag)null!);
+
+        var result = this.controller.Delete(99);
+
+        result.Should().BeOfType<NotFoundResult>();
+        this.tagRepository.DidNotReceive().Delete(Arg.Any<int>());
+        this.torrentRepository.DidNotReceive().All();
+    }
+
+    [Test]
     public void Delete_DeletesTagFromRepository()
     {
+        this.tagRepository.Get(42).Returns(new Tag { Id = 42, Label = "test" });
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.notificationRepository.All().Returns(new List<NotificationDefinition>());
+        this.indexerRepository.All().Returns(new List<IndexerDefinition>());
+        this.automationScriptRepository.All().Returns(new List<AutomationScript>());
 
         var result = this.controller.Delete(42);
 
@@ -322,6 +337,8 @@ public class TagControllerTest
     [Test]
     public void Delete_WhenTorrentsContainTagId_CascadesRemovalAndUpdatesTorrents()
     {
+        this.tagRepository.Get(42).Returns(new Tag { Id = 42, Label = "test" });
+
         var torrentWithTag = new Torrent
         {
             Id = 1,
@@ -343,6 +360,8 @@ public class TagControllerTest
 
         this.torrentRepository.All().Returns(new List<Torrent> { torrentWithTag, torrentWithoutTag, torrentNullTags });
         this.notificationRepository.All().Returns(new List<NotificationDefinition>());
+        this.indexerRepository.All().Returns(new List<IndexerDefinition>());
+        this.automationScriptRepository.All().Returns(new List<AutomationScript>());
 
         var result = this.controller.Delete(42);
 
@@ -357,6 +376,8 @@ public class TagControllerTest
     [Test]
     public void Delete_WhenNotificationsContainTagId_CascadesRemovalAndUpdatesNotifications()
     {
+        this.tagRepository.Get(42).Returns(new Tag { Id = 42, Label = "test" });
+
         var notificationWithTag = new NotificationDefinition
         {
             Id = 100,
@@ -378,6 +399,8 @@ public class TagControllerTest
 
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.notificationRepository.All().Returns(new List<NotificationDefinition> { notificationWithTag, notificationWithoutTag, notificationNullTags });
+        this.indexerRepository.All().Returns(new List<IndexerDefinition>());
+        this.automationScriptRepository.All().Returns(new List<AutomationScript>());
 
         var result = this.controller.Delete(42);
 
@@ -507,6 +530,9 @@ public class TagControllerTest
         };
 
         this.torrentRepository.All().Returns(new List<Torrent> { torrentWithLabel });
+        this.notificationRepository.All().Returns(new List<NotificationDefinition>());
+        this.indexerRepository.All().Returns(new List<IndexerDefinition>());
+        this.automationScriptRepository.All().Returns(new List<AutomationScript>());
 
         var result = this.controller.Delete(42);
 
@@ -520,6 +546,10 @@ public class TagControllerTest
     [Test]
     public void Delete_WhenIndexerContainsTag_RemovesTagAndUpdatesIndexer()
     {
+        this.tagRepository.Get(42).Returns(new Tag { Id = 42, Label = "test" });
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.notificationRepository.All().Returns(new List<NotificationDefinition>());
+
         var indexerWithTag = new IndexerDefinition
         {
             Id = 10,
@@ -534,6 +564,7 @@ public class TagControllerTest
         };
 
         this.indexerRepository.All().Returns(new List<IndexerDefinition> { indexerWithTag, indexerWithoutTag });
+        this.automationScriptRepository.All().Returns(new List<AutomationScript>());
 
         var result = this.controller.Delete(42);
 
@@ -545,6 +576,10 @@ public class TagControllerTest
     [Test]
     public void Delete_WhenAutomationScriptContainsTag_RemovesTagAndUpdatesScript()
     {
+        this.tagRepository.Get(42).Returns(new Tag { Id = 42, Label = "test" });
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.notificationRepository.All().Returns(new List<NotificationDefinition>());
+
         var scriptWithTag = new AutomationScript
         {
             Id = 5,
@@ -558,6 +593,7 @@ public class TagControllerTest
             TargetTagIds = new List<int> { 10, 20 },
         };
 
+        this.indexerRepository.All().Returns(new List<IndexerDefinition>());
         this.automationScriptRepository.All().Returns(new List<AutomationScript> { scriptWithTag, scriptWithoutTag });
 
         var result = this.controller.Delete(42);
