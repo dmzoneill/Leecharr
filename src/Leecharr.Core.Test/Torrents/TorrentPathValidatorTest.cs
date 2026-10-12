@@ -105,6 +105,13 @@ public class TorrentPathValidatorTest
     }
 
     [Test]
+    public void SanitizeFileName_PrefixesDottedReservedDeviceName()
+    {
+        var sanitized = TorrentPathValidator.SanitizeFileName("CON.Air.mkv");
+        sanitized.Should().Be("_CON.Air.mkv");
+    }
+
+    [Test]
     public void SanitizePathSegment_SanitizesFolderName()
     {
         var sanitized = TorrentPathValidator.SanitizePathSegment("Show: Season 1*?");

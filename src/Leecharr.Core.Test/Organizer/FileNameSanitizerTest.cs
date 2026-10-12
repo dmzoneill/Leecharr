@@ -52,6 +52,10 @@ public class FileNameSanitizerTest
     }
 
     [TestCase("CON.mkv", "_CON.mkv")]
+    [TestCase("CON.Air.mkv", "_CON.Air.mkv")]
+    [TestCase("AUX.Send.mkv", "_AUX.Send.mkv")]
+    [TestCase("NUL.Document.mkv", "_NUL.Document.mkv")]
+    [TestCase("CON - S01E01.mkv", "CON - S01E01.mkv")]
     [TestCase("aux.mp4", "_aux.mp4")]
     [TestCase("prn.txt", "_prn.txt")]
     [TestCase("nul.avi", "_nul.avi")]
@@ -67,6 +71,7 @@ public class FileNameSanitizerTest
     [TestCase("Folder . .", "Folder")]
     [TestCase("Folder: Name", "Folder - Name")]
     [TestCase("CON", "_CON")]
+    [TestCase("CON.Air", "_CON.Air")]
     [TestCase("Folder*Name?<>|", "FolderName")]
     public void SanitizeFolderName_SanitizesCorrectly(string input, string expected)
     {
@@ -94,6 +99,7 @@ public class FileNameSanitizerTest
     [TestCase("TrailingDot.", false)]
     [TestCase("TrailingSpace ", false)]
     [TestCase("CON.mkv", false)]
+    [TestCase("CON.Air.mkv", false)]
     [TestCase("aux.mkv", false)]
     [TestCase("..", false)]
     [TestCase(".", false)]
