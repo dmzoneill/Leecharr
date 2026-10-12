@@ -21,6 +21,7 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
 
     private readonly SemaphoreSlim switchLock = new(1, 1);
     private IMediaInspectorProvider activeProvider;
+    private long configSavedSwitchGeneration;
     private bool disposed;
 
     public IMediaInspectorProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
@@ -81,7 +82,12 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         return await provider.ProbeHealthAsync(cancellationToken);
     }
 
-    public async Task<MediaInspectorSwitchResult> SwitchProviderAsync(string targetProviderId, CancellationToken cancellationToken = default)
+    public Task<MediaInspectorSwitchResult> SwitchProviderAsync(string targetProviderId, CancellationToken cancellationToken = default)
+    {
+        return this.SwitchProviderAsync(targetProviderId, null, cancellationToken);
+    }
+
+    private async Task<MediaInspectorSwitchResult> SwitchProviderAsync(string targetProviderId, long? configSavedGeneration, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(targetProviderId))
         {
@@ -119,8 +125,28 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
                     Message = $"Media inspector provider '{targetProvider.DisplayName}' is already active.",
                 };
             }
+        }
+        finally
+        {
+            this.switchLock.Release();
+        }
 
-            var health = await targetProvider.ProbeHealthAsync(cancellationToken);
+        var health = await targetProvider.ProbeHealthAsync(cancellationToken);
+
+        await this.switchLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return new MediaInspectorSwitchResult
+                {
+                    Success = true,
+                    PreviousProvider = Volatile.Read(ref this.activeProvider).ProviderId,
+                    ActiveProvider = targetProvider.ProviderId,
+                    Message = $"Media inspector provider '{targetProvider.DisplayName}' is already active.",
+                };
+            }
+
             if (!health.IsHealthy)
             {
                 return new MediaInspectorSwitchResult
@@ -129,6 +155,22 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
                     PreviousProvider = Volatile.Read(ref this.activeProvider).ProviderId,
                     ActiveProvider = Volatile.Read(ref this.activeProvider).ProviderId,
                     Error = $"Cannot switch to media inspector provider '{targetProvider.DisplayName}': health check failed ({health.StatusMessage}).",
+                };
+            }
+
+            if (configSavedGeneration.HasValue && !this.IsConfigSavedSwitchCurrent(configSavedGeneration.Value, targetProviderId))
+            {
+                this.logger.Debug(
+                    "Skipping stale media inspector switch to '{0}' after health probe (superseded ConfigSavedEvent).",
+                    targetProviderId);
+
+                var active = Volatile.Read(ref this.activeProvider);
+                return new MediaInspectorSwitchResult
+                {
+                    Success = true,
+                    PreviousProvider = active.ProviderId,
+                    ActiveProvider = active.ProviderId,
+                    Message = "Skipped superseded media inspector switch.",
                 };
             }
 
@@ -183,6 +225,17 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         }
 
         return result;
+    }
+
+    private bool IsConfigSavedSwitchCurrent(long generation, string expectedProviderId)
+    {
+        if (generation != Volatile.Read(ref this.configSavedSwitchGeneration))
+        {
+            return false;
+        }
+
+        var desiredInConfig = this.configService?.ActiveMediaInspector;
+        return string.Equals(desiredInConfig, expectedProviderId, StringComparison.OrdinalIgnoreCase);
     }
 
     public MediaContainerInfo InspectFile(string filePath)
@@ -322,15 +375,28 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
             !string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
         {
+            var generation = Interlocked.Increment(ref this.configSavedSwitchGeneration);
+            var capturedDesiredId = desiredProviderId;
             Task.Run(async () =>
             {
                 try
                 {
-                    await this.SwitchProviderAsync(desiredProviderId);
+                    var result = await this.SwitchProviderAsync(capturedDesiredId, generation, CancellationToken.None);
+                    if (!result.Success && generation == Volatile.Read(ref this.configSavedSwitchGeneration))
+                    {
+                        this.logger.Warn(
+                            "Failed to switch media inspector on ConfigSavedEvent to '{0}'. Reverting ActiveMediaInspector config setting to '{1}'.",
+                            capturedDesiredId,
+                            this.ActiveProviderId);
+                        this.configService.SaveConfigDictionary(new Dictionary<string, object>
+                        {
+                            { "ActiveMediaInspector", this.ActiveProviderId },
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Error(ex, "Failed to switch active media inspector on ConfigSavedEvent to {0}", desiredProviderId);
+                    this.logger.Error(ex, "Failed to switch active media inspector on ConfigSavedEvent to {0}", capturedDesiredId);
                 }
             });
         }
