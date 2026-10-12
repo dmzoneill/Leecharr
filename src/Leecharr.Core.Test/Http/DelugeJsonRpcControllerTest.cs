@@ -1082,6 +1082,66 @@ public class DelugeJsonRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_GetTorrentsStatus_WithDottedFolderSavePath_PreservesFullPath()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 7,
+            Name = "The.Show.S01E01.1080p.WEB-DL",
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            SavePath = "/downloads/The.Show.S01",
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{ },[\"save_path\",\"download_location\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var entry = resDoc.RootElement.GetProperty("result").GetProperty("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        entry.GetProperty("save_path").GetString().Should().Be("/downloads/The.Show.S01");
+        entry.GetProperty("download_location").GetString().Should().Be("/downloads/The.Show.S01");
+    }
+
+    [Test]
+    public async Task HandleRpc_GetTorrentsStatus_WithIncompleteSavePath_DoesNotRewriteToCompletedDir()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.IncompleteDownloadDir.Returns("/tank/incomplete");
+        this.configService.DownloadDir.Returns("/library");
+
+        var torrent = new Torrent
+        {
+            Id = 8,
+            Name = "Movie.2020.1080p",
+            InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            SavePath = "/tank/incomplete/Movie.2020",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.25,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{ },[\"save_path\",\"download_location\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var entry = resDoc.RootElement.GetProperty("result").GetProperty("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        entry.GetProperty("save_path").GetString().Should().Be("/tank/incomplete/Movie.2020");
+        entry.GetProperty("download_location").GetString().Should().Be("/tank/incomplete/Movie.2020");
+    }
+
+    [Test]
     public async Task HandleRpc_LabelAdd_CreatesCategoryWithEmptySavePath()
     {
         var context = new DefaultHttpContext();

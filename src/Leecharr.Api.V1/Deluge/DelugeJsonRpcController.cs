@@ -2578,6 +2578,163 @@ public class DelugeJsonRpcController : ControllerBase
         return hashes;
     }
 
+    private string ResolveDefaultCompletedDownloadDir(string category)
+    {
+        var completedDir = this.storagePathService?.GetCompletedDirectory(category);
+        if (string.IsNullOrWhiteSpace(completedDir))
+        {
+            completedDir = this.configService?.DownloadDir;
+        }
+
+        if (string.IsNullOrWhiteSpace(completedDir))
+        {
+            completedDir = "/downloads";
+        }
+
+        return completedDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private bool IsUnderIncompleteDirectory(string trimmedRaw)
+    {
+        if (string.IsNullOrWhiteSpace(trimmedRaw))
+        {
+            return false;
+        }
+
+        var configuredIncomplete = this.configService?.IncompleteDownloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string incompleteDir = null;
+        try
+        {
+            incompleteDir = this.storagePathService?.GetIncompleteDirectory()?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+        catch
+        {
+        }
+
+        var incompleteCandidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(incompleteDir))
+        {
+            incompleteCandidates.Add(incompleteDir);
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuredIncomplete) &&
+            !incompleteCandidates.Contains(configuredIncomplete, StringComparer.OrdinalIgnoreCase))
+        {
+            incompleteCandidates.Add(configuredIncomplete);
+        }
+
+        foreach (var inc in incompleteCandidates)
+        {
+            if (string.Equals(trimmedRaw, inc, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (trimmedRaw.StartsWith(inc + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                trimmedRaw.StartsWith(inc + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private string NormalizeDelugeRpcCategorySavePath(string rawSavePath, string category)
+    {
+        if (string.IsNullOrWhiteSpace(rawSavePath) || string.IsNullOrWhiteSpace(category))
+        {
+            return rawSavePath;
+        }
+
+        var trimmedRaw = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (this.IsUnderIncompleteDirectory(trimmedRaw))
+        {
+            return rawSavePath;
+        }
+
+        var completedDir = this.storagePathService?.GetCompletedDirectory(category);
+        if (string.IsNullOrWhiteSpace(completedDir))
+        {
+            return rawSavePath;
+        }
+
+        string baseDir = null;
+        try
+        {
+            baseDir = this.storagePathService?.GetCompletedDirectory(null);
+        }
+        catch
+        {
+        }
+
+        if (string.IsNullOrWhiteSpace(baseDir))
+        {
+            baseDir = this.configService?.DownloadDir;
+        }
+
+        if (string.IsNullOrWhiteSpace(baseDir))
+        {
+            baseDir = "/downloads";
+        }
+
+        var trimmedBase = baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var catDir1 = trimmedBase + "/" + category;
+        var catDir2 = trimmedBase + "\\" + category;
+
+        if (string.Equals(trimmedRaw, catDir1, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmedRaw, catDir2, StringComparison.OrdinalIgnoreCase))
+        {
+            return completedDir.Equals(catDir1, StringComparison.OrdinalIgnoreCase) || completedDir.Equals(catDir2, StringComparison.OrdinalIgnoreCase)
+                ? trimmedBase
+                : completedDir;
+        }
+
+        if (trimmedRaw.StartsWith(catDir1 + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+            trimmedRaw.StartsWith(catDir1 + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = trimmedRaw.Substring(catDir1.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var targetBase = completedDir.Equals(catDir1, StringComparison.OrdinalIgnoreCase) || completedDir.Equals(catDir2, StringComparison.OrdinalIgnoreCase)
+                ? trimmedBase
+                : completedDir;
+            return !string.IsNullOrWhiteSpace(relative) ? Path.Combine(targetBase, relative) : targetBase;
+        }
+
+        if (trimmedRaw.StartsWith(catDir2 + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+            trimmedRaw.StartsWith(catDir2 + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = trimmedRaw.Substring(catDir2.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var targetBase = completedDir.Equals(catDir1, StringComparison.OrdinalIgnoreCase) || completedDir.Equals(catDir2, StringComparison.OrdinalIgnoreCase)
+                ? trimmedBase
+                : completedDir;
+            return !string.IsNullOrWhiteSpace(relative) ? Path.Combine(targetBase, relative) : targetBase;
+        }
+
+        return rawSavePath;
+    }
+
+    private static bool DelugeSavePathEndsWithTorrentContent(string trimmedSave, string torrentName)
+    {
+        if (string.IsNullOrWhiteSpace(trimmedSave) || string.IsNullOrWhiteSpace(torrentName))
+        {
+            return false;
+        }
+
+        var lastSegment = Path.GetFileName(trimmedSave);
+        if (string.IsNullOrWhiteSpace(lastSegment))
+        {
+            return false;
+        }
+
+        if (string.Equals(lastSegment, torrentName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return Path.HasExtension(lastSegment) &&
+            string.Equals(Path.GetFileNameWithoutExtension(lastSegment), torrentName, StringComparison.OrdinalIgnoreCase);
+    }
+
     private Dictionary<string, object> MapTorrentToDelugeStatus(Torrent t, ISet<string> requestedKeys = null)
     {
         var stateStr = t.Status switch
@@ -2628,46 +2785,13 @@ public class DelugeJsonRpcController : ControllerBase
 
         var rawSavePath = t.SavePath ?? string.Empty;
         var category = t.Category;
-        var normalized = this.storagePathService?.NormalizeCompletedSavePath(rawSavePath, category);
-        if (!string.IsNullOrWhiteSpace(normalized))
+        if (string.IsNullOrWhiteSpace(rawSavePath))
         {
-            rawSavePath = normalized;
+            rawSavePath = this.ResolveDefaultCompletedDownloadDir(category);
         }
         else
         {
-            var completedDir = this.storagePathService?.GetCompletedDirectory(category);
-            if (string.IsNullOrWhiteSpace(completedDir))
-            {
-                completedDir = this.configService?.DownloadDir;
-            }
-
-            if (string.IsNullOrWhiteSpace(completedDir))
-            {
-                completedDir = "/downloads";
-            }
-
-            var trimmedRaw = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var inc = this.configService?.IncompleteDownloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-            if (string.IsNullOrWhiteSpace(rawSavePath) ||
-                string.Equals(trimmedRaw, "/downloads/incomplete", StringComparison.OrdinalIgnoreCase) ||
-                (!string.IsNullOrWhiteSpace(inc) && string.Equals(trimmedRaw, inc, StringComparison.OrdinalIgnoreCase)))
-            {
-                rawSavePath = completedDir;
-            }
-            else if (trimmedRaw.StartsWith("/downloads/incomplete/", StringComparison.OrdinalIgnoreCase) ||
-                    trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
-            {
-                var relative = trimmedRaw.Substring("/downloads/incomplete".Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
-            }
-            else if (!string.IsNullOrWhiteSpace(inc) &&
-                    (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
-                        trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
-            {
-                var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
-            }
+            rawSavePath = this.NormalizeDelugeRpcCategorySavePath(rawSavePath, category);
         }
 
         string baseDownloadDir = null;
@@ -2696,7 +2820,7 @@ public class DelugeJsonRpcController : ControllerBase
             var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             if (!string.IsNullOrWhiteSpace(t.Name))
             {
-                if (Path.HasExtension(trimmedSave))
+                if (DelugeSavePathEndsWithTorrentContent(trimmedSave, t.Name))
                 {
                     var parent = Path.GetDirectoryName(trimmedSave);
                     trimmedSave = !string.IsNullOrWhiteSpace(parent) ? parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : trimmedSave;
