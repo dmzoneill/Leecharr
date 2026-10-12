@@ -1053,13 +1053,18 @@ public static class NotificationPayloadBuilder
 
         if (string.Equals(implementation, "Gotify", StringComparison.OrdinalIgnoreCase))
         {
+            var eventPriority = ResolveGotifyPriority(eventType);
+            var priority = GotifySettingsSpecifyPriority(settings)
+                ? ExtractPriority(settings, eventPriority)
+                : eventPriority;
+
             return new
             {
                 title = $"Leecharr: {eventType}",
                 message = torrent != null
                     ? (TryGetHealthEventMessage(genericPayload, eventType) ?? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}")
                     : ExtractMessage(genericPayload, eventType),
-                priority = ResolveGotifyPriority(eventType),
+                priority,
             };
         }
 
@@ -1360,7 +1365,17 @@ public static class NotificationPayloadBuilder
         return 5;
     }
 
+    internal static bool GotifySettingsSpecifyPriority(string settings)
+    {
+        return SettingsSpecifyPriority(settings);
+    }
+
     internal static bool PushoverSettingsSpecifyPriority(string settings)
+    {
+        return SettingsSpecifyPriority(settings);
+    }
+
+    internal static bool SettingsSpecifyPriority(string settings)
     {
         if (string.IsNullOrWhiteSpace(settings))
         {
