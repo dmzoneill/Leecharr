@@ -139,6 +139,133 @@ public class AppLifetimeTest
     }
 
     [Test]
+    public async Task AutoShutdown_WhenDownloadsComplete_DoesNotTriggerWhileQueuedTorrentRemains()
+    {
+        this.configService.AutoShutdownAction.Returns("Shutdown");
+        this.configService.AutoShutdownCondition.Returns("WhenDownloadsComplete");
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var completedTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Finished",
+            Status = TorrentStatus.Stopped,
+            Progress = 1.0,
+        };
+        var queuedTorrent = new Torrent
+        {
+            Id = 2,
+            Name = "Waiting",
+            Status = TorrentStatus.Queued,
+            Progress = 0.0,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { completedTorrent, queuedTorrent });
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(25);
+
+        mockTask.Status.Returns(TorrentStatus.Stopped);
+        completedTorrent.Status = TorrentStatus.Stopped;
+
+        await Task.Delay(60);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        await this.powerManagementService.DidNotReceiveWithAnyArgs().ExecutePowerActionAsync(default);
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => d.ContainsKey("AutoShutdownAction")));
+    }
+
+    [Test]
+    public async Task AutoShutdown_WhenAllTorrentsComplete_DoesNotTriggerWhileCheckingTorrentRemains()
+    {
+        this.configService.AutoShutdownAction.Returns("Shutdown");
+        this.configService.AutoShutdownCondition.Returns("WhenAllTorrentsComplete");
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var finishedTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Done",
+            Status = TorrentStatus.Stopped,
+            Progress = 1.0,
+        };
+        var checkingTorrent = new Torrent
+        {
+            Id = 2,
+            Name = "Hashing",
+            Status = TorrentStatus.Checking,
+            Progress = 0.0,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { finishedTorrent, checkingTorrent });
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(25);
+
+        mockTask.Status.Returns(TorrentStatus.Stopped);
+        finishedTorrent.Status = TorrentStatus.Stopped;
+
+        await Task.Delay(60);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        await this.powerManagementService.DidNotReceiveWithAnyArgs().ExecutePowerActionAsync(default);
+    }
+
+    [Test]
+    public async Task AutoShutdown_WhenPowerActionFails_DoesNotClearAutoShutdownSetting()
+    {
+        this.configService.AutoShutdownAction.Returns("Shutdown");
+        this.configService.AutoShutdownCondition.Returns("WhenDownloadsComplete");
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var downloadingTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Active Torrent",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { downloadingTorrent });
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        this.powerManagementService.ExecutePowerActionAsync(PowerAction.Shutdown).Returns<Task>(_ => throw new InvalidOperationException("power failed"));
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(25);
+
+        mockTask.Status.Returns(TorrentStatus.Stopped);
+        downloadingTorrent.Status = TorrentStatus.Stopped;
+        downloadingTorrent.Progress = 1.0;
+
+        await Task.Delay(60);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        await this.powerManagementService.Received().ExecutePowerActionAsync(PowerAction.Shutdown);
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => d.ContainsKey("AutoShutdownAction")));
+    }
+
+    [Test]
     public async Task AutoShutdown_WhenAllTorrentsComplete_DoesNotTriggerOnStartupWithCompletedTorrents()
     {
         this.configService.AutoShutdownAction.Returns("Shutdown");

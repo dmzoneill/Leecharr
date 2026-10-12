@@ -318,6 +318,37 @@ public class AppLifetime : IHostedService, IDisposable
         this.cts?.Dispose();
     }
 
+    private static bool TorrentHasIncompleteDownloadWork(Torrent torrent)
+    {
+        if (torrent.Progress >= 1.0)
+        {
+            return false;
+        }
+
+        return torrent.Status is TorrentStatus.Queued
+            or TorrentStatus.Checking
+            or TorrentStatus.QueuedForChecking
+            or TorrentStatus.Downloading
+            or TorrentStatus.Stalled;
+    }
+
+    private static bool TorrentBlocksAutoShutdown(Torrent torrent)
+    {
+        return torrent.Status switch
+        {
+            TorrentStatus.Queued => true,
+            TorrentStatus.Checking => true,
+            TorrentStatus.QueuedForChecking => true,
+            TorrentStatus.Downloading => true,
+            TorrentStatus.Seeding => true,
+            TorrentStatus.Stalled => true,
+            TorrentStatus.Error => true,
+            TorrentStatus.Paused => torrent.Progress < 1.0,
+            TorrentStatus.Stopped => torrent.Progress < 1.0,
+            _ => false,
+        };
+    }
+
     private async Task RunBackgroundLoopAsync(CancellationToken token)
     {
         var watchFolderTickCounter = 0;
@@ -610,7 +641,6 @@ public class AppLifetime : IHostedService, IDisposable
                         var condition = this.services.ConfigService.AutoShutdownCondition;
                         var allTorrents = this.services.TorrentService?.GetAll()?.ToList() ?? new List<Torrent>();
                         var hasActiveDownloads = allTorrents.Any(t => t.Status == TorrentStatus.Downloading);
-                        var hasActiveTorrents = allTorrents.Any(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
 
                         if (hasActiveDownloads)
                         {
@@ -620,21 +650,22 @@ public class AppLifetime : IHostedService, IDisposable
                         var trigger = false;
                         if (string.Equals(condition, "WhenDownloadsComplete", StringComparison.OrdinalIgnoreCase))
                         {
-                            trigger = this.downloadStartedThisSession && !hasActiveDownloads && allTorrents.Any(t => t.Progress >= 1.0);
+                            var hasIncompleteDownloadWork = allTorrents.Any(TorrentHasIncompleteDownloadWork);
+                            trigger = this.downloadStartedThisSession && !hasIncompleteDownloadWork && allTorrents.Any(t => t.Progress >= 1.0);
                         }
                         else if (string.Equals(condition, "WhenAllTorrentsComplete", StringComparison.OrdinalIgnoreCase))
                         {
-                            trigger = this.downloadStartedThisSession && !hasActiveTorrents && allTorrents.Count > 0;
+                            trigger = this.downloadStartedThisSession && allTorrents.Count > 0 && !allTorrents.Any(TorrentBlocksAutoShutdown);
                         }
 
                         if (trigger)
                         {
-                            this.services.ConfigService.SaveConfigDictionary(new Dictionary<string, object> { { "AutoShutdownAction", "None" } });
-                            this.downloadStartedThisSession = false;
                             this.logger.Warn("Auto-shutdown condition met ({0}). Triggering power action: {1}", condition, powerAction);
                             try
                             {
                                 await this.services.PowerManagementService.ExecutePowerActionAsync(powerAction);
+                                this.services.ConfigService.SaveConfigDictionary(new Dictionary<string, object> { { "AutoShutdownAction", "None" } });
+                                this.downloadStartedThisSession = false;
                             }
                             catch (Exception ex)
                             {
