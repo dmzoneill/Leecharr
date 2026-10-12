@@ -20,6 +20,10 @@ namespace Leecharr.Api.V1.NzbVortex;
 [ApiController]
 public class NzbVortexApiController : ControllerBase, IActionFilter
 {
+    private const string MissingNzbPayloadError = "Missing NZB file or URL";
+    private const string InvalidNzbUrlError = "Invalid NZB URL";
+    private const string FailedToAddNzbError = "Failed to add NZB";
+
     private static readonly RpcSessionStore AuthenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileService torrentFileService;
@@ -228,7 +232,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         [FromForm] string groupName = null)
     {
         var category = !string.IsNullOrWhiteSpace(queryGroup) ? queryGroup : groupName;
-        var addedId = 1;
+        Torrent added = null;
         if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
             var file = this.Request.Form.Files[0];
@@ -247,8 +251,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
 
             var bytes = ms.ToArray();
             var parsed = this.torrentFileParser.Parse(bytes);
-            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
-            addedId = added?.Id ?? addedId;
+            added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
         }
         else
         {
@@ -258,31 +261,50 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
                 url = this.Request.Form["url"].ToString();
             }
 
-            if (!string.IsNullOrWhiteSpace(url))
+            if (string.IsNullOrWhiteSpace(url))
             {
-                if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-                {
-                    var added = await this.torrentService.AddFromMagnetAsync(url, category, null, false);
-                    addedId = added?.Id ?? addedId;
-                }
-                else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                        url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                {
-                    var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
-                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
-                    var parsed = this.torrentFileParser.Parse(bytes);
-                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
-                    addedId = added?.Id ?? addedId;
-                }
+                return this.NzbVortexAddError(MissingNzbPayloadError);
             }
+
+            if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+            {
+                added = await this.torrentService.AddFromMagnetAsync(url, category, null, false);
+            }
+            else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                     url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
+                var parsed = this.torrentFileParser.Parse(bytes);
+                added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);
+            }
+            else
+            {
+                return this.NzbVortexAddError(InvalidNzbUrlError);
+            }
+        }
+
+        if (added == null || added.Id <= 0)
+        {
+            return this.NzbVortexAddError(FailedToAddNzbError);
         }
 
         return this.Ok(new
         {
-            id = addedId.ToString(),
-            nzb = new { id = addedId.ToString() },
+            id = added.Id.ToString(),
+            nzb = new { id = added.Id.ToString() },
             error = 0,
             result = 0,
+        });
+    }
+
+    private IActionResult NzbVortexAddError(string message)
+    {
+        return this.Ok(new
+        {
+            error = 1,
+            result = 1,
+            resultMessage = message,
         });
     }
 

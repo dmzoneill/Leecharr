@@ -352,6 +352,55 @@ public class NzbVortexApiControllerTest
     }
 
     [Test]
+    public async Task AddNzb_WithEmptyPost_ReturnsErrorWithoutAdding()
+    {
+        var result = await this.controller.AddNzb();
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+
+        doc.RootElement.GetProperty("error").GetInt32().Should().Be(1);
+        doc.RootElement.GetProperty("result").GetInt32().Should().Be(1);
+        doc.RootElement.GetProperty("resultMessage").GetString().Should().Be("Missing NZB file or URL");
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task AddNzb_WithNonHttpUrl_ReturnsErrorWithoutAdding()
+    {
+        this.httpContext.Request.QueryString = new QueryString("?url=ftp://example.com/file.nzb");
+
+        var result = await this.controller.AddNzb();
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+
+        doc.RootElement.GetProperty("error").GetInt32().Should().Be(1);
+        doc.RootElement.GetProperty("resultMessage").GetString().Should().Be("Invalid NZB URL");
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task AddNzb_WhenTorrentServiceReturnsNull_ReturnsError()
+    {
+        var magnetUri = "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01";
+        this.httpContext.Request.QueryString = new QueryString($"?url={Uri.EscapeDataString(magnetUri)}");
+        this.torrentService.AddFromMagnetAsync(magnetUri, null, null, false).Returns((Torrent)null!);
+
+        var result = await this.controller.AddNzb();
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+
+        doc.RootElement.GetProperty("error").GetInt32().Should().Be(1);
+        doc.RootElement.GetProperty("resultMessage").GetString().Should().Be("Failed to add NZB");
+    }
+
+    [Test]
     public async Task PauseNzb_CallsTorrentServicePause()
     {
         var result = await this.controller.PauseNzb(12);
