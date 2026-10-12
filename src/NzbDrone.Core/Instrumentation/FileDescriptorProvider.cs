@@ -99,7 +99,7 @@ public class FileDescriptorProvider : IFileDescriptorProvider
             }
         }
 
-        return -1;
+        return 0;
     }
 
     public double? GetFileDescriptorUsagePercentage()
@@ -107,7 +107,12 @@ public class FileDescriptorProvider : IFileDescriptorProvider
         var openCount = this.GetOpenFileDescriptorCount();
         var maxCount = this.GetMaxFileDescriptors();
 
-        if (openCount <= 0 || maxCount <= 0)
+        if (maxCount < 0)
+        {
+            return null;
+        }
+
+        if (openCount < 0 || maxCount == 0)
         {
             return null;
         }

@@ -21,13 +21,20 @@ public class FileDescriptorExhaustionCheck : IHealthCheck
     public Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
     {
         var usage = this.fileDescriptorProvider.GetFileDescriptorUsagePercentage();
-        if (!usage.HasValue)
-        {
-            return Task.FromResult(HealthCheckResult.Ok("FileDescriptors"));
-        }
-
         var count = this.fileDescriptorProvider.GetOpenFileDescriptorCount();
         var max = this.fileDescriptorProvider.GetMaxFileDescriptors();
+
+        if (!usage.HasValue)
+        {
+            if (max < 0)
+            {
+                return Task.FromResult(HealthCheckResult.Ok("FileDescriptors"));
+            }
+
+            return Task.FromResult(HealthCheckResult.Warning(
+                "FileDescriptors",
+                $"Unable to determine file descriptor usage ({count}/{max}). The open count or soft limit could not be read. Ensure /proc/self/fd and /proc/self/limits are accessible or increase nofile ulimit."));
+        }
 
         if (usage.Value >= 90.0)
         {
