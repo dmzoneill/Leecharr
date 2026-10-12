@@ -330,6 +330,33 @@ sleep 300
         info!.Resolution.Should().Be("576p");
     }
 
+    [TestCase(2560, 1440)]
+    [TestCase(3440, 1440)]
+    public void ParseMediaInfoJson_WhenQhdDimensions_Derives1440pResolution(int width, int height)
+    {
+        var json = $@"
+{{
+""media"": {{
+    ""track"": [
+        {{
+        ""@type"": ""General"",
+        ""Format"": ""Matroska"",
+        ""Duration"": 3600.0
+        }},
+        {{
+        ""@type"": ""Video"",
+        ""Format"": ""HEVC"",
+        ""Width"": {width},
+        ""Height"": {height}
+        }}
+    ]
+}}
+}}";
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("1440p");
+    }
+
     [TestCase(720, 400)]
     [TestCase(720, 360)]
     [TestCase(640, 360)]

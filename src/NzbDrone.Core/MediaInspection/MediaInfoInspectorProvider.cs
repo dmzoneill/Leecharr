@@ -361,27 +361,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                 }
             }
 
-            // Derive resolution string
-            if (info.Width >= 3800 || info.Height >= 2100)
-            {
-                info.Resolution = "4K UHD (2160p)";
-            }
-            else if (info.Width >= 1900 || info.Height >= 1000)
-            {
-                info.Resolution = "1080p";
-            }
-            else if (info.Width >= 1200 || info.Height >= 700)
-            {
-                info.Resolution = "720p";
-            }
-            else if (info.Height >= 500 || (info.Width >= 700 && info.Height >= 500))
-            {
-                info.Resolution = "576p";
-            }
-            else if (info.Width >= 640 || info.Height >= 400)
-            {
-                info.Resolution = "480p";
-            }
+            TagLibInspectorProvider.DeriveResolutionFromDimensions(info, info.Width, info.Height);
 
             TagLibInspectorProvider.ApplyFilenameHints(info, fileName);
             return info;

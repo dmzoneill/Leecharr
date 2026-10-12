@@ -1107,6 +1107,9 @@ public class TagLibInspectorProviderTest
     [TestCase(720, 576, "576p")]
     [TestCase(1024, 576, "576p")]
     [TestCase(1920, 800, "1080p")]
+    [TestCase(2560, 1440, "1440p")]
+    [TestCase(3440, 1440, "1440p")]
+    [TestCase(2560, 1080, "1080p")]
     [TestCase(3840, 1600, "4K UHD (2160p)")]
     public void Inspect_Matroska_Non16By9AndPal576p_RespectsTrackDimensionsAndResolution(int width, int height, string expectedResolution)
     {
@@ -1119,6 +1122,18 @@ public class TagLibInspectorProviderTest
         result.Width.Should().Be(width);
         result.Height.Should().Be(height);
         result.Resolution.Should().Be(expectedResolution);
+    }
+
+    [Test]
+    public void ApplyFilenameHints_WhenQhdInFilename_Sets1440pResolution()
+    {
+        var info = new MediaContainerInfo();
+
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.Title.2024.1440p.QHD.WEB-DL.mkv");
+
+        info.Resolution.Should().Be("1440p");
+        info.Width.Should().Be(2560);
+        info.Height.Should().Be(1440);
     }
 
     [Test]
