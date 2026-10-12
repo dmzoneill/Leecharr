@@ -123,16 +123,15 @@ public class SeedingControllerTest
         stats.DownloadSpeed.Should().Be(100);
         stats.UploadSpeed.Should().Be(75);
 
-        stats.QueuedTorrents
+        var statusTotal = stats.QueuedTorrents
             + stats.CheckingTorrents
             + stats.DownloadingTorrents
             + stats.SeedingTorrents
             + stats.PausedTorrents
             + stats.ErrorTorrents
             + stats.StalledTorrents
-            + stats.CompletedTorrents
-            .Should()
-            .Be(torrents.Count);
+            + stats.CompletedTorrents;
+        statusTotal.Should().Be(torrents.Count);
     }
 
     [Test]
