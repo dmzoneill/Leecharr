@@ -64,6 +64,29 @@ public class TransmissionRpcInputFormatterTest
     }
 
     [Test]
+    public async Task ReadRequestBodyAsync_should_reassemble_json_when_magnet_ampersand_splits_form_fields()
+    {
+        var json = "{\"method\":\"torrent-add\",\"arguments\":{\"filename\":\"magnet:?xt=urn:btih:abc&dn=test\"},\"tag\":456}";
+        var formFields = new Dictionary<string, StringValues>
+        {
+            { "{\"method\":\"torrent-add\",\"arguments\":{\"filename\":\"magnet:?xt=urn:btih:abc", string.Empty },
+            { "dn=test\"},\"tag\":456}", string.Empty },
+        };
+        var formCollection = new FormCollection(formFields);
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes(json.Split('&')[0]));
+        var context = CreateContext(stream, contentType: "application/x-www-form-urlencoded", form: formCollection);
+
+        var result = await _formatter.ReadRequestBodyAsync(context, Encoding.UTF8);
+
+        Assert.That(result.HasError, Is.False);
+        var request = result.Model as TransmissionRpcRequest;
+        Assert.That(request, Is.Not.Null);
+        Assert.That(request.Method, Is.EqualTo("torrent-add"));
+        Assert.That(request.Arguments["filename"].GetString(), Does.Contain("&dn=test"));
+        Assert.That(request.Tag.GetInt32(), Is.EqualTo(456));
+    }
+
+    [Test]
     public async Task ReadRequestBodyAsync_should_extract_json_from_form_url_encoded_content()
     {
         var formFields = new Dictionary<string, StringValues>
