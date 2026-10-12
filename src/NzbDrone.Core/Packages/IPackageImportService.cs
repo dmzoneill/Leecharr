@@ -47,11 +47,24 @@ public class PackageImportResult
 
     public List<string> SkippedDuplicates { get; set; } = new();
 
+    public List<PackageImportFailure> FailedTorrents { get; set; } = new();
+
+    public int FailedTorrentsCount => this.FailedTorrents.Count;
+
     public List<string> ExtractedFiles { get; set; } = new();
 
     public long TotalBytesExtracted { get; set; }
 
     public string Message { get; set; }
+}
+
+public class PackageImportFailure
+{
+    public string InfoHash { get; set; }
+
+    public string Name { get; set; }
+
+    public string Error { get; set; }
 }
 
 public class PackageImportTorrentSummary

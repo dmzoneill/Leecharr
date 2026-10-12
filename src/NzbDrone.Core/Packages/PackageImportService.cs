@@ -291,6 +291,12 @@ public class PackageImportService : IPackageImportService
                     if (!metainfoFiles.TryGetValue(infoHash, out var rawBytes) || rawBytes == null || rawBytes.Length == 0)
                     {
                         this.logger.Warn("Metainfo not found in package for infohash {0}", infoHash);
+                        result.FailedTorrents.Add(new PackageImportFailure
+                        {
+                            InfoHash = infoHash,
+                            Name = item.Name,
+                            Error = "Metainfo not found in package.",
+                        });
                         continue;
                     }
 
@@ -329,15 +335,39 @@ public class PackageImportService : IPackageImportService
                                 SavePath = added.SavePath,
                             });
                         }
+                        else
+                        {
+                            result.FailedTorrents.Add(new PackageImportFailure
+                            {
+                                InfoHash = infoHash,
+                                Name = item.Name,
+                                Error = "Torrent could not be added.",
+                            });
+                        }
                     }
                     catch (Exception ex)
                     {
                         this.logger.Error(ex, "Failed to import torrent {0} ({1}) from package", item.Name, infoHash);
+                        result.FailedTorrents.Add(new PackageImportFailure
+                        {
+                            InfoHash = infoHash,
+                            Name = item.Name,
+                            Error = ex.Message,
+                        });
                     }
                 }
             }
 
-            result.Message = $"Successfully imported {result.ImportedTorrentsCount} torrent(s). Skipped {result.SkippedDuplicatesCount} duplicate(s).";
+            result.Success = result.FailedTorrentsCount == 0;
+            if (result.Success)
+            {
+                result.Message = $"Successfully imported {result.ImportedTorrentsCount} torrent(s). Skipped {result.SkippedDuplicatesCount} duplicate(s).";
+            }
+            else
+            {
+                result.Message = $"Imported {result.ImportedTorrentsCount} torrent(s). Skipped {result.SkippedDuplicatesCount} duplicate(s). Failed {result.FailedTorrentsCount} torrent(s).";
+            }
+
             return result;
         }
         finally

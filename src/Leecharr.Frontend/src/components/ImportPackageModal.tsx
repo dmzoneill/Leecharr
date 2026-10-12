@@ -140,33 +140,50 @@ export function ImportPackageModal({
       }
     };
 
+    const parseImportResult = (body: string): PackageImportResult | null => {
+      try {
+        return JSON.parse(body) as PackageImportResult;
+      } catch {
+        return null;
+      }
+    };
+
     xhr.onload = () => {
       setIsUploading(false);
+      const res = parseImportResult(xhr.responseText);
       if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const res: PackageImportResult = JSON.parse(xhr.responseText);
-          setImportResult(res);
-          setStatusMessage("Package imported successfully!");
-          showToast(
-            res.message ||
-              `Successfully imported ${res.importedTorrentsCount} torrent(s)`,
-            "success",
-          );
-          if (onSuccess) onSuccess();
-        } catch {
+        if (!res) {
           setErrorMessage("Failed to parse import response from server.");
+          return;
         }
-      } else {
-        try {
-          const err = JSON.parse(xhr.responseText);
-          setErrorMessage(
-            err.message || `Import failed with HTTP ${xhr.status}`,
-          );
-        } catch {
-          setErrorMessage(
-            xhr.responseText || `Import failed with HTTP ${xhr.status}`,
-          );
-        }
+        setImportResult(res);
+        setStatusMessage("Package imported successfully!");
+        showToast(
+          res.message ||
+            `Successfully imported ${res.importedTorrentsCount} torrent(s)`,
+          "success",
+        );
+        if (onSuccess) onSuccess();
+        return;
+      }
+
+      if (res) {
+        setImportResult(res);
+        setStatusMessage("Package import completed with errors.");
+        setErrorMessage(
+          res.message || `Import failed with HTTP ${xhr.status}`,
+        );
+        showToast(res.message || "Package import had failures.", "error");
+        return;
+      }
+
+      try {
+        const err = JSON.parse(xhr.responseText);
+        setErrorMessage(err.message || `Import failed with HTTP ${xhr.status}`);
+      } catch {
+        setErrorMessage(
+          xhr.responseText || `Import failed with HTTP ${xhr.status}`,
+        );
       }
     };
 
@@ -322,15 +339,37 @@ export function ImportPackageModal({
             <div
               style={{
                 padding: "0.75rem 1rem",
-                backgroundColor: "rgba(34, 197, 94, 0.1)",
-                border: "1px solid rgba(34, 197, 94, 0.3)",
+                backgroundColor: importResult.success
+                  ? "rgba(34, 197, 94, 0.1)"
+                  : "rgba(239, 68, 68, 0.1)",
+                border: importResult.success
+                  ? "1px solid rgba(34, 197, 94, 0.3)"
+                  : "1px solid rgba(239, 68, 68, 0.3)",
                 borderRadius: "6px",
-                color: "#86efac",
+                color: importResult.success ? "#86efac" : "#fca5a5",
                 fontSize: "0.875rem",
               }}
             >
-              ✓ {importResult.message || `Successfully processed package.`}
+              {importResult.success ? "✓" : "✗"}{" "}
+              {importResult.message || `Successfully processed package.`}
             </div>
+
+            {importResult.failedTorrents && importResult.failedTorrents.length > 0 && (
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.25rem",
+                  fontSize: "0.82rem",
+                  color: "#fca5a5",
+                }}
+              >
+                {importResult.failedTorrents.map((failure) => (
+                  <li key={failure.infoHash}>
+                    {failure.name || failure.infoHash}: {failure.error}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div
               style={{

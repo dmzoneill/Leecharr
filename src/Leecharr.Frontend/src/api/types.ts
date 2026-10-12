@@ -1878,6 +1878,12 @@ export interface BulkActionResult {
   failedIds?: Record<number, string>;
 }
 
+export interface PackageImportFailure {
+  infoHash: string;
+  name?: string;
+  error: string;
+}
+
 export interface PackageImportTorrentSummary {
   id: number;
   name: string;
@@ -1894,8 +1900,10 @@ export interface PackageImportResult {
   success: boolean;
   importedTorrentsCount: number;
   skippedDuplicatesCount: number;
+  failedTorrentsCount?: number;
   torrents: PackageImportTorrentSummary[];
   skippedDuplicates: string[];
+  failedTorrents?: PackageImportFailure[];
   extractedFiles: string[];
   totalBytesExtracted: number;
   message?: string;

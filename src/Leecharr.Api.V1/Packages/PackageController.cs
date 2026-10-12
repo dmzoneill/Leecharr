@@ -193,6 +193,11 @@ public class PackageController : Controller
             await using var archiveStream = archiveFile.OpenReadStream();
             var result = await this.packageImportService.ImportPackageAsync(archiveStream, options, cancellationToken);
 
+            if (!result.Success)
+            {
+                return this.UnprocessableEntity(result);
+            }
+
             return this.Ok(result);
         }
         catch (SecurityException ex)
