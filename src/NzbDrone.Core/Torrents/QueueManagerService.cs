@@ -113,7 +113,11 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             var magnetMetadataTimeoutSeconds = this.configService.MagnetMetadataTimeoutSeconds > 0
                 ? this.configService.MagnetMetadataTimeoutSeconds
                 : 180;
-            var idleSeedingLimitMinutes = this.configService.IdleSeedingLimitMinutes;
+            var idleSeedingLimitSeconds = this.configService.IdleSeedingLimitSeconds;
+            if (idleSeedingLimitSeconds <= 0 && this.configService.IdleSeedingLimitMinutes > 0)
+            {
+                idleSeedingLimitSeconds = this.configService.IdleSeedingLimitMinutes * 60;
+            }
 
             var allTorrents = this.torrentRepository.All()
                 .OrderByDescending(t => t.Priority)
@@ -360,10 +364,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
                     var isSlow = isCurrentlySlow && state.SlowUploadTicks >= this.requiredSlowTicks;
 
-                    var isIdleSeeder = idleSeedingLimitMinutes > 0 &&
+                    var isIdleSeeder = idleSeedingLimitSeconds > 0 &&
                         torrent.Status == TorrentStatus.Seeding &&
                         uploadSpeed == 0 &&
-                        (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateCompleted ?? torrent.DateAdded)).TotalMinutes >= idleSeedingLimitMinutes;
+                        (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateCompleted ?? torrent.DateAdded)).TotalSeconds >= idleSeedingLimitSeconds;
 
                     var isIgnoredUpload = isSlow || isIdleSeeder || torrent.ForceStart;
                     var canRunUpload = torrent.ForceStart ||
