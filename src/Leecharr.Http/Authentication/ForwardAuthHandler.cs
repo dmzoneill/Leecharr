@@ -19,13 +19,13 @@ public class ForwardAuthOptions : AuthenticationSchemeOptions
 {
     public const string DefaultScheme = "ForwardAuth";
 
-    public string UsernameHeaders { get; set; } = "X-authentik-username;Remote-User;X-Forwarded-User";
+    public string UsernameHeaders { get; set; } = "Remote-User;X-Forwarded-User;X-authentik-username";
 
-    public string EmailHeaders { get; set; } = "X-authentik-email;Remote-Email;X-Forwarded-Email";
+    public string EmailHeaders { get; set; } = "Remote-Email;X-Forwarded-Email;X-authentik-email";
 
-    public string DisplayNameHeaders { get; set; } = "X-authentik-name;Remote-Name;X-Forwarded-Preferred-Username";
+    public string DisplayNameHeaders { get; set; } = "Remote-Name;X-Forwarded-Preferred-Username;X-authentik-name";
 
-    public string GroupsHeaders { get; set; } = "X-authentik-groups;Remote-Groups;X-Forwarded-Groups";
+    public string GroupsHeaders { get; set; } = "Remote-Groups;X-Forwarded-Groups;X-authentik-groups";
 }
 
 public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
@@ -132,10 +132,10 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
         {
             if (this.Request.Headers.TryGetValue(name.Trim(), out var val))
             {
-                var first = val.FirstOrDefault();
-                if (!string.IsNullOrWhiteSpace(first))
+                var last = val.LastOrDefault();
+                if (!string.IsNullOrWhiteSpace(last))
                 {
-                    return first.Trim();
+                    return last.Trim();
                 }
             }
         }
