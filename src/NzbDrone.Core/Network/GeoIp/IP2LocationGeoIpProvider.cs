@@ -382,14 +382,20 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
         var info = new GeoLocationInfo();
         this.fileStream.Seek(rowOffset + ipColumnSize, SeekOrigin.Begin);
 
-        var countryOffset = this.binaryReader.ReadUInt32();
-        if (countryOffset > 0)
+        var countryCodeOffset = this.binaryReader.ReadUInt32();
+        if (countryCodeOffset > 0)
         {
-            this.fileStream.Seek(countryOffset, SeekOrigin.Begin);
+            this.fileStream.Seek(countryCodeOffset, SeekOrigin.Begin);
             var len = this.binaryReader.ReadByte();
             var countryCodeBytes = this.binaryReader.ReadBytes(len);
             info.CountryCode = Encoding.ASCII.GetString(countryCodeBytes).Trim();
+        }
 
+        this.fileStream.Seek(rowOffset + ipColumnSize + 4, SeekOrigin.Begin);
+        var countryNameOffset = this.binaryReader.ReadUInt32();
+        if (countryNameOffset > 0)
+        {
+            this.fileStream.Seek(countryNameOffset, SeekOrigin.Begin);
             var nameLen = this.binaryReader.ReadByte();
             var countryNameBytes = this.binaryReader.ReadBytes(nameLen);
             info.CountryName = Encoding.ASCII.GetString(countryNameBytes).Trim();

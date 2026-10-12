@@ -180,13 +180,15 @@ public class MediaInspectionAndGeoIpComprehensiveIntegrationTests : IntegrationT
         using var writer = new BinaryWriter(stream);
 
         const uint baseAddrIPv4 = 22;
-        const uint baseAddrIPv6 = 38;
-        const uint countryOffsetUS = 77;
-        const uint countryOffsetGB = 94;
+        const uint baseAddrIPv6 = 46;
+        const uint countryCodeOffsetUS = 93;
+        const uint countryNameOffsetUS = 96;
+        const uint countryCodeOffsetGB = 110;
+        const uint countryNameOffsetGB = 113;
 
         // Header: 21 bytes
         writer.Write((byte)1); // dbType
-        writer.Write((byte)2); // dbColumn (IP From + Country)
+        writer.Write((byte)3); // dbColumn (IP From + country code offset + country name offset)
         writer.Write((byte)26); // year
         writer.Write((byte)9); // month
         writer.Write((byte)5); // day
@@ -199,18 +201,21 @@ public class MediaInspectionAndGeoIpComprehensiveIntegrationTests : IntegrationT
         var ipBytes1 = IPAddress.Parse("0.0.0.0").GetAddressBytes();
         Array.Reverse(ipBytes1);
         writer.Write(BitConverter.ToUInt32(ipBytes1, 0));
-        writer.Write(countryOffsetUS);
+        writer.Write(countryCodeOffsetUS);
+        writer.Write(countryNameOffsetUS);
 
         // IPv4 Record 1: 9.0.0.0 -> GB
         var ipBytes2 = IPAddress.Parse("9.0.0.0").GetAddressBytes();
         Array.Reverse(ipBytes2);
         writer.Write(BitConverter.ToUInt32(ipBytes2, 0));
-        writer.Write(countryOffsetGB);
+        writer.Write(countryCodeOffsetGB);
+        writer.Write(countryNameOffsetGB);
 
         // IPv6 Record 0: :: -> US
         var ipv6Bytes0 = new byte[16];
         writer.Write(ipv6Bytes0);
-        writer.Write(countryOffsetUS);
+        writer.Write(countryCodeOffsetUS);
+        writer.Write(countryNameOffsetUS);
 
         // IPv6 Record 1: 2001:db8:1:: -> GB
         var ipv6Addr1 = IPAddress.Parse("2001:db8:1::").GetAddressBytes();
@@ -219,21 +224,22 @@ public class MediaInspectionAndGeoIpComprehensiveIntegrationTests : IntegrationT
         var exported = ip1BigInt.ToByteArray(isUnsigned: true, isBigEndian: false);
         Array.Copy(exported, ip1LeBytes, Math.Min(exported.Length, 16));
         writer.Write(ip1LeBytes);
-        writer.Write(countryOffsetGB);
+        writer.Write(countryCodeOffsetGB);
+        writer.Write(countryNameOffsetGB);
 
-        // Country Strings (offset 77)
         var usCode = Encoding.ASCII.GetBytes("US");
-        var usName = Encoding.ASCII.GetBytes("United States");
         writer.Write((byte)usCode.Length);
         writer.Write(usCode);
+
+        var usName = Encoding.ASCII.GetBytes("United States");
         writer.Write((byte)usName.Length);
         writer.Write(usName);
 
-        // Country Strings (offset 94)
         var gbCode = Encoding.ASCII.GetBytes("GB");
-        var gbName = Encoding.ASCII.GetBytes("United Kingdom");
         writer.Write((byte)gbCode.Length);
         writer.Write(gbCode);
+
+        var gbName = Encoding.ASCII.GetBytes("United Kingdom");
         writer.Write((byte)gbName.Length);
         writer.Write(gbName);
     }

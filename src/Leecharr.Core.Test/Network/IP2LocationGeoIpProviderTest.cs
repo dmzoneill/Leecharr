@@ -188,18 +188,19 @@ public class IP2LocationGeoIpProviderTest
         using var writer = new BinaryWriter(stream);
 
         // Header: 21 bytes (offsets 0..20)
-        // IPv4 Records: exactly 2 entries * 8 bytes = 16 bytes (offsets 21..36). Base address (1-based) = 22
-        // IPv6 Records: exactly 2 entries * 20 bytes = 40 bytes (offsets 37..76). Base address (1-based) = 38
-        // Country String 1 (US): offset 77
-        // Country String 2 (GB): offset 94
+        // IPv4 Records: 2 entries * 12 bytes = 24 bytes (offsets 21..44). Base address (1-based) = 22
+        // IPv6 Records: 2 entries * 24 bytes = 48 bytes (offsets 45..92). Base address (1-based) = 46
+        // Country code/name strings start at offset 93
         const uint baseAddrIPv4 = 22;
-        const uint baseAddrIPv6 = 38;
-        const uint countryOffsetUS = 77;
-        const uint countryOffsetGB = 94;
+        const uint baseAddrIPv6 = 46;
+        const uint countryCodeOffsetUS = 93;
+        const uint countryNameOffsetUS = 96;
+        const uint countryCodeOffsetGB = 110;
+        const uint countryNameOffsetGB = 113;
 
         // Header
         writer.Write((byte)1); // dbType
-        writer.Write((byte)2); // dbColumn (IP From + Country)
+        writer.Write((byte)3); // dbColumn (IP From + country code offset + country name offset)
         writer.Write((byte)26); // year
         writer.Write((byte)9); // month
         writer.Write((byte)5); // day
@@ -212,18 +213,21 @@ public class IP2LocationGeoIpProviderTest
         var ipBytes1 = IPAddress.Parse("0.0.0.0").GetAddressBytes();
         Array.Reverse(ipBytes1);
         writer.Write(BitConverter.ToUInt32(ipBytes1, 0));
-        writer.Write(countryOffsetUS);
+        writer.Write(countryCodeOffsetUS);
+        writer.Write(countryNameOffsetUS);
 
         // IPv4 Record 1: 9.0.0.0 -> GB (last record, NO terminator following it!)
         var ipBytes2 = IPAddress.Parse("9.0.0.0").GetAddressBytes();
         Array.Reverse(ipBytes2);
         writer.Write(BitConverter.ToUInt32(ipBytes2, 0));
-        writer.Write(countryOffsetGB);
+        writer.Write(countryCodeOffsetGB);
+        writer.Write(countryNameOffsetGB);
 
         // IPv6 Record 0: :: -> US
         var ipv6Bytes0 = new byte[16];
         writer.Write(ipv6Bytes0);
-        writer.Write(countryOffsetUS);
+        writer.Write(countryCodeOffsetUS);
+        writer.Write(countryNameOffsetUS);
 
         // IPv6 Record 1: 2001:db8:1:: -> GB (last record, NO terminator following it!)
         var ipv6Addr1 = IPAddress.Parse("2001:db8:1::").GetAddressBytes();
@@ -232,22 +236,10 @@ public class IP2LocationGeoIpProviderTest
         var exported = ip1BigInt.ToByteArray(isUnsigned: true, isBigEndian: false);
         Array.Copy(exported, ip1LeBytes, Math.Min(exported.Length, 16));
         writer.Write(ip1LeBytes);
-        writer.Write(countryOffsetGB);
+        writer.Write(countryCodeOffsetGB);
+        writer.Write(countryNameOffsetGB);
 
-        // Country Strings (directly after records, any seek past row 1 would read strings or fail)
-        var usCode = Encoding.ASCII.GetBytes("US");
-        var usName = Encoding.ASCII.GetBytes("United States");
-        writer.Write((byte)usCode.Length);
-        writer.Write(usCode);
-        writer.Write((byte)usName.Length);
-        writer.Write(usName);
-
-        var gbCode = Encoding.ASCII.GetBytes("GB");
-        var gbName = Encoding.ASCII.GetBytes("United Kingdom");
-        writer.Write((byte)gbCode.Length);
-        writer.Write(gbCode);
-        writer.Write((byte)gbName.Length);
-        writer.Write(gbName);
+        WriteCountryCodeAndNameStrings(writer);
     }
 
     [Test]
@@ -299,18 +291,19 @@ public class IP2LocationGeoIpProviderTest
         using var writer = new BinaryWriter(stream);
 
         // Header: 21 bytes (offsets 0..20)
-        // IPv4 Records: 3 entries * 8 bytes = 24 bytes (offsets 21..44). Base address (1-based) = 22
-        // IPv6 Records: 3 entries * 20 bytes = 60 bytes (offsets 45..104). Base address (1-based) = 46
-        // Country String 1 (US): offset 105
-        // Country String 2 (GB): offset 122
+        // IPv4 Records: 3 entries * 12 bytes = 36 bytes (offsets 21..56). Base address (1-based) = 22
+        // IPv6 Records: 3 entries * 24 bytes = 72 bytes (offsets 57..128). Base address (1-based) = 58
+        // Country code/name strings start at offset 129
         const uint baseAddrIPv4 = 22;
-        const uint baseAddrIPv6 = 46;
-        const uint countryOffsetUS = 105;
-        const uint countryOffsetGB = 122;
+        const uint baseAddrIPv6 = 58;
+        const uint countryCodeOffsetUS = 129;
+        const uint countryNameOffsetUS = 132;
+        const uint countryCodeOffsetGB = 146;
+        const uint countryNameOffsetGB = 149;
 
         // Header
         writer.Write((byte)1); // dbType
-        writer.Write((byte)2); // dbColumn (IP From + Country)
+        writer.Write((byte)3); // dbColumn (IP From + country code offset + country name offset)
         writer.Write((byte)26); // year
         writer.Write((byte)9); // month
         writer.Write((byte)5); // day
@@ -324,25 +317,29 @@ public class IP2LocationGeoIpProviderTest
         var ipBytes1 = IPAddress.Parse("0.0.0.0").GetAddressBytes();
         Array.Reverse(ipBytes1);
         writer.Write(BitConverter.ToUInt32(ipBytes1, 0));
-        writer.Write(countryOffsetUS);
+        writer.Write(countryCodeOffsetUS);
+        writer.Write(countryNameOffsetUS);
 
         // Record 1: 9.0.0.0 - 255.255.255.255 -> GB
         var ipBytes2 = IPAddress.Parse("9.0.0.0").GetAddressBytes();
         Array.Reverse(ipBytes2);
         writer.Write(BitConverter.ToUInt32(ipBytes2, 0));
-        writer.Write(countryOffsetGB);
+        writer.Write(countryCodeOffsetGB);
+        writer.Write(countryNameOffsetGB);
 
         // Record 2 (terminator): 255.255.255.255
         var ipBytesTerm = IPAddress.Parse("255.255.255.255").GetAddressBytes();
         Array.Reverse(ipBytesTerm);
         writer.Write(BitConverter.ToUInt32(ipBytesTerm, 0));
         writer.Write(0u);
+        writer.Write(0u);
 
         // IPv6 Records
         // Record 0: :: to 2001:db8:1:: -> US
         var ipv6Bytes0 = new byte[16];
         writer.Write(ipv6Bytes0);
-        writer.Write(countryOffsetUS);
+        writer.Write(countryCodeOffsetUS);
+        writer.Write(countryNameOffsetUS);
 
         // Record 1: 2001:db8:1:: to ffff:ffff:... -> GB
         var ipv6Addr1 = IPAddress.Parse("2001:db8:1::").GetAddressBytes();
@@ -351,28 +348,34 @@ public class IP2LocationGeoIpProviderTest
         var exported = ip1BigInt.ToByteArray(isUnsigned: true, isBigEndian: false);
         Array.Copy(exported, ip1LeBytes, Math.Min(exported.Length, 16));
         writer.Write(ip1LeBytes);
-        writer.Write(countryOffsetGB);
+        writer.Write(countryCodeOffsetGB);
+        writer.Write(countryNameOffsetGB);
 
         // Record 2 (terminator): ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
         var ipv6Term = new byte[16];
         Array.Fill(ipv6Term, (byte)0xFF);
         writer.Write(ipv6Term);
         writer.Write(0u);
+        writer.Write(0u);
 
-        // Country Strings
-        // US (offset 105)
+        WriteCountryCodeAndNameStrings(writer);
+    }
+
+    private static void WriteCountryCodeAndNameStrings(BinaryWriter writer)
+    {
         var usCode = Encoding.ASCII.GetBytes("US");
-        var usName = Encoding.ASCII.GetBytes("United States");
         writer.Write((byte)usCode.Length);
         writer.Write(usCode);
+
+        var usName = Encoding.ASCII.GetBytes("United States");
         writer.Write((byte)usName.Length);
         writer.Write(usName);
 
-        // GB (offset 122)
         var gbCode = Encoding.ASCII.GetBytes("GB");
-        var gbName = Encoding.ASCII.GetBytes("United Kingdom");
         writer.Write((byte)gbCode.Length);
         writer.Write(gbCode);
+
+        var gbName = Encoding.ASCII.GetBytes("United Kingdom");
         writer.Write((byte)gbName.Length);
         writer.Write(gbName);
     }
