@@ -848,6 +848,94 @@ public class ArrWebhookRegistrationTest
         mockReg.Received(1).Register(Arg.Is<ArrConnectionDefinition>(c => c.Id == 1));
     }
 
+    [Test]
+    public async Task ArrWebhookMaintenanceTask_Retry_UsesLatestConnectionFromRepository()
+    {
+        var repo = Substitute.For<IArrConnectionRepository>();
+        var mockReg = Substitute.For<IArrWebhookRegistration>();
+        mockReg.Register(Arg.Any<ArrConnectionDefinition>()).Returns(false, true);
+
+        var startupConnection = new ArrConnectionDefinition
+        {
+            Id = 1,
+            ArrType = "Sonarr",
+            Url = "http://old-sonarr:8989",
+            ApiKey = "old-key",
+            Enable = true,
+            WebhookEnabled = true,
+        };
+
+        repo.All().Returns(new List<ArrConnectionDefinition> { startupConnection });
+        repo.Get(1).Returns(new ArrConnectionDefinition
+        {
+            Id = 1,
+            ArrType = "Sonarr",
+            Url = "http://new-sonarr:8989",
+            ApiKey = "new-key",
+            Enable = true,
+            WebhookEnabled = true,
+        });
+
+        var task = new ArrWebhookMaintenanceTask(repo, mockReg)
+        {
+            RetryDelays = new[] { TimeSpan.Zero },
+            DelayAsync = _ => Task.CompletedTask,
+        };
+
+        task.Handle(new ApplicationStartedEvent());
+        if (task.LastStartupTask != null)
+        {
+            await task.LastStartupTask;
+        }
+
+        mockReg.Received(2).Register(Arg.Is<ArrConnectionDefinition>(c => c.Id == 1));
+        mockReg.Received(1).Register(Arg.Is<ArrConnectionDefinition>(c => c.Url == "http://old-sonarr:8989"));
+        mockReg.Received(1).Register(Arg.Is<ArrConnectionDefinition>(c => c.Url == "http://new-sonarr:8989" && c.ApiKey == "new-key"));
+    }
+
+    [Test]
+    public async Task ArrWebhookMaintenanceTask_Retry_SkipsDisabledConnection()
+    {
+        var repo = Substitute.For<IArrConnectionRepository>();
+        var mockReg = Substitute.For<IArrWebhookRegistration>();
+        mockReg.Register(Arg.Any<ArrConnectionDefinition>()).Returns(false);
+
+        repo.All().Returns(new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                ArrType = "Sonarr",
+                Url = "http://sonarr:8989",
+                Enable = true,
+                WebhookEnabled = true,
+            },
+        });
+
+        repo.Get(1).Returns(new ArrConnectionDefinition
+        {
+            Id = 1,
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            Enable = false,
+            WebhookEnabled = true,
+        });
+
+        var task = new ArrWebhookMaintenanceTask(repo, mockReg)
+        {
+            RetryDelays = new[] { TimeSpan.Zero },
+            DelayAsync = _ => Task.CompletedTask,
+        };
+
+        task.Handle(new ApplicationStartedEvent());
+        if (task.LastStartupTask != null)
+        {
+            await task.LastStartupTask;
+        }
+
+        mockReg.Received(1).Register(Arg.Any<ArrConnectionDefinition>());
+    }
+
     private static string GetFieldValue(JsonElement fields, string name)
     {
         foreach (var field in fields.EnumerateArray())
