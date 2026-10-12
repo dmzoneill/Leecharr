@@ -18,23 +18,31 @@ public static class AntiBotChallengeDetector
     /// </summary>
     public const int MaxChallengeProbeBytes = 256 * 1024;
 
-    private static readonly string[] ChallengeSignatures = new[]
+    private static readonly string[] DefiniteChallengeSignatures = new[]
     {
         "Just a moment...",
         "Attention Required! | Cloudflare",
         "Security Check | DDoS-GUARD",
         "cf-browser-verification",
         "cf-turnstile",
-        "turnstile",
         "challenges.cloudflare.com",
         "_cf_chl_opt",
         "_cf_chl_ctx",
-        "cloudflare-nginx",
-        "ddos-guard",
         "Checking your browser before accessing",
         "Checking your browser",
+    };
+
+    /// <summary>
+    /// Broad tokens that appear on ordinary indexer pages. Only treat these as challenges
+    /// when the HTTP status already indicates a block (403/503/429), not on 200 OK.
+    /// </summary>
+    private static readonly string[] SuspectChallengeSignatures = new[]
+    {
+        "turnstile",
         "ray id",
         "cf_clearance",
+        "ddos-guard",
+        "cloudflare-nginx",
     };
 
     public static bool IsChallenge(HttpStatusCode statusCode, string bodyHtml, HttpResponseMessage response = null)
@@ -54,12 +62,14 @@ public static class AntiBotChallengeDetector
             return false;
         }
 
-        foreach (var signature in ChallengeSignatures)
+        if (ContainsSignature(bodyHtml, DefiniteChallengeSignatures))
         {
-            if (bodyHtml.Contains(signature, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
+        }
+
+        if (IsChallengeStatusCode(statusCode) && ContainsSignature(bodyHtml, SuspectChallengeSignatures))
+        {
+            return true;
         }
 
         if (response != null && response.Headers.Contains("cf-mitigated"))
@@ -81,7 +91,19 @@ public static class AntiBotChallengeDetector
             return false;
         }
 
-        foreach (var signature in ChallengeSignatures)
+        return ContainsSignature(bodyHtml, DefiniteChallengeSignatures);
+    }
+
+    private static bool IsChallengeStatusCode(HttpStatusCode statusCode)
+    {
+        return statusCode == HttpStatusCode.Forbidden
+            || statusCode == HttpStatusCode.ServiceUnavailable
+            || (int)statusCode == 429;
+    }
+
+    private static bool ContainsSignature(string bodyHtml, string[] signatures)
+    {
+        foreach (var signature in signatures)
         {
             if (bodyHtml.Contains(signature, StringComparison.OrdinalIgnoreCase))
             {
