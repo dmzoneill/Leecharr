@@ -248,7 +248,7 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
         }
 
         var marker = "\xAB\xCD\xEFMaxMind.Db"u8.ToArray();
-        return bytes.AsSpan().IndexOf(marker) >= 0 || bytes.Length > 1024;
+        return bytes.AsSpan().IndexOf(marker) >= 0;
     }
 
     private string ResolveDownloadUrl()

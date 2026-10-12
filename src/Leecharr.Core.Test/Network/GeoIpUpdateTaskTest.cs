@@ -161,6 +161,37 @@ public class GeoIpUpdateTaskTest
         result.Should().BeFalse();
     }
 
+    [Test]
+    public void ExtractMmdbBytes_WithGzippedLargeNonMmdbPayload_ReturnsNull()
+    {
+        var html = new string('x', 2048) + "<html><body>Error</body></html>";
+        var gzipped = GzipCompress(Encoding.UTF8.GetBytes(html));
+
+        GeoIpUpdateTask.ExtractMmdbBytes(gzipped).Should().BeNull();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WhenGzippedLargeNonMmdbPayload_ReturnsFalseWithoutInstalling()
+    {
+        var html = new string('x', 2048) + "<html><body>Error</body></html>";
+        var gzipped = GzipCompress(Encoding.UTF8.GetBytes(html));
+
+        this.safeHttpClientService.DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(gzipped);
+
+        var task = new GeoIpUpdateTask(
+            this.configService,
+            this.diskProvider,
+            this.appFolderInfo,
+            new IGeoIpProvider[] { this.maxMindProvider },
+            this.safeHttpClientService);
+
+        var result = await task.ExecuteAsync();
+
+        result.Should().BeFalse();
+        File.Exists(Path.Combine(this.tempDir, "GeoIP", "GeoLite2-City.mmdb")).Should().BeFalse();
+    }
+
     private static byte[] CreateDummyMmdbBytes()
     {
         var bytes = new byte[2048];
@@ -206,5 +237,16 @@ public class GeoIpUpdateTaskTest
         }
 
         return memStream.ToArray();
+    }
+
+    private static byte[] GzipCompress(byte[] data)
+    {
+        using var output = new MemoryStream();
+        using (var gzStream = new GZipStream(output, CompressionMode.Compress, leaveOpen: true))
+        {
+            gzStream.Write(data, 0, data.Length);
+        }
+
+        return output.ToArray();
     }
 }
