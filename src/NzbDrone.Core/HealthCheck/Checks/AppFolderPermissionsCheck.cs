@@ -45,9 +45,7 @@ public class AppFolderPermissionsCheck : IHealthCheck
             unwritableSubfolders.Add($"logs ('{logsFolder}': {logsError})");
         }
 
-        var backupsFolder = Directory.Exists(Path.Combine(appData, "backups"))
-            ? Path.Combine(appData, "backups")
-            : Path.Combine(appData, "Backups");
+        var backupsFolder = Path.Combine(appData, "Backups");
 
         if (!this.CheckFolderWritable(backupsFolder, out var backupsError))
         {
