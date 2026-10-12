@@ -264,10 +264,10 @@ public class OllamaAiProviderTest
         });
 
         using var client = new HttpClient(handler);
-        using var provider = new OllamaAiProvider(this.configService, client);
 
         var fallbackFlow = Task.Run(async () =>
         {
+            using var provider = new OllamaAiProvider(this.configService, client);
             var reply = await provider.GenerateChatResponseAsync("block-until-release");
             return (reply, provider.LastChatUsedFallback);
         });
@@ -276,6 +276,7 @@ public class OllamaAiProviderTest
 
         var successFlow = Task.Run(async () =>
         {
+            using var provider = new OllamaAiProvider(this.configService, client);
             var reply = await provider.GenerateChatResponseAsync("quick-success");
             return (reply, provider.LastChatUsedFallback);
         });

@@ -26,6 +26,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
     private readonly bool ownsHttpClient;
     private readonly RuleHeuristicAiProvider fallbackProvider = new();
     private bool disposed;
+    private bool lastChatUsedFallback;
 
     public string ProviderId => "Ollama";
 
@@ -37,7 +38,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
     public bool IsAvailable => true;
 
-    public bool LastChatUsedFallback => AiChatFallbackContext.LastChatUsedFallbackValue;
+    public bool LastChatUsedFallback => this.lastChatUsedFallback;
 
     internal TimeSpan HttpClientTimeout => this.httpClient.Timeout;
 
@@ -666,7 +667,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                     var responseText = respProp.ValueKind == JsonValueKind.Null ? null : respProp.GetString();
                     if (!string.IsNullOrEmpty(responseText))
                     {
-                        AiChatFallbackContext.SetLastChatUsedFallback(false);
+                        this.MarkChatFallback(false);
                         return responseText;
                     }
                 }
@@ -677,8 +678,14 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
             Logger.Debug(ex, "Ollama chat generation failed, falling back to heuristic assistant.");
         }
 
-        AiChatFallbackContext.SetLastChatUsedFallback(true);
+        this.MarkChatFallback(true);
         return await this.fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
+    }
+
+    private void MarkChatFallback(bool usedFallback)
+    {
+        this.lastChatUsedFallback = usedFallback;
+        AiChatFallbackContext.SetLastChatUsedFallback(usedFallback);
     }
 
     private static bool ShouldDeferReleaseParseToHeuristic(AiParsedRelease ollama, AiParsedRelease heuristic)
