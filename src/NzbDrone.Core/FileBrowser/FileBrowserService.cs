@@ -283,13 +283,18 @@ public class FileBrowserService : IFileBrowserService
             this.diskProvider.CreateFolder(destDir);
         }
 
+        if (this.diskProvider.FileExists(target) || this.diskProvider.FolderExists(target))
+        {
+            throw new InvalidOperationException($"Destination '{target}' already exists.");
+        }
+
         if (this.diskProvider.FolderExists(source))
         {
             this.CopyDirectoryRecursive(source, target);
         }
         else if (this.diskProvider.FileExists(source) || File.Exists(source))
         {
-            this.diskProvider.CopyFile(source, target, overwrite: true);
+            this.diskProvider.CopyFile(source, target, overwrite: false);
         }
     }
 
@@ -401,7 +406,13 @@ public class FileBrowserService : IFileBrowserService
         foreach (var file in this.diskProvider.GetFiles(sourceDir, false))
         {
             var fileName = Path.GetFileName(file);
-            this.diskProvider.CopyFile(file, Path.Combine(targetDir, fileName), overwrite: true);
+            var destFile = Path.Combine(targetDir, fileName);
+            if (this.diskProvider.FileExists(destFile))
+            {
+                throw new InvalidOperationException($"Destination '{destFile}' already exists.");
+            }
+
+            this.diskProvider.CopyFile(file, destFile, overwrite: false);
         }
 
         foreach (var subDir in this.diskProvider.GetDirectories(sourceDir))
