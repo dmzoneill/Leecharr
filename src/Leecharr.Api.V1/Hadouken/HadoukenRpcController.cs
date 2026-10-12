@@ -33,6 +33,10 @@ public class HadoukenRpcRequest
 [ApiController]
 public class HadoukenRpcController : ControllerBase
 {
+    private const string FailedToAddTorrentError = "Failed to add torrent";
+    private const string InvalidAddTorrentParametersError = "Invalid add torrent parameters";
+    private const string MissingTorrentUriError = "URI is required";
+
     private static readonly RpcSessionStore AuthenticatedSessions = new();
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
@@ -348,14 +352,14 @@ public class HadoukenRpcController : ControllerBase
 
                             var parsed = this.torrentFileParser.Parse(bytes);
                             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                            return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
+                            return this.HadoukenAddTorrentResult(added, id);
                         }
                         else if (string.Equals(type, "url", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(data))
                         {
                             if (data.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
                                 var added = await this.torrentService.AddFromMagnetAsync(data, category, savePath, isPaused);
-                                return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
+                                return this.HadoukenAddTorrentResult(added, id);
                             }
                             else
                             {
@@ -363,12 +367,12 @@ public class HadoukenRpcController : ControllerBase
                                 var bytes = await this.safeHttpClientService.DownloadBytesAsync(data, maxSizeBytes: maxTorrentBytes);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                                return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
+                                return this.HadoukenAddTorrentResult(added, id);
                             }
                         }
                     }
 
-                    return this.Ok(new { result = true, error = (object)null, id });
+                    return this.HadoukenRpcError(InvalidAddTorrentParametersError, id);
 
                 case "webui.perform":
                     if (request.Params.ValueKind == JsonValueKind.Array && request.Params.GetArrayLength() >= 2)
@@ -529,7 +533,7 @@ public class HadoukenRpcController : ControllerBase
                             if (uri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                             {
                                 var added = await this.torrentService.AddFromMagnetAsync(uri, category, savePath, isPaused);
-                                return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
+                                return this.HadoukenAddTorrentResult(added, id);
                             }
                             else
                             {
@@ -537,12 +541,12 @@ public class HadoukenRpcController : ControllerBase
                                 var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                                return this.Ok(new { result = added?.InfoHash, error = (object)null, id });
+                                return this.HadoukenAddTorrentResult(added, id);
                             }
                         }
                     }
 
-                    return this.Ok(new { result = true, error = (object)null, id });
+                    return this.HadoukenRpcError(MissingTorrentUriError, id);
 
                 case "torrents.pause":
                     var hashToPause = GetFirstStringParam(request.Params);
@@ -630,7 +634,7 @@ public class HadoukenRpcController : ControllerBase
 
                 default:
                     this.logger.Debug("Unhandled Hadouken RPC method: {0}", request.Method);
-                    return this.Ok(new { result = true, error = (object)null, id });
+                    return this.HadoukenRpcError($"Unknown RPC method: {request.Method}", id);
             }
         }
         catch (Exception ex)
@@ -653,6 +657,21 @@ public class HadoukenRpcController : ControllerBase
         }
 
         return string.Empty;
+    }
+
+    private IActionResult HadoukenRpcError(string message, object id)
+    {
+        return this.Ok(new { result = (object)null, error = message, id });
+    }
+
+    private IActionResult HadoukenAddTorrentResult(Torrent added, object id)
+    {
+        if (added == null || string.IsNullOrWhiteSpace(added.InfoHash))
+        {
+            return this.HadoukenRpcError(FailedToAddTorrentError, id);
+        }
+
+        return this.Ok(new { result = added.InfoHash, error = (object)null, id });
     }
 
     private static bool SafeGetBoolean(JsonElement element, bool defaultValue = false)

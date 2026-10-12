@@ -713,7 +713,7 @@ public class HadoukenRpcControllerTest
     [TestCase("torrents.add")]
     [TestCase("torrents.remove")]
     [TestCase("unknown.method.name")]
-    public async Task HandleRpc_UnhandledMethods_ReturnSuccessResult(string unhandledMethod)
+    public async Task HandleRpc_UnhandledMethods_ReturnErrorResult(string unhandledMethod)
     {
         var request = new HadoukenRpcRequest { Method = unhandledMethod, Id = 99 };
         var result = await this.controller.HandleRpc(request);
@@ -722,7 +722,69 @@ public class HadoukenRpcControllerTest
         var okResult = (OkObjectResult)result;
         var json = JsonSerializer.Serialize(okResult.Value);
         using var doc = JsonDocument.Parse(json);
-        doc.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("error").GetString().Should().Be($"Unknown RPC method: {unhandledMethod}");
+        doc.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [TestCase("webui.addtorrent")]
+    [TestCase("webui.add_torrent")]
+    public async Task HandleRpc_WebUiAddTorrent_WithInvalidParameters_ReturnsError(string method)
+    {
+        var requestJson = $"{{\"method\":\"{method}\",\"params\":[\"invalid-type\",\"\"],\"id\":88}}";
+        using var doc = JsonDocument.Parse(requestJson);
+        var request = new HadoukenRpcRequest
+        {
+            Method = method,
+            Params = doc.RootElement.GetProperty("params"),
+            Id = 88,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("error").GetString().Should().Be("Invalid add torrent parameters");
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentsAddUri_WithMissingUri_ReturnsError()
+    {
+        var requestJson = "{\"method\":\"torrents.adduri\",\"params\":[\"\"],\"id\":89}";
+        using var doc = JsonDocument.Parse(requestJson);
+        var request = new HadoukenRpcRequest
+        {
+            Method = "torrents.adduri",
+            Params = doc.RootElement.GetProperty("params"),
+            Id = 89,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("error").GetString().Should().Be("URI is required");
+    }
+
+    [Test]
+    public async Task HandleRpc_WebUiAddTorrent_WhenServiceReturnsNull_ReturnsFailedToAddError()
+    {
+        var magnetUri = "magnet:?xt=urn:btih:1234567890123456789012345678901234567890&dn=Test";
+        this.torrentService.AddFromMagnetAsync(magnetUri, null, null, false).Returns((Torrent)null);
+
+        var requestJson = $"{{\"method\":\"webui.addtorrent\",\"params\":[\"url\",\"{magnetUri}\"],\"id\":90}}";
+        using var doc = JsonDocument.Parse(requestJson);
+        var request = new HadoukenRpcRequest
+        {
+            Method = "webui.addtorrent",
+            Params = doc.RootElement.GetProperty("params"),
+            Id = 90,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("error").GetString().Should().Be("Failed to add torrent");
     }
 
     [Test]
