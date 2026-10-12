@@ -538,7 +538,14 @@ public static class DownloadClientRemoteQuery
                     "application/json");
 
                 using var resp = await http.PostAsync($"{baseUrl}/json", body);
-                return resp.IsSuccessStatusCode;
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return false;
+                }
+
+                var actionJson = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                using var actionDoc = JsonDocument.Parse(actionJson);
+                return TryGetDelugeRpcSuccess(actionDoc.RootElement, action, baseUrl);
             }
             else
             {
@@ -661,6 +668,29 @@ public static class DownloadClientRemoteQuery
         }
 
         return req;
+    }
+
+    private static bool TryGetDelugeRpcSuccess(JsonElement root, string operationContext, string baseUrl)
+    {
+        if (root.TryGetProperty("error", out var errElem) && errElem.ValueKind != JsonValueKind.Null)
+        {
+            Logger.Warn("Deluge {0} RPC failed: {1} for {2}", operationContext, errElem, baseUrl);
+            return false;
+        }
+
+        if (root.TryGetProperty("result", out var resultElem) && resultElem.ValueKind == JsonValueKind.True)
+        {
+            return true;
+        }
+
+        if (root.TryGetProperty("result", out var falseResult) && falseResult.ValueKind == JsonValueKind.False)
+        {
+            Logger.Warn("Deluge {0} RPC returned false for {1}", operationContext, baseUrl);
+            return false;
+        }
+
+        Logger.Warn("Deluge {0} RPC missing or invalid result for {1}: {2}", operationContext, baseUrl, root.GetRawText());
+        return false;
     }
 
     private static bool TryGetTransmissionRpcSuccess(JsonElement root, string operationContext, string baseUrl)
