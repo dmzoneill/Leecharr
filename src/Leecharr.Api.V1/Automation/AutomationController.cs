@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Automation;
 using NzbDrone.SignalR;
@@ -11,6 +12,7 @@ using NzbDrone.SignalR;
 namespace Leecharr.Api.V1.Automation;
 
 [V1ApiController("automation")]
+[Authorize(Policy = "RequireOperator")]
 public class AutomationController : RestControllerWithSignalR<AutomationScriptResource, AutomationScript>
 {
     private readonly IAutomationService _automationService;
