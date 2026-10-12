@@ -313,6 +313,34 @@ public class DiskSpaceServiceTest
     }
 
     [Test]
+    public void GetDiskSpace_WhenVolumeIsFullButWritable_IsNotMarkedReadOnly()
+    {
+        this.configService.DownloadDir.Returns("/downloads");
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(0L);
+        this.diskProvider.GetTotalSize("/downloads").Returns(100_000_000_000L);
+        this.diskProvider.FolderWritable("/downloads").Returns(true);
+
+        var result = this.service.GetDiskSpace();
+
+        result.Should().ContainSingle(d => d.Path == "/downloads");
+        result.Single(d => d.Path == "/downloads").IsReadOnly.Should().BeFalse();
+    }
+
+    [Test]
+    public void GetDiskSpace_WhenVolumeHasFreeSpaceButIsNotWritable_IsMarkedReadOnly()
+    {
+        this.configService.DownloadDir.Returns("/downloads");
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(50_000_000_000L);
+        this.diskProvider.GetTotalSize("/downloads").Returns(100_000_000_000L);
+        this.diskProvider.FolderWritable("/downloads").Returns(false);
+
+        var result = this.service.GetDiskSpace();
+
+        result.Should().ContainSingle(d => d.Path == "/downloads");
+        result.Single(d => d.Path == "/downloads").IsReadOnly.Should().BeTrue();
+    }
+
+    [Test]
     public void CheckDiskSpaceThresholds_WhenAdequateFreeSpace_DoesNotPublishAnyEvents()
     {
         var eventAggregator = Substitute.For<IEventAggregator>();

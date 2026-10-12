@@ -117,7 +117,7 @@ public class DiskSpaceService : IDiskSpaceService
                             FreeSpace = probe.FreeBytes,
                             TotalSpace = probe.TotalBytes,
                             FileSystemType = probe.DriveFormat ?? string.Empty,
-                            IsReadOnly = probe.TotalBytes > 0 && probe.FreeBytes == 0,
+                            IsReadOnly = this.IsPathReadOnly(probe.MountPath),
                         });
                     }
                 }
@@ -171,13 +171,11 @@ public class DiskSpaceService : IDiskSpaceService
                 string volumeKey;
                 string driveRoot = null;
                 string fileSystemType = string.Empty;
-                var isReadOnly = false;
                 if (hasProbeSnapshot && probeSnapshot.TotalBytes > 0)
                 {
                     driveRoot = probeSnapshot.MountPath;
                     fileSystemType = probeSnapshot.DriveFormat ?? string.Empty;
                     volumeKey = $"{probeSnapshot.DriveFormat}_{probeSnapshot.TotalBytes}_{probeSnapshot.VolumeLabel}_{probeSnapshot.MountPath}";
-                    isReadOnly = probeSnapshot.TotalBytes > 0 && probeSnapshot.FreeBytes == 0;
                 }
                 else
                 {
@@ -187,7 +185,6 @@ public class DiskSpaceService : IDiskSpaceService
                         driveRoot = drive.Name;
                         fileSystemType = drive.DriveFormat ?? string.Empty;
                         volumeKey = $"{drive.DriveFormat}_{totalSpace.Value}_{drive.VolumeLabel}_{driveRoot}";
-                        isReadOnly = drive.TotalSize > 0 && drive.AvailableFreeSpace == 0;
                     }
                     else
                     {
@@ -222,7 +219,7 @@ public class DiskSpaceService : IDiskSpaceService
                         FreeSpace = freeSpace.Value,
                         TotalSpace = totalSpace.Value,
                         FileSystemType = fileSystemType,
-                        IsReadOnly = isReadOnly,
+                        IsReadOnly = this.IsPathReadOnly(path),
                     };
                     result.Add(info);
                 }
@@ -232,6 +229,16 @@ public class DiskSpaceService : IDiskSpaceService
         {
             this.logger.Debug(ex, "Could not get drive info for path {0}", path);
         }
+    }
+
+    private bool IsPathReadOnly(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        return !this.diskProvider.FolderWritable(path);
     }
 
     private void PublishThresholdEventsIfApplicable(DiskSpaceInfo info)
