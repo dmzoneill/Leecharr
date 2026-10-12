@@ -20,6 +20,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
     private static readonly HttpClient SharedClient = new(new SocketsHttpHandler
     {
+        AllowAutoRedirect = false,
         PooledConnectionLifetime = TimeSpan.FromMinutes(10),
     })
     {
@@ -39,6 +40,18 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
     public bool Register(ArrConnectionDefinition connection)
     {
+        if (connection != null &&
+            !string.IsNullOrWhiteSpace(connection.Url) &&
+            !ArrTargetUrlValidator.IsValidTargetUrl(connection.Url, out var validationError))
+        {
+            this.logger.Warn(
+                "Skipping Arr registration for {0} ({1}): {2}",
+                connection.Name,
+                connection.Url,
+                validationError);
+            return false;
+        }
+
         var whSuccess = this.RegisterWebhook(connection);
         var dcSuccess = this.RegisterDownloadClient(connection);
         return whSuccess && dcSuccess;
@@ -46,6 +59,18 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
     public bool Unregister(ArrConnectionDefinition connection)
     {
+        if (connection != null &&
+            !string.IsNullOrWhiteSpace(connection.Url) &&
+            !ArrTargetUrlValidator.IsValidTargetUrl(connection.Url, out var validationError))
+        {
+            this.logger.Warn(
+                "Skipping Arr unregistration for {0} ({1}): {2}",
+                connection.Name,
+                connection.Url,
+                validationError);
+            return false;
+        }
+
         var whSuccess = this.UnregisterWebhook(connection);
         var dcSuccess = this.UnregisterDownloadClient(connection);
         return whSuccess && dcSuccess;

@@ -13,7 +13,7 @@ namespace NzbDrone.Core.ArrIntegration;
 
 public class ArrSyncService : IArrSyncService, IExecute<SyncArrCommand>, IExecuteAsync<SyncArrCommand>
 {
-    private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler())
+    private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler { AllowAutoRedirect = false })
     {
         Timeout = TimeSpan.FromSeconds(10),
     };
@@ -65,6 +65,12 @@ public class ArrSyncService : IArrSyncService, IExecute<SyncArrCommand>, IExecut
             {
                 if (!string.IsNullOrWhiteSpace(conn.Url))
                 {
+                    if (!ArrTargetUrlValidator.IsValidTargetUrl(conn.Url, out var ssrfError))
+                    {
+                        this.logger.Warn("Skipping Arr connection {0} ({1}): {2}", conn.Name, conn.Url, ssrfError);
+                        continue;
+                    }
+
                     var baseUrl = ArrConnectionUrlNormalizer.StripApiSuffix(conn.Url);
                     var endpoints = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
                                     string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ||
