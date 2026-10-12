@@ -93,8 +93,16 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
                 OnTokenValidated = context =>
                 {
                     var claims = context.Principal?.Claims.ToList() ?? new();
-                    var sub = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value
-                                ?? Guid.NewGuid().ToString();
+                    var sub = ResolveOidcExternalSubjectId(claims);
+                    if (string.IsNullOrWhiteSpace(sub))
+                    {
+                        this.logger.Warn(
+                            "OIDC token for provider {0} is missing a stable external subject claim",
+                            provider.ProviderId);
+                        context.Fail("OIDC token is missing a required subject identifier.");
+                        return Task.CompletedTask;
+                    }
+
                     var username = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "preferred_username" || c.Type == "nickname")?.Value
                                     ?? sub;
                     var email = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == "email")?.Value;
@@ -247,5 +255,31 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
 
         this.logger.Info("Removed dynamic authentication scheme: {0}", schemeName);
         await Task.CompletedTask;
+    }
+
+    private static string ResolveOidcExternalSubjectId(IReadOnlyList<Claim> claims)
+    {
+        static string FirstMatchingClaimValue(IEnumerable<Claim> source, params string[] claimTypes)
+        {
+            foreach (var claimType in claimTypes)
+            {
+                var value = source.FirstOrDefault(c => c.Type == claimType)?.Value;
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value.Trim();
+                }
+            }
+
+            return null;
+        }
+
+        return FirstMatchingClaimValue(
+                   claims,
+                   "sub",
+                   ClaimTypes.NameIdentifier,
+                   "oid",
+                   "http://schemas.microsoft.com/identity/claims/objectidentifier")
+               ?? FirstMatchingClaimValue(claims, ClaimTypes.Email, "email")
+               ?? FirstMatchingClaimValue(claims, ClaimTypes.Name, "preferred_username", "nickname");
     }
 }

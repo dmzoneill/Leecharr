@@ -196,4 +196,91 @@ public class DynamicAuthSchemeManagerTest
         capturedOptions.Should().NotBeNull();
         capturedOptions.MetadataAddress.Should().Be("https://auth.example.com/.well-known/openid-configuration");
     }
+
+    [Test]
+    public async Task RegisterOrUpdateOidcProviderAsync_WhenSubMissing_UsesPreferredUsernameAsStableExternalSubject()
+    {
+        var provider = new IdentityProviderDefinition
+        {
+            ProviderId = "test-oidc",
+            Name = "Test OIDC",
+            ProviderType = IdentityProviderType.Oidc,
+            IssuerUrl = "https://auth.example.com",
+            ClientId = "test-client-id",
+        };
+
+        OpenIdConnectOptions capturedOptions = null!;
+        this.oidcOptionsCache.TryAdd(Arg.Any<string>(), Arg.Do<OpenIdConnectOptions>(opt => capturedOptions = opt)).Returns(true);
+
+        await this.manager.RegisterOrUpdateOidcProviderAsync(provider);
+
+        var provisionedUser = new User
+        {
+            Id = 7,
+            Username = "stableuser",
+            DisplayName = "Stable User",
+            Email = "stable@example.com",
+            Roles = "[\"User\"]",
+        };
+
+        this.jitUserProvisioning.ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>()).Returns(provisionedUser);
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.RequestServices = this.serviceProvider;
+
+        var initialPrincipal = new ClaimsPrincipal(new ClaimsIdentity(
+            new[]
+            {
+                new Claim("preferred_username", "stableuser"),
+            },
+            "OIDC"));
+
+        var tokenValidatedContext = new TokenValidatedContext(
+            httpContext,
+            new AuthenticationScheme("Oidc_test-oidc", "Test OIDC", typeof(OpenIdConnectHandler)),
+            capturedOptions,
+            initialPrincipal,
+            new AuthenticationProperties());
+
+        await capturedOptions.Events.OnTokenValidated(tokenValidatedContext);
+
+        tokenValidatedContext.Result?.Failure.Should().BeNull();
+        await this.jitUserProvisioning.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p =>
+            p.SubjectId == "stableuser" && p.Username == "stableuser"));
+    }
+
+    [Test]
+    public async Task RegisterOrUpdateOidcProviderAsync_WhenNoStableSubjectClaim_FailsAuthentication()
+    {
+        var provider = new IdentityProviderDefinition
+        {
+            ProviderId = "test-oidc",
+            Name = "Test OIDC",
+            ProviderType = IdentityProviderType.Oidc,
+            IssuerUrl = "https://auth.example.com",
+            ClientId = "test-client-id",
+        };
+
+        OpenIdConnectOptions capturedOptions = null!;
+        this.oidcOptionsCache.TryAdd(Arg.Any<string>(), Arg.Do<OpenIdConnectOptions>(opt => capturedOptions = opt)).Returns(true);
+
+        await this.manager.RegisterOrUpdateOidcProviderAsync(provider);
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.RequestServices = this.serviceProvider;
+
+        var initialPrincipal = new ClaimsPrincipal(new ClaimsIdentity(Array.Empty<Claim>(), "OIDC"));
+
+        var tokenValidatedContext = new TokenValidatedContext(
+            httpContext,
+            new AuthenticationScheme("Oidc_test-oidc", "Test OIDC", typeof(OpenIdConnectHandler)),
+            capturedOptions,
+            initialPrincipal,
+            new AuthenticationProperties());
+
+        await capturedOptions.Events.OnTokenValidated(tokenValidatedContext);
+
+        tokenValidatedContext.Result?.Failure.Should().NotBeNull();
+        await this.jitUserProvisioning.DidNotReceive().ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>());
+    }
 }
