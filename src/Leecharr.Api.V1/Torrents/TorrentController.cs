@@ -1734,8 +1734,15 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.ShareLimitAction = resource.ShareLimitAction;
         }
 
-        existing.Threshold = resource.Threshold;
-        existing.SmallTorrentLimit = resource.SmallTorrentLimit;
+        if (resource.Threshold.HasValue)
+        {
+            existing.Threshold = resource.Threshold.Value;
+        }
+
+        if (resource.SmallTorrentLimit.HasValue)
+        {
+            existing.SmallTorrentLimit = resource.SmallTorrentLimit.Value;
+        }
 
         if (!string.IsNullOrWhiteSpace(resource.Name))
         {
@@ -1748,10 +1755,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.SavePath = resource.SavePath;
         }
 
-        var isPrivateChanged = resource.IsPrivate != existing.IsPrivate;
+        var isPrivateChanged = resource.IsPrivate.HasValue && resource.IsPrivate.Value != existing.IsPrivate;
         if (isPrivateChanged)
         {
-            existing.IsPrivate = resource.IsPrivate;
+            existing.IsPrivate = resource.IsPrivate!.Value;
         }
 
         if (resource.AnnounceInterval.HasValue && resource.AnnounceInterval.Value > 0)
@@ -1819,8 +1826,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             res.NextUpdate = 1800;
         }
 
-        res.Threshold = resource.Threshold;
-        res.SmallTorrentLimit = resource.SmallTorrentLimit;
         res.Active = updated.Status == TorrentStatus.Downloading || updated.Status == TorrentStatus.Seeding;
         return this.Ok(res);
     }

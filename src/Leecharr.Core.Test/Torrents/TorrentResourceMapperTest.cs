@@ -362,6 +362,26 @@ public class TorrentResourceMapperTest
     }
 
     [Test]
+    public void ToResource_MapsActiveFromTorrentStatus()
+    {
+        var paused = new Torrent
+        {
+            Id = 401,
+            Name = "Paused Torrent",
+            Status = TorrentStatus.Paused,
+        };
+        var seeding = new Torrent
+        {
+            Id = 402,
+            Name = "Seeding Torrent",
+            Status = TorrentStatus.Seeding,
+        };
+
+        TorrentResourceMapper.ToResource(paused)!.Active.Should().BeFalse();
+        TorrentResourceMapper.ToResource(seeding)!.Active.Should().BeTrue();
+    }
+
+    [Test]
     public void ToResource_MapsThresholdAndSmallTorrentLimit()
     {
         var torrent = new Torrent

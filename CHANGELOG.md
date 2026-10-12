@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [v2.3.2](https://github.com/dmzoneill/Leecharr/releases/tag/v2.3.2) - 2026-10-09
 
 ### 🐛 Bug Fixes
+- fix(api): treat omitted torrent PUT fields as unchanged so partial updates do not resume or clear privacy (fixes #1260)
 - fix(indexers): detect Prowlarr instances by port and implementation, not URL substrings (fixes #1314)
 - fix(indexers): require path boundary when matching Prowlarr instance URLs during prune (fixes #1316)
 - fix(security): resolve symlinks in TorrentCreationService path allowlist checks (fixes #1516)

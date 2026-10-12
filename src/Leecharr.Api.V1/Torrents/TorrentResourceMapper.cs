@@ -159,6 +159,7 @@ public static class TorrentResourceMapper
             CreatedBy = model.CreatedBy,
             CreationDate = model.CreationDate,
             IsPrivate = model.IsPrivate,
+            Active = statusForActivity is TorrentStatus.Downloading or TorrentStatus.Seeding,
             Status = status,
             Downloaded = downloaded,
             Uploaded = uploaded,
