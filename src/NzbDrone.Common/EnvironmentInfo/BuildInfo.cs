@@ -28,45 +28,63 @@ public static class BuildInfo
 
     private static Version ReadVersionFile()
     {
-        var candidates = new[]
+        var path = Path.Combine(AppContext.BaseDirectory, "version");
+        if (!File.Exists(path))
         {
-            Path.Combine(AppContext.BaseDirectory, "version"),
-            Path.Combine(Directory.GetCurrentDirectory(), "version"),
-        };
+            return null;
+        }
 
-        foreach (var path in candidates)
+        try
         {
-            if (!File.Exists(path))
+            return ParseVersionFileContent(File.ReadAllText(path));
+        }
+        catch (Exception ex) when (ex is IOException or FormatException)
+        {
+            Logger.Warn(ex, "Could not read version file at {0}", path);
+            return null;
+        }
+    }
+
+    internal static Version ParseVersionFileContent(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return null;
+        }
+
+        var lines = content.Split('\n');
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0)
             {
                 continue;
             }
 
-            try
+            if (!trimmed.StartsWith("version=", StringComparison.OrdinalIgnoreCase))
             {
-                var content = File.ReadAllText(path).Trim();
-
-                foreach (var line in content.Split('\n'))
-                {
-                    var trimmed = line.Trim();
-
-                    if (trimmed.StartsWith("version=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var versionString = trimmed.Substring("version=".Length).Trim();
-                        if (Version.TryParse(versionString, out var parsed))
-                        {
-                            return parsed;
-                        }
-                    }
-
-                    if (Version.TryParse(trimmed, out var direct))
-                    {
-                        return direct;
-                    }
-                }
+                continue;
             }
-            catch (Exception ex) when (ex is IOException or FormatException)
+
+            var versionString = trimmed.Substring("version=".Length).Trim();
+            if (Version.TryParse(versionString, out var parsed))
             {
-                Logger.Warn(ex, "Could not read version file at {0}", path);
+                return parsed;
+            }
+        }
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0 || trimmed.StartsWith("version=", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (Version.TryParse(trimmed, out var direct))
+            {
+                return direct;
             }
         }
 
