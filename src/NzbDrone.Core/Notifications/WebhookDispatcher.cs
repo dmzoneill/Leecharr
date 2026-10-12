@@ -15,6 +15,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Http.Transport;
+using NzbDrone.Core.Trackers;
 using Polly;
 using Polly.Retry;
 
@@ -437,11 +438,11 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         if (!IsValidTargetUrl(targetUrl, this.allowLoopback))
         {
-            this.logger.Warn("Webhook dispatch blocked: Invalid or prohibited target URL (SSRF protection): {0}", targetUrl);
+            this.logger.Warn("Webhook dispatch blocked: Invalid or prohibited target URL (SSRF protection): {0}", RedactTargetUrlForLogging(targetUrl));
             return new WebhookDispatchResult
             {
                 Success = false,
-                Message = $"Target URL '{targetUrl}' is prohibited (SSRF protection: loopback, link-local, and cloud metadata addresses are not permitted).",
+                Message = $"Target URL '{RedactTargetUrlForLogging(targetUrl)}' is prohibited (SSRF protection: loopback, link-local, and cloud metadata addresses are not permitted).",
             };
         }
 
@@ -466,19 +467,19 @@ public class WebhookDispatcher : IWebhookDispatcher
                     redirectCount++;
                     if (redirectCount > maxRedirects)
                     {
-                        this.logger.Warn("Webhook dispatch to {0} exceeded maximum redirect limit ({1})", targetUrl, maxRedirects);
+                        this.logger.Warn("Webhook dispatch to {0} exceeded maximum redirect limit ({1})", RedactTargetUrlForLogging(targetUrl), maxRedirects);
                         return new WebhookDispatchResult
                         {
                             Success = false,
                             StatusCode = response.StatusCode,
-                            Message = $"Webhook dispatch to {targetUrl} exceeded maximum redirect limit ({maxRedirects}).",
+                            Message = $"Webhook dispatch to {RedactTargetUrlForLogging(targetUrl)} exceeded maximum redirect limit ({maxRedirects}).",
                         };
                     }
 
                     var baseUri = new Uri(currentUrl);
                     if (!Uri.TryCreate(baseUri, response.Headers.Location, out var redirectUri))
                     {
-                        this.logger.Warn("Webhook dispatch to {0} returned invalid redirect location: {1}", currentUrl, response.Headers.Location);
+                        this.logger.Warn("Webhook dispatch to {0} returned invalid redirect location: {1}", RedactTargetUrlForLogging(currentUrl), response.Headers.Location);
                         return new WebhookDispatchResult
                         {
                             Success = false,
@@ -490,23 +491,23 @@ public class WebhookDispatcher : IWebhookDispatcher
                     var nextUrl = redirectUri.AbsoluteUri;
                     if (!IsValidTargetUrl(nextUrl, this.allowLoopback))
                     {
-                        this.logger.Warn("Webhook redirect blocked: Target prohibited by SSRF protection: {0}", nextUrl);
+                        this.logger.Warn("Webhook redirect blocked: Target prohibited by SSRF protection: {0}", RedactTargetUrlForLogging(nextUrl));
                         return new WebhookDispatchResult
                         {
                             Success = false,
                             StatusCode = response.StatusCode,
-                            Message = $"Webhook redirect blocked: Target prohibited by SSRF protection: {nextUrl}",
+                            Message = $"Webhook redirect blocked: Target prohibited by SSRF protection: {RedactTargetUrlForLogging(nextUrl)}",
                         };
                     }
 
-                    this.logger.Debug("Webhook redirected from {0} to {1}", currentUrl, nextUrl);
+                    this.logger.Debug("Webhook redirected from {0} to {1}", RedactTargetUrlForLogging(currentUrl), RedactTargetUrlForLogging(nextUrl));
                     currentUrl = nextUrl;
                     continue;
                 }
 
                 if (response.IsSuccessStatusCode)
                 {
-                    this.logger.Info("Webhook successfully dispatched to {0} (Status: {1})", currentUrl, response.StatusCode);
+                    this.logger.Info("Webhook successfully dispatched to {0} (Status: {1})", RedactTargetUrlForLogging(currentUrl), response.StatusCode);
                     return new WebhookDispatchResult
                     {
                         Success = true,
@@ -523,7 +524,7 @@ public class WebhookDispatcher : IWebhookDispatcher
 
                     if (responseBody.Contains("can't parse entities", StringComparison.OrdinalIgnoreCase))
                     {
-                        this.logger.Warn("Telegram entity parse failure for {0}: {1}. Retrying once with plain text without parse_mode.", currentUrl, responseBody);
+                        this.logger.Warn("Telegram entity parse failure for {0}: {1}. Retrying once with plain text without parse_mode.", RedactTargetUrlForLogging(currentUrl), responseBody);
 
                         var fallbackPayload = RemoveParseMode(payload);
                         using var fallbackResponse = await this.retryPolicy.ExecuteAsync(
@@ -536,7 +537,7 @@ public class WebhookDispatcher : IWebhookDispatcher
 
                         if (fallbackResponse.IsSuccessStatusCode)
                         {
-                            this.logger.Info("Webhook successfully dispatched to {0} on plain text retry (Status: {1})", currentUrl, fallbackResponse.StatusCode);
+                            this.logger.Info("Webhook successfully dispatched to {0} on plain text retry (Status: {1})", RedactTargetUrlForLogging(currentUrl), fallbackResponse.StatusCode);
                             return new WebhookDispatchResult
                             {
                                 Success = true,
@@ -545,7 +546,7 @@ public class WebhookDispatcher : IWebhookDispatcher
                             };
                         }
 
-                        this.logger.Warn("Webhook plain text retry to {0} returned non-success status code: {1}", currentUrl, fallbackResponse.StatusCode);
+                        this.logger.Warn("Webhook plain text retry to {0} returned non-success status code: {1}", RedactTargetUrlForLogging(currentUrl), fallbackResponse.StatusCode);
                         var fallbackSnippet = await ExtractBodySnippetAsync(fallbackResponse, cancellationToken).ConfigureAwait(false);
                         var fallbackReason = fallbackResponse.ReasonPhrase ?? fallbackResponse.StatusCode.ToString();
                         return new WebhookDispatchResult
@@ -562,7 +563,7 @@ public class WebhookDispatcher : IWebhookDispatcher
 
                 var bodySnippet = await ExtractBodySnippetAsync(response, cancellationToken).ConfigureAwait(false);
                 var reason = response.ReasonPhrase ?? response.StatusCode.ToString();
-                this.logger.Warn("Webhook dispatch to {0} returned non-success status code: {1}", currentUrl, response.StatusCode);
+                this.logger.Warn("Webhook dispatch to {0} returned non-success status code: {1}", RedactTargetUrlForLogging(currentUrl), response.StatusCode);
                 return new WebhookDispatchResult
                 {
                     Success = false,
@@ -582,7 +583,7 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
         catch (HttpRequestException ex)
         {
-            this.logger.Error(ex, "HTTP error while dispatching webhook to {0}", targetUrl);
+            this.logger.Error(ex, "HTTP error while dispatching webhook to {0}", RedactTargetUrlForLogging(targetUrl));
             return new WebhookDispatchResult
             {
                 Success = false,
@@ -592,7 +593,7 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
         catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
         {
-            this.logger.Error(ex, "Webhook dispatch to {0} timed out", targetUrl);
+            this.logger.Error(ex, "Webhook dispatch to {0} timed out", RedactTargetUrlForLogging(targetUrl));
             return new WebhookDispatchResult
             {
                 Success = false,
@@ -601,7 +602,7 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Failed to dispatch webhook to {0}", targetUrl);
+            this.logger.Error(ex, "Failed to dispatch webhook to {0}", RedactTargetUrlForLogging(targetUrl));
             return new WebhookDispatchResult
             {
                 Success = false,
@@ -878,6 +879,16 @@ public class WebhookDispatcher : IWebhookDispatcher
         {
             return "[redacted]";
         }
+    }
+
+    internal static string RedactTargetUrlForLogging(string targetUrl)
+    {
+        if (string.IsNullOrWhiteSpace(targetUrl))
+        {
+            return string.Empty;
+        }
+
+        return TrackerUrlSanitizer.Sanitize(targetUrl.Trim());
     }
 
     private void AddHeader(HttpRequestMessage request, string key, string value)

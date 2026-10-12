@@ -420,6 +420,33 @@ public class WebhookDispatcherTest
     }
 
     [Test]
+    public void RedactTargetUrlForLogging_RedactsTelegramDiscordAndSlackWebhookSecrets()
+    {
+        const string telegramToken = "1234567890:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw";
+        var telegramUrl = $"https://api.telegram.org/bot{telegramToken}/sendMessage";
+        var redactedTelegram = WebhookDispatcher.RedactTargetUrlForLogging(telegramUrl);
+
+        redactedTelegram.Should().Contain("api.telegram.org");
+        redactedTelegram.Should().Contain("sendMessage");
+        redactedTelegram.Should().NotContain(telegramToken);
+
+        const string discordToken = "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRST";
+        var discordUrl = $"https://discord.com/api/webhooks/1234567890123456789/{discordToken}";
+        var redactedDiscord = WebhookDispatcher.RedactTargetUrlForLogging(discordUrl);
+
+        redactedDiscord.Should().Contain("discord.com");
+        redactedDiscord.Should().Contain("/api/webhooks/");
+        redactedDiscord.Should().NotContain(discordToken);
+
+        const string slackSecret = "abcdefghijklmnopqrstuvwxyz1234567890";
+        var slackUrl = $"https://hooks.slack.com/services/T00000000/B00000000/{slackSecret}";
+        var redactedSlack = WebhookDispatcher.RedactTargetUrlForLogging(slackUrl);
+
+        redactedSlack.Should().Contain("hooks.slack.com");
+        redactedSlack.Should().NotContain(slackSecret);
+    }
+
+    [Test]
     public void RedactHeadersForLogging_RedactsSecretsAndRetainsKeysOnly()
     {
         var rawJson = "{\"Authorization\": \"Bearer sk-secret-token-12345\", \"X-Api-Key\": \"super-secret-key-999\"}";
