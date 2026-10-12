@@ -253,7 +253,44 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             // If a specific version was requested for target engine, switch version
             if (!string.IsNullOrWhiteSpace(targetVersion))
             {
-                await targetEngine.SwitchVersionAsync(targetVersion);
+                var versionSwitched = await targetEngine.SwitchVersionAsync(targetVersion);
+                if (!versionSwitched)
+                {
+                    this.logger.Warn(
+                        "Requested version {0} is not supported by engine {1}; aborting hot-swap",
+                        targetVersion,
+                        targetEngine.EngineId);
+
+                    if (this.isRunning && previousEngine != null)
+                    {
+                        try
+                        {
+                            await previousEngine.StartAsync();
+                            if (preserveTransfers)
+                            {
+                                await this.RehydrateTorrentsIntoEngineAsync(previousEngine);
+                            }
+                        }
+                        catch (Exception rollbackEx)
+                        {
+                            this.logger.Error(
+                                rollbackEx,
+                                "Failed to restart previous engine {0} after unsupported version {1}",
+                                previousEngine.EngineId,
+                                targetVersion);
+                        }
+                    }
+
+                    return new EngineSwitchResult
+                    {
+                        Success = false,
+                        PreviousEngine = previousEngine.EngineId,
+                        PreviousVersion = previousVersion,
+                        ActiveEngine = previousEngine.EngineId,
+                        ActiveVersion = previousEngine.ActiveVersion,
+                        Error = $"Version '{targetVersion}' is not supported by engine '{targetEngine.DisplayName}'.",
+                    };
+                }
             }
 
             // 2. Start target engine

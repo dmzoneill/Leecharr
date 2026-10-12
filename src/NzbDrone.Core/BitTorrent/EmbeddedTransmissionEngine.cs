@@ -81,7 +81,13 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
     public Task<bool> SwitchVersionAsync(string targetVersion, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(string.IsNullOrWhiteSpace(targetVersion) || targetVersion.StartsWith("4."));
+        if (string.IsNullOrWhiteSpace(targetVersion))
+        {
+            return Task.FromResult(false);
+        }
+
+        var trimmed = targetVersion.Trim();
+        return Task.FromResult(this.SupportedVersions.Any(v => string.Equals(v, trimmed, StringComparison.OrdinalIgnoreCase)));
     }
 
     public Task RecheckNetworkInterfacesAsync(bool forceRebind, CancellationToken cancellationToken = default)
