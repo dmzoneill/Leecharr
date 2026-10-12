@@ -100,4 +100,44 @@ public class ForwardAuthHandlerTest
         result.Principal?.Identity?.Name.Should().Be("admin");
         this.jitProvisioningService.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p => p.Username == "admin"));
     }
+
+    [Test]
+    public async Task HandleAuthenticateAsync_WhenClientSpoofsAuthentikHeader_PrefersRemoteUser()
+    {
+        this.configService.GetValue("ForwardAuthTrustedProxies", string.Empty).Returns("127.0.0.1");
+
+        var user = new User { Id = 2, Username = "legit", Roles = "[\"User\"]" };
+        this.jitProvisioningService.ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>()).Returns(user);
+
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Request.Headers["X-authentik-username"] = "attacker";
+        context.Request.Headers["Remote-User"] = "legit";
+
+        var handler = this.CreateHandler(context);
+        var result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        this.jitProvisioningService.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p => p.Username == "legit"));
+    }
+
+    [Test]
+    public async Task HandleAuthenticateAsync_WhenProxyAppendsHeaderValue_UsesLastValue()
+    {
+        this.configService.GetValue("ForwardAuthTrustedProxies", string.Empty).Returns("127.0.0.1");
+
+        var user = new User { Id = 3, Username = "proxy-user", Roles = "[\"User\"]" };
+        this.jitProvisioningService.ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>()).Returns(user);
+
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Request.Headers.Append("Remote-User", "attacker");
+        context.Request.Headers.Append("Remote-User", "proxy-user");
+
+        var handler = this.CreateHandler(context);
+        var result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        this.jitProvisioningService.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p => p.Username == "proxy-user"));
+    }
 }
