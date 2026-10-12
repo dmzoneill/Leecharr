@@ -25,6 +25,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
     private readonly HttpClient httpClient;
     private readonly bool ownsHttpClient;
     private readonly RuleHeuristicAiProvider fallbackProvider = new();
+    private bool lastObservedChatUsedFallback;
     private bool disposed;
 
     public string ProviderId => "Ollama";
@@ -37,7 +38,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
     public bool IsAvailable => true;
 
-    public bool LastChatUsedFallback => AiChatFallbackContext.LastChatUsedFallbackValue;
+    public bool LastChatUsedFallback => AiChatFallbackContext.CurrentFlowValue ?? this.lastObservedChatUsedFallback;
 
     internal TimeSpan HttpClientTimeout => this.httpClient.Timeout;
 
@@ -666,7 +667,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                     var responseText = respProp.ValueKind == JsonValueKind.Null ? null : respProp.GetString();
                     if (!string.IsNullOrEmpty(responseText))
                     {
-                        AiChatFallbackContext.SetLastChatUsedFallback(false);
+                        this.RecordChatUsedFallback(false);
                         return responseText;
                     }
                 }
@@ -677,8 +678,14 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
             Logger.Debug(ex, "Ollama chat generation failed, falling back to heuristic assistant.");
         }
 
-        AiChatFallbackContext.SetLastChatUsedFallback(true);
+        this.RecordChatUsedFallback(true);
         return await this.fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
+    }
+
+    private void RecordChatUsedFallback(bool value)
+    {
+        AiChatFallbackContext.SetLastChatUsedFallback(value);
+        this.lastObservedChatUsedFallback = value;
     }
 
     private static bool ShouldDeferReleaseParseToHeuristic(AiParsedRelease ollama, AiParsedRelease heuristic)
