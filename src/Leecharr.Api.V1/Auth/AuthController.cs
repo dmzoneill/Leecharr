@@ -588,9 +588,9 @@ public class AuthController : ControllerBase
                 assertionId = targetAssertion.GetAttribute("id");
             }
 
-            if (!string.IsNullOrWhiteSpace(assertionId) && !TryRecordSamlAssertion(assertionId))
+            if (string.IsNullOrWhiteSpace(assertionId))
             {
-                return this.Unauthorized("SAML assertion has already been processed (replay detected)");
+                return this.Unauthorized("SAML assertion is missing required ID attribute");
             }
 
             // Parse ONLY the verified assertion subtree
@@ -599,6 +599,7 @@ public class AuthController : ControllerBase
             // 4. Validate SAML timestamp attributes (NotBefore, NotOnOrAfter)
             var now = DateTime.UtcNow;
             var allowedSkew = TimeSpan.FromMinutes(5);
+            DateTime? latestNotOnOrAfterUtc = null;
 
             var conditionsElements = assertionDoc.Descendants().Where(e => e.Name.LocalName == "Conditions");
             foreach (var elem in conditionsElements)
@@ -615,11 +616,25 @@ public class AuthController : ControllerBase
                 var notOnOrAfterVal = elem.Attribute("NotOnOrAfter")?.Value;
                 if (!string.IsNullOrWhiteSpace(notOnOrAfterVal) && DateTimeOffset.TryParse(notOnOrAfterVal, out var notOnOrAfter))
                 {
-                    if (now >= notOnOrAfter.UtcDateTime + allowedSkew)
+                    var notOnOrAfterUtc = notOnOrAfter.UtcDateTime;
+                    if (!latestNotOnOrAfterUtc.HasValue || notOnOrAfterUtc > latestNotOnOrAfterUtc.Value)
+                    {
+                        latestNotOnOrAfterUtc = notOnOrAfterUtc;
+                    }
+
+                    if (now >= notOnOrAfterUtc + allowedSkew)
                     {
                         return this.Unauthorized("SAML assertion has expired (NotOnOrAfter constraint violation)");
                     }
                 }
+            }
+
+            var replayUntilUtc = latestNotOnOrAfterUtc.HasValue
+                ? latestNotOnOrAfterUtc.Value + allowedSkew
+                : now.Add(SamlReplayTtl);
+            if (!TryRecordSamlAssertion(assertionId, replayUntilUtc))
+            {
+                return this.Unauthorized("SAML assertion has already been processed (replay detected)");
             }
 
             var nameId = assertionDoc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NameID")?.Value;
@@ -952,27 +967,20 @@ public class AuthController : ControllerBase
         return ConsumePendingSamlRequest(inResponseTo);
     }
 
-    public static bool TryRecordSamlAssertion(string assertionId)
+    public static bool TryRecordSamlAssertion(string assertionId, DateTime replayUntilUtc)
     {
         if (string.IsNullOrWhiteSpace(assertionId))
         {
-            return true;
+            return false;
         }
 
         PruneExpiredSamlState();
-        var now = DateTime.UtcNow;
-        if (ProcessedSamlAssertions.TryGetValue(assertionId, out var expiry))
+        if (ProcessedSamlAssertions.ContainsKey(assertionId))
         {
-            if (now <= expiry)
-            {
-                return false;
-            }
-
-            ProcessedSamlAssertions.TryRemove(assertionId, out _);
+            return false;
         }
 
-        ProcessedSamlAssertions[assertionId] = now.Add(SamlReplayTtl);
-        return true;
+        return ProcessedSamlAssertions.TryAdd(assertionId, replayUntilUtc);
     }
 
     public static int TrackedPendingSamlRequestsCount => PendingSamlRequests.Count;

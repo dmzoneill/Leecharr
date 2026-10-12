@@ -26,7 +26,7 @@ public class AuthControllerSamlStateTest
     public void PruneExpiredSamlState_WhenEntriesStillValid_RetainsThem()
     {
         AuthController.RegisterPendingSamlRequest("req_active");
-        AuthController.TryRecordSamlAssertion("assert_active");
+        AuthController.TryRecordSamlAssertion("assert_active", DateTime.UtcNow.AddMinutes(30));
 
         AuthController.PruneExpiredSamlState(DateTime.UtcNow);
 
@@ -38,7 +38,7 @@ public class AuthControllerSamlStateTest
     public void PruneExpiredSamlState_WhenEntriesExpired_RemovesThem()
     {
         AuthController.RegisterPendingSamlRequest("req_expired");
-        AuthController.TryRecordSamlAssertion("assert_expired");
+        AuthController.TryRecordSamlAssertion("assert_expired", DateTime.UtcNow.AddMinutes(10));
 
         AuthController.PruneExpiredSamlState(DateTime.UtcNow.AddMinutes(16));
 
@@ -59,6 +59,21 @@ public class AuthControllerSamlStateTest
         AuthController.PruneExpiredSamlState(DateTime.UtcNow, maxTrackedSamlIds: 6);
 
         AuthController.TrackedPendingSamlRequestsCount.Should().Be(3);
+    }
+
+    [Test]
+    public void TryRecordSamlAssertion_WhenReplayWindowExceedsFifteenMinutes_RejectsSecondAttempt()
+    {
+        var replayUntil = DateTime.UtcNow.AddHours(1);
+        AuthController.TryRecordSamlAssertion("assert_long_lived", replayUntil).Should().BeTrue();
+        AuthController.TryRecordSamlAssertion("assert_long_lived", replayUntil).Should().BeFalse();
+    }
+
+    [Test]
+    public void TryRecordSamlAssertion_WhenAssertionIdMissing_ReturnsFalse()
+    {
+        AuthController.TryRecordSamlAssertion(string.Empty, DateTime.UtcNow.AddMinutes(30)).Should().BeFalse();
+        AuthController.TryRecordSamlAssertion("   ", DateTime.UtcNow.AddMinutes(30)).Should().BeFalse();
     }
 
     [Test]
