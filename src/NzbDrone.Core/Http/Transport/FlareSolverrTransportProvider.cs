@@ -152,6 +152,17 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
         };
     }
 
+    internal static string BuildNewSessionId(string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            domain = "default";
+        }
+
+        var sanitizedDomain = Regex.Replace(domain, @"[^a-zA-Z0-9_-]", "_", RegexOptions.None, TimeSpan.FromSeconds(2));
+        return $"leecharr_{sanitizedDomain}_{Guid.NewGuid():N}";
+    }
+
     public async Task<string> GetOrCreateSessionAsync(string domain, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(domain))
@@ -179,12 +190,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
 
             try
             {
-                var sanitizedDomain = Regex.Replace(domain, @"[^a-zA-Z0-9_-]", "_", RegexOptions.None, TimeSpan.FromSeconds(2));
-                var sessionId = $"leecharr_{sanitizedDomain}_{Guid.NewGuid():N}";
-                if (sessionId.Length > 32)
-                {
-                    sessionId = sessionId.Substring(0, 32);
-                }
+                var sessionId = BuildNewSessionId(domain);
 
                 var payload = new Dictionary<string, object>
                 {
