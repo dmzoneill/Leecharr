@@ -255,8 +255,8 @@ public class SubtitleConversionService : ISubtitleConversionService
                 continue;
             }
 
-            // MicroDVD FPS header definition, e.g. {1}{1}25.000
-            if (startFrame == 1 && endFrame == 1)
+            // MicroDVD FPS header definition, e.g. {1}{1}25.000 or {0}{0}25.000
+            if (startFrame == endFrame && (startFrame == 0 || startFrame == 1))
             {
                 var fpsStr = match.Groups["text"].Value.Trim();
                 if (double.TryParse(fpsStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var customFps) && customFps > 0)
