@@ -155,6 +155,24 @@ public class NetworkControllerTest
     }
 
     [Test]
+    public void GetDiagnostics_WhenPeerQueryFails_DoesNotReportFullEncryption()
+    {
+        this.downloadEngine.GetAllTasks().Returns(_ => throw new InvalidOperationException("engine offline"));
+
+        var actionResult = this.controller.GetDiagnostics();
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var diag = okResult!.Value as NetworkDiagnosticsResource;
+        diag.Should().NotBeNull();
+        diag!.ActiveConnections.Should().Be(0);
+        diag.EncryptedConnections.Should().Be(0);
+        diag.PlaintextConnections.Should().Be(0);
+        diag.EncryptionPercentage.Should().Be(0.0);
+    }
+
+    [Test]
     public void GetDiagnostics_WhenServicesNull_DoesNotThrow()
     {
         var minimalController = new NetworkController(this.networkStatusService);
