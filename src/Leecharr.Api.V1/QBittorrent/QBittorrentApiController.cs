@@ -708,7 +708,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["num_complete"] = effectiveSeeders,
                 ["num_incomplete"] = effectiveLeechers,
                 ["ratio"] = t.Ratio,
-                ["eta"] = effectiveProgress >= 1.0 || effectiveStatus == TorrentStatus.Seeding ? 0 : CalculateEta(t),
+                ["eta"] = effectiveProgress >= 1.0 || effectiveStatus == TorrentStatus.Seeding ? 0 : CalculateEta(t, effectiveDlSpeed, effectiveProgress, effectiveTotalSize, effectiveDownloaded),
                 ["state"] = state,
                 ["seq_dl"] = t.SequentialDownload,
                 ["f_l_piece_prio"] = t.FirstLastPiecePriority,
@@ -3696,12 +3696,17 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
     internal static long CalculateEta(Torrent t)
     {
+        return CalculateEta(t, t.DownloadSpeed, t.Progress, t.TotalSize, t.Downloaded);
+    }
+
+    internal static long CalculateEta(Torrent t, long downloadSpeed, double progress, long totalSize, long downloaded)
+    {
         if (t == null)
         {
             return 8640000;
         }
 
-        if (t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed)
+        if (progress >= 1.0 || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed)
         {
             return 0;
         }
@@ -3711,17 +3716,17 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return t.Eta;
         }
 
-        if (t.DownloadSpeed > 0)
+        if (downloadSpeed > 0)
         {
-            var remaining = Math.Max(0, t.TotalSize - t.Downloaded);
-            if (remaining == 0 && t.TotalSize > 0 && t.Progress < 1.0)
+            var remaining = Math.Max(0, totalSize - downloaded);
+            if (remaining == 0 && totalSize > 0 && progress < 1.0)
             {
-                remaining = (long)(t.TotalSize * (1.0 - t.Progress));
+                remaining = (long)(totalSize * (1.0 - progress));
             }
 
             if (remaining > 0)
             {
-                return (long)Math.Ceiling((double)remaining / t.DownloadSpeed);
+                return (long)Math.Ceiling((double)remaining / downloadSpeed);
             }
 
             return 0;
