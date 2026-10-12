@@ -115,6 +115,32 @@ public class TagLibInspectorProviderTest
         result.AudioSampleRate.Should().Be(48000);
     }
 
+    [Test]
+    public void Inspect_Matroska_WinningAudioTrackUsesItsSampleRateAndBitDepth()
+    {
+        var ebmlData = CreateMatroskaHeaderWithTwoAudioTracks(
+            "matroska",
+            "V_MPEGH/ISO/HEVC",
+            1920,
+            1080,
+            "A_AAC",
+            2,
+            44100f,
+            16,
+            "A_TRUEHD",
+            6,
+            96000f,
+            24);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("Dolby TrueHD");
+        result.AudioSampleRate.Should().Be(96000);
+        result.AudioBitDepth.Should().Be(24);
+    }
+
     [TestCase("A_AAC", 6, "AAC", "5.1")]
     [TestCase("A_AAC", 8, "AAC", "7.1")]
     [TestCase("A_AAC", 1, "AAC", "1.0")]
@@ -2306,6 +2332,70 @@ public class TagLibInspectorProviderTest
         WriteEbmlFloat(ms, 0xB5, samplingFrequency);
         WriteEbmlFloat(ms, 0x78B5, outputSamplingFrequency);
         WriteEbmlUInt(ms, 0x9F, (ulong)channels);
+
+        return ms.ToArray();
+    }
+
+    private static byte[] CreateMatroskaHeaderWithTwoAudioTracks(
+        string docType,
+        string videoCodecId,
+        int width,
+        int height,
+        string firstAudioCodecId,
+        int firstChannels,
+        float firstSamplingFrequency,
+        int firstBitDepth,
+        string secondAudioCodecId,
+        int secondChannels,
+        float secondSamplingFrequency,
+        int secondBitDepth)
+    {
+        using var ms = new MemoryStream();
+
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, docType);
+            var ebmlPayload = ebmlMs.ToArray();
+
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, videoCodecId);
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, (ulong)width);
+        WriteEbmlUInt(ms, 0xBA, (ulong)height);
+
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 2);
+        WriteEbmlString(ms, 0x86, firstAudioCodecId);
+        WriteId(ms, 0xE1);
+        WriteSize(ms, -1);
+        WriteEbmlFloat(ms, 0xB5, firstSamplingFrequency);
+        WriteEbmlUInt(ms, 0x6264, (ulong)firstBitDepth);
+        WriteEbmlUInt(ms, 0x9F, (ulong)firstChannels);
+
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 2);
+        WriteEbmlString(ms, 0x86, secondAudioCodecId);
+        WriteId(ms, 0xE1);
+        WriteSize(ms, -1);
+        WriteEbmlFloat(ms, 0xB5, secondSamplingFrequency);
+        WriteEbmlUInt(ms, 0x6264, (ulong)secondBitDepth);
+        WriteEbmlUInt(ms, 0x9F, (ulong)secondChannels);
 
         return ms.ToArray();
     }

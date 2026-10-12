@@ -324,7 +324,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         public double DurationRaw { get; set; }
         public bool IsCurrentAudioTrackAccepted { get; set; }
         public int CurrentTrackChannels { get; set; }
+        public int CurrentTrackSampleRate { get; set; }
         public int CurrentTrackOutputSampleRate { get; set; }
+        public int CurrentTrackBitDepth { get; set; }
         public string CurrentTrackName { get; set; }
         public bool HasHdr10Plus { get; set; }
         public bool HasDolbyVision { get; set; }
@@ -536,7 +538,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         context.IsCurrentAudioTrackAccepted = false;
         context.CurrentTrackChannels = 0;
+        context.CurrentTrackSampleRate = 0;
         context.CurrentTrackOutputSampleRate = 0;
+        context.CurrentTrackBitDepth = 0;
         context.CurrentTrackName = null;
 
         var trackType = 0;
@@ -653,9 +657,20 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             if (!string.IsNullOrEmpty(trackCodecId))
             {
                 ApplyEbmlAudioTrack(info, trackCodecId, trackName, context.CurrentTrackChannels, ref context);
-                if (context.IsCurrentAudioTrackAccepted && context.CurrentTrackOutputSampleRate > 0)
+                if (context.IsCurrentAudioTrackAccepted)
                 {
-                    info.AudioSampleRate = context.CurrentTrackOutputSampleRate;
+                    var sampleRate = context.CurrentTrackOutputSampleRate > 0
+                        ? context.CurrentTrackOutputSampleRate
+                        : context.CurrentTrackSampleRate;
+                    if (sampleRate > 0)
+                    {
+                        info.AudioSampleRate = sampleRate;
+                    }
+
+                    if (context.CurrentTrackBitDepth > 0)
+                    {
+                        info.AudioBitDepth = context.CurrentTrackBitDepth;
+                    }
                 }
             }
         }
@@ -840,9 +855,25 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         var codecId = ReadEbmlString(data, offset, length);
         context.IsCurrentAudioTrackAccepted = ApplyCodecId(info, codecId, context.CurrentTrackName);
-        if (context.IsCurrentAudioTrackAccepted && context.CurrentTrackChannels > 0)
+        if (context.IsCurrentAudioTrackAccepted)
         {
-            info.AudioChannels = FormatAudioChannels(context.CurrentTrackChannels);
+            if (context.CurrentTrackChannels > 0)
+            {
+                info.AudioChannels = FormatAudioChannels(context.CurrentTrackChannels);
+            }
+
+            var sampleRate = context.CurrentTrackOutputSampleRate > 0
+                ? context.CurrentTrackOutputSampleRate
+                : context.CurrentTrackSampleRate;
+            if (sampleRate > 0)
+            {
+                info.AudioSampleRate = sampleRate;
+            }
+
+            if (context.CurrentTrackBitDepth > 0)
+            {
+                info.AudioBitDepth = context.CurrentTrackBitDepth;
+            }
         }
     }
 
@@ -901,9 +932,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             case 0xB5: // SamplingFrequency
                 var sampleRate = ReadEbmlFloat(header, offset, elemSize);
-                if (sampleRate > 0 && info.AudioSampleRate == 0)
+                if (sampleRate > 0)
                 {
-                    info.AudioSampleRate = (int)sampleRate;
+                    var rate = (int)sampleRate;
+                    context.CurrentTrackSampleRate = rate;
+                    if (context.IsCurrentAudioTrackAccepted)
+                    {
+                        info.AudioSampleRate = rate;
+                    }
                 }
 
                 break;
@@ -925,9 +961,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             case 0x6264: // BitDepth
                 var rawBitDepth = ReadEbmlUInt(header, offset, elemSize);
                 var bitDepth = rawBitDepth > int.MaxValue ? int.MaxValue : (int)rawBitDepth;
-                if (bitDepth > 0 && info.AudioBitDepth == 0)
+                if (bitDepth > 0)
                 {
-                    info.AudioBitDepth = bitDepth;
+                    context.CurrentTrackBitDepth = bitDepth;
+                    if (context.IsCurrentAudioTrackAccepted)
+                    {
+                        info.AudioBitDepth = bitDepth;
+                    }
                 }
 
                 break;
