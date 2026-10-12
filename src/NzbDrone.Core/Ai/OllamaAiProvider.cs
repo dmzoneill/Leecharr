@@ -99,9 +99,12 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
     private string GetModelName()
     {
-        return !string.IsNullOrWhiteSpace(this.configService?.OllamaModel)
-            ? this.configService.OllamaModel
-            : "llama3.2";
+        if (!string.IsNullOrWhiteSpace(this.configService?.OllamaModel))
+        {
+            return this.configService.OllamaModel;
+        }
+
+        return this.configService?.GetValue("OllamaModel", "llama3.2") ?? "llama3.2";
     }
 
     public async Task<AiHealthResult> ProbeHealthAsync()

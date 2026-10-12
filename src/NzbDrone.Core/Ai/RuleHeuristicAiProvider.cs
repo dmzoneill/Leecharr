@@ -304,7 +304,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         var groupMatch = ReleaseGroupRegex.Match(working);
         if (groupMatch.Success)
         {
-            result.ReleaseGroup = groupMatch.Groups["group"].Value;
+            result.ReleaseGroup = StripTrailingMediaExtensionFromReleaseGroup(groupMatch.Groups["group"].Value);
         }
 
         // 12. Clean Title Extraction
@@ -1288,5 +1288,23 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             "RUS" or "RUSSIAN" => "Russian",
             _ => token,
         };
+    }
+
+    private static string StripTrailingMediaExtensionFromReleaseGroup(string group)
+    {
+        if (string.IsNullOrWhiteSpace(group))
+        {
+            return group;
+        }
+
+        foreach (var ext in MediaExtensions)
+        {
+            if (group.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+            {
+                return group[..^ext.Length];
+            }
+        }
+
+        return group;
     }
 }
