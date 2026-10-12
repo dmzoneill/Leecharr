@@ -119,6 +119,62 @@ public class DynamicAuthSchemeManagerTest
     }
 
     [Test]
+    public async Task RegisterOrUpdateOidcProviderAsync_WhenSessionInsertFails_FailsAuthenticationWithoutSessionClaims()
+    {
+        var provider = new IdentityProviderDefinition
+        {
+            ProviderId = "test-oidc",
+            Name = "Test OIDC",
+            ProviderType = IdentityProviderType.Oidc,
+            IssuerUrl = "https://auth.example.com",
+            ClientId = "test-client-id",
+        };
+
+        OpenIdConnectOptions capturedOptions = null!;
+        this.oidcOptionsCache.TryAdd(Arg.Any<string>(), Arg.Do<OpenIdConnectOptions>(opt => capturedOptions = opt)).Returns(true);
+
+        await this.manager.RegisterOrUpdateOidcProviderAsync(provider);
+
+        var provisionedUser = new User
+        {
+            Id = 42,
+            Username = "oidcuser",
+            DisplayName = "OIDC Test User",
+            Email = "oidc@example.com",
+            Roles = "[\"User\"]",
+        };
+
+        this.jitUserProvisioning.ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>()).Returns(provisionedUser);
+        this.userSessionRepository
+            .When(r => r.Insert(Arg.Any<UserSession>()))
+            .Throw(new InvalidOperationException("database unavailable"));
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.RequestServices = this.serviceProvider;
+
+        var initialPrincipal = new ClaimsPrincipal(new ClaimsIdentity(
+            new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "sub-12345"),
+                new Claim("preferred_username", "oidcuser"),
+            },
+            "OIDC"));
+
+        var tokenValidatedContext = new TokenValidatedContext(
+            httpContext,
+            new AuthenticationScheme("Oidc_test-oidc", "Test OIDC", typeof(OpenIdConnectHandler)),
+            capturedOptions,
+            initialPrincipal,
+            new AuthenticationProperties());
+
+        await capturedOptions.Events.OnTokenValidated(tokenValidatedContext);
+
+        tokenValidatedContext.Result?.Failure.Should().NotBeNull();
+        tokenValidatedContext.Principal?.FindFirst("SessionId").Should().BeNull();
+        tokenValidatedContext.Principal?.FindFirst("SessionToken").Should().BeNull();
+    }
+
+    [Test]
     public async Task RegisterOrUpdateOidcProviderAsync_WhenMetadataUrlConfigured_SetsMetadataAddressOnOptions()
     {
         var provider = new IdentityProviderDefinition
