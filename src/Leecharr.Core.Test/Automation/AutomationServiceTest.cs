@@ -2255,6 +2255,51 @@ public class AutomationServiceTest
     }
 
     [Test]
+    public async Task ApplyExecutionResultAsync_ShouldAddTrackers_ToRepositoryAndEngine_WhenTrackerUrlAlreadySet()
+    {
+        var torrent = new Torrent
+        {
+            Id = 106,
+            Name = "AddTrackerTorrent",
+            TrackerUrl = "http://tracker.primary.com/announce",
+        };
+        _trackerEntryRepository.GetByTorrentId(106).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { Id = 1, TorrentId = 106, Url = "http://tracker.primary.com/announce" },
+        });
+
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            TrackersToAdd = new List<string>
+            {
+                "http://tracker.backup.com/announce",
+                "http://tracker.extra.com/announce",
+            },
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            downloadEngine: _downloadEngine,
+            torrentService: _torrentService,
+            trackerEntryRepository: _trackerEntryRepository);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        torrent.TrackerUrl.Should().Be("http://tracker.primary.com/announce");
+        _trackerEntryRepository.Received(2).Insert(Arg.Any<TrackerEntry>());
+        await _downloadEngine.Received(1).AddTrackersAsync(
+            106,
+            Arg.Is<IEnumerable<string>>(urls =>
+                urls.Count() == 2 &&
+                urls.Contains("http://tracker.backup.com/announce") &&
+                urls.Contains("http://tracker.extra.com/announce")));
+    }
+
+    [Test]
     public void ExecuteScript_WithRecheckAndReannounceActions_TriggersTorrentService()
     {
         var torrent = new Torrent

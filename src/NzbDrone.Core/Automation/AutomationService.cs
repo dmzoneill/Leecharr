@@ -495,11 +495,69 @@ public class AutomationService : IAutomationService
             changed = true;
         }
 
-        // Tracker add/remove
-        if (result.TrackersToAdd.Count > 0 && string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+        // Tracker add
+        if (result.TrackersToAdd.Count > 0)
         {
-            torrent.TrackerUrl = result.TrackersToAdd[0];
-            changed = true;
+            var urlsToAdd = result.TrackersToAdd
+                .Where(u => !string.IsNullOrWhiteSpace(u))
+                .Select(u => u.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (urlsToAdd.Count > 0)
+            {
+                if (string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+                {
+                    torrent.TrackerUrl = urlsToAdd[0];
+                    changed = true;
+                }
+
+                var engineUrls = urlsToAdd;
+                if (_trackerEntryRepository != null)
+                {
+                    var existingUrls = _trackerEntryRepository.GetByTorrentId(torrent.Id)
+                        .Where(e => !string.IsNullOrWhiteSpace(e.Url))
+                        .Select(e => e.Url.Trim())
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                    var now = DateTime.UtcNow;
+                    var newlyAdded = new List<string>();
+                    foreach (var url in urlsToAdd)
+                    {
+                        if (existingUrls.Contains(url))
+                        {
+                            continue;
+                        }
+
+                        _trackerEntryRepository.Insert(new TrackerEntry
+                        {
+                            TorrentId = torrent.Id,
+                            Url = url,
+                            Tier = 0,
+                            Enabled = true,
+                            Status = 0,
+                            AnnounceInterval = 1800,
+                            NextAnnounce = now.AddSeconds(1800),
+                        });
+                        existingUrls.Add(url);
+                        newlyAdded.Add(url);
+                    }
+
+                    engineUrls = newlyAdded;
+                }
+
+                if (_downloadEngine != null && engineUrls.Count > 0)
+                {
+                    try
+                    {
+                        await _downloadEngine.AddTrackersAsync(torrent.Id, engineUrls).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to add trackers to torrent {0}", torrent.Id);
+                    }
+                }
+            }
         }
 
         // Tracker replacement
