@@ -844,11 +844,6 @@ public class StoragePathService : IStoragePathService
             incompleteCandidates.Add(configuredIncomplete);
         }
 
-        if (!incompleteCandidates.Contains("/downloads/incomplete", StringComparer.OrdinalIgnoreCase))
-        {
-            incompleteCandidates.Add("/downloads/incomplete");
-        }
-
         foreach (var inc in incompleteCandidates)
         {
             if (string.Equals(trimmedRaw, inc, StringComparison.OrdinalIgnoreCase))
