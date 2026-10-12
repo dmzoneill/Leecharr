@@ -153,19 +153,23 @@ public class AuthRateLimiter : IDisposable
 
     private void TrimToMaxCapacity()
     {
-        if (this.attempts.Count > this.maxCapacity)
+        if (this.attempts.Count <= this.maxCapacity)
         {
-            var excess = this.attempts.Count - this.maxCapacity;
-            var oldestKeys = this.attempts
-                .OrderBy(kvp => kvp.Value.WindowStart)
-                .Take(excess)
-                .Select(kvp => kvp.Key)
-                .ToList();
+            return;
+        }
 
-            foreach (var key in oldestKeys)
-            {
-                this.attempts.TryRemove(key, out _);
-            }
+        var now = DateTime.UtcNow;
+        var excess = this.attempts.Count - this.maxCapacity;
+        var oldestKeys = this.attempts
+            .Where(kvp => !kvp.Value.LockoutUntil.HasValue || now >= kvp.Value.LockoutUntil.Value)
+            .OrderBy(kvp => kvp.Value.WindowStart)
+            .Take(excess)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in oldestKeys)
+        {
+            this.attempts.TryRemove(key, out _);
         }
     }
 
