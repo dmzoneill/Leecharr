@@ -148,31 +148,4 @@ public class NotificationHub : Hub
         await this.Groups.RemoveFromGroupAsync(this.Context.ConnectionId, $"level-{level.ToLowerInvariant()}");
     }
 
-    public Task DispatchNotification(object notification)
-    {
-        return this.Clients.All.SendAsync("notificationDispatched", notification);
-    }
-
-    public Task DispatchNotificationToTopic(string topic, object notification)
-    {
-        if (string.IsNullOrWhiteSpace(topic))
-        {
-            return Task.CompletedTask;
-        }
-
-        return this.Clients.Group($"topic-{topic.ToLowerInvariant()}").SendAsync("notificationDispatched", notification);
-    }
-
-    public Task DispatchSystemAlert(string alertType, string message, string severity)
-    {
-        var alert = new
-        {
-            Type = alertType,
-            Message = message,
-            Severity = severity,
-            Timestamp = DateTime.UtcNow,
-        };
-
-        return this.Clients.All.SendAsync("systemAlert", alert);
-    }
 }
