@@ -92,7 +92,18 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
 
     public IEnumerable<CommandModel> GetAll()
     {
-        return this.repository.GetRecent(50);
+        var recent = this.repository.GetRecent(50).ToList();
+        var recentIds = recent.Select(c => c.Id).ToHashSet();
+
+        foreach (var running in this.repository.GetByStatus(CommandStatus.Running))
+        {
+            if (recentIds.Add(running.Id))
+            {
+                recent.Add(running);
+            }
+        }
+
+        return recent.OrderByDescending(c => c.QueuedAt);
     }
 
     public IEnumerable<CommandModel> GetStarted()
