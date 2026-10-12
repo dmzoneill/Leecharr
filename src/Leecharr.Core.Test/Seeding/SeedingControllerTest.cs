@@ -75,12 +75,64 @@ public class SeedingControllerTest
         stats.DownloadingTorrents.Should().Be(1);
         stats.SeedingTorrents.Should().Be(1);
         stats.PausedTorrents.Should().Be(1);
+        stats.QueuedTorrents.Should().Be(0);
+        stats.CheckingTorrents.Should().Be(0);
+        stats.ErrorTorrents.Should().Be(0);
+        stats.StalledTorrents.Should().Be(0);
+        stats.CompletedTorrents.Should().Be(0);
         stats.DownloadSpeed.Should().Be(1000);
         stats.UploadSpeed.Should().Be(1000);
         stats.TotalDownloaded.Should().Be(17000);
         stats.TotalUploaded.Should().Be(16000);
         stats.GlobalRatio.Should().BeApproximately(16000.0 / 17000.0, 0.0001);
         stats.AverageRatio.Should().BeApproximately((0.2 + 1.5 + 0.0) / 3.0, 0.0001);
+    }
+
+    [Test]
+    public void GetStats_CountsEveryTorrentStatus_AndTreatsStalledWithSpeedAsActive()
+    {
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 1, Status = TorrentStatus.Queued },
+            new() { Id = 2, Status = TorrentStatus.Checking },
+            new() { Id = 3, Status = TorrentStatus.QueuedForChecking },
+            new() { Id = 4, Status = TorrentStatus.Downloading, DownloadSpeed = 100 },
+            new() { Id = 5, Status = TorrentStatus.Seeding, UploadSpeed = 50 },
+            new() { Id = 6, Status = TorrentStatus.Paused },
+            new() { Id = 7, Status = TorrentStatus.Stopped },
+            new() { Id = 8, Status = TorrentStatus.Error },
+            new() { Id = 9, Status = TorrentStatus.Stalled, UploadSpeed = 25 },
+            new() { Id = 10, Status = TorrentStatus.Completed },
+        };
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        var actionResult = this.controller.GetStats();
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var stats = okResult.Value.Should().BeOfType<SeedingStatsResource>().Subject;
+
+        stats.QueuedTorrents.Should().Be(1);
+        stats.CheckingTorrents.Should().Be(2);
+        stats.DownloadingTorrents.Should().Be(1);
+        stats.SeedingTorrents.Should().Be(1);
+        stats.PausedTorrents.Should().Be(2);
+        stats.ErrorTorrents.Should().Be(1);
+        stats.StalledTorrents.Should().Be(1);
+        stats.CompletedTorrents.Should().Be(1);
+        stats.ActiveTorrents.Should().Be(5);
+        stats.DownloadSpeed.Should().Be(100);
+        stats.UploadSpeed.Should().Be(75);
+
+        stats.QueuedTorrents
+            + stats.CheckingTorrents
+            + stats.DownloadingTorrents
+            + stats.SeedingTorrents
+            + stats.PausedTorrents
+            + stats.ErrorTorrents
+            + stats.StalledTorrents
+            + stats.CompletedTorrents
+            .Should()
+            .Be(torrents.Count);
     }
 
     [Test]
@@ -96,6 +148,11 @@ public class SeedingControllerTest
         stats.DownloadingTorrents.Should().Be(0);
         stats.SeedingTorrents.Should().Be(0);
         stats.PausedTorrents.Should().Be(0);
+        stats.QueuedTorrents.Should().Be(0);
+        stats.CheckingTorrents.Should().Be(0);
+        stats.ErrorTorrents.Should().Be(0);
+        stats.StalledTorrents.Should().Be(0);
+        stats.CompletedTorrents.Should().Be(0);
         stats.DownloadSpeed.Should().Be(0);
         stats.UploadSpeed.Should().Be(0);
         stats.TotalDownloaded.Should().Be(0);
