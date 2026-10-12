@@ -1252,6 +1252,59 @@ public class YamlScriptRunnerTest
     }
 
     [Test]
+    public async Task ShouldSendYamlListBodyAndParseJsonArrayResponse()
+    {
+        var port = GetFreePort();
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/api/");
+        listener.Start();
+
+        var serverTask = Task.Run(async () =>
+        {
+            var context = await listener.GetContextAsync();
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            var reqBody = await reader.ReadToEndAsync();
+            reqBody.Should().Contain("HttpTorrent");
+            reqBody.TrimStart().Should().StartWith("[");
+
+            var response = context.Response;
+            var responseJson = "[{\"count\": 2}]";
+            var buffer = Encoding.UTF8.GetBytes(responseJson);
+            response.ContentType = "application/json";
+            response.StatusCode = 200;
+            await response.OutputStream.WriteAsync(buffer);
+            response.OutputStream.Close();
+        });
+
+        var yaml = "name: 'HTTP List Body'\n" +
+            "steps:\n" +
+            "  - name: 'Post List'\n" +
+            "    http:\n" +
+            "      method: 'POST'\n" +
+                   $"      url: 'http://127.0.0.1:{port}/api/items'\n" +
+            "      body:\n" +
+            "        - 'item=${torrent.name}'\n" +
+            "    register: 'httpResult'\n" +
+            "  - name: 'Apply From Array Response'\n" +
+            "    actions:\n" +
+            "      - addTag: 'Queue-${httpResult.json.0.count}'\n";
+
+        var script = new AutomationScript
+        {
+            Name = "HTTP List",
+            Code = yaml,
+            Language = AutomationLanguage.Yaml,
+        };
+
+        var torrent = new Torrent { Id = 27, Name = "HttpTorrent" };
+        var result = _runner.Execute(script, torrent);
+        await serverTask;
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("Queue-2");
+    }
+
+    [Test]
     public void ShouldContinueYamlWorkflow_WhenHttpStepHasContinueOnError()
     {
         var yaml = "name: 'HTTP Continue On Error'\n" +

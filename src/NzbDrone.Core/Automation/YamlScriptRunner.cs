@@ -252,16 +252,13 @@ public class YamlScriptRunner : IScriptRunner
                         {
                             body = SubstituteVariables(bodyStr, variableContext);
                         }
-                        else if (step.Http.Body is Dictionary<object, object> dictBody)
+                        else
                         {
-                            var bMap = new Dictionary<string, object>();
-                            foreach (var kvp in dictBody)
+                            body = SubstituteYamlValue(ConvertYamlValueToJson(step.Http.Body), variableContext);
+                            if (body is System.Collections.IList || HttpBodyRequiresJson(body))
                             {
-                                var valStr = kvp.Value?.ToString() ?? string.Empty;
-                                bMap[kvp.Key.ToString()!] = SubstituteVariables(valStr, variableContext);
+                                options["json"] = true;
                             }
-
-                            body = bMap;
                         }
                     }
 
@@ -292,6 +289,10 @@ public class YamlScriptRunner : IScriptRunner
                             foreach (var kvp in respDict)
                             {
                                 variableContext[$"{regKey}.{kvp.Key}"] = kvp.Value;
+                                if (string.Equals(kvp.Key, "json", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    RegisterNestedVariables(variableContext, $"{regKey}.json", kvp.Value);
+                                }
                             }
 
                             variableContext[regKey] = respDict;
@@ -1055,6 +1056,78 @@ public class YamlScriptRunner : IScriptRunner
         }
     }
 
+    private static void RegisterNestedVariables(Dictionary<string, object?> variableContext, string prefix, object? value)
+    {
+        if (value is Dictionary<string, object?> dict)
+        {
+            foreach (var kvp in dict)
+            {
+                var childKey = $"{prefix}.{kvp.Key}";
+                variableContext[childKey] = kvp.Value;
+                RegisterNestedVariables(variableContext, childKey, kvp.Value);
+            }
+        }
+        else if (value is System.Collections.IList list)
+        {
+            for (var i = 0; i < list.Count; i++)
+            {
+                var childKey = $"{prefix}.{i}";
+                variableContext[childKey] = list[i];
+                RegisterNestedVariables(variableContext, childKey, list[i]);
+            }
+        }
+    }
+
+    private static bool HttpBodyRequiresJson(object? body)
+    {
+        if (body is not Dictionary<string, object?> dict)
+        {
+            return false;
+        }
+
+        foreach (var value in dict.Values)
+        {
+            if (value is System.Collections.IList or System.Collections.IDictionary)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static object? SubstituteYamlValue(object? value, Dictionary<string, object?> context)
+    {
+        if (value is string str)
+        {
+            return SubstituteVariables(str, context);
+        }
+
+        if (value is Dictionary<string, object?> dict)
+        {
+            var result = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var kvp in dict)
+            {
+                result[kvp.Key] = SubstituteYamlValue(kvp.Value, context);
+            }
+
+            return result;
+        }
+
+        if (value is System.Collections.IList list)
+        {
+            var items = new List<object?>(list.Count);
+            foreach (var item in list)
+            {
+                items.Add(SubstituteYamlValue(item, context));
+            }
+
+            return items;
+        }
+
+        return value;
+    }
+
     private static object? ConvertYamlValueToJson(object? value)
     {
         if (value == null)
@@ -1150,18 +1223,18 @@ public class YamlScriptRunner : IScriptRunner
     private static void ApplyWindowsFilePermissionsToPath(string path, UnixFileMode mode, bool isDirectory)
     {
         var security = isDirectory
-            ? (FileSystemSecurity)Directory.GetAccessControl(path)
-            : File.GetAccessControl(path);
+            ? (FileSystemSecurity)new DirectoryInfo(path).GetAccessControl()
+            : (FileSystemSecurity)new FileInfo(path).GetAccessControl();
 
         SetWindowsAccessRules(security, mode, isDirectory);
 
         if (isDirectory)
         {
-            Directory.SetAccessControl(path, (DirectorySecurity)security);
+            new DirectoryInfo(path).SetAccessControl((DirectorySecurity)security);
         }
         else
         {
-            File.SetAccessControl(path, (FileSecurity)security);
+            new FileInfo(path).SetAccessControl((FileSecurity)security);
         }
     }
 
@@ -1179,20 +1252,20 @@ public class YamlScriptRunner : IScriptRunner
             ?? throw new InvalidOperationException("Unable to resolve the current Windows user for setFilePermissions.");
 
         var userRights = MapUnixModeToWindowsRights(mode, UnixModeSubject.User, isDirectory);
-        if (userRights != FileSystemRights.None)
+        if (userRights != default(FileSystemRights))
         {
             security.AddAccessRule(new FileSystemAccessRule(currentUser, userRights, AccessControlType.Allow));
         }
 
         var groupRights = MapUnixModeToWindowsRights(mode, UnixModeSubject.Group, isDirectory);
-        if (groupRights != FileSystemRights.None)
+        if (groupRights != default(FileSystemRights))
         {
             var authenticatedUsers = new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null);
             security.AddAccessRule(new FileSystemAccessRule(authenticatedUsers, groupRights, AccessControlType.Allow));
         }
 
         var otherRights = MapUnixModeToWindowsRights(mode, UnixModeSubject.Other, isDirectory);
-        if (otherRights != FileSystemRights.None)
+        if (otherRights != default(FileSystemRights))
         {
             var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
             security.AddAccessRule(new FileSystemAccessRule(everyone, otherRights, AccessControlType.Allow));
@@ -1221,7 +1294,7 @@ public class YamlScriptRunner : IScriptRunner
 
         if (!hasRead && !hasWrite && !hasExecute)
         {
-            return FileSystemRights.None;
+            return default(FileSystemRights);
         }
 
         if (subject == UnixModeSubject.User && hasRead && hasWrite && hasExecute)
@@ -1229,7 +1302,7 @@ public class YamlScriptRunner : IScriptRunner
             return FileSystemRights.FullControl;
         }
 
-        FileSystemRights rights = FileSystemRights.None;
+        FileSystemRights rights = default(FileSystemRights);
         if (hasRead)
         {
             rights |= isDirectory

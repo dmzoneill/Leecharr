@@ -139,6 +139,60 @@ public class ScriptHttpContextTest
     }
 
     [Test]
+    public async Task ScriptHttpContext_GetAsync_ParsesJsonArrayResponse()
+    {
+        var testHandler = new TestHttpMessageHandler(_ =>
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "[{\"id\": 1, \"title\": \"first\"}, {\"id\": 2}]",
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            };
+        });
+
+        using var context = new ScriptHttpContext(testHandler);
+        var result = await context.GetAsync("https://api.example.com/queue");
+
+        result["json"].Should().NotBeNull();
+        var json = result["json"] as List<object?>;
+        json.Should().NotBeNull();
+        json!.Count.Should().Be(2);
+
+        var first = json[0] as Dictionary<string, object?>;
+        first.Should().NotBeNull();
+        first!["id"].Should().Be(1L);
+        first["title"].Should().Be("first");
+    }
+
+    [Test]
+    public async Task ScriptHttpContext_PostAsync_SendsListBodyAsJson()
+    {
+        string? receivedContent = null;
+        string? receivedContentType = null;
+
+        var testHandler = new TestHttpMessageHandler(req =>
+        {
+            req.Method.Should().Be(HttpMethod.Post);
+            receivedContent = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+            receivedContentType = req.Content?.Headers.ContentType?.MediaType;
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", System.Text.Encoding.UTF8, "application/json"),
+            };
+        });
+
+        using var context = new ScriptHttpContext(testHandler);
+        var body = new List<object?> { "alpha", 2, true };
+        await context.PostAsync("https://api.example.com/batch", body);
+
+        receivedContent.Should().Be("[\"alpha\",2,true]");
+        receivedContentType.Should().Be("application/json");
+    }
+
+    [Test]
     public async Task ScriptHttpContext_GetAsync_SendsStringHeaderDictionary()
     {
         string? receivedApiKey = null;
