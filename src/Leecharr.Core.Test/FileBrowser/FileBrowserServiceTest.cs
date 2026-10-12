@@ -526,4 +526,38 @@ public class FileBrowserServiceTest
         Action act = () => this.service.Move("/downloads/movie.mkv", "/etc");
         act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
     }
+
+    [Test]
+    public void Copy_WhenSourceDoesNotExist_ThrowsInvalidOperationExceptionWithoutCreatingDestination()
+    {
+        var source = "/downloads/missing.mkv";
+        var destDir = "/storage/movies";
+
+        this.diskProvider.FolderExists(source).Returns(false);
+        this.diskProvider.FileExists(source).Returns(false);
+        this.diskProvider.FolderExists(destDir).Returns(false);
+
+        var action = () => this.service.Copy(source, destDir);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage($"Source '{source}' does not exist.");
+        this.diskProvider.DidNotReceive().CreateFolder(Arg.Any<string>());
+        this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void Move_WhenSourceDoesNotExist_ThrowsInvalidOperationExceptionWithoutCreatingDestination()
+    {
+        var source = "/downloads/missing.mkv";
+        var destDir = "/storage/movies";
+
+        this.diskProvider.FolderExists(source).Returns(false);
+        this.diskProvider.FileExists(source).Returns(false);
+        this.diskProvider.FolderExists(destDir).Returns(false);
+
+        var action = () => this.service.Move(source, destDir);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage($"Source '{source}' does not exist.");
+        this.diskProvider.DidNotReceive().CreateFolder(Arg.Any<string>());
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
 }
