@@ -378,6 +378,32 @@ public class JitUserProvisioningServiceTest
     }
 
     [Test]
+    public void ProvisionOrUpdateUser_WhenNotBootstrapUser_ShouldNotGrantAdminWithoutMappedGroups()
+    {
+        this.userRepository.Insert(new User
+        {
+            Id = 1,
+            Username = "first",
+            ExternalProviderId = "authentik",
+            ExternalSubjectId = "sub-first",
+            Roles = "[\"Admin\"]",
+        });
+
+        var profile = new ExternalUserProfile(
+            "authentik",
+            "sub-second",
+            "second",
+            "second@example.com",
+            "Second User",
+            new List<string> { "users" });
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Roles, Does.Contain("User"));
+        Assert.That(result.Roles, Does.Not.Contain("Admin"));
+    }
+
+    [Test]
     public void ProvisionOrUpdateUser_MatchedUser_WhenRolesChange_RevokesSessionsAndClearsCache()
     {
         var sessionRepo = Substitute.For<IUserSessionRepository>();
@@ -631,6 +657,11 @@ public class JitUserProvisioningServiceTest
         public int GetUserCount()
         {
             return this.users.Count;
+        }
+
+        public int? GetBootstrapUserId()
+        {
+            return this.users.Count == 0 ? null : this.users.Min(u => u.Id);
         }
     }
 }

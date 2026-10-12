@@ -340,5 +340,10 @@ public class UserServiceTest
         {
             return this.users.Count;
         }
+
+        public int? GetBootstrapUserId()
+        {
+            return this.users.Count == 0 ? null : this.users.Min(u => u.Id);
+        }
     }
 }
