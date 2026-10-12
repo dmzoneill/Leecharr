@@ -233,6 +233,36 @@ public class MainDatabaseTest
     }
 
     [Test]
+    public void ApplyPendingRestore_WhenRestoreFailsLeavingBackupWithoutDatabaseFile_AbortsStartupAndDoesNotOpenDatabase()
+    {
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(this.tempFolder);
+
+        var connStringFactory = Substitute.For<IConnectionStringFactory>();
+        connStringFactory.DatabaseType.Returns(DatabaseType.SQLite);
+        connStringFactory.MainDbConnectionString.Returns($"Data Source={Path.Combine(this.tempFolder, "leecharr.db")}");
+
+        var dbFactory = Substitute.For<IDbFactory>();
+        var fakeDb = Substitute.For<IDatabase>();
+        dbFactory.Create(DatabaseType.SQLite, Arg.Any<string>()).Returns(fakeDb);
+
+        var dbPath = Path.Combine(this.tempFolder, "leecharr.db");
+        var dbRestorePath = dbPath + ".restore";
+        var backupDbPath = dbPath + ".bak";
+
+        CreateValidSqliteDatabase(dbPath, "OriginalTable");
+        CreateValidSqliteDatabase(dbRestorePath, "RestoredTable");
+        File.Move(dbPath, backupDbPath, overwrite: true);
+        Directory.CreateDirectory(dbPath);
+
+        Action construct = () => _ = new MainDatabase(dbFactory, connStringFactory, appFolderInfo);
+        construct.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain("Startup is aborted");
+        File.Exists(backupDbPath).Should().BeTrue("Original database backup must remain when restore cannot complete");
+        Directory.Exists(dbPath).Should().BeTrue("Blocking path should remain until operator intervention");
+        dbFactory.DidNotReceive().Create(DatabaseType.SQLite, Arg.Any<string>());
+    }
+
+    [Test]
     public void ConnectionStringFactory_Sqlite_IncludesForeignKeysParameter()
     {
         var appFolderInfo = Substitute.For<IAppFolderInfo>();

@@ -188,6 +188,9 @@ public class MainDatabase : IMainDatabase
             catch (Exception rollbackEx)
             {
                 this.logger.Error(rollbackEx, "Failed to roll back original database files from backup");
+                throw new InvalidOperationException(
+                    $"Failed to roll back the original database after a failed restore. The database file may be missing at '{dbPath}' with a backup at '{backupDbPath}'. Startup is aborted to avoid creating an empty database.",
+                    rollbackEx);
             }
 
             try
@@ -202,6 +205,12 @@ public class MainDatabase : IMainDatabase
             catch (Exception preserveEx)
             {
                 this.logger.Warn(preserveEx, "Failed to rename failed restore file {0}", dbRestorePath);
+            }
+
+            if (!File.Exists(dbPath) && File.Exists(backupDbPath))
+            {
+                throw new InvalidOperationException(
+                    $"Main database file is missing at '{dbPath}' but backup remains at '{backupDbPath}' after a failed restore. Startup is aborted to avoid creating an empty database.");
             }
         }
     }
