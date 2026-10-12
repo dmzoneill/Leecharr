@@ -831,6 +831,68 @@ public class WatchFolderServiceTest
     }
 
     [Test]
+    public async Task ScanWatchFolderAsync_WhenFileInNestedCategoryFolder_AssignsHierarchicalCategory()
+    {
+        var nestedFolder = Path.Combine(this.tempDirectory, "tv", "anime");
+        Directory.CreateDirectory(nestedFolder);
+        var torrentFile = Path.Combine(nestedFolder, "release.torrent");
+        await File.WriteAllBytesAsync(torrentFile, new byte[] { 1, 2, 3 });
+
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { torrentFile });
+
+        var parsedTorrent = new ParsedTorrent
+        {
+            Name = "Random.Generic.Title.2024",
+            InfoHash = "ccccddddccccddddccccddddccccddddccccdddd",
+            TotalSize = 100000,
+        };
+
+        this.categoryService.GetAll().Returns(new[]
+        {
+            new Category { Id = 1, Name = "tv" },
+            new Category { Id = 2, Name = "tv/anime" },
+        });
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsedTorrent);
+
+        await this.service.ScanWatchFolderAsync();
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsedTorrent,
+            category: "tv/anime",
+            startPaused: false,
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task ScanWatchFolderAsync_WhenOnlyNestedCategoryExists_AssignsHierarchicalCategoryNotReleaseGuess()
+    {
+        var nestedFolder = Path.Combine(this.tempDirectory, "tv", "anime");
+        Directory.CreateDirectory(nestedFolder);
+        var torrentFile = Path.Combine(nestedFolder, "release.torrent");
+        await File.WriteAllBytesAsync(torrentFile, new byte[] { 1, 2, 3 });
+
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { torrentFile });
+
+        var parsedTorrent = new ParsedTorrent
+        {
+            Name = "[SubsPlease] Frieren - 28 (1080p) [12345678].mkv",
+            InfoHash = "ddddeeeeffffddddeeeeffffddddeeeeffffdddd",
+            TotalSize = 100000,
+        };
+
+        this.categoryService.GetAll().Returns(new[] { new Category { Id = 2, Name = "tv/anime" } });
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsedTorrent);
+
+        await this.service.ScanWatchFolderAsync();
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsedTorrent,
+            category: "tv/anime",
+            startPaused: false,
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
     public async Task ScanWatchFolderAsync_WhenFileInLoadedOrFailedDirectory_SkipsFile()
     {
         var loadedFile = Path.Combine(this.tempDirectory, "loaded", "old.torrent");

@@ -652,18 +652,24 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                 if (fullFile.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
                 {
                     var relativePath = Path.GetRelativePath(fullRoot, fullFile);
-                    var parts = relativePath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (parts.Length > 1)
+                    var relativeDir = Path.GetDirectoryName(relativePath);
+                    if (!string.IsNullOrEmpty(relativeDir))
                     {
-                        var subfolderName = parts[0];
-                        if (this.categoryService != null)
+                        var segments = relativeDir.Split(
+                            new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                            StringSplitOptions.RemoveEmptyEntries);
+                        if (segments.Length > 0 && this.categoryService != null)
                         {
                             var categories = this.categoryService.GetAll();
-                            var match = categories?.FirstOrDefault(c => string.Equals(c.Name, subfolderName, StringComparison.OrdinalIgnoreCase));
-                            if (match != null)
+                            for (var depth = segments.Length; depth >= 1; depth--)
                             {
-                                return match.Name;
+                                var candidateName = string.Join("/", segments.Take(depth));
+                                var match = categories?.FirstOrDefault(c =>
+                                    string.Equals(c.Name, candidateName, StringComparison.OrdinalIgnoreCase));
+                                if (match != null)
+                                {
+                                    return match.Name;
+                                }
                             }
                         }
                     }
