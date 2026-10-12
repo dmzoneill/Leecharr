@@ -121,6 +121,30 @@ public class SocketsHttpHandlerProviderTest
     }
 
     [Test]
+    public async Task SafeHttpClientService_ConnectCallback_WhenAllowlistedHostUsesBlockedIp_ThrowsSecurityException()
+    {
+        this.vpnKillSwitchService.IsFailClosedActive.Returns(false);
+        var service = new SafeHttpClientService(
+            transportEngine: null,
+            configService: this.configService,
+            configFileProvider: null,
+            httpClient: null,
+            networkBindingService: this.networkBindingService,
+            vpnKillSwitchService: this.vpnKillSwitchService)
+        {
+            AllowedSsrfHostnames = "127.0.0.1",
+        };
+
+        var handler = service.CreateSafeSocketsHttpHandlerInternal();
+        var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 80));
+
+        var act = async () => await handler.ConnectCallback!(context, CancellationToken.None);
+
+        await act.Should().ThrowAsync<SecurityException>()
+            .WithMessage("*SSRF blocked*");
+    }
+
+    [Test]
     public async Task SafeHttpClientService_ConnectCallback_WhenBindInterfaceConfigured_BindsSocket()
     {
         this.vpnKillSwitchService.IsFailClosedActive.Returns(false);
