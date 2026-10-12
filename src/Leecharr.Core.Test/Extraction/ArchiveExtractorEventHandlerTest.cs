@@ -321,6 +321,45 @@ public class ArchiveExtractorEventHandlerTest
     }
 
     [Test]
+    public async Task Handle_WhenUnrelatedFilesShareArchivePrefix_UsesOnlyArchiveVolumesForDiskSpaceCheck()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var torrent = new Torrent { Id = 29, Name = "Movie.Pack", SavePath = "/downloads/Movie.Pack" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 29, Path = "Movie.rar", Size = 100_000_000 },
+            new() { Id = 2, TorrentId = 29, Path = "Movie.mkv", Size = 2_000_000_000 },
+            new() { Id = 3, TorrentId = 29, Path = "MovieSample.mkv", Size = 50_000_000 },
+            new() { Id = 4, TorrentId = 29, Path = "Movie.nfo", Size = 1000 },
+        };
+
+        this.torrentFileService.GetFiles(29).Returns(files);
+        this.extractorService.IsArchiveFile("Movie.rar").Returns(true);
+        this.extractorService.IsArchiveFile(Arg.Is<string>(p => p != "Movie.rar")).Returns(false);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call => !call.Arg<string>().Contains(".leecharr_extracted"));
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(160_000_000L);
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
+
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ => signal.Set());
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        var received = signal.Wait(TimeSpan.FromSeconds(3));
+        received.Should().BeTrue();
+
+        await this.extractorService.Received(1).ExtractArchiveAsync(
+            Arg.Is<string>(p => p.EndsWith("Movie.rar")),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionFailedEvent>());
+    }
+
+    [Test]
     public async Task Handle_WhenDiskSpaceSufficient_ProceedsWithExtraction()
     {
         this.configService.AutoExtractArchives.Returns(true);

@@ -135,20 +135,12 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                         }
 
                         var estimatedSize = file.Size > 0 ? file.Size : this.diskProvider.GetFileSize(fullPath);
-                        var basePrefix = GetArchiveBasePrefix(file.Path);
-                        var relatedFiles = files.Where(f =>
+                        var volumeSum = ArchiveTimeoutCalculator.SumArchiveVolumeBytesFromTorrentFiles(
+                            file.Path,
+                            files.Select(f => (f.Path, f.Size)));
+                        if (volumeSum > 0)
                         {
-                            var fn = Path.GetFileName(f.Path);
-                            return !string.IsNullOrEmpty(basePrefix) && fn.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase);
-                        }).ToList();
-
-                        if (relatedFiles.Count > 1)
-                        {
-                            var sum = relatedFiles.Sum(f => f.Size > 0 ? f.Size : 0);
-                            if (sum > 0)
-                            {
-                                estimatedSize = sum;
-                            }
+                            estimatedSize = volumeSum;
                         }
 
                         if (estimatedSize <= 0)
