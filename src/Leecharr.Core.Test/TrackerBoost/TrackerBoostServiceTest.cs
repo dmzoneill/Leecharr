@@ -881,6 +881,31 @@ public class TrackerBoostServiceTest
     }
 
     [Test]
+    public void IsValidScrapeInfoHash_AcceptsV1AndV2HexLengths()
+    {
+        var v1Hash = "0123456789abcdef0123456789abcdef01234567";
+        var v2Hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+        TrackerBoostService.IsValidScrapeInfoHash(v1Hash).Should().BeTrue();
+        TrackerBoostService.IsValidScrapeInfoHash(v2Hash).Should().BeTrue();
+        TrackerBoostService.IsValidScrapeInfoHash(v1Hash + "zz").Should().BeFalse();
+        TrackerBoostService.IsValidScrapeInfoHash(v1Hash[..39]).Should().BeFalse();
+    }
+
+    [Test]
+    public void BuildScrapeUrl_WhenInfoHashIsV2_EncodesFull32ByteHash()
+    {
+        var v2Hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        var announceUrl = "http://announce.torrents.org/announce";
+
+        var scrapeUrl = TrackerBoostService.BuildScrapeUrl(announceUrl, v2Hash);
+
+        scrapeUrl.Should().NotBeNull();
+        scrapeUrl.Should().Contain("info_hash=");
+        scrapeUrl.Length.Should().BeGreaterThan("http://announce.torrents.org/scrape?info_hash=".Length + 40);
+    }
+
+    [Test]
     public void BuildScrapeUrl_WhenHostContainsAnnounce_PreservesHostnameAndReplacesPathSegment()
     {
         var hexHash = "0123456789abcdef0123456789abcdef01234567";

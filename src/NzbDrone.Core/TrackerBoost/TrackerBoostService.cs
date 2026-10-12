@@ -2941,7 +2941,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
 
         var cleanHash = infoHash.Trim();
-        if (cleanHash.Length != 40)
+        if (!IsValidScrapeInfoHash(cleanHash))
         {
             return (false, 0, 0, 0);
         }
@@ -3129,6 +3129,24 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             this.logger.Debug(ex, "UDP scrape unexpected error for {0}:{1}", host, port);
             return (false, 0, 0, 0);
         }
+    }
+
+    internal static bool IsValidScrapeInfoHash(string cleanHash)
+    {
+        if (string.IsNullOrEmpty(cleanHash) || (cleanHash.Length != 40 && cleanHash.Length != 64))
+        {
+            return false;
+        }
+
+        foreach (var ch in cleanHash)
+        {
+            if (!Uri.IsHexDigit(ch))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     internal static string BuildScrapeUrl(string announceUrl, string hexHash)
