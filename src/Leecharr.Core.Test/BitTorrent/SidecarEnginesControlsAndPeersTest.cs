@@ -218,7 +218,47 @@ public class SidecarEnginesControlsAndPeersTest
         doc.RootElement.GetProperty("method").GetString().Should().Be("move_storage");
         var args = doc.RootElement.GetProperty("params");
         args.GetProperty("save_path").GetString().Should().Be("/dest/dir");
-        args.GetProperty("flags").GetInt32().Should().Be(1);
+        args.GetProperty("flags").GetInt32().Should().Be(0);
+    }
+
+    [Test]
+    public async Task LibTorrentDownloadEngine_MoveTorrentFilesAsync_WhenNotMovingFiles_SendsResetSavePathFlag()
+    {
+        var tcs = new TaskCompletionSource<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            if (body.Contains("move_storage"))
+            {
+                tcs.TrySetResult(body);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"storage_moved\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = new LibTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            httpClient);
+
+        var torrent = new Torrent { Id = 56, InfoHash = "bbccddeeff00112233445566778899aabbccddee", Name = "Test LibTorrent Path Only" };
+        await engine.AddTorrentAsync(torrent);
+
+        await engine.MoveTorrentFilesAsync(56, "/dest/dir", moveFiles: false);
+
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(2000));
+        completed.Should().Be(tcs.Task);
+
+        var payload = await tcs.Task;
+        using var doc = JsonDocument.Parse(payload);
+        doc.RootElement.GetProperty("params").GetProperty("flags").GetInt32().Should().Be(3);
     }
 
     [Test]
