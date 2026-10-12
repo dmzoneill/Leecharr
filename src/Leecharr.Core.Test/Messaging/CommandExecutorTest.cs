@@ -173,7 +173,7 @@ public class CommandExecutorTest
     }
 
     [Test]
-    public void Execute_DisposesHandlerWhenHandlerImplementsIDisposable()
+    public void Execute_DoesNotDisposeContainerResolvedHandler()
     {
         var commandModel = new CommandModel
         {
@@ -189,8 +189,32 @@ public class CommandExecutorTest
         this.executor.Execute(commandModel);
 
         handler.Executed.Should().BeTrue();
-        handler.Disposed.Should().BeTrue();
+        handler.Disposed.Should().BeFalse();
         commandModel.Status.Should().Be(CommandStatus.Completed);
+    }
+
+    [Test]
+    public void Execute_DoesNotDisposeSingletonHandlerOnRepeatedRuns()
+    {
+        var handler = new SampleDisposableCommandHandler();
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
+
+        for (var id = 21; id <= 22; id++)
+        {
+            var commandModel = new CommandModel
+            {
+                Id = id,
+                Name = "SampleTest",
+                Status = CommandStatus.Queued,
+                Body = "{}",
+            };
+
+            this.executor.Execute(commandModel);
+
+            commandModel.Status.Should().Be(CommandStatus.Completed);
+        }
+
+        handler.Disposed.Should().BeFalse();
     }
 
     [Test]
