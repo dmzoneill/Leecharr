@@ -483,7 +483,7 @@ public class RTorrentController : ControllerBase
                 if (paramValues.Count >= 2)
                 {
                     var isRaw = methodName.Contains("raw", StringComparison.OrdinalIgnoreCase);
-                    var isStart = !methodName.Equals("load.normal", StringComparison.OrdinalIgnoreCase) && !methodName.Equals("load.raw", StringComparison.OrdinalIgnoreCase);
+                    var isStart = methodName.Contains("start", StringComparison.OrdinalIgnoreCase);
 
                     string customCategory = null;
                     string customDir = null;
