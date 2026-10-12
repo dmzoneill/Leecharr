@@ -160,15 +160,24 @@ public static class MagnetLinkParser
         {
             if (clean.Length == 64 && IsValidHex(clean))
             {
-                sb.Append($"xt=urn:btmh:1220{clean.ToLowerInvariant()}");
+                sb.Append($"xt=urn:btmh:1220{Uri.EscapeDataString(clean.ToLowerInvariant())}");
             }
             else if (clean.Length == 68 && clean.StartsWith("1220", StringComparison.OrdinalIgnoreCase) && IsValidHex(clean))
             {
-                sb.Append($"xt=urn:btmh:{clean.ToLowerInvariant()}");
+                sb.Append($"xt=urn:btmh:{Uri.EscapeDataString(clean.ToLowerInvariant())}");
+            }
+            else if (clean.Length == 40 && IsValidHex(clean))
+            {
+                sb.Append($"xt=urn:btih:{Uri.EscapeDataString(clean.ToLowerInvariant())}");
+            }
+            else if (clean.Length == 32)
+            {
+                _ = Base32ToHex(clean);
+                sb.Append($"xt=urn:btih:{Uri.EscapeDataString(clean.ToLowerInvariant())}");
             }
             else
             {
-                sb.Append($"xt=urn:btih:{clean.ToLowerInvariant()}");
+                throw new FormatException($"Invalid info hash: {clean}");
             }
         }
 
