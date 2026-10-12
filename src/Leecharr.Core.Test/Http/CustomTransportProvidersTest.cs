@@ -486,6 +486,24 @@ public class CustomTransportProvidersTest
     }
 
     [Test]
+    public void BuildNewSessionId_WhenDomainNamesShareLongPrefix_ProducesDistinctIdsWithFullGuidSuffix()
+    {
+        var first = FlareSolverrTransportProvider.BuildNewSessionId("tracker-private-announce.co.uk");
+        var second = FlareSolverrTransportProvider.BuildNewSessionId("tracker-private-announce.com");
+
+        first.Should().NotBe(second);
+        first.Length.Should().BeGreaterThan(32);
+        second.Length.Should().BeGreaterThan(32);
+
+        foreach (var sessionId in new[] { first, second })
+        {
+            var guidSuffix = sessionId[(sessionId.LastIndexOf('_') + 1)..];
+            guidSuffix.Length.Should().Be(32);
+            guidSuffix.Should().MatchRegex("^[0-9a-f]{32}$");
+        }
+    }
+
+    [Test]
     public async Task SessionManagement_FlareSolverr_CreatesReusesAndDestroysDomainSessions()
     {
         var createdCount = 0;
