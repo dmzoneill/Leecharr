@@ -584,15 +584,6 @@ public class ArrWebhookController : Controller
             {
                 return byRaw;
             }
-
-            if (int.TryParse(candidate, out var id))
-            {
-                var byId = this.GetTorrentById(id);
-                if (byId != null)
-                {
-                    return byId;
-                }
-            }
         }
 
         var allTorrents = this.GetAllTorrents()?.ToList();
