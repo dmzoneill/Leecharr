@@ -4,9 +4,11 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Seeding;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.Seeding;
@@ -15,6 +17,7 @@ namespace Leecharr.Core.Test.Seeding;
 public class SeedingControllerTest
 {
     private ITorrentService torrentService = null!;
+    private IDownloadEngine downloadEngine = null!;
     private SeedingController controller = null!;
 
     [SetUp]
@@ -22,7 +25,9 @@ public class SeedingControllerTest
     {
         SeedingController.ResetHistory();
         this.torrentService = Substitute.For<ITorrentService>();
-        this.controller = new SeedingController(this.torrentService);
+        this.downloadEngine = Substitute.For<IDownloadEngine>();
+        this.downloadEngine.IsHaltedByKillSwitch.Returns(false);
+        this.controller = new SeedingController(this.torrentService, this.downloadEngine);
     }
 
     [Test]
@@ -227,24 +232,80 @@ public class SeedingControllerTest
     [Test]
     public async Task Start_ResumesTorrent()
     {
+        this.torrentService.Get(10).Returns(new Torrent { Id = 10, Status = TorrentStatus.Paused });
+
         var actionResult = await this.controller.Start(10);
         actionResult.Should().BeOfType<OkResult>();
         await this.torrentService.Received(1).ResumeAsync(10);
     }
 
     [Test]
+    public async Task Start_UnknownTorrent_ReturnsNotFound()
+    {
+        this.torrentService.Get(10).Returns((Torrent)null!);
+
+        var actionResult = await this.controller.Start(10);
+        actionResult.Should().BeOfType<NotFoundResult>();
+        await this.torrentService.DidNotReceive().ResumeAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task Start_WhenKillSwitchActive_ReturnsServiceUnavailable()
+    {
+        this.torrentService.Get(10).Returns(new Torrent { Id = 10, Status = TorrentStatus.Paused });
+        this.downloadEngine.IsHaltedByKillSwitch.Returns(true);
+
+        var actionResult = await this.controller.Start(10);
+        var result = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        result.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+        await this.torrentService.DidNotReceive().ResumeAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task Start_WhenTorrentAlreadyActive_ReturnsConflict()
+    {
+        this.torrentService.Get(10).Returns(new Torrent { Id = 10, Status = TorrentStatus.Downloading });
+
+        var actionResult = await this.controller.Start(10);
+        actionResult.Should().BeOfType<ConflictObjectResult>();
+        await this.torrentService.DidNotReceive().ResumeAsync(Arg.Any<int>());
+    }
+
+    [Test]
     public async Task Stop_PausesTorrent()
     {
+        this.torrentService.Get(10).Returns(new Torrent { Id = 10, Status = TorrentStatus.Downloading });
+
         var actionResult = await this.controller.Stop(10);
         actionResult.Should().BeOfType<OkResult>();
         await this.torrentService.Received(1).PauseAsync(10);
     }
 
     [Test]
+    public async Task Stop_UnknownTorrent_ReturnsNotFound()
+    {
+        this.torrentService.Get(10).Returns((Torrent)null!);
+
+        var actionResult = await this.controller.Stop(10);
+        actionResult.Should().BeOfType<NotFoundResult>();
+        await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task Stop_WhenTorrentAlreadyPaused_ReturnsConflict()
+    {
+        this.torrentService.Get(10).Returns(new Torrent { Id = 10, Status = TorrentStatus.Paused });
+
+        var actionResult = await this.controller.Stop(10);
+        actionResult.Should().BeOfType<ConflictObjectResult>();
+        await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
+    }
+
+    [Test]
     public async Task StartAll_ResumesAllTorrents()
     {
-        var torrent1 = new Torrent { Id = 1 };
-        var torrent2 = new Torrent { Id = 2 };
+        var torrent1 = new Torrent { Id = 1, Status = TorrentStatus.Paused };
+        var torrent2 = new Torrent { Id = 2, Status = TorrentStatus.Stopped };
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
 
         var actionResult = await this.controller.StartAll();
@@ -254,15 +315,55 @@ public class SeedingControllerTest
     }
 
     [Test]
+    public async Task StartAll_WhenKillSwitchActive_ReturnsServiceUnavailable()
+    {
+        this.downloadEngine.IsHaltedByKillSwitch.Returns(true);
+        this.torrentService.GetAll().Returns(new List<Torrent> { new() { Id = 1, Status = TorrentStatus.Paused } });
+
+        var actionResult = await this.controller.StartAll();
+        var result = actionResult.Should().BeOfType<ObjectResult>().Subject;
+        result.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+        await this.torrentService.DidNotReceive().ResumeAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task StartAll_WhenNoTorrentsCanResume_ReturnsConflict()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>
+        {
+            new() { Id = 1, Status = TorrentStatus.Downloading },
+            new() { Id = 2, Status = TorrentStatus.Seeding },
+        });
+
+        var actionResult = await this.controller.StartAll();
+        actionResult.Should().BeOfType<ConflictObjectResult>();
+        await this.torrentService.DidNotReceive().ResumeAsync(Arg.Any<int>());
+    }
+
+    [Test]
     public async Task StopAll_PausesAllTorrents()
     {
-        var torrent1 = new Torrent { Id = 1 };
-        var torrent2 = new Torrent { Id = 2 };
+        var torrent1 = new Torrent { Id = 1, Status = TorrentStatus.Downloading };
+        var torrent2 = new Torrent { Id = 2, Status = TorrentStatus.Seeding };
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
 
         var actionResult = await this.controller.StopAll();
         actionResult.Should().BeOfType<OkResult>();
         await this.torrentService.Received(1).PauseAsync(1);
         await this.torrentService.Received(1).PauseAsync(2);
+    }
+
+    [Test]
+    public async Task StopAll_WhenNoTorrentsCanPause_ReturnsConflict()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>
+        {
+            new() { Id = 1, Status = TorrentStatus.Paused },
+            new() { Id = 2, Status = TorrentStatus.Stopped },
+        });
+
+        var actionResult = await this.controller.StopAll();
+        actionResult.Should().BeOfType<ConflictObjectResult>();
+        await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
     }
 }
