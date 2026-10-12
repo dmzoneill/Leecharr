@@ -1464,6 +1464,111 @@ public class YamlScriptRunnerTest
         }
     }
 
+    [Test]
+    public async Task SendDiscordWebhook_PostsJsonEmbed_AndLogsSuccessOnHttpOk()
+    {
+        var port = GetFreePort();
+        var receivedContentType = string.Empty;
+        var receivedBody = string.Empty;
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        try
+        {
+            var serverTask = Task.Run(async () =>
+            {
+                var context = await listener.GetContextAsync();
+                receivedContentType = context.Request.ContentType ?? string.Empty;
+                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                receivedBody = await reader.ReadToEndAsync();
+                context.Response.StatusCode = 204;
+                context.Response.OutputStream.Close();
+            });
+
+            var yaml = "name: 'Discord'\n" +
+                       "steps:\n" +
+                       "  - name: 'Send'\n" +
+                       "    actions:\n" +
+                       "      - sendDiscordWebhook:\n" +
+                       $"          webhookUrl: 'http://127.0.0.1:{port}/hook'\n" +
+                       "          embedObj:\n" +
+                       "            title: 'Download complete'\n" +
+                       "            description: 'Matrix.1999'\n";
+
+            var script = new AutomationScript
+            {
+                Name = "Discord",
+                Code = yaml,
+                Language = AutomationLanguage.Yaml,
+            };
+
+            var result = _runner.Execute(script, new Torrent { Id = 1, Name = "test" });
+            await serverTask;
+
+            result.Success.Should().BeTrue();
+            receivedContentType.Should().Contain("application/json");
+            receivedBody.Should().Contain("\"embeds\"");
+            receivedBody.Should().Contain("Download complete");
+            receivedBody.Should().NotContain("System.Object");
+            result.OutputLog.Should().Contain("[ACTION] sendDiscordWebhook to");
+            result.OutputLog.Should().NotContain("sendDiscordWebhook Error:");
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Test]
+    public async Task SendDiscordWebhook_LogsErrorWhenWebhookReturnsFailure()
+    {
+        var port = GetFreePort();
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        try
+        {
+            var serverTask = Task.Run(async () =>
+            {
+                var context = await listener.GetContextAsync();
+                context.Response.StatusCode = 400;
+                context.Response.ContentType = "application/json";
+                var buffer = Encoding.UTF8.GetBytes("{\"message\": \"Invalid Webhook Token\"}");
+                await context.Response.OutputStream.WriteAsync(buffer);
+                context.Response.OutputStream.Close();
+            });
+
+            var yaml = "name: 'Discord fail'\n" +
+                       "steps:\n" +
+                       "  - name: 'Send'\n" +
+                       "    actions:\n" +
+                       "      - sendDiscordWebhook:\n" +
+                       $"          webhookUrl: 'http://127.0.0.1:{port}/hook'\n" +
+                       "          embedObj:\n" +
+                       "            title: 'Alert'\n";
+
+            var script = new AutomationScript
+            {
+                Name = "Discord fail",
+                Code = yaml,
+                Language = AutomationLanguage.Yaml,
+            };
+
+            var result = _runner.Execute(script, new Torrent { Id = 2, Name = "test" });
+            await serverTask;
+
+            result.Success.Should().BeTrue();
+            result.OutputLog.Should().Contain("sendDiscordWebhook Error: HTTP 400");
+            result.OutputLog.Should().NotContain("[ACTION] sendDiscordWebhook to");
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
     private static int GetFreePort()
     {
         using var socket = new TcpListener(IPAddress.Loopback, 0);

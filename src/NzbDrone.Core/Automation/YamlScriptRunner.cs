@@ -828,9 +828,33 @@ public class YamlScriptRunner : IScriptRunner
                             var embedObj = dwDict.TryGetValue("embedObj", out var embVal) ? embVal : null;
                             if (!string.IsNullOrEmpty(url) && embedObj != null)
                             {
-                                var payload = new Dictionary<string, object> { { "embeds", new[] { embedObj } } };
-                                httpClient.post(url, payload, new Dictionary<string, object>());
-                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendDiscordWebhook to {url}");
+                                try
+                                {
+                                    var embed = ConvertYamlValueToJson(embedObj);
+                                    var payload = new Dictionary<string, object> { { "embeds", new[] { embed! } } };
+                                    var responseObj = httpClient.post(url, payload, new Dictionary<string, object> { { "json", true } });
+                                    if (responseObj is Dictionary<string, object?> response &&
+                                        response.TryGetValue("ok", out var okObj) &&
+                                        okObj is bool ok &&
+                                        ok)
+                                    {
+                                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendDiscordWebhook to {url}");
+                                    }
+                                    else
+                                    {
+                                        var status = responseObj is Dictionary<string, object?> failedResponse && failedResponse.TryGetValue("status", out var statusObj)
+                                            ? statusObj?.ToString() ?? "unknown"
+                                            : "unknown";
+                                        var body = responseObj is Dictionary<string, object?> failedResponseWithBody && failedResponseWithBody.TryGetValue("body", out var bodyObj)
+                                            ? bodyObj?.ToString() ?? string.Empty
+                                            : string.Empty;
+                                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendDiscordWebhook Error: HTTP {status} {body}");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendDiscordWebhook Error: {ex.Message}");
+                                }
                             }
                         }
 
@@ -1010,6 +1034,38 @@ public class YamlScriptRunner : IScriptRunner
                 throw new IOException($"Failed to create hardlink '{src}' -> '{dest}' (errno: {err})");
             }
         }
+    }
+
+    private static object? ConvertYamlValueToJson(object? value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        if (value is Dictionary<object, object> yamlDict)
+        {
+            var dict = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var kvp in yamlDict)
+            {
+                dict[kvp.Key?.ToString() ?? string.Empty] = ConvertYamlValueToJson(kvp.Value);
+            }
+
+            return dict;
+        }
+
+        if (value is System.Collections.IList list)
+        {
+            var items = new List<object?>(list.Count);
+            foreach (var item in list)
+            {
+                items.Add(ConvertYamlValueToJson(item));
+            }
+
+            return items;
+        }
+
+        return value;
     }
 
     private static void ApplyUnixFilePermissions(string path, UnixFileMode mode, bool recursive)
