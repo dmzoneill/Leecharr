@@ -35,25 +35,30 @@ public class CertificateManager : ICertificateManager
         if (!string.IsNullOrWhiteSpace(config.SslCertPath))
         {
             var certPath = config.SslCertPath.Trim();
-            if (File.Exists(certPath))
+            if (!File.Exists(certPath))
             {
-                try
-                {
-                    var loadedCert = LoadCustomCertificate(certPath, config.SslKeyPath, config.SslCertPassword);
-                    if (loadedCert != null)
-                    {
-                        Logger.Info("Successfully loaded custom SSL certificate from '{0}'", certPath);
-                        return loadedCert;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex, "Failed to load custom SSL certificate from '{0}'. Falling back to self-signed certificate.", certPath);
-                }
+                var message = $"Configured SSL certificate file not found at '{certPath}'.";
+                Logger.Error(message);
+                throw new FileNotFoundException(message, certPath);
             }
-            else
+
+            try
             {
-                Logger.Warn("Configured SSL certificate path '{0}' was not found. Falling back to self-signed certificate.", certPath);
+                var loadedCert = LoadCustomCertificate(certPath, config.SslKeyPath, config.SslCertPassword);
+                if (loadedCert == null)
+                {
+                    var message = $"Failed to load custom SSL certificate from '{certPath}'.";
+                    Logger.Error(message);
+                    throw new InvalidOperationException(message);
+                }
+
+                Logger.Info("Successfully loaded custom SSL certificate from '{0}'", certPath);
+                return loadedCert;
+            }
+            catch (Exception ex) when (ex is not FileNotFoundException and not InvalidOperationException)
+            {
+                Logger.Error(ex, "Failed to load custom SSL certificate from '{0}'.", certPath);
+                throw new InvalidOperationException($"Failed to load custom SSL certificate from '{certPath}': {ex.Message}", ex);
             }
         }
 
@@ -320,15 +325,8 @@ public class CertificateManager : ICertificateManager
         var hasExplicitKey = false;
         if (!string.IsNullOrWhiteSpace(keyPath))
         {
-            try
-            {
-                effectiveKeyPath = ValidateCertificatePath(keyPath.Trim());
-                hasExplicitKey = true;
-            }
-            catch (Exception)
-            {
-                hasExplicitKey = false;
-            }
+            effectiveKeyPath = ValidateCertificatePath(keyPath.Trim());
+            hasExplicitKey = true;
         }
 
         if (!hasExplicitKey)

@@ -182,6 +182,51 @@ public class CertificateManagerTest
     }
 
     [Test]
+    public void GetOrCreateCertificate_WhenCustomCertPathMissing_ThrowsFileNotFoundException()
+    {
+        this.config.SslCertPath.Returns(Path.Combine(this.tempDir, "missing-custom.pfx"));
+
+        Action act = () => this.certificateManager.GetOrCreateCertificate(this.config);
+
+        act.Should().Throw<FileNotFoundException>();
+        File.Exists(Path.Combine(this.tempDir, "leecharr-selfsigned.pfx")).Should().BeFalse();
+    }
+
+    [Test]
+    public void GetOrCreateCertificate_WhenCustomPfxHasWrongPassword_ThrowsInvalidOperationException()
+    {
+        var customPfxPath = Path.Combine(this.tempDir, "custom-badpass.pfx");
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest("CN=BadPassHost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var testCert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddYears(1));
+        File.WriteAllBytes(customPfxPath, testCert.Export(X509ContentType.Pfx, "correctpass"));
+
+        this.config.SslCertPath.Returns(customPfxPath);
+        this.config.SslCertPassword.Returns("wrongpass");
+
+        Action act = () => this.certificateManager.GetOrCreateCertificate(this.config);
+
+        act.Should().Throw<InvalidOperationException>();
+        File.Exists(Path.Combine(this.tempDir, "leecharr-selfsigned.pfx")).Should().BeFalse();
+    }
+
+    [Test]
+    public void GetOrCreateCertificate_WhenExplicitKeyPathMissing_Throws()
+    {
+        var (fullChainPem, _, _, _) = GenerateTestChain();
+        var certPemPath = Path.Combine(this.tempDir, "certonly-key-missing.pem");
+        File.WriteAllText(certPemPath, fullChainPem);
+
+        this.config.SslCertPath.Returns(certPemPath);
+        this.config.SslKeyPath.Returns(Path.Combine(this.tempDir, "missing-privkey.pem"));
+
+        Action act = () => this.certificateManager.GetOrCreateCertificate(this.config);
+
+        act.Should().Throw<Exception>();
+        File.Exists(Path.Combine(this.tempDir, "leecharr-selfsigned.pfx")).Should().BeFalse();
+    }
+
+    [Test]
     public void GetOrCreateCertificate_WhenPemWithIntermediateChainAndSeparateKey_LoadsFullChainAndNormalizesToPkcs12()
     {
         var (fullChainPem, keyPem, _, _) = GenerateTestChain();
