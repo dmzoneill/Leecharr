@@ -780,7 +780,6 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
                         if (getResp.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args && args.TryGetProperty("torrents", out var torrentsArray))
                         {
-                            var normalized = filePath?.Replace('\\', '/').TrimStart('/');
                             foreach (var item in torrentsArray.EnumerateArray())
                             {
                                 if (item.TryGetProperty("files", out var fArr))
@@ -788,8 +787,8 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                                     var idx = 0;
                                     foreach (var f in fArr.EnumerateArray())
                                     {
-                                        var name = f.TryGetProperty("name", out var n) ? n.GetString()?.Replace('\\', '/').TrimStart('/') : null;
-                                        if (name != null && normalized != null && (name.Equals(normalized, StringComparison.OrdinalIgnoreCase) || name.EndsWith("/" + normalized, StringComparison.OrdinalIgnoreCase) || normalized.EndsWith("/" + name, StringComparison.OrdinalIgnoreCase)))
+                                        var name = f.TryGetProperty("name", out var n) ? n.GetString() : null;
+                                        if (TransmissionTorrentFilePathsMatch(filePath, name))
                                         {
                                             fileIndex = idx;
                                             break;
@@ -1639,6 +1638,18 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             "allowplaintext" or "disabled" or "plaintext" or "none" => "allowed",
             _ => "preferred",
         };
+    }
+
+    internal static bool TransmissionTorrentFilePathsMatch(string requestedPath, string transmissionFileName)
+    {
+        if (string.IsNullOrWhiteSpace(requestedPath) || string.IsNullOrWhiteSpace(transmissionFileName))
+        {
+            return false;
+        }
+
+        var normalized = requestedPath.Replace('\\', '/').TrimStart('/');
+        var name = transmissionFileName.Replace('\\', '/').TrimStart('/');
+        return name.Equals(normalized, StringComparison.OrdinalIgnoreCase);
     }
 
     internal string ResolveBoundIpv4Address()
