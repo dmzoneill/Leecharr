@@ -147,7 +147,7 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
                     _ => "http",
                 };
 
-                var proxy = new WebProxy($"{scheme}://{proxyHost}:{proxyPort}");
+                var proxy = new WebProxy(ProxyUriHelper.BuildProxyUri(scheme, proxyHost, proxyPort));
                 if (configService.ProxyAuthEnabled && !string.IsNullOrEmpty(configService.ProxyUsername))
                 {
                     proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);

@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Network.Binding;
 
@@ -232,7 +233,7 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                 "http" => "http",
                 _ => "http",
             };
-            var proxyUri = new Uri($"{scheme}://{proxyHost}:{proxyPort}");
+            var proxyUri = ProxyUriHelper.BuildProxyUri(scheme, proxyHost, proxyPort);
             ICredentials credentials = null;
             if (this.configService?.ProxyAuthEnabled == true &&
                 !string.IsNullOrWhiteSpace(this.configService.ProxyUsername))
