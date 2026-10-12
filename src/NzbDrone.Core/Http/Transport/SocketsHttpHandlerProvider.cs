@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -71,21 +72,17 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
                 var iface = this.configService?.BindInterface;
                 var host = context.DnsEndPoint.Host;
                 var port = context.DnsEndPoint.Port;
-                IPAddress targetIp = null;
+                IPAddress[] resolvedAddresses = null;
 
                 if (IPAddress.TryParse(host, out var parsedIp))
                 {
-                    targetIp = parsedIp;
+                    resolvedAddresses = [parsedIp];
                 }
                 else
                 {
                     try
                     {
-                        var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
-                        if (addresses != null && addresses.Length > 0)
-                        {
-                            targetIp = addresses[0];
-                        }
+                        resolvedAddresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
                     }
                     catch (Exception ex)
                     {
@@ -93,33 +90,65 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
                     }
                 }
 
-                var socket = targetIp != null
-                    ? new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true }
-                    : (context.DnsEndPoint.AddressFamily == AddressFamily.Unspecified
-                        ? new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true }
-                        : new Socket(context.DnsEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true });
+                if (resolvedAddresses != null && resolvedAddresses.Length > 0)
+                {
+                    Exception lastError = null;
+                    foreach (var address in resolvedAddresses)
+                    {
+                        var targetIp = address;
+                        if (targetIp.IsIPv4MappedToIPv6)
+                        {
+                            targetIp = targetIp.MapToIPv4();
+                        }
+
+                        var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                        if (!string.IsNullOrWhiteSpace(iface) && this.networkBindingService != null)
+                        {
+                            this.networkBindingService.BindSocket(socket, iface);
+                        }
+
+                        try
+                        {
+                            await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken);
+                            return new NetworkStream(socket, ownsSocket: true);
+                        }
+                        catch (Exception ex) when (ex is SocketException or IOException)
+                        {
+                            lastError = ex;
+                            socket.Dispose();
+                        }
+                        catch
+                        {
+                            socket.Dispose();
+                            throw;
+                        }
+                    }
+
+                    if (lastError != null)
+                    {
+                        throw lastError;
+                    }
+
+                    throw new SocketException((int)SocketError.HostUnreachable);
+                }
+
+                var fallbackSocket = context.DnsEndPoint.AddressFamily == AddressFamily.Unspecified
+                    ? new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true }
+                    : new Socket(context.DnsEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
 
                 if (!string.IsNullOrWhiteSpace(iface) && this.networkBindingService != null)
                 {
-                    this.networkBindingService.BindSocket(socket, iface);
+                    this.networkBindingService.BindSocket(fallbackSocket, iface);
                 }
 
                 try
                 {
-                    if (targetIp != null)
-                    {
-                        await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken);
-                    }
-                    else
-                    {
-                        await socket.ConnectAsync(context.DnsEndPoint, cancellationToken);
-                    }
-
-                    return new NetworkStream(socket, ownsSocket: true);
+                    await fallbackSocket.ConnectAsync(context.DnsEndPoint, cancellationToken);
+                    return new NetworkStream(fallbackSocket, ownsSocket: true);
                 }
                 catch
                 {
-                    socket.Dispose();
+                    fallbackSocket.Dispose();
                     throw;
                 }
             },
