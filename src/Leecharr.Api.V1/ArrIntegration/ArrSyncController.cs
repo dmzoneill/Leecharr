@@ -15,7 +15,7 @@ namespace Leecharr.Api.V1.ArrIntegration;
 [Authorize(Policy = "RequireOperator")]
 public class ArrSyncController : Controller
 {
-    private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler())
+    private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler { AllowAutoRedirect = false })
     {
         Timeout = TimeSpan.FromSeconds(10),
     };
@@ -49,7 +49,7 @@ public class ArrSyncController : Controller
                     continue;
                 }
 
-                if (!ArrConnectionController.IsValidTargetUrl(conn.Url, out var ssrfError))
+                if (!ArrTargetUrlValidator.IsValidTargetUrl(conn.Url, out var ssrfError))
                 {
                     this.logger.Warn("Skipping Arr connection {0} ({1}): {2}", conn.Name, conn.Url, ssrfError);
                     skippedCount++;

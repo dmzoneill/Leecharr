@@ -454,6 +454,19 @@ public class ArrConnectionControllerTest
     }
 
     [Test]
+    public void DefaultHttpClient_DoesNotFollowRedirects()
+    {
+        var clientField = typeof(ArrConnectionController).GetField("DefaultHttpClient", BindingFlags.NonPublic | BindingFlags.Static);
+        var client = clientField!.GetValue(null) as HttpClient;
+        client.Should().NotBeNull();
+
+        var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = handlerField?.GetValue(client) as SocketsHttpHandler;
+        handler.Should().NotBeNull();
+        handler!.AllowAutoRedirect.Should().BeFalse();
+    }
+
+    [Test]
     public async Task TestDirect_WhenSuccessful_DisposesHttpResponseMessage()
     {
         var response = new DisposableHttpResponseMessage(HttpStatusCode.OK);
@@ -508,6 +521,14 @@ public class ArrConnectionControllerTest
     public async Task TestDirect_WithProhibitedSsrfUrls_ReturnsBadRequest(string url)
     {
         var resource = new ArrConnectionResource { Url = url, ArrType = "Sonarr" };
+        var result = await this.controller.TestDirect(resource);
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task TestDirect_WhenHostDoesNotResolve_ReturnsBadRequest()
+    {
+        var resource = new ArrConnectionResource { Url = "http://leecharr-ssrf-test.invalid", ArrType = "Sonarr" };
         var result = await this.controller.TestDirect(resource);
         result.Result.Should().BeOfType<BadRequestObjectResult>();
     }

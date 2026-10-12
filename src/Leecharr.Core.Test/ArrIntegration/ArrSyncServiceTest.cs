@@ -162,6 +162,25 @@ public class ArrSyncServiceTest
     }
 
     [Test]
+    public async Task SyncAsync_WhenUrlFailsValidation_SkipsConnection()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new HttpClient(handler);
+        var service = new ArrSyncService(this.arrRepository, httpClient);
+
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new() { Id = 1, Name = "Sonarr", ArrType = "Sonarr", Url = "http://169.254.169.254", ApiKey = "key" },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var count = await service.SyncAsync();
+
+        count.Should().Be(0);
+        handler.RequestCount.Should().Be(0);
+    }
+
+    [Test]
     public void SyncArrCommand_Properties_CanBeSetAndRetrieved()
     {
         var cmd = new SyncArrCommand
@@ -179,6 +198,8 @@ public class ArrSyncServiceTest
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
 
+        public int RequestCount { get; private set; }
+
         public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
         {
             this.handler = handler;
@@ -186,6 +207,7 @@ public class ArrSyncServiceTest
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            this.RequestCount++;
             return Task.FromResult(this.handler(request));
         }
     }
