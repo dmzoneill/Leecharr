@@ -30,6 +30,11 @@ public static class CliProcessDiscovery
                     continue;
                 }
 
+                if (File.Exists(basePath))
+                {
+                    return basePath;
+                }
+
                 foreach (var ext in extensions)
                 {
                     var full = Path.Combine(basePath, binaryName + ext);
