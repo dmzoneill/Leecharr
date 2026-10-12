@@ -17,9 +17,12 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
     private readonly Logger logger;
     private readonly Channel<SignalRMessage> telemetryChannel;
     private readonly Channel<SignalRMessage> guaranteedChannel;
+    private readonly Channel<SignalRMessage> guaranteedOverflowChannel;
     private readonly CancellationTokenSource cancellationTokenSource;
     private readonly Task telemetryProcessingTask;
     private readonly Task guaranteedProcessingTask;
+    private readonly Task guaranteedOverflowPumpTask;
+    private readonly int guaranteedChannelCapacity;
     private readonly TimeSpan sendTimeout;
     private bool disposed;
 
@@ -29,16 +32,22 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
     }
 
     public SignalRMessageBroadcaster(IHubContext<MessageHub> hubContext, int telemetryCapacity)
-        : this(hubContext, telemetryCapacity, TimeSpan.FromSeconds(3))
+        : this(hubContext, telemetryCapacity, TimeSpan.FromSeconds(3), 50_000)
     {
     }
 
     public SignalRMessageBroadcaster(IHubContext<MessageHub> hubContext, int telemetryCapacity, TimeSpan sendTimeout)
+        : this(hubContext, telemetryCapacity, sendTimeout, 50_000)
+    {
+    }
+
+    public SignalRMessageBroadcaster(IHubContext<MessageHub> hubContext, int telemetryCapacity, TimeSpan sendTimeout, int guaranteedCapacity)
     {
         this.hubContext = hubContext;
         this.logger = LogManager.GetCurrentClassLogger();
         this.cancellationTokenSource = new CancellationTokenSource();
         this.sendTimeout = sendTimeout > TimeSpan.Zero ? sendTimeout : TimeSpan.FromSeconds(3);
+        this.guaranteedChannelCapacity = guaranteedCapacity > 0 ? guaranteedCapacity : 50_000;
 
         var telemetryOptions = new BoundedChannelOptions(telemetryCapacity)
         {
@@ -47,7 +56,7 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
             SingleReader = true,
         };
 
-        var guaranteedOptions = new BoundedChannelOptions(50_000)
+        var guaranteedOptions = new BoundedChannelOptions(this.guaranteedChannelCapacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
             SingleWriter = false,
@@ -56,9 +65,16 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
 
         this.telemetryChannel = System.Threading.Channels.Channel.CreateBounded<SignalRMessage>(telemetryOptions);
         this.guaranteedChannel = System.Threading.Channels.Channel.CreateBounded<SignalRMessage>(guaranteedOptions);
+        this.guaranteedOverflowChannel = System.Threading.Channels.Channel.CreateUnbounded<SignalRMessage>(new UnboundedChannelOptions
+        {
+            SingleWriter = false,
+            SingleReader = true,
+            AllowSynchronousContinuations = false,
+        });
 
         this.telemetryProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.telemetryChannel, "telemetry"), this.cancellationTokenSource.Token);
         this.guaranteedProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.guaranteedChannel, "guaranteed"), this.cancellationTokenSource.Token);
+        this.guaranteedOverflowPumpTask = Task.Run(() => this.PumpGuaranteedOverflowAsync(), this.cancellationTokenSource.Token);
     }
 
     public virtual bool IsConnected => MessageHub.IsConnected;
@@ -85,26 +101,11 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         {
             if (!this.guaranteedChannel.Writer.TryWrite(message))
             {
-                this.logger.Warn("Guaranteed SignalR channel is full (50000 capacity). Queueing message '{0}' asynchronously.", message.Name);
-                _ = Task.Run(async () =>
+                this.logger.Warn("Guaranteed SignalR channel is full ({0} capacity). Queueing message '{1}' on ordered overflow pump.", this.guaranteedChannelCapacity, message.Name);
+                if (!this.guaranteedOverflowChannel.Writer.TryWrite(message))
                 {
-                    try
-                    {
-                        await this.guaranteedChannel.Writer.WriteAsync(message, this.cancellationTokenSource.Token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException ex)
-                    {
-                        this.logger.Trace(ex, "Guaranteed channel write cancelled during shutdown for message '{0}'", message.Name);
-                    }
-                    catch (ChannelClosedException ex)
-                    {
-                        this.logger.Trace(ex, "Guaranteed channel closed during shutdown for message '{0}'", message.Name);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Failed to write guaranteed SignalR message '{0}'", message.Name);
-                    }
-                }, this.cancellationTokenSource?.Token ?? CancellationToken.None);
+                    this.logger.Trace("Guaranteed overflow pump is closed; dropping message '{0}' during shutdown", message.Name);
+                }
             }
         }
     }
@@ -159,11 +160,12 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
 
         this.telemetryChannel.Writer.TryComplete();
         this.guaranteedChannel.Writer.TryComplete();
+        this.guaranteedOverflowChannel.Writer.TryComplete();
 
         try
         {
             this.cancellationTokenSource.Cancel();
-            Task.WaitAll(new[] { this.telemetryProcessingTask, this.guaranteedProcessingTask }, TimeSpan.FromSeconds(3));
+            Task.WaitAll(new[] { this.telemetryProcessingTask, this.guaranteedProcessingTask, this.guaranteedOverflowPumpTask }, TimeSpan.FromSeconds(3));
         }
         catch (Exception ex)
         {
@@ -172,6 +174,52 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         finally
         {
             this.cancellationTokenSource.Dispose();
+        }
+    }
+
+    private async Task PumpGuaranteedOverflowAsync()
+    {
+        var overflowReader = this.guaranteedOverflowChannel.Reader;
+        var token = this.cancellationTokenSource.Token;
+
+        try
+        {
+            while (await overflowReader.WaitToReadAsync(token).ConfigureAwait(false))
+            {
+                while (overflowReader.TryRead(out var message))
+                {
+                    try
+                    {
+                        await this.guaranteedChannel.Writer.WriteAsync(message, token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException ex)
+                    {
+                        this.logger.Trace(ex, "Guaranteed overflow pump cancelled during shutdown for message '{0}'", message.Name);
+                        return;
+                    }
+                    catch (ChannelClosedException ex)
+                    {
+                        this.logger.Trace(ex, "Guaranteed channel closed while overflow pump was writing message '{0}'", message.Name);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Failed to write guaranteed SignalR message '{0}' from overflow pump", message.Name);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            this.logger.Trace(ex, "Guaranteed overflow pump cancelled");
+        }
+        catch (ObjectDisposedException ex)
+        {
+            this.logger.Trace(ex, "Guaranteed overflow pump disposed during shutdown");
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Unhandled exception in guaranteed SignalR overflow pump");
         }
     }
 
