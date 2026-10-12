@@ -320,18 +320,18 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                         }
 
                         trackerEntries.Add(new TrackerEntry
-                            {
-                                TorrentId = inserted.Id,
-                                Url = trimmedUrl,
-                                Tier = tier,
-                                Enabled = true,
-                                Status = 0,
-                                AnnounceInterval = defaultAnnounceInterval,
-                                LastAnnounce = null,
-                                NextAnnounce = inserted.DateAdded.AddSeconds(defaultAnnounceInterval),
-                                TotalAnnounces = 0,
-                                SuccessfulAnnounces = 0,
-                            });
+                        {
+                            TorrentId = inserted.Id,
+                            Url = trimmedUrl,
+                            Tier = tier,
+                            Enabled = true,
+                            Status = 0,
+                            AnnounceInterval = defaultAnnounceInterval,
+                            LastAnnounce = null,
+                            NextAnnounce = inserted.DateAdded.AddSeconds(defaultAnnounceInterval),
+                            TotalAnnounces = 0,
+                            SuccessfulAnnounces = 0,
+                        });
                     }
                 }
 
