@@ -2787,10 +2787,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 sessionState.PeerSyncStates[torrent.InfoHash] = peerSyncState;
             }
 
-            if (rid <= 0)
+            // If rid == 0, peer cache is not initialized, or rid is out of sequence, perform a full update
+            if (rid <= 0 || !peerSyncState.Initialized || rid > peerSyncState.CurrentRid)
             {
                 peerSyncState.Initialized = true;
-                peerSyncState.CurrentRid = 1;
+                peerSyncState.CurrentRid = rid <= 0 ? 1 : rid + 1;
                 peerSyncState.CachedPeers.Clear();
                 peerSyncState.RemovedPeers.Clear();
 
