@@ -313,12 +313,19 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         {
             socket.Bind(new IPEndPoint(ip, 0));
             this.logger.Debug("Bound direct socket to interface '{0}' ({1})", iface, ip);
+            return;
         }
-        else if (this.configService.EnableVpnKillSwitch)
+
+        if (this.configService.EnableVpnKillSwitch)
         {
             this.logger.Error("Kill-switch activated: interface '{0}' has no valid IP for address family {1}", iface, socket.AddressFamily);
-            throw new SocketException((int)SocketError.AccessDenied);
         }
+        else
+        {
+            this.logger.Error("Interface '{0}' has no valid IP for address family {1}; refusing unbound direct connect", iface, socket.AddressFamily);
+        }
+
+        throw new SocketException((int)SocketError.AccessDenied);
     }
 
     private async Task PerformSocks5HandshakeAsync(Socket socket, string targetHost, int targetPort, CancellationToken cancellationToken)

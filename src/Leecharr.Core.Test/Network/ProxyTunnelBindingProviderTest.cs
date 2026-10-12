@@ -682,6 +682,21 @@ public class ProxyTunnelBindingProviderTest
     }
 
     [Test]
+    public async Task ConnectTunnelAsync_WhenBindInterfaceHasNoAddress_ThrowsSocketExceptionAccessDenied_EvenWithoutKillSwitch()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("none");
+        config.BindInterface.Returns("nonexistent_tun_9999");
+        config.EnableVpnKillSwitch.Returns(false);
+
+        var provider = new ProxyTunnelBindingProvider(config);
+        var act = async () => await provider.ConnectTunnelAsync("127.0.0.1", 80);
+
+        var ex = await act.Should().ThrowAsync<SocketException>();
+        ex.Which.SocketErrorCode.Should().Be(SocketError.AccessDenied);
+    }
+
+    [Test]
     public async Task ConnectTunnelAsync_WhenIpIsBlocklisted_ThrowsSocketExceptionAccessDenied()
     {
         var config = Substitute.For<IConfigService>();
