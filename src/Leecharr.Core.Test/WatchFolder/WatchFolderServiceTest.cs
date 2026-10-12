@@ -119,6 +119,7 @@ public class WatchFolderServiceTest
     [TestCase("Sousou no Frieren 2023 1080p Batch Subs", "anime")]
     [TestCase("Bleach 2022 Complete 1080p Dual Audio", "anime")]
     [TestCase("Naruto.Batch.1080p.Dual.Audio.FLAC", "anime")]
+    [TestCase("The.Mandalorian.S01E01.1080p.Dual.Audio.WEB-DL", "tv")]
     [TestCase("Dune.Part.Two.2024.2160p.UHD.BluRay.x265-FLUX", "movies")]
     [TestCase("Oppenheimer.2023.1080p.Remux", "movies")]
     [TestCase("The.Matrix.1999.2160p.WEB-DL", "movies")]

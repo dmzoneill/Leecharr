@@ -70,7 +70,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
         TimeSpan.FromSeconds(2));
 
     private static readonly Regex AnimePattern = new(
-        @"(\b(SubsPlease|Erai-raws|HorribleSubs|Judas|Commie|Dame-Desu|ASW|Golumpa|LostYears|PAS|Coalgirls|Anime Time|EMBER|MTBB|Kaleido|Moozzi2|Yameii|Beatrice-Raws|ReinForce|AnimeRG|NC-Raws)\b|\[.*?\]\s*.*?\s*-\s*\d+|\b(Batch|Complete)\b.*\b(1080p|720p)\b.*(Subs?|Dual|FLAC)|\b(1080p|720p)\b.*\b(Batch|Complete)\b.*(Subs?|Dual|FLAC)|\b(Batch|Complete)\b.*(Subs?|Dual[\s._-]*Audio|FLAC)|\bDual[\s._-]*Audio\b)",
+        @"(\b(SubsPlease|Erai-raws|HorribleSubs|Judas|Commie|Dame-Desu|ASW|Golumpa|LostYears|PAS|Coalgirls|Anime Time|EMBER|MTBB|Kaleido|Moozzi2|Yameii|Beatrice-Raws|ReinForce|AnimeRG|NC-Raws)\b|\[.*?\]\s*.*?\s*-\s*\d+|\b(Batch|Complete)\b.*\b(1080p|720p)\b.*(Subs?|Dual|FLAC)|\b(1080p|720p)\b.*\b(Batch|Complete)\b.*(Subs?|Dual|FLAC)|\b(Batch|Complete)\b.*(Subs?|Dual[\s._-]*Audio|FLAC))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
 
