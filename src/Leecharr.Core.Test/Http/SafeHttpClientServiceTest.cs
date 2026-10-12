@@ -177,6 +177,26 @@ public class SafeHttpClientServiceTest
     }
 
     [Test]
+    public void ValidateUrl_WhenAllowlistedHostIsBlockedIpLiteral_ThrowsSecurityException()
+    {
+        this.service.AllowedSsrfHostnames = "indexer.internal, 127.0.0.1";
+
+        var act = () => this.service.ValidateUrl("http://127.0.0.1:8080/api");
+        act.Should().Throw<SecurityException>()
+            .WithMessage("*SSRF blocked*");
+    }
+
+    [Test]
+    public void ValidateUrl_WhenAllowlistedLocalHostnameResolvesToBlockedIp_ThrowsSecurityException()
+    {
+        this.service.AllowedSsrfHostnames = "localhost";
+
+        var act = () => this.service.ValidateUrl("http://localhost:8080/api");
+        act.Should().Throw<SecurityException>()
+            .WithMessage("*SSRF blocked*");
+    }
+
+    [Test]
     public void AllowedSsrfSubnets_WhenConfigured_PermitsCidrRangesAndSpecificIps()
     {
         this.service.AllowedSsrfSubnets = "192.168.0.0/16, 10.50.0.0/24, 172.20.0.5";

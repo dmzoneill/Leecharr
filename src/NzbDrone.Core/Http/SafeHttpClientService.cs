@@ -266,11 +266,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
         if (this.IsAllowedHost(host))
         {
-            if (IPAddress.TryParse(host, out var directIp) && this.IsBlockedIp(directIp))
-            {
-                throw new SecurityException($"SSRF blocked: IP address '{directIp}' is prohibited.");
-            }
-
+            this.ValidateResolvedIpAddressesForHost(host);
             return;
         }
 
@@ -279,33 +275,38 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             throw new SecurityException("SSRF blocked: 'localhost' is prohibited.");
         }
 
+        this.ValidateResolvedIpAddressesForHost(host);
+    }
+
+    private void ValidateResolvedIpAddressesForHost(string host)
+    {
         if (IPAddress.TryParse(host, out var ip))
         {
             if (this.IsBlockedIp(ip))
             {
                 throw new SecurityException($"SSRF blocked: IP address '{ip}' is prohibited.");
             }
+
+            return;
         }
-        else
+
+        try
         {
-            try
+            var addresses = Dns.GetHostAddresses(host);
+            if (addresses != null && addresses.Length > 0)
             {
-                var addresses = Dns.GetHostAddresses(host);
-                if (addresses != null && addresses.Length > 0)
+                foreach (var addr in addresses)
                 {
-                    foreach (var addr in addresses)
+                    if (this.IsBlockedIp(addr))
                     {
-                        if (this.IsBlockedIp(addr))
-                        {
-                            throw new SecurityException($"SSRF blocked: Host '{host}' resolves to prohibited IP address '{addr}'.");
-                        }
+                        throw new SecurityException($"SSRF blocked: Host '{host}' resolves to prohibited IP address '{addr}'.");
                     }
                 }
             }
-            catch (SocketException ex)
-            {
-                this.logger.Debug(ex, "DNS resolution failed for host '{0}' during validation; connection handler will enforce.", host);
-            }
+        }
+        catch (SocketException ex)
+        {
+            this.logger.Debug(ex, "DNS resolution failed for host '{0}' during validation; connection handler will enforce.", host);
         }
     }
 
@@ -706,7 +707,6 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
                 var host = context.DnsEndPoint.Host;
                 var port = context.DnsEndPoint.Port;
-                var isAllowedHost = this.IsAllowedHost(host);
 
                 IPAddress[] addresses;
                 if (IPAddress.TryParse(host, out var parsedIp))
@@ -725,7 +725,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
                 foreach (var addr in addresses)
                 {
-                    if (!isAllowedHost && this.IsBlockedIp(addr))
+                    if (this.IsBlockedIp(addr))
                     {
                         throw new SecurityException($"SSRF blocked: IP address '{addr}' for host '{host}' is prohibited.");
                     }
