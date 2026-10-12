@@ -1080,6 +1080,7 @@ public class AuthController : ControllerBase
             var targetCount = maxTrackedIps / 2;
             var excess = Math.Max(1, LoginAttempts.Count - targetCount);
             var toRemove = LoginAttempts
+                .Where(kvp => !kvp.Value.LockoutUntil.HasValue || now >= kvp.Value.LockoutUntil.Value)
                 .OrderBy(kvp => kvp.Value.WindowStart)
                 .Take(excess)
                 .Select(kvp => kvp.Key)

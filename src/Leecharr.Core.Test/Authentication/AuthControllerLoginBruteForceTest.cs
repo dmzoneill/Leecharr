@@ -173,6 +173,30 @@ public class AuthControllerLoginBruteForceTest
     }
 
     [Test]
+    public void PruneExpiredLoginAttempts_WhenExceedingCapacity_DoesNotEvictActiveLockouts()
+    {
+        var now = DateTime.UtcNow;
+
+        AuthController.RecordFailedLoginAttempt(
+            "10.0.0.1",
+            failures: 5,
+            windowStart: now.AddMinutes(-30),
+            lockoutUntil: now.AddMinutes(10));
+
+        for (var i = 2; i <= 10; i++)
+        {
+            AuthController.RecordFailedLoginAttempt($"10.0.0.{i}", failures: 1, windowStart: now.AddMinutes(-10 + i));
+        }
+
+        AuthController.TrackedLoginAttemptsCount.Should().Be(10);
+
+        AuthController.PruneExpiredLoginAttempts(now, maxTrackedIps: 6);
+
+        AuthController.IsLoginThrottledForIp("10.0.0.1").Should().BeTrue();
+        AuthController.TrackedLoginAttemptsCount.Should().Be(3);
+    }
+
+    [Test]
     public async Task Login_WhenFailedLoginOccurs_AutomaticallyPrunesExpiredRecords()
     {
         var now = DateTime.UtcNow;
