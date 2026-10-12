@@ -764,6 +764,50 @@ public class EmbeddedTransmissionEngineTest
         args.GetProperty("ids")[0].GetInt64().Should().Be(99);
     }
 
+    [Test]
+    public async Task SetSuperSeedingAsync_SendsTorrentSetWithSeedMode()
+    {
+        var torrentSetBodies = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            if (method == "torrent-set")
+            {
+                torrentSetBodies.Add(body);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 43, InfoHash = "0123456789abcdef0123456789abcdef01234568", Name = "SuperSeed" };
+        await engine.AddTorrentAsync(torrent);
+        await engine.SetSuperSeedingAsync(43, true);
+
+        torrentSetBodies.Should().HaveCount(1);
+        using var setDoc = JsonDocument.Parse(torrentSetBodies[0]);
+        var args = setDoc.RootElement.GetProperty("arguments");
+        args.GetProperty("seedMode").GetBoolean().Should().BeTrue();
+
+        var task = (TransmissionDownloadTask)engine.GetTask(43)!;
+        task.IsSuperSeeding.Should().BeTrue();
+    }
+
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)
     {
         return new EmbeddedTransmissionEngine(

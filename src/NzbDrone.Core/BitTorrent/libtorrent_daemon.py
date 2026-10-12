@@ -171,6 +171,8 @@ class LibTorrentManager:
                     enabled = bool(params["first_last_piece_priority"])
                     if not _apply_first_last_piece_priority(existing, enabled):
                         self.pending_first_last[ih_str.lower()] = enabled
+                if "super_seeding" in params:
+                    self._set_super_seeding_on_handle(existing, bool(params["super_seeding"]))
             return {"status": "already_added", "info_hash": ih_str}
 
         with self.lock:
@@ -199,6 +201,8 @@ class LibTorrentManager:
                 enabled = bool(params["first_last_piece_priority"])
                 if not _apply_first_last_piece_priority(h, enabled) and ih_str:
                     self.pending_first_last[ih_str.lower()] = enabled
+            if "super_seeding" in params:
+                self._set_super_seeding_on_handle(h, bool(params["super_seeding"]))
 
             st = h.status()
             ih = str(st.info_hashes.v1) if hasattr(st, "info_hashes") and st.info_hashes.has_v1() else str(st.info_hash)
@@ -546,6 +550,23 @@ class LibTorrentManager:
             return {"status": "limits_set"}
         return {"status": "not_found"}
 
+    def _set_super_seeding_on_handle(self, h, enabled):
+        super_flag = lt.torrent_flags.super_seeding
+        if enabled:
+            h.set_flags(super_flag, super_flag)
+        else:
+            h.unset_flags(super_flag)
+
+    def set_super_seeding(self, params):
+        h = self.find_handle(params.get("info_hash"))
+        if not h:
+            return {"status": "not_found"}
+
+        enabled = bool(params.get("enabled", False))
+        with self.lock:
+            self._set_super_seeding_on_handle(h, enabled)
+        return {"status": "super_seeding_set", "enabled": enabled}
+
     def set_torrent_private(self, params):
         h = self.find_handle(params.get("info_hash"))
         if not h:
@@ -715,6 +736,7 @@ class LibTorrentManager:
                         "state": state_str,
                         "num_seeds": int(st.num_seeds),
                         "num_peers": int(st.num_peers),
+                        "super_seeding": bool(getattr(st, "super_seeding", False)),
                         "peers": peer_list,
                         "piece_availability": piece_availability,
                     }
@@ -792,6 +814,8 @@ class RpcHandler(BaseHTTPRequestHandler):
                 result = manager.set_sequential_download(params)
             elif method == "set_first_last_piece_priority":
                 result = manager.set_first_last_piece_priority(params)
+            elif method == "set_super_seeding":
+                result = manager.set_super_seeding(params)
             elif method == "set_settings":
                 result = manager.set_settings(params)
             elif method == "set_torrent_limits":
