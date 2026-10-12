@@ -320,8 +320,19 @@ public class FreeboxDownloadController : ControllerBase
         else if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
             var file = this.Request.Form.Files[0];
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+            if (file.Length > maxTorrentBytes)
+            {
+                return this.StatusCode(StatusCodes.Status413PayloadTooLarge, $"Torrent file size exceeds maximum allowed size of {maxTorrentBytes} bytes.");
+            }
+
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
+            if (ms.Length > maxTorrentBytes)
+            {
+                return this.StatusCode(StatusCodes.Status413PayloadTooLarge, $"Torrent file size exceeds maximum allowed size of {maxTorrentBytes} bytes.");
+            }
+
             var bytes = ms.ToArray();
             var parsed = this.torrentFileParser.Parse(bytes);
             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, effectiveDest, false, bytes);

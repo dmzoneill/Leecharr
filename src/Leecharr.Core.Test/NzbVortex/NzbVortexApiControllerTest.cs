@@ -283,6 +283,27 @@ public class NzbVortexApiControllerTest
     }
 
     [Test]
+    public async Task AddNzb_WhenFileExceedsMaxTorrentFileSizeBytes_Returns413PayloadTooLarge()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(1024L);
+
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(2048L);
+        formFile.FileName.Returns("large.torrent");
+
+        var fileCollection = new FormFileCollection { formFile };
+        this.httpContext.Request.ContentType = "multipart/form-data";
+        this.httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>(), fileCollection);
+
+        var result = await this.controller.AddNzb();
+
+        var statusResult = result.Should().BeOfType<ObjectResult>().Subject;
+        statusResult.StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
+        await formFile.DidNotReceiveWithAnyArgs().CopyToAsync(Arg.Any<Stream>());
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
     public async Task AddNzb_WithMagnetUrlQuery_AddsMagnetTorrent()
     {
         var magnetUri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567";
