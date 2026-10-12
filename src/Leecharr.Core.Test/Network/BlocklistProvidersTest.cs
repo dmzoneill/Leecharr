@@ -163,6 +163,25 @@ public class BlocklistProvidersTest
     }
 
     [Test]
+    public async Task P2PDatBlocklistProvider_WithHyphensInDescriptionHeaders_ParsesRangesCorrectly()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        var rules = new List<string>
+        {
+            "Level3-Communications:4.0.0.0-4.255.255.255",
+            "Anti-P2P:1.2.3.4-1.2.3.10",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+
+        count.Should().Be(2);
+        provider.IsIpBlocked("4.128.0.1").Should().BeTrue();
+        provider.IsIpBlocked("5.0.0.1").Should().BeFalse();
+        provider.IsIpBlocked("1.2.3.7").Should().BeTrue();
+        provider.IsIpBlocked("1.2.3.11").Should().BeFalse();
+    }
+
+    [Test]
     public async Task P2PDatBlocklistProvider_WithColonsInDescriptionHeaders_ParsesRulesCorrectly()
     {
         var provider = new P2PDatBlocklistProvider();

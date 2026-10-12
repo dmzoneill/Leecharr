@@ -276,8 +276,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             return false;
         }
 
-        var hyphenIdx = line.IndexOf('-');
-        if (hyphenIdx >= 0)
+        for (var hyphenIdx = line.LastIndexOf('-'); hyphenIdx >= 0; hyphenIdx = hyphenIdx > 0 ? line.LastIndexOf('-', hyphenIdx - 1) : -1)
         {
             var leftCandidate = line[..hyphenIdx].Trim();
             var rightCandidate = line[(hyphenIdx + 1)..].Trim();
@@ -285,62 +284,13 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             if (!TryExtractStartIp(leftCandidate, out var startIp, out var name) ||
                 !TryExtractEndIp(rightCandidate, startIp, out var endIp))
             {
-                return false;
+                continue;
             }
 
-            if (startIp.IsIPv4MappedToIPv6)
+            if (TryAddParsedIpRange(startIp, endIp, name, v4List, v6List))
             {
-                startIp = startIp.MapToIPv4();
+                return true;
             }
-
-            if (endIp.IsIPv4MappedToIPv6)
-            {
-                endIp = endIp.MapToIPv4();
-            }
-
-            if (startIp.AddressFamily == AddressFamily.InterNetwork && endIp.AddressFamily == AddressFamily.InterNetwork)
-            {
-                Span<byte> sBytes = stackalloc byte[4];
-                Span<byte> eBytes = stackalloc byte[4];
-                if (!startIp.TryWriteBytes(sBytes, out _) || !endIp.TryWriteBytes(eBytes, out _))
-                {
-                    return false;
-                }
-
-                var startNum = ((uint)sBytes[0] << 24) | ((uint)sBytes[1] << 16) | ((uint)sBytes[2] << 8) | sBytes[3];
-                var endNum = ((uint)eBytes[0] << 24) | ((uint)eBytes[1] << 16) | ((uint)eBytes[2] << 8) | eBytes[3];
-
-                if (startNum <= endNum)
-                {
-                    v4List.Add(new IpRangeV4(startNum, endNum, name));
-                    return true;
-                }
-
-                return false;
-            }
-
-            if (startIp.AddressFamily == AddressFamily.InterNetworkV6 && endIp.AddressFamily == AddressFamily.InterNetworkV6)
-            {
-                Span<byte> sBytes = stackalloc byte[16];
-                Span<byte> eBytes = stackalloc byte[16];
-                if (!startIp.TryWriteBytes(sBytes, out _) || !endIp.TryWriteBytes(eBytes, out _))
-                {
-                    return false;
-                }
-
-                var startNum = BinaryPrimitives.ReadUInt128BigEndian(sBytes);
-                var endNum = BinaryPrimitives.ReadUInt128BigEndian(eBytes);
-
-                if (startNum <= endNum)
-                {
-                    v6List.Add(new IpRangeV6(startNum, endNum, name));
-                    return true;
-                }
-
-                return false;
-            }
-
-            return false;
         }
 
         if (TryExtractIpOrCidr(line, out var singleIp, out var prefixLength, out var singleName))
@@ -387,6 +337,63 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
                 v6List.Add(new IpRangeV6(start, end, singleName));
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private static bool TryAddParsedIpRange(IPAddress startIp, IPAddress endIp, string name, List<IpRangeV4> v4List, List<IpRangeV6> v6List)
+    {
+        if (startIp.IsIPv4MappedToIPv6)
+        {
+            startIp = startIp.MapToIPv4();
+        }
+
+        if (endIp.IsIPv4MappedToIPv6)
+        {
+            endIp = endIp.MapToIPv4();
+        }
+
+        if (startIp.AddressFamily == AddressFamily.InterNetwork && endIp.AddressFamily == AddressFamily.InterNetwork)
+        {
+            Span<byte> sBytes = stackalloc byte[4];
+            Span<byte> eBytes = stackalloc byte[4];
+            if (!startIp.TryWriteBytes(sBytes, out _) || !endIp.TryWriteBytes(eBytes, out _))
+            {
+                return false;
+            }
+
+            var startNum = ((uint)sBytes[0] << 24) | ((uint)sBytes[1] << 16) | ((uint)sBytes[2] << 8) | sBytes[3];
+            var endNum = ((uint)eBytes[0] << 24) | ((uint)eBytes[1] << 16) | ((uint)eBytes[2] << 8) | eBytes[3];
+
+            if (startNum <= endNum)
+            {
+                v4List.Add(new IpRangeV4(startNum, endNum, name));
+                return true;
+            }
+
+            return false;
+        }
+
+        if (startIp.AddressFamily == AddressFamily.InterNetworkV6 && endIp.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            Span<byte> sBytes = stackalloc byte[16];
+            Span<byte> eBytes = stackalloc byte[16];
+            if (!startIp.TryWriteBytes(sBytes, out _) || !endIp.TryWriteBytes(eBytes, out _))
+            {
+                return false;
+            }
+
+            var startNum = BinaryPrimitives.ReadUInt128BigEndian(sBytes);
+            var endNum = BinaryPrimitives.ReadUInt128BigEndian(eBytes);
+
+            if (startNum <= endNum)
+            {
+                v6List.Add(new IpRangeV6(startNum, endNum, name));
+                return true;
+            }
+
+            return false;
         }
 
         return false;
