@@ -322,7 +322,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 var prowlarrToDelete = allExisting
                     .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase))
                                 && !string.IsNullOrWhiteSpace(e.Url)
-                                && e.Url.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase))
+                                && UrlBelongsToProwlarrInstance(e.Url, baseUri))
                     .ToList();
                 foreach (var indexerToPrune in prowlarrToDelete)
                 {
@@ -369,8 +369,8 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                     : "Torznab";
 
                 var existing = existingIndexers.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e.Url) && string.Equals(e.Url.TrimEnd('/'), feedUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
-                                ?? existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id && !string.IsNullOrWhiteSpace(e.Url) && e.Url.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase))
-                                ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(e.Url) && e.Url.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase));
+                                ?? existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id && !string.IsNullOrWhiteSpace(e.Url) && UrlBelongsToProwlarrInstance(e.Url, baseUri))
+                                ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(e.Url) && UrlBelongsToProwlarrInstance(e.Url, baseUri));
 
                 if (existing == null)
                 {
@@ -443,7 +443,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             var toPrune = existingIndexers
                 .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase))
                             && !string.IsNullOrWhiteSpace(e.Url)
-                            && e.Url.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase)
+                            && UrlBelongsToProwlarrInstance(e.Url, baseUri)
                             && (!e.ProwlarrIndexerId.HasValue || !syncedProwlarrIds.Contains(e.ProwlarrIndexerId.Value)))
                 .ToList();
 
@@ -576,6 +576,34 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         }
 
         return categories.OrderBy(c => c).ToList();
+    }
+
+    private static bool UrlBelongsToProwlarrInstance(string url, string baseUri)
+    {
+        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(baseUri))
+        {
+            return false;
+        }
+
+        var normalizedUrl = url.TrimEnd('/');
+        var normalizedBase = baseUri.TrimEnd('/');
+
+        if (normalizedUrl.Length < normalizedBase.Length)
+        {
+            return false;
+        }
+
+        if (!normalizedUrl.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (normalizedUrl.Length == normalizedBase.Length)
+        {
+            return true;
+        }
+
+        return normalizedUrl[normalizedBase.Length] == '/';
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
