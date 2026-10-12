@@ -98,6 +98,30 @@ public class GeoIpUpdateTaskTest
     }
 
     [Test]
+    public async Task ExecuteAsync_WhenDownloadSucceeds_InvalidatesGeoIpLookupCache()
+    {
+        var sampleMmdb = CreateDummyMmdbBytes();
+        var tarGzData = CreateSampleTarGz("GeoLite2-City.mmdb", sampleMmdb);
+        var geoIpManager = Substitute.For<IGeoIpManager>();
+
+        this.safeHttpClientService.DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(tarGzData);
+
+        var task = new GeoIpUpdateTask(
+            this.configService,
+            this.diskProvider,
+            this.appFolderInfo,
+            new IGeoIpProvider[] { this.maxMindProvider },
+            this.safeHttpClientService,
+            geoIpManager);
+
+        var result = await task.ExecuteAsync();
+
+        result.Should().BeTrue();
+        geoIpManager.Received(1).InvalidateLookupCache();
+    }
+
+    [Test]
     public async Task ExecuteAsync_WhenDownloadSucceeds_AtomicallyInstallsDatabaseAndReloadsProvider()
     {
         var sampleMmdb = CreateDummyMmdbBytes();

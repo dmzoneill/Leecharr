@@ -38,6 +38,7 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
     private readonly IDiskProvider diskProvider;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly IEnumerable<IGeoIpProvider> geoIpProviders;
+    private readonly IGeoIpManager geoIpManager;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger;
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
@@ -49,12 +50,14 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
         IDiskProvider diskProvider,
         IAppFolderInfo appFolderInfo,
         IEnumerable<IGeoIpProvider> geoIpProviders,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IGeoIpManager geoIpManager = null)
     {
         this.configService = configService ?? throw new ArgumentNullException(nameof(configService));
         this.diskProvider = diskProvider ?? throw new ArgumentNullException(nameof(diskProvider));
         this.appFolderInfo = appFolderInfo ?? throw new ArgumentNullException(nameof(appFolderInfo));
         this.geoIpProviders = geoIpProviders ?? Enumerable.Empty<IGeoIpProvider>();
+        this.geoIpManager = geoIpManager;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.logger = LogManager.GetCurrentClassLogger();
     }
@@ -135,6 +138,8 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
                 {
                     provider.Reload();
                 }
+
+                this.geoIpManager?.InvalidateLookupCache();
 
                 return true;
             }

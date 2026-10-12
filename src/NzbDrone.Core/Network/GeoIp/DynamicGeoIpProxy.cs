@@ -195,9 +195,12 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSav
             }
         }
 
-        var fallback = new GeoLocationInfo { IpAddress = ipAddress };
-        this.syncLookupCache[ipAddress] = fallback;
-        return fallback;
+        return new GeoLocationInfo { IpAddress = ipAddress };
+    }
+
+    public void InvalidateLookupCache()
+    {
+        this.syncLookupCache.Clear();
     }
 
     public GeoLocationInfo Lookup(string ipAddress)

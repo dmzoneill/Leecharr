@@ -205,6 +205,50 @@ public class DynamicGeoIpProxyTest
     }
 
     [Test]
+    public async Task LookupAsync_WhenAllProvidersMiss_DoesNotCacheMissSoSecondLookupRetriesProviders()
+    {
+        this.ip2LocationProvider.IsAvailable.Returns(false);
+        this.maxMindProvider.LookupAsync(Arg.Any<string>()).Returns(callInfo =>
+            Task.FromResult(new GeoLocationInfo { IpAddress = callInfo.Arg<string>() }));
+        this.onlineApiProvider.LookupAsync(Arg.Any<string>()).Returns(callInfo =>
+            Task.FromResult(new GeoLocationInfo { IpAddress = callInfo.Arg<string>() }));
+
+        var first = await this.proxy.LookupAsync("8.8.8.8");
+        first.CountryCode.Should().BeNullOrEmpty();
+
+        var second = await this.proxy.LookupAsync("8.8.8.8");
+        second.CountryCode.Should().BeNullOrEmpty();
+
+        await this.maxMindProvider.Received(2).LookupAsync("8.8.8.8");
+        await this.onlineApiProvider.Received(2).LookupAsync("8.8.8.8");
+    }
+
+    [Test]
+    public async Task InvalidateLookupCache_AllowsFreshLookupAfterDatabaseReload()
+    {
+        var result1 = await this.proxy.LookupAsync("8.8.8.8");
+        result1.CountryCode.Should().Be("US");
+        await this.maxMindProvider.Received(1).LookupAsync("8.8.8.8");
+
+        this.maxMindProvider.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo
+        {
+            IpAddress = "8.8.8.8",
+            CountryCode = "DE",
+            CountryName = "Germany",
+        }));
+
+        var cached = await this.proxy.LookupAsync("8.8.8.8");
+        cached.CountryCode.Should().Be("US");
+        await this.maxMindProvider.Received(1).LookupAsync("8.8.8.8");
+
+        this.proxy.InvalidateLookupCache();
+
+        var refreshed = await this.proxy.LookupAsync("8.8.8.8");
+        refreshed.CountryCode.Should().Be("DE");
+        await this.maxMindProvider.Received(2).LookupAsync("8.8.8.8");
+    }
+
+    [Test]
     public async Task LookupAsync_WhenActiveProviderReturnsEmptyCountryCode_CascadesToAvailableOnlineApiProvider()
     {
         this.ip2LocationProvider.IsAvailable.Returns(false);

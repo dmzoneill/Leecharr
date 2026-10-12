@@ -18,4 +18,6 @@ public interface IGeoIpManager
     Task<GeoIpHealthResult> ProbeProviderAsync(string providerId);
 
     Task<bool> SwitchProviderAsync(string providerId);
+
+    void InvalidateLookupCache();
 }
