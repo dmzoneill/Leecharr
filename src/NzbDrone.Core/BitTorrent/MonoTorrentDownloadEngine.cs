@@ -2597,17 +2597,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    public Task<(int Added, int Failed)> AddPeersAsync(int torrentId, IEnumerable<string> peers)
+    public async Task<(int Added, int Failed)> AddPeersAsync(int torrentId, IEnumerable<string> peers)
     {
         if (peers == null)
         {
-            return Task.FromResult((0, 0));
+            return (0, 0);
         }
 
         var peerList = peers as IList<string> ?? peers.ToList();
-        if (!this.tasks.TryGetValue(torrentId, out var task) || task == null)
+        if (!this.tasks.TryGetValue(torrentId, out var task) || task?.Manager == null)
         {
-            return Task.FromResult((0, peerList.Count));
+            return (0, peerList.Count);
         }
 
         var added = 0;
@@ -2621,17 +2621,43 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 continue;
             }
 
-            if (System.Net.IPEndPoint.TryParse(peer.Trim(), out var ep) && ep.Port > 0)
+            if (!IPEndPoint.TryParse(peer.Trim(), out var endpoint) || endpoint.Port <= 0)
             {
-                added++;
+                failed++;
+                continue;
             }
-            else
+
+            var scheme = endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6 ? "ipv6" : "ipv4";
+            var host = endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+                ? $"[{endpoint.Address}]"
+                : endpoint.Address.ToString();
+
+            if (!Uri.TryCreate($"{scheme}://{host}:{endpoint.Port}", UriKind.Absolute, out var connectionUri))
             {
+                failed++;
+                continue;
+            }
+
+            try
+            {
+                var peerInfo = new MonoTorrent.PeerInfo(connectionUri);
+                if (await task.Manager.AddPeerAsync(peerInfo))
+                {
+                    added++;
+                }
+                else
+                {
+                    failed++;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Could not add peer {0} to torrent {1}", peer.Trim(), torrentId);
                 failed++;
             }
         }
 
-        return Task.FromResult((added, failed));
+        return (added, failed);
     }
 
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
