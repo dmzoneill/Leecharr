@@ -49,6 +49,18 @@ public class LocalNfoMetadataProviderTest
         metadata.MediaType.Should().Be(expectedMediaType);
     }
 
+    [TestCase("Galaxy.S10.Review", "Galaxy S10 Review", "Movie")]
+    [TestCase("Product.S8.1080p", "Product S8", "Movie")]
+    public async Task FetchMetadataAsync_BareSeasonTokenWithoutEpisode_ClassifiedAsMovie(
+        string releaseName, string expectedTitle, string expectedMediaType)
+    {
+        var metadata = await this.provider.FetchMetadataAsync(releaseName);
+
+        metadata.Should().NotBeNull();
+        metadata!.Title.Should().Be(expectedTitle);
+        metadata.MediaType.Should().Be(expectedMediaType);
+    }
+
     [TestCase("Show.S1E01", "Show")]
     [TestCase("Show.1x05", "Show")]
     [TestCase("Season.of.the.Witch.2011.1080p", "Season of the Witch")]
@@ -67,6 +79,8 @@ public class LocalNfoMetadataProviderTest
     [TestCase("Internal.Affairs.720p.HDTV", "Internal Affairs")]
     [TestCase("Gladiator.2000.INTERNAL.REPACK.1080p.BluRay", "Gladiator")]
     [TestCase("The.Matrix.1999.PROPER.1080p.BluRay", "The Matrix")]
+    [TestCase("Galaxy.S10.Review", "Galaxy S10 Review")]
+    [TestCase("Product.S8.1080p", "Product S8")]
     public void CleanTitle_StripsEpisodicTagsAndYears(string raw, string expected)
     {
         LocalNfoMetadataProvider.CleanTitle(raw).Should().Be(expected);
