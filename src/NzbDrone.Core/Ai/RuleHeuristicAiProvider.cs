@@ -50,7 +50,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
     private static readonly Regex EditionRegex = new(@"(?i)\b(?<edition>Extended(?:\s*Cut)?|Director'?s\s*Cut|Unrated|IMAX(?:\s*Enhanced)?|Theatrical|Remastered|Criterion)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex LanguageRegex = new(@"(?i)\b(?<lang>Multi(?:-?Audio)?|Dual(?:-?Audio)?|VOSTFR|TRUEFRENCH|VFF|Castellano|Latino|ENG(?:LISH)?|FRENCH|FRA|FRE|GER(?:MAN)?|DEU|SPANISH|SPA|ESP|ITA(?:LIAN)?|JAP(?:ANESE)?|JPN|KOR(?:EAN)?|CHI(?:NESE)?|ZHO|HIN(?:DI)?|POR(?:TUGUESE)?|DUT(?:CH)?|NLD|POL(?:ISH)?|SWE(?:DISH)?|NOR(?:WEGIAN)?|UKR(?:AINIAN)?|TUR(?:KISH)?|ARA(?:BIC)?|RUS(?:SIAN)?)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
 
-    private static readonly Regex ReleaseGroupRegex = new($@"(?:-(?<group>[A-Za-z0-9.]+)|\[(?<group>[A-Za-z0-9.]+)\]){ReleaseGroupOptionalMediaExtensionPattern}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex ReleaseGroupRegex = new($@"(?:-(?<group>[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)|\[(?<group>[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)\]){ReleaseGroupOptionalMediaExtensionPattern}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
 
     public string ProviderId => "RuleHeuristic";
 
@@ -629,31 +629,31 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             }
             else
             {
-            var seasonMatch = SeasonOnlyRegex.Match(working);
-            if (seasonMatch.Success)
-            {
-                result.Season = int.Parse(seasonMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
-                result.Category = "tv";
-                working = working.Remove(seasonMatch.Index, seasonMatch.Length);
-            }
-            else
-            {
-                var seasonPackMatch = SeasonPackRegex.Match(working);
-                if (seasonPackMatch.Success)
+                var seasonMatch = SeasonOnlyRegex.Match(working);
+                if (seasonMatch.Success)
                 {
-                    result.Season = int.Parse(seasonPackMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
+                    result.Season = int.Parse(seasonMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
                     result.Category = "tv";
-                    working = working.Remove(seasonPackMatch.Index, seasonPackMatch.Length);
+                    working = working.Remove(seasonMatch.Index, seasonMatch.Length);
                 }
-            }
+                else
+                {
+                    var seasonPackMatch = SeasonPackRegex.Match(working);
+                    if (seasonPackMatch.Success)
+                    {
+                        result.Season = int.Parse(seasonPackMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
+                        result.Category = "tv";
+                        working = working.Remove(seasonPackMatch.Index, seasonPackMatch.Length);
+                    }
+                }
 
-            var epMatch = EpisodeOnlyRegex.Match(working);
-            if (epMatch.Success)
-            {
-                result.Episode = int.Parse(epMatch.Groups["episode"].Value, CultureInfo.InvariantCulture);
-                result.Category = "tv";
-                working = working.Remove(epMatch.Index, epMatch.Length);
-            }
+                var epMatch = EpisodeOnlyRegex.Match(working);
+                if (epMatch.Success)
+                {
+                    result.Episode = int.Parse(epMatch.Groups["episode"].Value, CultureInfo.InvariantCulture);
+                    result.Category = "tv";
+                    working = working.Remove(epMatch.Index, epMatch.Length);
+                }
             }
         }
 

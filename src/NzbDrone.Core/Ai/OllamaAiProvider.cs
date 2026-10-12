@@ -37,7 +37,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
     public bool IsAvailable => true;
 
-    public bool LastChatUsedFallback => AiChatFallbackContext.LastChatUsedFallbackValue;
+    public bool LastChatUsedFallback { get; private set; }
 
     internal TimeSpan HttpClientTimeout => this.httpClient.Timeout;
 
@@ -666,7 +666,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                     var responseText = respProp.ValueKind == JsonValueKind.Null ? null : respProp.GetString();
                     if (!string.IsNullOrEmpty(responseText))
                     {
-                        AiChatFallbackContext.SetLastChatUsedFallback(false);
+                        this.LastChatUsedFallback = false;
                         return responseText;
                     }
                 }
@@ -677,7 +677,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
             Logger.Debug(ex, "Ollama chat generation failed, falling back to heuristic assistant.");
         }
 
-        AiChatFallbackContext.SetLastChatUsedFallback(true);
+        this.LastChatUsedFallback = true;
         return await this.fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
     }
 

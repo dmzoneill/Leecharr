@@ -26,12 +26,13 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
     private IAiEngineProvider activeProvider;
     private long configSavedSwitchGeneration;
     private bool disposed;
+    private bool lastChatUsedFallback;
 
     public string ActiveProviderId => Volatile.Read(ref this.activeProvider)?.ProviderId ?? "RuleHeuristic";
 
     public IAiEngineProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
 
-    public bool LastChatUsedFallback => AiChatFallbackContext.LastChatUsedFallbackValue;
+    public bool LastChatUsedFallback => this.lastChatUsedFallback;
 
     public DynamicAiProxy(
         IEnumerable<IAiEngineProvider> availableProviders,
@@ -115,11 +116,20 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             return false;
         }
 
-        var current = Volatile.Read(ref this.activeProvider);
-        if (string.Equals(current.ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+        await this.switchLock.WaitAsync();
+        try
         {
-            return true;
+            if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
         }
+        finally
+        {
+            this.switchLock.Release();
+        }
+
+        var health = await targetProvider.ProbeHealthAsync();
 
         AiProviderSwitchedEvent switchedEvent = null;
         var success = false;
@@ -127,7 +137,11 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
         await this.switchLock.WaitAsync();
         try
         {
-            var health = await targetProvider.ProbeHealthAsync();
+            if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             if (!health.IsHealthy)
             {
                 this.logger.Warn("Cannot switch to AI provider '{0}': health check failed ({1}).", targetProvider.DisplayName, health.StatusMessage);
@@ -275,11 +289,13 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             {
                 if (provider is IFallbackAwareAiProvider fallbackAware && fallbackAware.LastChatUsedFallback)
                 {
+                    this.lastChatUsedFallback = true;
                     AiChatFallbackContext.SetLastChatUsedFallback(true);
                 }
                 else
                 {
-                    AiChatFallbackContext.SetLastChatUsedFallback(string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase));
+                    this.lastChatUsedFallback = string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase);
+                    AiChatFallbackContext.SetLastChatUsedFallback(this.lastChatUsedFallback);
                 }
 
                 return result;
@@ -290,6 +306,7 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             this.logger.Debug(ex, "Active AI provider '{0}' failed to generate chat response, falling back to heuristic assistant.", provider.ProviderId);
         }
 
+        this.lastChatUsedFallback = true;
         AiChatFallbackContext.SetLastChatUsedFallback(true);
         return await this.defaultFallback.GenerateChatResponseAsync(userMessage, systemContext);
     }
