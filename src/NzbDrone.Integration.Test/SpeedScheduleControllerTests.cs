@@ -147,6 +147,31 @@ public class SpeedScheduleControllerTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task Delete_WhenMissing_ReturnsNotFoundAndDoesNotBroadcastDeleted()
+    {
+        var deletedTcs = new TaskCompletionSource<SignalRMessage>();
+        var unexpectedDelete = false;
+
+        this.connection.On<SignalRMessage>("receiveMessage", msg =>
+        {
+            if (msg.Name == "speedscheduleDeleted")
+            {
+                unexpectedDelete = true;
+                deletedTcs.TrySetResult(msg);
+            }
+        });
+
+        await this.connection.StartAsync();
+
+        var deleteResponse = await this.DeleteAsync("/api/v1/speedschedule/999999");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        await Task.Delay(500);
+        unexpectedDelete.Should().BeFalse();
+        deletedTcs.Task.IsCompleted.Should().BeFalse();
+    }
+
+    [Test]
     public async Task GetActiveLimits_ReturnsActiveLimits()
     {
         var limits = await this.GetJsonAsync<SpeedLimitsResource>("/api/v1/speedschedule/active");

@@ -144,6 +144,12 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {
+        var existing = this.speedScheduleRepository.Get(id);
+        if (existing == null)
+        {
+            return this.NotFound();
+        }
+
         this.speedScheduleRepository.Delete(id);
         await this.speedSchedulerService.ApplyCurrentLimitsAsync();
         return this.Ok();
