@@ -132,6 +132,14 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
         this.diskProvider.EnsureFolder(targetDir);
 
+        var normalizedDest = targetDir.TrimEnd('\\', '/');
+        if (string.IsNullOrEmpty(normalizedDest))
+        {
+            normalizedDest = targetDir;
+        }
+
+        var existingFiles = this.GetAllFiles(normalizedDest);
+        var existingDirectories = this.GetAllDirectories(normalizedDest);
         var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
         async Task<bool> ExtractActionAsync()
@@ -140,8 +148,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
             foreach (var candidatePassword in passwordsToTry)
             {
-                var createdFiles = new List<string>();
-                var createdDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var backedUpOriginals = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -190,23 +197,10 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                         var entryDir = Path.GetDirectoryName(targetFilePath);
                         if (!string.IsNullOrEmpty(entryDir))
                         {
-                            var current = entryDir;
-                            while (!string.IsNullOrEmpty(current) &&
-                                    !string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetDir), StringComparison.OrdinalIgnoreCase))
-                            {
-                                if (!this.diskProvider.FolderExists(current))
-                                {
-                                    createdDirectories.Add(current);
-                                }
-
-                                current = Path.GetDirectoryName(current);
-                            }
-
                             this.diskProvider.EnsureFolder(entryDir);
                         }
 
                         var tempFilePath = targetFilePath + ".leecharr.tmp";
-                        createdFiles.Add(tempFilePath);
 
                         using (var entryStream = entry.OpenEntryStream())
                         using (var fileStream = new FileStream(
@@ -222,11 +216,12 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
                         if (this.diskProvider.FileExists(targetFilePath))
                         {
-                            this.diskProvider.DeleteFile(targetFilePath);
+                            var backupPath = targetFilePath + ".leecharr.bak";
+                            this.diskProvider.MoveFile(targetFilePath, backupPath, overwrite: true);
+                            backedUpOriginals[targetFilePath] = backupPath;
                         }
 
                         this.diskProvider.MoveFile(tempFilePath, targetFilePath, overwrite: true);
-                        createdFiles.Add(targetFilePath);
 
                         if (entry.LastModifiedTime.HasValue)
                         {
@@ -241,18 +236,19 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                         }
                     }
 
+                    this.DeleteBackupFiles(backedUpOriginals.Values);
                     this.logger.Info("SharpCompress successfully extracted archive '{0}'.", archivePath);
                     return true;
                 }
                 catch (OperationCanceledException)
                 {
-                    this.RollbackCreatedFiles(createdFiles, createdDirectories, targetDir);
+                    this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories, backedUpOriginals);
                     this.logger.Warn("Extraction of '{0}' was canceled.", archivePath);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    this.RollbackCreatedFiles(createdFiles, createdDirectories, targetDir);
+                    this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories, backedUpOriginals);
                     lastException = ex;
                     if (passwordsToTry.Count > 1)
                     {
@@ -272,49 +268,161 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         return await ExtractActionAsync();
     }
 
-    private void RollbackCreatedFiles(List<string> files, IEnumerable<string> directories = null, string targetDir = null)
+    private HashSet<string> GetAllFiles(string path)
     {
-        if (files != null && files.Count > 0)
+        if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
         {
-            foreach (var file in files)
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            return new HashSet<string>(this.diskProvider.GetFiles(path, recursive: true), StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Trace(ex, "Failed to snapshot files in '{0}'", path);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private HashSet<string> GetAllDirectories(string path)
+    {
+        var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
+        {
+            return dirs;
+        }
+
+        void Recurse(string current)
+        {
+            try
+            {
+                foreach (var dir in this.diskProvider.GetDirectories(current))
+                {
+                    if (dirs.Add(dir))
+                    {
+                        Recurse(dir);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "Failed to recurse into directory '{0}' during snapshot", current);
+            }
+        }
+
+        Recurse(path);
+        return dirs;
+    }
+
+    private void DeleteBackupFiles(IEnumerable<string> backupPaths)
+    {
+        if (backupPaths == null)
+        {
+            return;
+        }
+
+        foreach (var backupPath in backupPaths)
+        {
+            try
+            {
+                if (this.diskProvider.FileExists(backupPath))
+                {
+                    this.diskProvider.DeleteFile(backupPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to delete extraction backup file: {0}", backupPath);
+            }
+        }
+    }
+
+    private void RollbackExtractedFiles(
+        string targetDir,
+        HashSet<string> existingFiles,
+        HashSet<string> existingDirectories,
+        Dictionary<string, string> backedUpOriginals)
+    {
+        if (this.diskProvider == null)
+        {
+            return;
+        }
+
+        if (backedUpOriginals != null)
+        {
+            foreach (var backup in backedUpOriginals)
             {
                 try
                 {
-                    if (this.diskProvider.FileExists(file))
+                    if (this.diskProvider.FileExists(backup.Key))
                     {
-                        this.diskProvider.DeleteFile(file);
+                        this.diskProvider.DeleteFile(backup.Key);
+                    }
+
+                    if (this.diskProvider.FileExists(backup.Value))
+                    {
+                        this.diskProvider.MoveFile(backup.Value, backup.Key, overwrite: true);
                     }
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Warn(ex, "Failed to clean up partial extracted file: {0}", file);
+                    this.logger.Warn(ex, "Failed to restore pre-existing file from backup: {0}", backup.Key);
                 }
             }
         }
 
-        if (directories != null && !string.IsNullOrWhiteSpace(targetDir))
+        try
         {
-            var canonicalTarget = Path.GetFullPath(targetDir);
-            foreach (var dir in directories.OrderByDescending(d => d.Length))
+            if (!this.diskProvider.FolderExists(targetDir))
             {
-                try
+                return;
+            }
+
+            var currentFiles = this.diskProvider.GetFiles(targetDir, recursive: true);
+            foreach (var file in currentFiles)
+            {
+                if (!existingFiles.Contains(file))
                 {
-                    var canonicalDir = Path.GetFullPath(dir);
-                    if (!string.Equals(canonicalDir, canonicalTarget, StringComparison.OrdinalIgnoreCase) &&
-                        this.diskProvider.FolderExists(canonicalDir))
+                    try
                     {
-                        if (!this.diskProvider.GetFiles(canonicalDir, recursive: true).Any() &&
-                            !this.diskProvider.GetDirectories(canonicalDir).Any())
+                        if (this.diskProvider.FileExists(file))
                         {
-                            this.diskProvider.DeleteFolder(canonicalDir, recursive: false);
+                            this.diskProvider.DeleteFile(file);
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to clean up empty directory created during extraction: {0}", dir);
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to clean up partial extracted file '{0}'", file);
+                    }
                 }
             }
+
+            var currentDirectories = this.GetAllDirectories(targetDir)
+                .OrderByDescending(d => d.Length);
+
+            foreach (var dir in currentDirectories)
+            {
+                if (!existingDirectories.Contains(dir))
+                {
+                    try
+                    {
+                        if (this.diskProvider.FolderExists(dir) && this.diskProvider.FolderEmpty(dir))
+                        {
+                            this.diskProvider.DeleteFolder(dir, recursive: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to clean up directory created during extraction: {0}", dir);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to roll back extracted files in '{0}'", targetDir);
         }
     }
 

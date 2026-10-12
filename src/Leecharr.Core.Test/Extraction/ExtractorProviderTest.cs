@@ -377,6 +377,61 @@ public class ExtractorProviderTest
     }
 
     [Test]
+    public async Task SharpCompressExtractorProvider_RestoresPreExistingFiles_WhenLaterEntryFails()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_preexisting_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+        var zipPath = Path.Combine(tempDir, "corrupted.zip");
+
+        var existingFile = Path.Combine(outputDir, "pre_existing.txt");
+        await File.WriteAllTextAsync(existingFile, "keep me");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var firstEntry = archive.CreateEntry("pre_existing.txt");
+                using (var entryStream = firstEntry.Open())
+                using (var writer = new StreamWriter(entryStream))
+                {
+                    await writer.WriteAsync("replaced content");
+                }
+
+                var secondEntry = archive.CreateEntry("payload.txt");
+                using (var entryStream = secondEntry.Open())
+                using (var writer = new StreamWriter(entryStream))
+                {
+                    await writer.WriteAsync(new string('a', 50000));
+                }
+            }
+
+            var bytes = await File.ReadAllBytesAsync(zipPath);
+            var truncatedBytes = bytes.Take(bytes.Length - 50).ToArray();
+            await File.WriteAllBytesAsync(zipPath, truncatedBytes);
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(zipPath, outputDir);
+            success.Should().BeFalse();
+
+            File.Exists(existingFile).Should().BeTrue("pre-existing files should be restored when extraction fails");
+            (await File.ReadAllTextAsync(existingFile)).Should().Be("keep me");
+            File.Exists(Path.Combine(outputDir, "payload.txt")).Should().BeFalse();
+            File.Exists(existingFile + ".leecharr.bak").Should().BeFalse();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task SevenZipExtractorProvider_ExtractAsync_WhenProcessFails_RollsBackPartialFiles()
     {
         if (OperatingSystem.IsWindows())
