@@ -910,14 +910,11 @@ public class ArrWebhookController : Controller
         return string.Equals(eventType, "Import", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "Download", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "Upgrade", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(eventType, "Rename", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "DownloadFolderImported", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "EpisodeImport", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "MovieImport", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "EpisodeFileUpgrade", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "MovieFileUpgrade", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(eventType, "SeriesRename", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(eventType, "MovieRename", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "TrackImport", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(eventType, "BookImport", StringComparison.OrdinalIgnoreCase);
     }
@@ -949,15 +946,6 @@ public class ArrWebhookController : Controller
             return payload.BookFile.Path;
         }
 
-        if (payload.RenamedFiles != null && payload.RenamedFiles.Count > 0)
-        {
-            var firstRenamed = payload.RenamedFiles.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.Path));
-            if (firstRenamed != null)
-            {
-                return firstRenamed.Path;
-            }
-        }
-
         if (payload.TrackFiles != null && payload.TrackFiles.Count > 0)
         {
             var firstTrack = payload.TrackFiles.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.Path));
@@ -986,26 +974,6 @@ public class ArrWebhookController : Controller
             return payload.Path;
         }
 
-        if (!string.IsNullOrWhiteSpace(payload.Series?.Path))
-        {
-            return payload.Series.Path;
-        }
-
-        if (!string.IsNullOrWhiteSpace(payload.Movie?.Path))
-        {
-            return payload.Movie.Path;
-        }
-
-        if (!string.IsNullOrWhiteSpace(payload.Artist?.Path))
-        {
-            return payload.Artist.Path;
-        }
-
-        if (!string.IsNullOrWhiteSpace(payload.Author?.Path))
-        {
-            return payload.Author.Path;
-        }
-
         return null;
     }
 
@@ -1024,11 +992,6 @@ public class ArrWebhookController : Controller
         if (payload.BookFiles != null && payload.BookFiles.Count > 0)
         {
             return payload.BookFiles.Count(f => !string.IsNullOrWhiteSpace(f.Path));
-        }
-
-        if (payload.RenamedFiles != null && payload.RenamedFiles.Count > 0)
-        {
-            return payload.RenamedFiles.Count(f => !string.IsNullOrWhiteSpace(f.Path));
         }
 
         if (payload.Episodes != null && payload.Episodes.Count > 0)
