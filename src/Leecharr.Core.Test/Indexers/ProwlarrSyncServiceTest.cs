@@ -1083,6 +1083,62 @@ public class ProwlarrSyncServiceTest
     }
 
     [Test]
+    public async Task SyncFromProwlarrAsync_DoesNotPruneIndexersOnLookalikeUrlPrefix()
+    {
+        var json = @"[
+            {
+            ""id"": 1,
+            ""name"": ""Active Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+            }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var activeIndexer = new IndexerDefinition
+        {
+            Id = 10,
+            Name = "Active Tracker",
+            Url = "http://192.168.1.1/1/api",
+            ProwlarrIndexerId = 1,
+            IsProwlarrManaged = true,
+        };
+        var lookalikeIndexer = new IndexerDefinition
+        {
+            Id = 20,
+            Name = "Other Instance Tracker",
+            Url = "http://192.168.1.10/99/api",
+            ProwlarrIndexerId = 99,
+            IsProwlarrManaged = true,
+        };
+        var pathLookalikeIndexer = new IndexerDefinition
+        {
+            Id = 30,
+            Name = "Backup Prowlarr Tracker",
+            Url = "https://media.example.com/prowlarr-backup/99/api",
+            ProwlarrIndexerId = 99,
+            IsProwlarrManaged = true,
+        };
+
+        this.repository.All().Returns(new List<IndexerDefinition> { activeIndexer, lookalikeIndexer, pathLookalikeIndexer });
+
+        await service.SyncFromProwlarrAsync("http://192.168.1.1", "prowlarr-key");
+        await service.SyncFromProwlarrAsync("https://media.example.com/prowlarr", "prowlarr-key");
+
+        this.repository.DidNotReceive().Delete(20);
+        this.repository.DidNotReceive().Delete(30);
+    }
+
+    [Test]
     public async Task ExecuteAsync_ExecutesSyncAllAsync()
     {
         this.repository.All().Returns(new List<IndexerDefinition>());

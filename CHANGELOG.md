@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [v2.3.2](https://github.com/dmzoneill/Leecharr/releases/tag/v2.3.2) - 2026-10-09
 
 ### 🐛 Bug Fixes
+- fix(indexers): require path boundary when matching Prowlarr instance URLs during prune (fixes #1316)
 - fix(security): resolve symlinks in TorrentCreationService path allowlist checks (fixes #1516)
 - fix(notifications): preserve HealthIssueEvent message and source on torrent health alerts (fixes #1158)
 - fix(config): parse and store config doubles with invariant culture (fixes #1396)
