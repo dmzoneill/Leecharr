@@ -321,6 +321,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
     {
         try
         {
+            var expectedWebhookUrl = $"{this.GetLeecharrBaseUrl(connection)}/api/v1/webhook/arr".TrimEnd('/');
             var path = $"api/{apiVersion}/notification";
             if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
@@ -372,7 +373,8 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
                 var isWebhookImplementation = string.IsNullOrEmpty(implementation) ||
                     string.Equals(implementation, "Webhook", StringComparison.OrdinalIgnoreCase);
 
-                if (IsLeecharrArrWebhookUrl(url) && isWebhookImplementation &&
+                if (string.Equals(url?.TrimEnd('/'), expectedWebhookUrl, StringComparison.OrdinalIgnoreCase) &&
+                    isWebhookImplementation &&
                     notification.TryGetProperty("id", out var idProp))
                 {
                     return new ExistingWebhookInfo(idProp.GetInt32(), url, apiKey);
@@ -386,13 +388,6 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             this.logger.Debug(ex, "Failed to check existing webhooks in {0}", connection.ArrType);
             return null;
         }
-    }
-
-    private static bool IsLeecharrArrWebhookUrl(string url)
-    {
-        return !string.IsNullOrWhiteSpace(url) &&
-               (url.Contains("/api/v1/webhook/arr", StringComparison.OrdinalIgnoreCase) ||
-                url.Contains("/api/v1/webhooks/arr", StringComparison.OrdinalIgnoreCase));
     }
 
     private int? FindExistingDownloadClientId(ArrConnectionDefinition connection, string apiVersion)
