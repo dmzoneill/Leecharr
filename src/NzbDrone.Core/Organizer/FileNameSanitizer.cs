@@ -91,8 +91,8 @@ public class FileNameSanitizer : IFileNameSanitizer
         // Trim leading spaces/dots and trailing spaces/dots
         baseName = baseName.Trim(' ', '.');
 
-        // Check DOS reserved names
-        if (ReservedDosNames.Contains(baseName))
+        // Check DOS reserved names (including CON.Air-style dotted device forms)
+        if (IsReservedDosComponent(baseName))
         {
             baseName = "_" + baseName;
         }
@@ -123,7 +123,7 @@ public class FileNameSanitizer : IFileNameSanitizer
         sanitized = SanitizeComponentString(sanitized);
         sanitized = sanitized.Trim(' ', '.');
 
-        if (ReservedDosNames.Contains(sanitized))
+        if (IsReservedDosComponent(sanitized))
         {
             sanitized = "_" + sanitized;
         }
@@ -259,8 +259,7 @@ public class FileNameSanitizer : IFileNameSanitizer
             }
         }
 
-        var baseName = Path.GetFileNameWithoutExtension(fileName);
-        if (ReservedDosNames.Contains(baseName))
+        if (IsReservedDosComponent(fileName))
         {
             return false;
         }
@@ -292,6 +291,38 @@ public class FileNameSanitizer : IFileNameSanitizer
         }
 
         return true;
+    }
+
+    private static bool IsReservedDosComponent(string component)
+    {
+        if (string.IsNullOrWhiteSpace(component))
+        {
+            return false;
+        }
+
+        var trimmed = component.Trim();
+        if (ReservedDosNames.Contains(trimmed))
+        {
+            return true;
+        }
+
+        var withoutExt = Path.GetFileNameWithoutExtension(trimmed);
+        if (ReservedDosNames.Contains(withoutExt))
+        {
+            return true;
+        }
+
+        var firstDotIndex = trimmed.IndexOf('.');
+        if (firstDotIndex > 0)
+        {
+            var primaryName = trimmed.Substring(0, firstDotIndex);
+            if (ReservedDosNames.Contains(primaryName))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string ReplaceColon(string text, ColonReplacementFormat format, string customColon)
