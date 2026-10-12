@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Host;
 
@@ -138,6 +140,7 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         this.BaseUrl = addressesFeature?.Addresses?.FirstOrDefault() ?? "http://127.0.0.1:0";
 
         this.LoadApiKey();
+        this.ConfigureEmbeddedTrackerForTestServer();
         this.Client = new HttpClient { BaseAddress = new Uri(this.BaseUrl) };
         if (!string.IsNullOrEmpty(this.ApiKey))
         {
@@ -164,6 +167,30 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         catch
         {
             // Key stays empty
+        }
+    }
+
+    private void ConfigureEmbeddedTrackerForTestServer()
+    {
+        try
+        {
+            var uri = new Uri(this.BaseUrl);
+            var configService = this.app.Services.GetService<IConfigService>();
+            if (configService == null)
+            {
+                return;
+            }
+
+            configService.SaveConfigDictionary(new Dictionary<string, object>
+            {
+                ["TrackerServerEnabled"] = true,
+                ["TrackerHttpEnabled"] = true,
+                ["TrackerHttpPort"] = uri.Port,
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ConfigureEmbeddedTrackerForTestServer] Warning: {ex.Message}");
         }
     }
 

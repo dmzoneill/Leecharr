@@ -44,6 +44,30 @@ public class TransmissionRpcInputFormatter : TextInputFormatter
 
         var content = await ReadRawBodyAsync(request, encoding);
 
+        if (request.HasFormContentType)
+        {
+            try
+            {
+                var form = await request.ReadFormAsync();
+                if (form.Count > 0)
+                {
+                    var reconstructed = string.Join(
+                        "&",
+                        form.Select(kv => string.IsNullOrEmpty(kv.Value) ? kv.Key : $"{kv.Key}={kv.Value}"));
+                    if (!string.IsNullOrWhiteSpace(reconstructed) &&
+                        reconstructed.TrimStart().StartsWith('{') &&
+                        (string.IsNullOrWhiteSpace(content) || reconstructed.Length > content.Length))
+                    {
+                        content = reconstructed;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignored
+            }
+        }
+
         if (request.HasFormContentType && (string.IsNullOrWhiteSpace(content) || !content.TrimStart().StartsWith('{')))
         {
             try
