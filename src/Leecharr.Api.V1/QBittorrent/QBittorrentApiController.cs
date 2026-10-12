@@ -366,7 +366,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Ok(new Dictionary<string, object>
         {
             ["save_path"] = savePath,
-            ["temp_path_enabled"] = !string.IsNullOrWhiteSpace(tempPath),
+            ["temp_path_enabled"] = this.configService.EnableIncompleteDir,
             ["temp_path"] = tempPath,
             ["listen_port"] = this.configService.ListeningPort,
             ["up_limit"] = this.configService.MaxUploadSpeedKbps * 1024,
@@ -377,8 +377,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["pex"] = this.configService.EnablePex,
             ["lsd"] = this.configService.EnableLpd,
             ["encryption"] = encryptionPref,
-            ["anonymous_mode"] = false,
-            ["queueing_enabled"] = true,
+            ["anonymous_mode"] = this.configService.AnonymousMode,
+            ["queueing_enabled"] = this.configService.GetValueBoolean("QueueingEnabled", true),
             ["max_active_downloads"] = this.configService.MaxActiveDownloads,
             ["max_active_uploads"] = this.configService.MaxActiveUploads,
             ["max_active_torrents"] = this.configService.MaxActiveTorrents,
@@ -420,7 +420,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         if (string.IsNullOrWhiteSpace(json))
         {
-            return this.Content("Ok.", "text/plain");
+            return this.BadRequest();
         }
 
         try
@@ -514,6 +514,60 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 };
             }
 
+            if (root.TryGetProperty("temp_path_enabled", out var tempPathEnabled))
+            {
+                dict["EnableIncompleteDir"] = SafeGetBoolean(tempPathEnabled);
+            }
+
+            if (root.TryGetProperty("dont_count_slow_torrents", out var dontCountSlow))
+            {
+                dict["IgnoreSlowTorrents"] = SafeGetBoolean(dontCountSlow);
+            }
+
+            if (root.TryGetProperty("slow_torrent_dl_rate_threshold", out var slowDl) && slowDl.TryGetInt64(out var slowDlThreshold))
+            {
+                dict["SlowTorrentDownloadRateThreshold"] = slowDlThreshold;
+            }
+
+            if (root.TryGetProperty("slow_torrent_ul_rate_threshold", out var slowUl) && slowUl.TryGetInt64(out var slowUlThreshold))
+            {
+                dict["SlowTorrentUploadRateThreshold"] = slowUlThreshold;
+            }
+
+            if (root.TryGetProperty("incomplete_files_ext", out var incompleteExt))
+            {
+                dict["AppendIncompleteExtension"] = SafeGetBoolean(incompleteExt);
+            }
+
+            if (root.TryGetProperty("queueing_enabled", out var queueingEnabled))
+            {
+                dict["QueueingEnabled"] = SafeGetBoolean(queueingEnabled);
+            }
+
+            if (root.TryGetProperty("anonymous_mode", out var anonymousMode))
+            {
+                dict["AnonymousMode"] = SafeGetBoolean(anonymousMode);
+            }
+
+            if (root.TryGetProperty("auto_shutdown_on_downloads_finished", out var autoShutdown))
+            {
+                if (SafeGetBoolean(autoShutdown))
+                {
+                    if (string.Equals(this.configService.AutoShutdownAction, "None", StringComparison.OrdinalIgnoreCase))
+                    {
+                        dict["AutoShutdownAction"] = "Shutdown";
+                        if (string.Equals(this.configService.AutoShutdownCondition, "None", StringComparison.OrdinalIgnoreCase))
+                        {
+                            dict["AutoShutdownCondition"] = "WhenDownloadsComplete";
+                        }
+                    }
+                }
+                else
+                {
+                    dict["AutoShutdownAction"] = "None";
+                }
+            }
+
             if (dict.Count > 0)
             {
                 this.configService.SaveConfigDictionary(dict);
@@ -531,6 +585,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Failed to parse qBittorrent preferences payload");
+            return this.BadRequest();
         }
 
         return this.Content("Ok.", "text/plain");
@@ -3918,6 +3973,18 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             "warn" or "warning" => 4,
             "error" or "fatal" or "critical" => 8,
             _ => 1,
+        };
+    }
+
+    private static bool SafeGetBoolean(JsonElement element, bool defaultValue = false)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Number => element.TryGetInt64(out var n) ? n != 0 : (element.TryGetDouble(out var d) && Math.Abs(d) > double.Epsilon),
+            JsonValueKind.String => bool.TryParse(element.GetString(), out var b) ? b : (element.GetString() == "1"),
+            _ => defaultValue,
         };
     }
 }
