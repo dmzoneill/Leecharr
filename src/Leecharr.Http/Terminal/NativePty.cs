@@ -42,9 +42,55 @@ public static class NativePty
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     public static extern nint Read(int fd, [Out] byte[] buf, nuint count);
 
+    private const int ErrnoEintr = 4;
+
+    [DllImport("libc", EntryPoint = "write", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    private static extern nint WriteRaw(int fd, IntPtr buf, nuint count);
+
     [DllImport("libc", EntryPoint = "write", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     public static extern nint Write(int fd, [In] byte[] buf, nuint count);
+
+    public static void WriteFully(int fd, byte[] buffer)
+    {
+        if (buffer.Length == 0)
+        {
+            return;
+        }
+
+        var offset = 0;
+        var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+        try
+        {
+            var basePtr = handle.AddrOfPinnedObject();
+            while (offset < buffer.Length)
+            {
+                var remaining = (nuint)(buffer.Length - offset);
+                var written = WriteRaw(fd, basePtr + offset, remaining);
+                if (written < 0)
+                {
+                    if (Marshal.GetLastWin32Error() == ErrnoEintr)
+                    {
+                        continue;
+                    }
+
+                    return;
+                }
+
+                if (written == 0)
+                {
+                    return;
+                }
+
+                offset += (int)written;
+            }
+        }
+        finally
+        {
+            handle.Free();
+        }
+    }
 
     [DllImport("libc", EntryPoint = "close", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]

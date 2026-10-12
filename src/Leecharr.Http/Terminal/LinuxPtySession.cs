@@ -161,10 +161,7 @@ public sealed class LinuxPtySession : ITerminalSession
 
         var temp = buffer.ToArray();
         await Task.Run(
-            () =>
-            {
-                NativePty.Write(this.masterFd, temp, (nuint)temp.Length);
-            },
+            () => NativePty.WriteFully(this.masterFd, temp),
             cancellationToken).ConfigureAwait(false);
     }
 
