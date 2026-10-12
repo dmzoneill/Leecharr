@@ -406,7 +406,7 @@ public class TorrentCreationService : ITorrentCreationService
         string fullPath;
         try
         {
-            fullPath = Path.GetFullPath(path);
+            fullPath = TorrentPathValidator.ResolveCanonicalPath(path);
         }
         catch (Exception ex)
         {
@@ -472,7 +472,7 @@ public class TorrentCreationService : ITorrentCreationService
 
             try
             {
-                var fullAllowed = Path.GetFullPath(allowed).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var fullAllowed = TorrentPathValidator.ResolveCanonicalPath(allowed).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 var fullTarget = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
                 if (string.Equals(fullAllowed, fullTarget, comparison) ||
