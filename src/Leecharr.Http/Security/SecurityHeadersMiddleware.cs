@@ -56,9 +56,10 @@ public class SecurityHeadersMiddleware
         headers[PermissionsPolicyHeader] = PermissionsPolicyValue;
         headers[ContentSecurityPolicyHeader] = ContentSecurityPolicyValue;
 
+        // HSTS only when the request is actually HTTPS. Do not trust client-supplied
+        // X-Forwarded-Proto; UseForwardedHeaders in Startup updates Scheme for trusted proxies.
         var isHttps = context.Request.IsHttps ||
-                        string.Equals(context.Request.Scheme, "https", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(context.Request.Headers["X-Forwarded-Proto"], "https", StringComparison.OrdinalIgnoreCase);
+                      string.Equals(context.Request.Scheme, "https", StringComparison.OrdinalIgnoreCase);
 
         if (isHttps)
         {

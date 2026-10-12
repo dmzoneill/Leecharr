@@ -645,16 +645,17 @@ public class SecurityMiddlewareTest
     }
 
     [Test]
-    public async Task SecurityHeadersMiddleware_EmitsHstsOnForwardedProtoHttps()
+    public async Task SecurityHeadersMiddleware_DoesNotEmitHstsOnSpoofedForwardedProto()
     {
         var context = new DefaultHttpContext();
         context.Request.IsHttps = false;
+        context.Request.Scheme = "http";
         context.Request.Headers["X-Forwarded-Proto"] = "https";
 
         var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);
 
         await middleware.InvokeAsync(context);
 
-        context.Response.Headers["Strict-Transport-Security"].ToString().Should().Be("max-age=31536000; includeSubDomains");
+        context.Response.Headers.ContainsKey("Strict-Transport-Security").Should().BeFalse();
     }
 }
