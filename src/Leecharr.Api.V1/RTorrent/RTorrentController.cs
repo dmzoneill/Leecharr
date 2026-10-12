@@ -1553,9 +1553,9 @@ public class RTorrentController : ControllerBase
         {
             try
             {
-                if (File.Exists(path))
+                if (global::System.IO.File.Exists(path))
                 {
-                    File.Delete(path);
+                    global::System.IO.File.Delete(path);
                 }
             }
             catch (Exception ex)
