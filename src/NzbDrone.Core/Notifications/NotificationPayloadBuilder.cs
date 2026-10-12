@@ -932,14 +932,14 @@ public static class NotificationPayloadBuilder
             object[] sectionFields;
             if (torrent != null)
             {
-                var torrentName = EscapeSlackMrkdwn(torrent.Name);
+                var slackTorrentName = EscapeSlackMrkdwn(torrent.Name);
                 var category = EscapeSlackMrkdwn(torrent.Category ?? "None");
                 var status = EscapeSlackMrkdwn(torrent.Status.ToString());
                 var sizeMb = $"{torrent.TotalSize / (1024.0 * 1024.0):F2} MB";
 
                 var healthReason = TryGetHealthEventMessage(genericPayload, eventType);
                 var healthSource = ExtractHealthSource(genericPayload);
-                text = $"*Leecharr [{eventType}]* - *{torrentName}*\nCategory: {category} | Status: {status} | Size: {sizeMb}";
+                text = $"*Leecharr [{eventType}]* - *{slackTorrentName}*\nCategory: {category} | Status: {status} | Size: {sizeMb}";
                 if (!string.IsNullOrWhiteSpace(healthReason))
                 {
                     text += $"\nReason: {EscapeSlackMrkdwn(healthReason)}";
@@ -947,7 +947,7 @@ public static class NotificationPayloadBuilder
 
                 var fields = new List<object>
                 {
-                    new { type = "mrkdwn", text = $"*Torrent:*\n{torrentName}" },
+                    new { type = "mrkdwn", text = $"*Torrent:*\n{slackTorrentName}" },
                     new { type = "mrkdwn", text = $"*Category:*\n{category}" },
                     new { type = "mrkdwn", text = $"*Status:*\n{status}" },
                     new { type = "mrkdwn", text = $"*Size:*\n{sizeMb}" },

@@ -57,28 +57,6 @@ public class SqliteDoubleTypeHandler : SqlMapper.TypeHandler<double>
     }
 }
 
-public class SqliteGuidTypeHandler : SqlMapper.TypeHandler<Guid>
-{
-    public override void SetValue(IDbDataParameter parameter, Guid value)
-    {
-        if (parameter != null)
-        {
-            parameter.Value = value.ToString();
-        }
-    }
-
-    public override Guid Parse(object value)
-    {
-        return value switch
-        {
-            Guid guid => guid,
-            string s => Guid.Parse(s),
-            byte[] bytes when bytes.Length == 16 => new Guid(bytes),
-            _ => Guid.Parse(value?.ToString() ?? string.Empty),
-        };
-    }
-}
-
 public class TimeOnlyTypeHandler : SqlMapper.TypeHandler<TimeOnly>
 {
     public override void SetValue(IDbDataParameter parameter, TimeOnly value)
@@ -98,28 +76,6 @@ public class TimeOnlyTypeHandler : SqlMapper.TypeHandler<TimeOnly>
             DateTime dt => TimeOnly.FromDateTime(dt),
             string s => TimeOnly.Parse(s, CultureInfo.InvariantCulture),
             _ => TimeOnly.Parse(value?.ToString() ?? "00:00:00", CultureInfo.InvariantCulture),
-        };
-    }
-}
-
-public class SqliteGuidTypeHandler : SqlMapper.TypeHandler<Guid>
-{
-    public override void SetValue(IDbDataParameter parameter, Guid value)
-    {
-        if (parameter != null)
-        {
-            parameter.Value = value.ToString();
-        }
-    }
-
-    public override Guid Parse(object value)
-    {
-        return value switch
-        {
-            Guid g => g,
-            string s => Guid.Parse(s),
-            byte[] bytes when bytes.Length == 16 => new Guid(bytes),
-            _ => Guid.Parse(value?.ToString() ?? string.Empty),
         };
     }
 }
