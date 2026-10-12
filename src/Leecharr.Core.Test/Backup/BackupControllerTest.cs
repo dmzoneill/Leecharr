@@ -147,6 +147,37 @@ public class BackupControllerTest
     }
 
     [Test]
+    public async Task Restore_WhenFileNameIsWildcardPattern_ReturnsBadRequestWithoutRestoring()
+    {
+        this.CreateSampleBackup("Leecharr_backup_20260101_120000.zip", dbContent: "first-backup", configContent: "<first-config/>");
+        this.CreateSampleBackup("Leecharr_backup_20260201_120000.zip", dbContent: "second-backup", configContent: "<second-config/>");
+
+        var liveConfig = Path.Combine(this.testTempDir, "config.xml");
+        File.WriteAllText(liveConfig, "<live-config/>");
+
+        var result = await this.controller.Restore(new RestoreBackupRequest { FileName = "*.zip" });
+        result.Should().BeOfType<BadRequestObjectResult>();
+
+        File.Exists(Path.Combine(this.testTempDir, "leecharr.db.restore")).Should().BeFalse();
+        File.ReadAllText(liveConfig).Should().Be("<live-config/>");
+    }
+
+    [Test]
+    public async Task Restore_WhenFileNameContainsPartialWildcard_ReturnsBadRequestWithoutRestoring()
+    {
+        this.CreateSampleBackup("Leecharr_backup_20260101_120000.zip", dbContent: "jan-backup", configContent: "<jan-config/>");
+
+        var liveConfig = Path.Combine(this.testTempDir, "config.xml");
+        File.WriteAllText(liveConfig, "<live-config/>");
+
+        var result = await this.controller.Restore(new RestoreBackupRequest { FileName = "Leecharr_backup_2026*.zip" });
+        result.Should().BeOfType<BadRequestObjectResult>();
+
+        File.Exists(Path.Combine(this.testTempDir, "leecharr.db.restore")).Should().BeFalse();
+        File.ReadAllText(liveConfig).Should().Be("<live-config/>");
+    }
+
+    [Test]
     public async Task Restore_WhenMatchedByBackupId_RestoresBackupFiles()
     {
         var fileName = "Leecharr_backup_20260904_120000.zip";

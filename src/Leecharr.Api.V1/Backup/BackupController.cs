@@ -699,8 +699,16 @@ public class BackupController : Controller
             return null;
         }
 
-        var matches = Directory.GetFiles(backupDir, fileName, SearchOption.AllDirectories);
-        return matches.FirstOrDefault();
+        // Match by exact file name only. Directory.GetFiles treats * and ? as wildcards.
+        foreach (var candidatePath in Directory.EnumerateFiles(backupDir, "*.zip", SearchOption.AllDirectories))
+        {
+            if (string.Equals(Path.GetFileName(candidatePath), fileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidatePath;
+            }
+        }
+
+        return null;
     }
 
     [NonAction]
