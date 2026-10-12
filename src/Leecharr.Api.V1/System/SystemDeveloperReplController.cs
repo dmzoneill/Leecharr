@@ -2,12 +2,14 @@
 
 using System.Collections.Generic;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Developer.Repl;
 
 namespace Leecharr.Api.V1.System;
 
 [V1ApiController("system/developer/repl")]
+[Authorize(Policy = "RequireAdmin")]
 public class SystemDeveloperReplController : Controller
 {
     private readonly IDeveloperReplService replService;

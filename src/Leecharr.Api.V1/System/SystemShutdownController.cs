@@ -3,6 +3,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 using NzbDrone.Common.EnvironmentInfo;
@@ -10,6 +11,7 @@ using NzbDrone.Common.EnvironmentInfo;
 namespace Leecharr.Api.V1.System;
 
 [V1ApiController("system/shutdown")]
+[Authorize(Policy = "RequireAdmin")]
 public class SystemShutdownController : ControllerBase
 {
     private readonly IRuntimeInfo runtimeInfo;
