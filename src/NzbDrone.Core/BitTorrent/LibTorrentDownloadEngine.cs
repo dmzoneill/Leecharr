@@ -1220,7 +1220,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
                             if (item.TryGetProperty("num_peers", out var peers))
                             {
-                                task.ConnectedLeechers = peers.GetInt32();
+                                task.ConnectedLeechers = ResolveConnectedLeechersFromLibtorrentStatus(task.ConnectedSeeders, peers.GetInt32());
                             }
 
                             if (item.TryGetProperty("piece_availability", out var pieceAvailability) && pieceAvailability.ValueKind == JsonValueKind.Array)
@@ -1600,6 +1600,11 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     {
         var defaultCompletedDir = this.storagePathService.GetCompletedDirectory(torrent.Category);
         return this.categoryService.GetSavePathForCategory(torrent.Category, defaultCompletedDir);
+    }
+
+    internal static int ResolveConnectedLeechersFromLibtorrentStatus(int numSeeds, int numPeers)
+    {
+        return Math.Max(0, numPeers - numSeeds);
     }
 
     internal static TorrentStatus MapDaemonTorrentState(string state, double progress)
