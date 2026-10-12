@@ -267,9 +267,7 @@ public class NetworkStatusServiceTest
 
         var addresses = service.GetLocalAddresses();
 
-        addresses.Should().OnlyContain(a =>
-            IPAddress.TryParse(a, out var ip) &&
-            (ip.AddressFamily == AddressFamily.InterNetwork || ip.AddressFamily == AddressFamily.InterNetworkV6));
+        addresses.Should().OnlyContain(IsLocalOrIpv6Address);
 
         var hasGlobalIpv6 = NetworkInterface.GetAllNetworkInterfaces()
             .Any(ni => ni.OperationalStatus == OperationalStatus.Up &&
@@ -282,7 +280,7 @@ public class NetworkStatusServiceTest
 
         if (hasGlobalIpv6)
         {
-            addresses.Should().Contain(a => IPAddress.TryParse(a, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6);
+            addresses.Should().Contain(a => IsIpv6Address(a));
         }
     }
 
@@ -317,5 +315,20 @@ public class NetworkStatusServiceTest
         expected.Should().NotBeNull();
         status.LocalIp.Should().Be(expected!.ToString());
         status.LocalAddresses.Should().Contain(status.LocalIp);
+    }
+
+    private static bool IsLocalOrIpv6Address(string address)
+    {
+        if (!IPAddress.TryParse(address, out var ip))
+        {
+            return false;
+        }
+
+        return ip.AddressFamily == AddressFamily.InterNetwork || ip.AddressFamily == AddressFamily.InterNetworkV6;
+    }
+
+    private static bool IsIpv6Address(string address)
+    {
+        return IPAddress.TryParse(address, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6;
     }
 }

@@ -170,7 +170,7 @@ public class DiskSpaceService : IDiskSpaceService
             {
                 string volumeKey;
                 string driveRoot = null;
-                string fileSystemType = string.Empty;
+                var fileSystemType = string.Empty;
                 if (hasProbeSnapshot && probeSnapshot.TotalBytes > 0)
                 {
                     driveRoot = probeSnapshot.MountPath;

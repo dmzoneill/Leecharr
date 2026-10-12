@@ -5,8 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using FluentAssertions;
 using Leecharr.Http.Terminal;
-using NzbDrone.Common.Disk;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
 
 namespace Leecharr.Core.Test.Terminal;
 

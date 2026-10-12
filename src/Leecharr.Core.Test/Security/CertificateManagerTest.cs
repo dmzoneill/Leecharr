@@ -522,7 +522,9 @@ public class CertificateManagerTest
                                 await sslStream.AuthenticateAsServerAsync(serverCertificate, cancellationToken);
 
                                 var buffer = new byte[4096];
+#pragma warning disable CA2022 // Test server only needs to consume any client bytes
                                 await sslStream.ReadAsync(buffer, cancellationToken);
+#pragma warning restore CA2022
 
                                 var response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
                                 var responseBytes = Encoding.ASCII.GetBytes(response);

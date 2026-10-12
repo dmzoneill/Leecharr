@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 using FluentAssertions;
@@ -95,7 +96,7 @@ public class TorrentFileParserTest
 
     private static byte[] WithRootKey(byte[] torrentBytes, string key, BEncodedNumber value)
     {
-        var root = BEncodedDictionary.Decode(torrentBytes);
+        var root = (BEncodedDictionary)BEncodedDictionary.Decode(torrentBytes);
         root[key] = value;
         return root.Encode();
     }

@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -1303,7 +1303,7 @@ public class YamlScriptRunner : IScriptRunner
             return FileSystemRights.FullControl;
         }
 
-        FileSystemRights rights = default(FileSystemRights);
+        var rights = default(FileSystemRights);
         if (hasRead)
         {
             rights |= isDirectory

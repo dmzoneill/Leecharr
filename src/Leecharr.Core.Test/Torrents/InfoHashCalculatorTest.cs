@@ -39,7 +39,7 @@ public class InfoHashCalculatorTest
     [Test]
     public void Calculate_WhenNull_ThrowsException()
     {
-        var act = () => InfoHashCalculator.Calculate(null!);
+        var act = () => InfoHashCalculator.Calculate((BDictionary)null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
@@ -61,7 +61,7 @@ public class InfoHashCalculatorTest
     [Test]
     public void CalculateV2_WhenNull_ThrowsException()
     {
-        var act = () => InfoHashCalculator.CalculateV2(null!);
+        var act = () => InfoHashCalculator.CalculateV2((BDictionary)null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
