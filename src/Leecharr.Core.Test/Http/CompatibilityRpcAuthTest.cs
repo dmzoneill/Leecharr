@@ -289,7 +289,7 @@ public class CompatibilityRpcAuthTest
     }
 
     [Test]
-    public void Freebox_WhenAuthenticatedViaLogin_SessionTokenGrantsAccess()
+    public async Task Freebox_WhenAuthenticatedViaLogin_SessionTokenGrantsAccess()
     {
         var controller = new FreeboxDownloadController(
             this.torrentService,
@@ -301,7 +301,7 @@ public class CompatibilityRpcAuthTest
         loginContext.Request.Headers["X-Api-Key"] = "master_api_key_xyz";
         controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
 
-        var loginResult = controller.LoginSession();
+        var loginResult = await controller.LoginSession();
         loginResult.Should().BeOfType<OkObjectResult>();
 
         var okResult = (OkObjectResult)loginResult;
