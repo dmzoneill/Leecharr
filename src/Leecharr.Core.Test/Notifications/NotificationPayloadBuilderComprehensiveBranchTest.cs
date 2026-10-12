@@ -114,7 +114,13 @@ public class NotificationPayloadBuilderComprehensiveBranchTest
         user.Should().Be("usr456");
         sound.Should().Be("siren");
 
-        // 2. Query string format
+        // 2. JSON numeric chat_id (Telegram API / imports)
+        var numericChatSettings = "{\"chat_id\": -1001234567890, \"token\": \"tok123\"}";
+        var (cNum, tNum, _, _) = NotificationPayloadBuilder.ExtractProviderSettings(numericChatSettings);
+        cNum.Should().Be("-1001234567890");
+        tNum.Should().Be("tok123");
+
+        // 3. Query string format
         var qsSettings = "chat_id=888&token=tok789&user=usr321&sound=magic";
         var (c2, t2, u2, s2) = NotificationPayloadBuilder.ExtractProviderSettings(qsSettings);
         c2.Should().Be("888");
@@ -122,7 +128,7 @@ public class NotificationPayloadBuilderComprehensiveBranchTest
         u2.Should().Be("usr321");
         s2.Should().Be("magic");
 
-        // 3. Null and empty
+        // 4. Null and empty
         var (c3, t3, u3, s3) = NotificationPayloadBuilder.ExtractProviderSettings(null);
         c3.Should().BeEmpty();
         t3.Should().BeEmpty();
