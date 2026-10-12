@@ -96,7 +96,8 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         }
 
         var cleanTitle = CleanTitle(title);
-        var parsedYear = year.HasValue && year.Value > 0 ? year.Value : ExtractYear(title);
+        var explicitYear = year.HasValue && year.Value > 0 ? year.Value : 0;
+        var parsedYear = explicitYear > 0 ? explicitYear : ExtractYear(title);
 
         var isTv = ((category ?? string.Empty).Contains("tv", StringComparison.OrdinalIgnoreCase) ||
                     (category ?? string.Empty).Contains("show", StringComparison.OrdinalIgnoreCase) ||
@@ -108,12 +109,15 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
 
         var isMovie = !isTv;
 
+        // Episode release names often include the air year; that is not the series premiere year TMDB filters on.
+        var searchYear = isMovie ? parsedYear : explicitYear;
+
         var apiKey = this.GetApiKey();
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             try
             {
-                var metaFromApi = await this.QueryTmdbApiAsync(apiKey, cleanTitle, parsedYear, isMovie);
+                var metaFromApi = await this.QueryTmdbApiAsync(apiKey, cleanTitle, searchYear, isMovie);
                 if (metaFromApi != null)
                 {
                     return metaFromApi;

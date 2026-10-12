@@ -308,11 +308,16 @@ public class DynamicMediaMetadataProxyTest
                 Enable = true,
             },
         };
+        arrRepo.All().Returns(connections);
         arrRepo.GetEnabled().Returns(connections);
 
-        var handler = new MockHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
+        var handler = new MockHttpMessageHandler(req =>
         {
-            Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+            req.RequestUri!.AbsolutePath.Should().Contain("system/status");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+            };
         });
         using var httpClient = new HttpClient(handler);
         var provider = new ServarrSyncMetadataProvider(arrRepo, httpClient);
