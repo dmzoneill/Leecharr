@@ -1094,7 +1094,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 ? await this.TryLoadSavedFastResumeAsync(infoHashHex, cacheDir).ConfigureAwait(false)
                 : null;
 
-            var incompleteDir = this.storagePathService.GetIncompleteDirectory();
+            var incompleteDir = !string.IsNullOrWhiteSpace(torrent.DownloadPath)
+                ? torrent.DownloadPath
+                : this.storagePathService.GetIncompleteDirectory();
             var hasCompletedFiles = false;
             var hasIncompleteFiles = false;
 
@@ -3031,6 +3033,71 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 catch (Exception rollbackEx)
                 {
                     this.logger.Error(rollbackEx, "Failed to rollback files for torrent {0} to '{1}'", torrentId, oldSavePath);
+                }
+            }
+
+            throw;
+        }
+    }
+
+    public async Task SetTorrentDownloadPathAsync(int torrentId, string downloadPath, bool moveFiles = true)
+    {
+        if (string.IsNullOrWhiteSpace(downloadPath))
+        {
+            throw new ArgumentException("Download path must not be empty.", nameof(downloadPath));
+        }
+
+        if (!this.tasks.TryGetValue(torrentId, out var task) || task.Manager == null)
+        {
+            this.logger.Warn("Cannot set download path: torrent id {0} not found in active engine tasks", torrentId);
+            return;
+        }
+
+        var preservedSavePath = task.SavePath;
+        var oldManagerPath = task.Manager.SavePath;
+        var existingPriorities = task.Manager.Files?.Select(f => (File: f, f.Priority)).ToList();
+
+        try
+        {
+            Directory.CreateDirectory(downloadPath);
+            if (task.Manager.Torrent != null)
+            {
+                await task.Manager.MoveFilesAsync(downloadPath, moveFiles).ConfigureAwait(false);
+            }
+
+            task.WorkingPath = downloadPath;
+            if (!string.IsNullOrWhiteSpace(preservedSavePath))
+            {
+                task.SavePath = preservedSavePath;
+            }
+
+            if (existingPriorities != null)
+            {
+                foreach (var (file, priority) in existingPriorities)
+                {
+                    if (file.Priority != priority)
+                    {
+                        await task.Manager.SetFilePriorityAsync(file, priority).ConfigureAwait(false);
+                    }
+                }
+            }
+
+            this.logger.Info("Successfully set download path for torrent {0} to '{1}' (moveFiles={2}, save path remains '{3}')", torrentId, downloadPath, moveFiles, task.SavePath);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to set download path for torrent {0} to '{1}'", torrentId, downloadPath);
+            if (moveFiles && task.Manager.Torrent != null && !string.IsNullOrWhiteSpace(oldManagerPath) && !string.Equals(oldManagerPath, downloadPath, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    this.logger.Info("Attempting to rollback download path for torrent {0} back to '{1}'", torrentId, oldManagerPath);
+                    await task.Manager.MoveFilesAsync(oldManagerPath, true).ConfigureAwait(false);
+                    task.WorkingPath = oldManagerPath;
+                }
+                catch (Exception rollbackEx)
+                {
+                    this.logger.Error(rollbackEx, "Failed to rollback download path for torrent {0} to '{1}'", torrentId, oldManagerPath);
                 }
             }
 

@@ -3078,7 +3078,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         {
             foreach (var t in this.ResolveTorrents(targetHashes))
             {
-                await this.torrentService.SetLocationAsync(t.Id, path, moveFiles: false);
+                await this.torrentService.SetDownloadPathAsync(t.Id, path, moveFiles: false);
             }
         }
 

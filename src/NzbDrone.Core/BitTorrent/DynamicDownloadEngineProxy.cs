@@ -590,6 +590,15 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         }
     }
 
+    public async Task SetTorrentDownloadPathAsync(int torrentId, string downloadPath, bool moveFiles = true)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.SetTorrentDownloadPathAsync(torrentId, downloadPath, moveFiles);
+        }
+    }
+
     public async Task<EngineHealthCheckResult> ProbeHealthAsync()
     {
         var engine = await this.GetReadyEngineAsync();

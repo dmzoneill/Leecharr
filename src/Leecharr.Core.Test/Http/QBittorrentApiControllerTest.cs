@@ -497,7 +497,7 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
-    public async Task SetDownloadPath_WithHashesAndPath_InvokesSetLocationAsyncWithMoveFalse()
+    public async Task SetDownloadPath_WithHashesAndPath_InvokesSetDownloadPathAsyncWithMoveFalse()
     {
         var torrent = new Torrent { Id = 10, Name = "Torrent 1", InfoHash = "hash1" };
         this.torrentService.GetByInfoHash("hash1").Returns(torrent);
@@ -506,11 +506,11 @@ public class QBittorrentApiControllerTest
 
         result.Should().BeOfType<ContentResult>();
         ((ContentResult)result).Content.Should().Be("Ok.");
-        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/incomplete", moveFiles: false);
+        await this.torrentService.Received(1).SetDownloadPathAsync(10, "/downloads/incomplete", moveFiles: false);
     }
 
     [Test]
-    public async Task SetDownloadPath_WithIdAndPath_InvokesSetLocationAsyncWithMoveFalse()
+    public async Task SetDownloadPath_WithIdAndPath_InvokesSetDownloadPathAsyncWithMoveFalse()
     {
         var torrent = new Torrent { Id = 10, Name = "Torrent 1", InfoHash = "hash1" };
         this.torrentService.GetByInfoHash("hash1").Returns(torrent);
@@ -519,17 +519,17 @@ public class QBittorrentApiControllerTest
 
         result.Should().BeOfType<ContentResult>();
         ((ContentResult)result).Content.Should().Be("Ok.");
-        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/incomplete", moveFiles: false);
+        await this.torrentService.Received(1).SetDownloadPathAsync(10, "/downloads/incomplete", moveFiles: false);
     }
 
     [Test]
-    public async Task SetDownloadPath_WithEmptyOrMissingParams_ReturnsOkAndDoesNotInvokeSetLocationAsync()
+    public async Task SetDownloadPath_WithEmptyOrMissingParams_ReturnsOkAndDoesNotInvokeSetDownloadPathAsync()
     {
         var result = await this.controller.SetDownloadPath(hashes: null, id: null, path: null);
 
         result.Should().BeOfType<ContentResult>();
         ((ContentResult)result).Content.Should().Be("Ok.");
-        await this.torrentService.DidNotReceiveWithAnyArgs().SetLocationAsync(default, default, default);
+        await this.torrentService.DidNotReceiveWithAnyArgs().SetDownloadPathAsync(default, default, default);
     }
 
     [Test]

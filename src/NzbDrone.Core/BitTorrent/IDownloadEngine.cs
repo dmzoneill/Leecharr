@@ -72,6 +72,9 @@ public interface IDownloadEngine
 
     Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true) => Task.CompletedTask;
 
+    Task SetTorrentDownloadPathAsync(int torrentId, string downloadPath, bool moveFiles = true) =>
+        MoveTorrentFilesAsync(torrentId, downloadPath, moveFiles);
+
     IDownloadTask GetTask(int torrentId);
 
     IEnumerable<IDownloadTask> GetAllTasks();

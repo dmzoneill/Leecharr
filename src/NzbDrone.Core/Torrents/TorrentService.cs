@@ -1868,6 +1868,64 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         this.logger.Info("Updated save path for torrent {0} ({1}) to '{2}' (moved={3})", torrent.Id, torrent.Name, newSavePath, moveFiles);
     }
 
+    public async Task SetDownloadPathAsync(int id, string downloadPath, bool moveFiles = false)
+    {
+        if (string.IsNullOrWhiteSpace(downloadPath))
+        {
+            throw new ArgumentException("Download path must not be empty.", nameof(downloadPath));
+        }
+
+        var torrent = this.torrentRepository.Get(id);
+        if (torrent == null)
+        {
+            this.logger.Warn("Cannot set download path for torrent id {0}: torrent not found", id);
+            return;
+        }
+
+        if (string.Equals(torrent.DownloadPath, downloadPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var previousDownloadPath = torrent.DownloadPath;
+        torrent.DownloadPath = downloadPath;
+
+        if (this.downloadEngine != null)
+        {
+            this.logger.Info(
+                "Setting download path for torrent {0} ({1}) to '{2}' (save path remains '{3}', moveFiles={4})",
+                torrent.Id,
+                torrent.Name,
+                downloadPath,
+                torrent.SavePath,
+                moveFiles);
+            try
+            {
+                await this.downloadEngine.SetTorrentDownloadPathAsync(id, downloadPath, moveFiles);
+            }
+            catch (Exception ex)
+            {
+                torrent.DownloadPath = previousDownloadPath;
+                this.logger.Error(ex, "Failed to set download path in download engine for torrent {0} to '{1}'", torrent.Id, downloadPath);
+                throw;
+            }
+        }
+
+        try
+        {
+            this.torrentRepository.Update(torrent);
+        }
+        catch (Exception ex)
+        {
+            torrent.DownloadPath = previousDownloadPath;
+            this.logger.Error(ex, "Failed to update repository for torrent {0} after setting download path to '{1}'", torrent.Id, downloadPath);
+            throw;
+        }
+
+        this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
+        this.logger.Info("Updated download path for torrent {0} ({1}) to '{2}'", torrent.Id, torrent.Name, downloadPath);
+    }
+
     public async Task SetCategoryAsync(int id, string category)
     {
         var torrent = this.torrentRepository.Get(id);
