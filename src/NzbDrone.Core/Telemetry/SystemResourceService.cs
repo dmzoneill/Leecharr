@@ -469,20 +469,21 @@ public class SystemResourceService : ISystemResourceService
         }
 
         var extractorCaps = extractor?.Capabilities;
+        var activeExtractions = this.extractorManager?.ActiveExtractionCount ?? 0;
         return new SubsystemTelemetryReport
         {
             SubsystemId = "extractor",
             SubsystemName = "Archive Extractor Pipeline",
             ActiveProvider = this.extractorManager?.ActiveProviderId ?? "Unknown",
             Status = extractorHealthy ? "Healthy" : "Degraded",
-            ResourceLoad = "Nominal",
+            ResourceLoad = activeExtractions > 0 ? "High" : "Nominal",
             Metrics = new Dictionary<string, object>
             {
                 ["supportsRar5"] = extractorCaps?.SupportsRar5 ?? false,
                 ["supports7z"] = extractorCaps?.Supports7z ?? false,
                 ["supportsMultiPart"] = extractorCaps?.SupportsMultiPart ?? false,
                 ["supportsPasswordProtected"] = extractorCaps?.SupportsPasswordProtected ?? false,
-                ["activeExtractions"] = 0,
+                ["activeExtractions"] = activeExtractions,
                 ["isAvailable"] = extractor?.IsAvailable ?? false,
                 ["mode"] = "NonBlockingWorker",
             },
@@ -548,6 +549,9 @@ public class SystemResourceService : ISystemResourceService
         }
 
         var geoCaps = geoIp?.Capabilities ?? GeoIpCapabilities.None;
+        var databaseLoaded = geoIp?.IsAvailable ?? false;
+        var fastResolutionCache = databaseLoaded &&
+            (geoCaps.HasFlag(GeoIpCapabilities.InMemoryCache) || geoCaps.HasFlag(GeoIpCapabilities.OfflineDatabase));
         return new SubsystemTelemetryReport
         {
             SubsystemId = "geoip",
@@ -557,8 +561,8 @@ public class SystemResourceService : ISystemResourceService
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
-                ["databaseLoaded"] = geoIp?.IsAvailable ?? false,
-                ["fastResolutionCache"] = true,
+                ["databaseLoaded"] = databaseLoaded,
+                ["fastResolutionCache"] = fastResolutionCache,
                 ["supportsCountry"] = geoCaps.HasFlag(GeoIpCapabilities.Country),
                 ["supportsCity"] = geoCaps.HasFlag(GeoIpCapabilities.City),
                 ["supportsAsn"] = geoCaps.HasFlag(GeoIpCapabilities.Asn),
@@ -601,9 +605,32 @@ public class SystemResourceService : ISystemResourceService
                 ["supportsIPv4"] = blockCaps.HasFlag(BlocklistCapabilities.IPv4),
                 ["supportsIPv6"] = blockCaps.HasFlag(BlocklistCapabilities.IPv6),
                 ["supportsCidr"] = blockCaps.HasFlag(BlocklistCapabilities.Cidr),
-                ["lookupMode"] = "RadixTreeBinarySearch",
+                ["lookupMode"] = ResolveBlocklistLookupMode(blocklist, this.blocklistManager?.ActiveProviderId),
             },
         };
+    }
+
+    private static string ResolveBlocklistLookupMode(IBlocklistProvider provider, string activeProviderId)
+    {
+        var capabilities = provider?.Capabilities ?? BlocklistCapabilities.None;
+        if (capabilities.HasFlag(BlocklistCapabilities.LinuxIpSet))
+        {
+            return "LinuxNetfilterIpSet";
+        }
+
+        if (capabilities.HasFlag(BlocklistCapabilities.P2PDat))
+        {
+            return "PeerGuardianRangeParser";
+        }
+
+        if (!string.IsNullOrWhiteSpace(activeProviderId))
+        {
+            return string.Equals(activeProviderId, "RadixTree", StringComparison.OrdinalIgnoreCase)
+                ? "RadixTreeBinarySearch"
+                : activeProviderId;
+        }
+
+        return "RadixTreeBinarySearch";
     }
 
     private async Task<SubsystemTelemetryReport> GetNetworkBindingTelemetryAsync(CancellationToken cancellationToken)

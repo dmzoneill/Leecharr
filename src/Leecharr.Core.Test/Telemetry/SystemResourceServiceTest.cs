@@ -447,4 +447,49 @@ public class SystemResourceServiceTest
         snapshot.Subsystems.Should().HaveCount(9);
         snapshot.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
+
+    [Test]
+    public async Task GetSubsystemTelemetryAsync_Extractor_ReportsActiveExtractionCountFromManager()
+    {
+        SystemResourceService.ResetSubsystemMetricsCache();
+        this.extractorManager.ActiveExtractionCount.Returns(3);
+
+        var reports = await this.service.GetSubsystemTelemetryAsync("extractor");
+
+        reports.Should().HaveCount(1);
+        reports[0].Metrics["activeExtractions"].Should().Be(3);
+        reports[0].ResourceLoad.Should().Be("High");
+    }
+
+    [Test]
+    public async Task GetSubsystemTelemetryAsync_Blocklist_ReportsLookupModeForActiveProvider()
+    {
+        SystemResourceService.ResetSubsystemMetricsCache();
+        var blocklistProvider = Substitute.For<IBlocklistProvider>();
+        blocklistProvider.Capabilities.Returns(BlocklistCapabilities.IPv4 | BlocklistCapabilities.LinuxIpSet);
+        this.blocklistManager.ActiveProviderId.Returns("LinuxIpSet");
+        this.blocklistManager.ActiveProvider.Returns(blocklistProvider);
+
+        var reports = await this.service.GetSubsystemTelemetryAsync("blocklist");
+
+        reports.Should().HaveCount(1);
+        reports[0].Metrics["lookupMode"].Should().Be("LinuxNetfilterIpSet");
+    }
+
+    [Test]
+    public async Task GetSubsystemTelemetryAsync_GeoIp_DoesNotReportFastResolutionCacheWhenDatabaseUnavailable()
+    {
+        SystemResourceService.ResetSubsystemMetricsCache();
+        var geoProvider = Substitute.For<IGeoIpProvider>();
+        geoProvider.IsAvailable.Returns(false);
+        geoProvider.Capabilities.Returns(GeoIpCapabilities.Country | GeoIpCapabilities.OfflineDatabase);
+        geoProvider.ProbeHealthAsync().Returns(Task.FromResult(new GeoIpHealthResult { IsHealthy = false }));
+        this.geoIpManager.ActiveProvider.Returns(geoProvider);
+
+        var reports = await this.service.GetSubsystemTelemetryAsync("geoip");
+
+        reports.Should().HaveCount(1);
+        reports[0].Metrics["databaseLoaded"].Should().Be(false);
+        reports[0].Metrics["fastResolutionCache"].Should().Be(false);
+    }
 }

@@ -12,6 +12,8 @@ public interface IArchiveExtractorManager
 
     string ActiveProviderId { get; }
 
+    int ActiveExtractionCount { get; }
+
     IEnumerable<IArchiveExtractorProvider> GetProviders();
 
     IArchiveExtractorProvider GetProvider(string providerId);

@@ -24,11 +24,14 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
     private readonly SemaphoreSlim switchLock = new(1, 1);
     private readonly SemaphoreSlim extractionSemaphore;
     private IArchiveExtractorProvider activeProvider;
+    private int activeExtractionCount;
     private bool disposed;
 
     public IArchiveExtractorProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
 
     public string ActiveProviderId => Volatile.Read(ref this.activeProvider)?.ProviderId ?? "SharpCompress";
+
+    public int ActiveExtractionCount => Volatile.Read(ref this.activeExtractionCount);
 
     public DynamicArchiveExtractorProxy(
         IEnumerable<IArchiveExtractorProvider> availableProviders,
@@ -256,6 +259,7 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         }
 
         await this.extractionSemaphore.WaitAsync(cancellationToken);
+        Interlocked.Increment(ref this.activeExtractionCount);
         try
         {
             var postWaitAvailable = this.diskProvider.GetAvailableSpace(targetDir);
@@ -316,6 +320,7 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         }
         finally
         {
+            Interlocked.Decrement(ref this.activeExtractionCount);
             this.extractionSemaphore.Release();
         }
     }
