@@ -246,6 +246,39 @@ public class CommandQueueManagerTest
     }
 
     [Test]
+    public void GetAll_IncludesRunningCommandsOutsideRecentWindow()
+    {
+        var recent = Enumerable.Range(1, 50)
+            .Select(i => new CommandModel
+            {
+                Id = i,
+                Name = $"Recent{i}",
+                Status = CommandStatus.Completed,
+                QueuedAt = DateTime.UtcNow.AddMinutes(-i),
+            })
+            .ToList();
+
+        var hiddenRunning = new CommandModel
+        {
+            Id = 999,
+            Name = "LongBackup",
+            Status = CommandStatus.Running,
+            QueuedAt = DateTime.UtcNow.AddDays(-1),
+        };
+
+        this.repository.GetRecent(50).Returns(recent);
+        this.repository.GetByStatus(CommandStatus.Running).Returns(new List<CommandModel> { hiddenRunning });
+
+        var result = this.commandQueueManager.GetAll().ToList();
+
+        result.Should().HaveCount(51);
+        result.Should().Contain(hiddenRunning);
+        result.Select(c => c.Id).Should().Contain(999);
+        this.repository.Received(1).GetRecent(50);
+        this.repository.Received(1).GetByStatus(CommandStatus.Running);
+    }
+
+    [Test]
     public void GetStarted_QueriesRepositoryForRunningStatus()
     {
         var running = new List<CommandModel>
