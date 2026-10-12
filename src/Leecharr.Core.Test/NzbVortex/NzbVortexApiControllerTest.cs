@@ -401,6 +401,49 @@ public class NzbVortexApiControllerTest
     }
 
     [Test]
+    public void GetQueueItem_ReturnsMappedNzbWithoutDeleting()
+    {
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "Queue-Item",
+            Category = "tv",
+            TotalSize = 2000,
+            Downloaded = 1000,
+            DownloadSpeed = 512,
+            Status = TorrentStatus.Downloading,
+            SavePath = "/downloads/tv",
+            Ratio = 0.5,
+            Progress = 0.5,
+        };
+        this.torrentService.Get(5).Returns(torrent);
+
+        var result = this.controller.GetQueueItem(5);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var nzb = doc.RootElement.GetProperty("nzb");
+        nzb.GetProperty("id").GetInt32().Should().Be(5);
+        nzb.GetProperty("uiTitle").GetString().Should().Be("Queue-Item");
+        doc.RootElement.GetProperty("error").GetInt32().Should().Be(0);
+        this.torrentService.DidNotReceive().DeleteAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void GetQueueItem_WhenTorrentMissing_ReturnsNotFound()
+    {
+        this.torrentService.Get(99).Returns((Torrent?)null);
+
+        var result = this.controller.GetQueueItem(99);
+
+        result.Should().BeOfType<NotFoundResult>();
+        this.torrentService.DidNotReceive().DeleteAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
     public void GetFiles_ReturnsEnrichedFilesList()
     {
         var torrent = new Torrent { Id = 5, Name = "Torrent5", Progress = 0.75 };

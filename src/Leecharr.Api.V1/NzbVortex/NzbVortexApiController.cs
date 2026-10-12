@@ -205,35 +205,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         }
 
         var all = this.torrentService.GetAll().ToList();
-        var nzbs = all.Select(t => new
-        {
-            id = t.Id,
-            uiTitle = t.Name ?? string.Empty,
-            nzbFilename = t.Name ?? string.Empty,
-            nzbName = t.Name ?? string.Empty,
-            groupName = t.Category ?? string.Empty,
-            totalDownloadSize = t.TotalSize,
-            totalBytes = t.TotalSize,
-            downloadedSize = t.Downloaded,
-            downloadedBytes = t.Downloaded,
-            transferedSpeed = (int)t.DownloadSpeed,
-            speed = t.DownloadSpeed,
-            isPaused = t.Status == TorrentStatus.Paused || (t.Status == TorrentStatus.Stopped && !IsComplete(t)),
-            state = t.Status switch
-            {
-                TorrentStatus.Downloading => 1,
-                TorrentStatus.Seeding => 20,
-                TorrentStatus.Completed => 20,
-                TorrentStatus.Stopped => IsComplete(t) ? 20 : 0,
-                TorrentStatus.Paused => 0,
-                TorrentStatus.Error => 21,
-                _ => 0,
-            },
-            statusText = t.Status.ToString(),
-            destinationPath = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
-            downloadRatio = t.Ratio,
-            progress = t.Progress,
-        }).ToList();
+        var nzbs = all.Select(this.MapTorrentToNzb).ToList();
 
         return this.Ok(new
         {
@@ -337,6 +309,31 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     }
 
     [HttpGet]
+    [Route("nzbvortex/api/v1/queue/{id}")]
+    [Route("api/v1/queue/{id}")]
+    public IActionResult GetQueueItem(int id)
+    {
+        if (!this.IsNzbVortexAuthenticated())
+        {
+            return this.Unauthorized();
+        }
+
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var nzb = this.MapTorrentToNzb(torrent);
+        return this.Ok(new
+        {
+            nzb,
+            error = 0,
+            result = 0,
+        });
+    }
+
+    [HttpGet]
     [HttpPost]
     [HttpDelete]
     [Route("nzbvortex/api/v1/nzb/{id}/cancel")]
@@ -345,8 +342,6 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     [Route("api/v1/nzb/{id}/cancelDelete")]
     [Route("nzbvortex/api/v1/nzb/{id}/delete")]
     [Route("api/v1/nzb/{id}/delete")]
-    [Route("nzbvortex/api/v1/queue/{id}")]
-    [Route("api/v1/queue/{id}")]
     public async Task<IActionResult> CancelNzb(int id, [FromQuery] bool deleteFiles = false)
     {
         var isDelete = deleteFiles || (this.Request.Path.Value?.Contains("cancelDelete", StringComparison.OrdinalIgnoreCase) == true);
@@ -406,4 +401,34 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         (t.TotalSize > 0 && t.Downloaded >= t.TotalSize) ||
         t.Status == TorrentStatus.Completed ||
         t.Status == TorrentStatus.Seeding;
+
+    private object MapTorrentToNzb(Torrent t) => new
+    {
+        id = t.Id,
+        uiTitle = t.Name ?? string.Empty,
+        nzbFilename = t.Name ?? string.Empty,
+        nzbName = t.Name ?? string.Empty,
+        groupName = t.Category ?? string.Empty,
+        totalDownloadSize = t.TotalSize,
+        totalBytes = t.TotalSize,
+        downloadedSize = t.Downloaded,
+        downloadedBytes = t.Downloaded,
+        transferedSpeed = (int)t.DownloadSpeed,
+        speed = t.DownloadSpeed,
+        isPaused = t.Status == TorrentStatus.Paused || (t.Status == TorrentStatus.Stopped && !IsComplete(t)),
+        state = t.Status switch
+        {
+            TorrentStatus.Downloading => 1,
+            TorrentStatus.Seeding => 20,
+            TorrentStatus.Completed => 20,
+            TorrentStatus.Stopped => IsComplete(t) ? 20 : 0,
+            TorrentStatus.Paused => 0,
+            TorrentStatus.Error => 21,
+            _ => 0,
+        },
+        statusText = t.Status.ToString(),
+        destinationPath = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads"),
+        downloadRatio = t.Ratio,
+        progress = t.Progress,
+    };
 }
