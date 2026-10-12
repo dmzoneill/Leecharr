@@ -123,6 +123,7 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
 
         AiProviderSwitchedEvent switchedEvent = null;
         var success = false;
+        IAiEngineProvider previousProvider = null;
 
         await this.switchLock.WaitAsync();
         try
@@ -142,13 +143,14 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
                 return true;
             }
 
-            var previousProvider = Volatile.Read(ref this.activeProvider);
-            Volatile.Write(ref this.activeProvider, targetProvider);
+            previousProvider = Volatile.Read(ref this.activeProvider);
 
             this.configService.SaveConfigDictionary(new Dictionary<string, object>
             {
                 { "ActiveAiProvider", targetProvider.ProviderId },
             });
+
+            Volatile.Write(ref this.activeProvider, targetProvider);
 
             this.logger.Info("AI provider hot-swapped: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
             switchedEvent = new AiProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
@@ -157,6 +159,12 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to hot-swap AI provider to '{0}'", providerId);
+
+            if (previousProvider != null)
+            {
+                Volatile.Write(ref this.activeProvider, previousProvider);
+            }
+
             return false;
         }
         finally
