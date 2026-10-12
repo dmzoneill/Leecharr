@@ -27,6 +27,7 @@ public class RTorrentController : ControllerBase
 {
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> CustomFieldsStore = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, byte> ClosedTorrentsStore = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> TorrentViewsStore = new(StringComparer.OrdinalIgnoreCase);
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ITorrentFileService torrentFileService;
@@ -883,6 +884,16 @@ public class RTorrentController : ControllerBase
                 return new XElement("i4", 0);
 
             case "d.views.push_back_unique":
+                if (paramValues.Count >= 2 && paramValues[0] != null && paramValues[1] != null)
+                {
+                    var viewHash = paramValues[0].ToString()?.Trim();
+                    var viewLabel = paramValues[1].ToString()?.Trim();
+                    if (!string.IsNullOrEmpty(viewHash) && !string.IsNullOrEmpty(viewLabel))
+                    {
+                        AddTorrentView(viewHash, viewLabel);
+                    }
+                }
+
                 return new XElement("i4", 0);
 
             case "d.tracker_announce":
@@ -1501,6 +1512,7 @@ public class RTorrentController : ControllerBase
 
         CustomFieldsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
         ClosedTorrentsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
+        TorrentViewsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
     }
 
     private static bool IsTorrentClosed(string infoHash)
@@ -1596,6 +1608,29 @@ public class RTorrentController : ControllerBase
         return string.Empty;
     }
 
+    private static void AddTorrentView(string infoHash, string viewName)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash) || string.IsNullOrWhiteSpace(viewName))
+        {
+            return;
+        }
+
+        var normalizedHash = infoHash.Trim().ToLowerInvariant();
+        var views = TorrentViewsStore.GetOrAdd(normalizedHash, _ => new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase));
+        views[viewName.Trim()] = 0;
+    }
+
+    private static bool TorrentHasView(string infoHash, string viewName)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash) || string.IsNullOrWhiteSpace(viewName))
+        {
+            return false;
+        }
+
+        var normalizedHash = infoHash.Trim().ToLowerInvariant();
+        return TorrentViewsStore.TryGetValue(normalizedHash, out var views) && views.ContainsKey(viewName.Trim());
+    }
+
     private static bool MatchesView(Torrent torrent, string view)
     {
         if (torrent == null)
@@ -1635,7 +1670,7 @@ public class RTorrentController : ControllerBase
                 return torrent.Status == TorrentStatus.Checking;
 
             default:
-                return true;
+                return TorrentHasView(torrent.InfoHash, view);
         }
     }
 
