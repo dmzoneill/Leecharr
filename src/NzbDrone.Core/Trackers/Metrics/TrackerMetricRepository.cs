@@ -64,7 +64,7 @@ public class TrackerMetricRepository : BasicRepository<TrackerMetric>, ITrackerM
     {
         this.ExecuteWithRetry(connection =>
             connection.Execute(
-                "UPDATE \"TrackerMetrics\" SET \"TotalAnnounces\" = 0, \"SuccessfulAnnounces\" = 0, \"FailedAnnounces\" = 0, \"TotalScrapes\" = 0, \"SuccessfulScrapes\" = 0, \"FailedScrapes\" = 0, \"TotalUploaded\" = 0, \"TotalDownloaded\" = 0, \"SessionUploaded\" = 0, \"SessionDownloaded\" = 0, \"TotalPeersDiscovered\" = 0 WHERE \"Id\" = @Id",
+                "UPDATE \"TrackerMetrics\" SET \"TotalAnnounces\" = 0, \"SuccessfulAnnounces\" = 0, \"FailedAnnounces\" = 0, \"TotalScrapes\" = 0, \"SuccessfulScrapes\" = 0, \"FailedScrapes\" = 0, \"TotalUploaded\" = 0, \"TotalDownloaded\" = 0, \"SessionUploaded\" = 0, \"SessionDownloaded\" = 0, \"TotalPeersDiscovered\" = 0, \"Status\" = 'Working', \"ConsecutiveFailures\" = 0, \"LastErrorMessage\" = NULL, \"LastErrorTime\" = NULL, \"LastSeeders\" = 0, \"LastLeechers\" = 0, \"LastPeers\" = 0, \"AvgResponseTimeMs\" = 0, \"LastResponseTimeMs\" = 0, \"MinResponseTimeMs\" = 0, \"MaxResponseTimeMs\" = 0 WHERE \"Id\" = @Id",
                 new { Id = id }));
     }
 }

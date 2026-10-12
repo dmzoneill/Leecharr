@@ -438,16 +438,62 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
     public void ResetMetrics(int id)
     {
         var metric = this.metricRepository.Get(id);
-        if (metric != null && !string.IsNullOrEmpty(metric.TrackerUrl))
+        lock (this.syncLock)
         {
-            var prefix = $"{metric.TrackerUrl}_";
-            foreach (var key in this.lastSeenBytes.Keys.Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
+            if (metric != null && !string.IsNullOrEmpty(metric.TrackerUrl))
             {
-                this.lastSeenBytes.TryRemove(key, out _);
+                this.ReseedLastSeenBytesForTracker(metric.TrackerUrl);
             }
+
+            this.metricRepository.ResetStats(id);
+        }
+    }
+
+    private void ReseedLastSeenBytesForTracker(string trackerUrl)
+    {
+        var trimmed = (trackerUrl ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return;
         }
 
-        this.metricRepository.ResetStats(id);
+        var prefix = $"{trimmed}_";
+        foreach (var key in this.lastSeenBytes.Keys.Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            this.lastSeenBytes.TryRemove(key, out _);
+        }
+
+        var torrents = this.torrentRepository?.All().ToList() ?? new List<Torrent>();
+        var torrentBytesById = torrents.ToDictionary(t => t.Id, t => (t.Uploaded, t.Downloaded));
+
+        foreach (var torrent in torrents)
+        {
+            if (string.IsNullOrWhiteSpace(torrent.TrackerUrl)
+                || !string.Equals(torrent.TrackerUrl.Trim(), trimmed, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var key = $"{trimmed}_{torrent.Id}";
+            this.lastSeenBytes[key] = (torrent.Uploaded, torrent.Downloaded);
+        }
+
+        foreach (var entry in this.trackerEntryRepository?.All() ?? Enumerable.Empty<TrackerEntry>())
+        {
+            if (string.IsNullOrWhiteSpace(entry.Url)
+                || !string.Equals(entry.Url.Trim(), trimmed, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!torrentBytesById.TryGetValue(entry.TorrentId, out var byteBaseline))
+            {
+                byteBaseline = (0, 0);
+            }
+
+            var key = $"{trimmed}_{entry.TorrentId}";
+            this.lastSeenBytes[key] = byteBaseline;
+        }
     }
 
     public void DeleteMetric(int id)

@@ -94,6 +94,17 @@ public class TrackerMetricsAndOptimizationTest
                 item.SessionUploaded = 0;
                 item.SessionDownloaded = 0;
                 item.TotalPeersDiscovered = 0;
+                item.Status = "Working";
+                item.ConsecutiveFailures = 0;
+                item.LastErrorMessage = null;
+                item.LastErrorTime = null;
+                item.LastSeeders = 0;
+                item.LastLeechers = 0;
+                item.LastPeers = 0;
+                item.AvgResponseTimeMs = 0;
+                item.LastResponseTimeMs = 0;
+                item.MinResponseTimeMs = 0;
+                item.MaxResponseTimeMs = 0;
             }
         });
 
@@ -481,6 +492,75 @@ public class TrackerMetricsAndOptimizationTest
         var historyClampedHigh = this.metricService.GetHistory(10, hours: 500, limit: 5000);
         historyClampedHigh.Should().NotBeNull();
         this.snapshotRepository.Received(1).GetHistory(10, Arg.Is<DateTime>(dt => dt <= DateTime.UtcNow.AddHours(-167)), 2000);
+    }
+
+    [Test]
+    public void ResetMetrics_ReseedsByteBaselinesAndClearsHealthBeforeNextAnnounce()
+    {
+        var trackerUrl = "http://reset-baseline.example/announce";
+        const int torrentId = 7;
+        this.storedTorrents.Add(new Torrent
+        {
+            Id = torrentId,
+            TrackerUrl = trackerUrl,
+            Uploaded = 1_000_000,
+            Downloaded = 500_000,
+        });
+
+        this.metricService.RecordAnnounce(
+            trackerUrl,
+            torrentId,
+            uploaded: 1_000_000,
+            downloaded: 500_000,
+            left: 0,
+            responseTimeMs: 50,
+            success: true,
+            seeders: 1,
+            leechers: 0,
+            peersCount: 1);
+
+        for (var i = 0; i < 5; i++)
+        {
+            this.metricService.RecordAnnounce(
+                trackerUrl,
+                torrentId,
+                uploaded: 1_000_000,
+                downloaded: 500_000,
+                left: 0,
+                responseTimeMs: 0,
+                success: false,
+                seeders: 0,
+                leechers: 0,
+                peersCount: 0,
+                error: "Timeout");
+        }
+
+        var offline = this.metricService.GetMetricByUrl(trackerUrl);
+        offline.Status.Should().Be("Offline");
+        offline.TotalUploaded.Should().Be(1_000_000);
+
+        this.metricService.ResetMetrics(offline.Id);
+
+        offline.Status.Should().Be("Working");
+        offline.ConsecutiveFailures.Should().Be(0);
+        offline.LastErrorMessage.Should().BeNull();
+        offline.TotalUploaded.Should().Be(0);
+
+        var afterReset = this.metricService.RecordAnnounce(
+            trackerUrl,
+            torrentId,
+            uploaded: 1_000_010,
+            downloaded: 500_005,
+            left: 0,
+            responseTimeMs: 40,
+            success: true,
+            seeders: 2,
+            leechers: 0,
+            peersCount: 2);
+
+        afterReset.TotalUploaded.Should().Be(10);
+        afterReset.TotalDownloaded.Should().Be(5);
+        afterReset.Status.Should().Be("Working");
     }
 
     [Test]
