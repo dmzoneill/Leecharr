@@ -1560,6 +1560,122 @@ public class RTorrentControllerTest
     }
 
     [Test]
+    public async Task HandleXmlRpc_DOpen_DirectCall_DoesNotInvokeResumeAsync()
+    {
+        var hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var torrent = new Torrent { Id = 20, InfoHash = hash, Status = TorrentStatus.Paused };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.open</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.DidNotReceive().ResumeAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DClose_DirectCall_InvokesPauseAsync()
+    {
+        var hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        var torrent = new Torrent { Id = 21, InfoHash = hash, Status = TorrentStatus.Downloading };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.close</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).PauseAsync(21);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DIsOpen_ReportsOpenWhenPausedButNotClosed()
+    {
+        var hash = "cccccccccccccccccccccccccccccccccccccccc";
+        var torrent = new Torrent { Id = 22, InfoHash = hash, Status = TorrentStatus.Paused };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var openXml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.open</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(openXml);
+        await this.controller.HandleXmlRpc();
+
+        var queryXml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.is_open</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(queryXml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>1</i4>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DIsOpen_ReportsClosedAfterClose()
+    {
+        var hash = "dddddddddddddddddddddddddddddddddddddddd";
+        var torrent = new Torrent { Id = 23, InfoHash = hash, Status = TorrentStatus.Downloading };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var closeXml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.close</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(closeXml);
+        await this.controller.HandleXmlRpc();
+
+        torrent.Status = TorrentStatus.Paused;
+
+        var queryXml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.is_open</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(queryXml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+    }
+
+    [Test]
     public async Task HandleXmlRpc_DErase_WithDeleteFilesFalse_InvokesDeleteAsyncWithFalse()
     {
         var hash = "7777777777777777777777777777777777777777";
