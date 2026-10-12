@@ -26,6 +26,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
     private readonly SocketsHttpHandler fallbackHandler;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<string, string> sessionPool = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> sessionCreationLocks = new(StringComparer.OrdinalIgnoreCase);
     private bool disposed;
 
     public string ProviderId => "FlareSolverr";
@@ -148,52 +149,66 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
             return existingSession;
         }
 
-        var endpoint = !string.IsNullOrWhiteSpace(this.configService?.GetValue("FlareSolverrUrl", string.Empty))
-            ? this.configService.GetValue("FlareSolverrUrl", this.FlareSolverrUrl)
-            : this.FlareSolverrUrl;
-
+        var creationLock = this.sessionCreationLocks.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
+        await creationLock.WaitAsync(cancellationToken);
         try
         {
-            var sanitizedDomain = Regex.Replace(domain, @"[^a-zA-Z0-9_-]", "_", RegexOptions.None, TimeSpan.FromSeconds(2));
-            var sessionId = $"leecharr_{sanitizedDomain}_{Guid.NewGuid():N}";
-            if (sessionId.Length > 32)
+            if (this.sessionPool.TryGetValue(domain, out existingSession))
             {
-                sessionId = sessionId.Substring(0, 32);
+                return existingSession;
             }
 
-            var payload = new Dictionary<string, object>
+            var endpoint = !string.IsNullOrWhiteSpace(this.configService?.GetValue("FlareSolverrUrl", string.Empty))
+                ? this.configService.GetValue("FlareSolverrUrl", this.FlareSolverrUrl)
+                : this.FlareSolverrUrl;
+
+            try
             {
-                ["cmd"] = "sessions.create",
-                ["session"] = sessionId,
-            };
-
-            var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            using var response = await this.solverHttpClient.PostAsync(endpoint, jsonContent, cancellationToken);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
-                using var doc = JsonDocument.Parse(body);
-                var root = doc.RootElement;
-
-                if (root.TryGetProperty("status", out var st) && st.GetString() == "ok")
+                var sanitizedDomain = Regex.Replace(domain, @"[^a-zA-Z0-9_-]", "_", RegexOptions.None, TimeSpan.FromSeconds(2));
+                var sessionId = $"leecharr_{sanitizedDomain}_{Guid.NewGuid():N}";
+                if (sessionId.Length > 32)
                 {
-                    var createdSession = root.TryGetProperty("session", out var sessProp)
-                        ? sessProp.GetString()
-                        : sessionId;
+                    sessionId = sessionId.Substring(0, 32);
+                }
 
-                    this.sessionPool[domain] = createdSession;
-                    this.logger.Debug("Created FlareSolverr session '{0}' for domain '{1}'", createdSession, domain);
-                    return createdSession;
+                var payload = new Dictionary<string, object>
+                {
+                    ["cmd"] = "sessions.create",
+                    ["session"] = sessionId,
+                };
+
+                var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                using var response = await this.solverHttpClient.PostAsync(endpoint, jsonContent, cancellationToken);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                    using var doc = JsonDocument.Parse(body);
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("status", out var st) && st.GetString() == "ok")
+                    {
+                        var createdSession = root.TryGetProperty("session", out var sessProp)
+                            ? sessProp.GetString()
+                            : sessionId;
+
+                        this.sessionPool[domain] = createdSession;
+                        this.logger.Debug("Created FlareSolverr session '{0}' for domain '{1}'", createdSession, domain);
+                        return createdSession;
+                    }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            this.logger.Debug(ex, "Failed to create dedicated FlareSolverr session for domain {0}", domain);
-        }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to create dedicated FlareSolverr session for domain {0}", domain);
+            }
 
-        return null;
+            return null;
+        }
+        finally
+        {
+            creationLock.Release();
+        }
     }
 
     public async Task<bool> DestroySessionAsync(string domain, CancellationToken cancellationToken = default)

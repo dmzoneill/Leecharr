@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -546,6 +547,44 @@ public class CustomTransportProvidersTest
         await provider.ClearSessionsAsync();
         provider.ActiveSessionCount.Should().Be(0);
         destroyedCount.Should().Be(2);
+    }
+
+    [Test]
+    public async Task SessionManagement_FlareSolverr_ConcurrentGetOrCreateSession_CreatesOnlyOncePerDomain()
+    {
+        var createdCount = 0;
+
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+
+            if (body.Contains("sessions.create"))
+            {
+                Interlocked.Increment(ref createdCount);
+                Thread.Sleep(50);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"session\":\"sess_concurrent\"}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var provider = new FlareSolverrTransportProvider(config, httpClient);
+
+        var tasks = Enumerable.Range(0, 10)
+            .Select(_ => provider.GetOrCreateSessionAsync("tracker.org"))
+            .ToArray();
+        var sessions = await Task.WhenAll(tasks);
+
+        sessions.Should().OnlyContain(s => s == "sess_concurrent");
+        createdCount.Should().Be(1);
+        provider.ActiveSessionCount.Should().Be(1);
     }
 
     [Test]
