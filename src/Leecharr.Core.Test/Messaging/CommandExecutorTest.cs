@@ -153,6 +153,53 @@ public class CommandExecutorTest
     }
 
     [Test]
+    public async Task ExecuteAsync_UnknownCommand_SetsFriendlyFailureMessage()
+    {
+        var commandModel = new CommandModel
+        {
+            Id = 60,
+            Name = "DefinitelyNotARealCommandName1312",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        await this.executor.ExecuteAsync(commandModel);
+
+        commandModel.Status.Should().Be(CommandStatus.Failed);
+        commandModel.Message.Should().Be("Unknown command: DefinitelyNotARealCommandName1312");
+        this.serviceFactory.DidNotReceive().Build(Arg.Any<Type>());
+    }
+
+    [Test]
+    public async Task ExecuteAsync_UnknownCommand_IsCachedAcrossExecutions()
+    {
+        var commandModel = new CommandModel
+        {
+            Id = 61,
+            Name = "AnotherMissingCommand1312",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        await this.executor.ExecuteAsync(commandModel);
+        commandModel.Message.Should().Be("Unknown command: AnotherMissingCommand1312");
+
+        var secondModel = new CommandModel
+        {
+            Id = 62,
+            Name = "AnotherMissingCommand1312",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        await this.executor.ExecuteAsync(secondModel);
+
+        secondModel.Status.Should().Be(CommandStatus.Failed);
+        secondModel.Message.Should().Be("Unknown command: AnotherMissingCommand1312");
+        this.serviceFactory.DidNotReceive().Build(Arg.Any<Type>());
+    }
+
+    [Test]
     public void Execute_FindsCommandWithoutCommandSuffixAndDifferentCasing()
     {
         var commandModel = new CommandModel
