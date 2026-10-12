@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
@@ -21,6 +22,7 @@ namespace Leecharr.Api.V1.Webhooks;
 
 [V1ApiController("webhook")]
 [Route("api/v1/webhooks")]
+[Authorize(Policy = "RequireOperator")]
 public class ArrWebhookController : Controller
 {
     private readonly ITorrentRepository torrentRepository;

@@ -21,6 +21,7 @@ using Leecharr.Api.V1.Tags;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Api.V1.TrackerBoost;
 using Leecharr.Api.V1.Update;
+using Leecharr.Api.V1.Webhooks;
 using Microsoft.AspNetCore.Authorization;
 using NUnit.Framework;
 
@@ -68,6 +69,7 @@ public class ControllerAuthorizationPolicyTest
     [TestCase(typeof(PackageController), "RequireOperator")]
     [TestCase(typeof(AutomationController), "RequireOperator")]
     [TestCase(typeof(PeerConnectionLogController), "RequireOperator")]
+    [TestCase(typeof(ArrWebhookController), "RequireOperator")]
     public void OperatorControllers_HaveRequireOperatorPolicy(Type controllerType, string expectedPolicy)
     {
         var authAttr = controllerType.GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
