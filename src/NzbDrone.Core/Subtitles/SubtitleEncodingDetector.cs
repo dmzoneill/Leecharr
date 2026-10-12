@@ -61,15 +61,10 @@ public class SubtitleEncodingDetector : ISubtitleEncodingDetector
             }
         }
 
-        // 2. Check for UTF-16 without BOM
-        if (IsUtf16LeWithoutBom(bytes))
+        // 2. Check for UTF-16 without BOM (before UTF-8: some UTF-16 byte patterns validate as UTF-8)
+        if (TryDetectUtf16WithoutBom(bytes, out var utf16Encoding))
         {
-            return Encoding.Unicode;
-        }
-
-        if (IsUtf16BeWithoutBom(bytes))
-        {
-            return Encoding.BigEndianUnicode;
+            return utf16Encoding;
         }
 
         // 3. Strict UTF-8 validation
@@ -132,7 +127,7 @@ public class SubtitleEncodingDetector : ISubtitleEncodingDetector
         sampleLength -= sampleLength % 2;
 
         var zeroOddBytes = 0;
-        var asciiEvenBytes = 0;
+        var plausiblePairs = 0;
         var pairs = sampleLength / 2;
 
         for (var i = 0; i < sampleLength; i += 2)
@@ -142,13 +137,25 @@ public class SubtitleEncodingDetector : ISubtitleEncodingDetector
                 zeroOddBytes++;
             }
 
-            if ((bytes[i] >= 0x20 && bytes[i] <= 0x7E) || bytes[i] == 0x0D || bytes[i] == 0x0A || bytes[i] == 0x09)
+            if (IsPlausibleUtf16LeCodeUnit(bytes[i], bytes[i + 1]))
             {
-                asciiEvenBytes++;
+                plausiblePairs++;
             }
         }
 
-        return zeroOddBytes > pairs * 0.7 && asciiEvenBytes > pairs * 0.7;
+        if (plausiblePairs <= pairs * 0.7)
+        {
+            return false;
+        }
+
+        // ASCII / Latin-1 BMP in UTF-16 LE: high byte is usually zero.
+        if (zeroOddBytes > pairs * 0.7)
+        {
+            return true;
+        }
+
+        // Cyrillic, CJK, and other BMP scripts: few zero bytes but still UTF-16 LE pairs.
+        return zeroOddBytes < pairs * 0.15;
     }
 
     private static bool IsUtf16BeWithoutBom(byte[] bytes)
@@ -162,7 +169,7 @@ public class SubtitleEncodingDetector : ISubtitleEncodingDetector
         sampleLength -= sampleLength % 2;
 
         var zeroEvenBytes = 0;
-        var asciiOddBytes = 0;
+        var plausiblePairs = 0;
         var pairs = sampleLength / 2;
 
         for (var i = 0; i < sampleLength; i += 2)
@@ -172,13 +179,165 @@ public class SubtitleEncodingDetector : ISubtitleEncodingDetector
                 zeroEvenBytes++;
             }
 
-            if ((bytes[i + 1] >= 0x20 && bytes[i + 1] <= 0x7E) || bytes[i + 1] == 0x0D || bytes[i + 1] == 0x0A || bytes[i + 1] == 0x09)
+            if (IsPlausibleUtf16BeCodeUnit(bytes[i], bytes[i + 1]))
             {
-                asciiOddBytes++;
+                plausiblePairs++;
             }
         }
 
-        return zeroEvenBytes > pairs * 0.7 && asciiOddBytes > pairs * 0.7;
+        if (plausiblePairs <= pairs * 0.7)
+        {
+            return false;
+        }
+
+        if (zeroEvenBytes > pairs * 0.7)
+        {
+            return true;
+        }
+
+        return zeroEvenBytes < pairs * 0.15;
+    }
+
+    private static bool IsPlausibleUtf16LeCodeUnit(byte lowByte, byte highByte)
+    {
+        if (highByte == 0x00)
+        {
+            return lowByte == 0x09 || lowByte == 0x0A || lowByte == 0x0D || lowByte >= 0x20;
+        }
+
+        var codeUnit = (char)(lowByte | (highByte << 8));
+        return IsPlausibleBmpCodeUnit(codeUnit);
+    }
+
+    private static bool IsPlausibleUtf16BeCodeUnit(byte highByte, byte lowByte)
+    {
+        if (highByte == 0x00)
+        {
+            return lowByte == 0x09 || lowByte == 0x0A || lowByte == 0x0D || lowByte >= 0x20;
+        }
+
+        var codeUnit = (char)((highByte << 8) | lowByte);
+        return IsPlausibleBmpCodeUnit(codeUnit);
+    }
+
+    private static bool IsPlausibleBmpCodeUnit(char codeUnit)
+    {
+        if (char.IsSurrogate(codeUnit))
+        {
+            return false;
+        }
+
+        if (codeUnit == '\t' || codeUnit == '\r' || codeUnit == '\n')
+        {
+            return true;
+        }
+
+        if (codeUnit < 0x20)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryDetectUtf16WithoutBom(byte[] bytes, out Encoding encoding)
+    {
+        encoding = Encoding.Unicode;
+        var sampleLength = GetEvenSampleLength(bytes);
+        if (sampleLength < 4)
+        {
+            return false;
+        }
+
+        var bestScore = 0d;
+        var bestEncoding = Encoding.Unicode;
+        var hasCandidate = false;
+
+        if (IsUtf16LeWithoutBom(bytes))
+        {
+            var score = SubtitleTextScore(Encoding.Unicode.GetString(bytes, 0, sampleLength));
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestEncoding = Encoding.Unicode;
+                hasCandidate = true;
+            }
+        }
+
+        if (IsUtf16BeWithoutBom(bytes))
+        {
+            var score = SubtitleTextScore(Encoding.BigEndianUnicode.GetString(bytes, 0, sampleLength));
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestEncoding = Encoding.BigEndianUnicode;
+                hasCandidate = true;
+            }
+        }
+
+        if (!hasCandidate)
+        {
+            return false;
+        }
+
+        if (IsValidUtf8(bytes))
+        {
+            var utf8Score = SubtitleTextScore(Encoding.UTF8.GetString(bytes, 0, sampleLength));
+            if (utf8Score >= bestScore)
+            {
+                return false;
+            }
+        }
+
+        encoding = bestEncoding;
+        return true;
+    }
+
+    private static int GetSampleLength(byte[] bytes)
+    {
+        return Math.Min(bytes.Length, 512);
+    }
+
+    private static int GetEvenSampleLength(byte[] bytes)
+    {
+        var sampleLength = GetSampleLength(bytes);
+        sampleLength -= sampleLength % 2;
+        return sampleLength;
+    }
+
+    private static double SubtitleTextScore(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return 0;
+        }
+
+        var score = 0;
+        foreach (var ch in text)
+        {
+            if (ch == '\uFFFD')
+            {
+                score -= 2;
+            }
+            else if (char.IsLetterOrDigit(ch) || char.IsWhiteSpace(ch))
+            {
+                score += 2;
+            }
+            else if (ch is ':' or ',' or '-' or '>' or '.' or '[' or ']')
+            {
+                score += 2;
+            }
+            else if (ch < 0x20 && ch != '\r' && ch != '\n' && ch != '\t')
+            {
+                score -= 1;
+            }
+            else
+            {
+                score += 1;
+            }
+        }
+
+        return score / (double)text.Length;
     }
 
     private static bool IsValidUtf8(byte[] bytes)
