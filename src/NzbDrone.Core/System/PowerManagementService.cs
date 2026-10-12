@@ -36,6 +36,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
     private bool isSleepInhibited;
     private uint osxAssertionId;
     private Process linuxInhibitProcess;
+    private string linuxInhibitReason;
     private WindowsSleepInhibitionWorker windowsSleepInhibitionWorker;
     private bool disposed;
 
@@ -496,8 +497,8 @@ public class PowerManagementService : IPowerManagementService, IDisposable
     {
         if (inhibit)
         {
-            this.linuxInhibitProcess = this.StartLinuxSleepInhibition(reason);
-            this.isSleepInhibited = this.linuxInhibitProcess != null;
+            this.linuxInhibitReason = reason;
+            this.SetLinuxSleepInhibitionProcess(this.StartLinuxSleepInhibition(reason));
         }
         else
         {
@@ -507,7 +508,72 @@ public class PowerManagementService : IPowerManagementService, IDisposable
                 this.linuxInhibitProcess = null;
             }
 
+            this.linuxInhibitReason = null;
             this.isSleepInhibited = false;
+        }
+    }
+
+    private void SetLinuxSleepInhibitionProcess(Process process)
+    {
+        if (this.linuxInhibitProcess != null && this.linuxInhibitProcess != process)
+        {
+            this.StopLinuxSleepInhibition(this.linuxInhibitProcess);
+        }
+
+        this.linuxInhibitProcess = process;
+        if (!IsLinuxInhibitProcessRunning(process))
+        {
+            this.StopLinuxSleepInhibition(process);
+            this.linuxInhibitProcess = null;
+            this.isSleepInhibited = false;
+            return;
+        }
+
+        process.EnableRaisingEvents = true;
+        process.Exited -= this.HandleLinuxInhibitProcessExited;
+        process.Exited += this.HandleLinuxInhibitProcessExited;
+        this.isSleepInhibited = true;
+    }
+
+    private void HandleLinuxInhibitProcessExited(object sender, EventArgs e)
+    {
+        lock (this.lockObj)
+        {
+            if (this.disposed)
+            {
+                return;
+            }
+
+            if (sender is not Process exitedProcess || exitedProcess != this.linuxInhibitProcess)
+            {
+                return;
+            }
+
+            this.StopLinuxSleepInhibition(exitedProcess);
+            this.linuxInhibitProcess = null;
+            this.isSleepInhibited = false;
+
+            if (this.activeLeaseCount > 0 && !string.IsNullOrEmpty(this.linuxInhibitReason))
+            {
+                this.SetLinuxSleepInhibitionProcess(this.StartLinuxSleepInhibition(this.linuxInhibitReason));
+            }
+        }
+    }
+
+    private static bool IsLinuxInhibitProcessRunning(Process process)
+    {
+        if (process == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return !process.HasExited;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
         }
     }
 
@@ -553,6 +619,15 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         if (process == null)
         {
             return;
+        }
+
+        try
+        {
+            process.Exited -= this.HandleLinuxInhibitProcessExited;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Trace(ex, "Failed to detach Linux sleep inhibition process exit handler");
         }
 
         try

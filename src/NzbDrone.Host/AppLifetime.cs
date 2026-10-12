@@ -368,9 +368,18 @@ public class AppLifetime : IHostedService, IDisposable
                 if (hasDownloadingTasks)
                 {
                     this.downloadStartedThisSession = true;
-                    if (this.activeSleepInhibitToken == null && this.services.PowerManagementService != null)
+                    if (this.services.PowerManagementService != null)
                     {
-                        this.activeSleepInhibitToken = this.services.PowerManagementService.InhibitSleep("Leecharr active torrent downloads in progress");
+                        if (this.activeSleepInhibitToken != null && !this.services.PowerManagementService.IsSleepInhibited)
+                        {
+                            this.activeSleepInhibitToken.Dispose();
+                            this.activeSleepInhibitToken = null;
+                        }
+
+                        if (this.activeSleepInhibitToken == null)
+                        {
+                            this.activeSleepInhibitToken = this.services.PowerManagementService.InhibitSleep("Leecharr active torrent downloads in progress");
+                        }
                     }
                 }
                 else

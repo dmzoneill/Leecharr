@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -572,8 +573,7 @@ public class PowerManagementServiceTest
             {
                 executedCommand = cmd;
                 executedArgs = args;
-                // Dummy process instance for sleep inhibitor lifecycle test
-                return new System.Diagnostics.Process();
+                return StartTestSleepProcess("3600");
             },
         };
 
@@ -586,6 +586,92 @@ public class PowerManagementServiceTest
         }
 
         service.IsSleepInhibited.Should().BeFalse();
+    }
+
+    [Test]
+    public void InhibitSleep_OnLinux_WhenInhibitorExitsImmediately_IsNotReportedAsInhibited()
+    {
+        var service = new PowerManagementService
+        {
+            TargetPlatformOverride = OSPlatform.Linux,
+            ContainerDetector = () => false,
+            LinuxProcessStarter = (_, _) =>
+            {
+                var proc = StartTestSleepProcess("0");
+                proc.WaitForExit(5000);
+                return proc;
+            },
+        };
+
+        using (service.InhibitSleep("Immediate exit"))
+        {
+            service.IsSleepInhibited.Should().BeFalse();
+        }
+    }
+
+    [Test]
+    public void InhibitSleep_OnLinux_WhenInhibitorDiesWhileLeaseActive_RestartsInhibition()
+    {
+        var startCount = 0;
+        Process activeProcess = null;
+
+        var service = new PowerManagementService
+        {
+            TargetPlatformOverride = OSPlatform.Linux,
+            ContainerDetector = () => false,
+            LinuxProcessStarter = (_, _) =>
+            {
+                startCount++;
+                activeProcess = StartTestSleepProcess("3600");
+                return activeProcess;
+            },
+        };
+
+        using (service.InhibitSleep("Restart on crash"))
+        {
+            service.IsSleepInhibited.Should().BeTrue();
+            startCount.Should().Be(1);
+
+            activeProcess.Kill(entireProcessTree: true);
+            activeProcess.WaitForExit(5000);
+
+            WaitForCondition(() => startCount >= 2, TimeSpan.FromSeconds(5));
+            WaitForCondition(() => service.IsSleepInhibited, TimeSpan.FromSeconds(5));
+
+            startCount.Should().BeGreaterThanOrEqualTo(2);
+        }
+    }
+
+    private static Process StartTestSleepProcess(string duration)
+    {
+        var proc = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "/bin/sleep",
+                Arguments = duration,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            },
+        };
+        proc.Start();
+        return proc;
+    }
+
+    private static void WaitForCondition(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            Thread.Sleep(20);
+        }
+
+        condition().Should().BeTrue("condition was not met before timeout");
     }
 
     [Test]
