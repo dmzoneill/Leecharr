@@ -224,9 +224,14 @@ public class MessageHub : Hub
             return a == b;
         }
 
-        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
-            System.Text.Encoding.UTF8.GetBytes(a),
-            System.Text.Encoding.UTF8.GetBytes(b));
+        var aBytes = System.Text.Encoding.UTF8.GetBytes(a);
+        var bBytes = System.Text.Encoding.UTF8.GetBytes(b);
+        if (aBytes.Length != bBytes.Length)
+        {
+            return false;
+        }
+
+        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(aBytes, bBytes);
     }
 
     public Task TrackerUpdated(object payload)

@@ -250,4 +250,26 @@ public class MessageHubTest
             Arg.Any<object[]>(),
             Arg.Any<CancellationToken>());
     }
+
+    [Test]
+    public async Task OnConnectedAsync_WhenAuthEnabledAndWrongLengthApiKey_AbortsWithoutThrowing()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("short");
+        this.httpContext.Request.Headers["X-Api-Key"] = "much-longer-wrong-key";
+
+        var hub = new MessageHub(this.configFileProvider)
+        {
+            Context = this.hubCallerContext,
+            Clients = this.clients,
+        };
+
+        await hub.OnConnectedAsync();
+
+        this.hubCallerContext.Received(1).Abort();
+        await this.callerProxy.DidNotReceive().SendCoreAsync(
+            Arg.Any<string>(),
+            Arg.Any<object[]>(),
+            Arg.Any<CancellationToken>());
+    }
 }

@@ -3,8 +3,6 @@
 using System;
 using System.Linq;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
@@ -109,9 +107,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
 
         var masterApiKey = this.configFileProvider.ApiKey;
         if (!string.IsNullOrEmpty(masterApiKey) &&
-            CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(apiKey),
-                Encoding.UTF8.GetBytes(masterApiKey)))
+            RpcAuthenticationHelper.FixedTimeEquals(apiKey, masterApiKey))
         {
             this.rateLimiter.Reset(clientIp);
 

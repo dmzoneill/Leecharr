@@ -121,6 +121,19 @@ public class ApiKeyAuthenticationHandlerTest
     }
 
     [Test]
+    public async Task AuthenticateAsync_WithWrongLengthApiKey_ReturnsFailWithoutThrowing()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("short");
+        this.httpContext.Request.Headers["X-Api-Key"] = "much-longer-wrong-key";
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeFalse();
+        result.Failure!.Message.Should().Be("Invalid API Key");
+    }
+
+    [Test]
     public async Task AuthenticateAsync_WithNoApiKey_ReturnsNoResult()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
