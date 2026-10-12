@@ -105,6 +105,11 @@ public class TorrentFileParser : ITorrentFileParser
         {
             ValidateBencodeDepth(bytes, MaxBencodeDepth);
 
+            if (!TorrentBencode.TryExtractInfoDictionaryBytes(bytes, out var rawInfoDictionaryBytes))
+            {
+                throw new InvalidTorrentFileException("Malformed torrent file: missing or invalid 'info' dictionary.");
+            }
+
             using var stream = new MemoryStream(bytes);
             var parser = new BencodeParser();
             var torrent = parser.Parse<BDictionary>(stream);
@@ -205,7 +210,7 @@ public class TorrentFileParser : ITorrentFileParser
                 var piecesVal = ((BString)info["pieces"]).Value;
                 result.PieceCount = piecesVal.Length / 20;
                 result.PieceHashes = piecesVal.ToArray();
-                result.V1InfoHash = InfoHashCalculator.Calculate(info);
+                result.V1InfoHash = InfoHashCalculator.Calculate(rawInfoDictionaryBytes);
             }
             else
             {
@@ -214,7 +219,7 @@ public class TorrentFileParser : ITorrentFileParser
 
             if (isV2)
             {
-                result.V2InfoHash = InfoHashCalculator.CalculateV2(info);
+                result.V2InfoHash = InfoHashCalculator.CalculateV2(rawInfoDictionaryBytes);
             }
 
             result.InfoHash = result.V1InfoHash ?? result.V2InfoHash;
