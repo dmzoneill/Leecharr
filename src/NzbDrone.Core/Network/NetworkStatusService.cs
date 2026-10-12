@@ -3,12 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Network.Vpn;
 
@@ -88,14 +90,14 @@ public class NetworkStatusService : INetworkStatusService
     {
         var externalIp = this.externalIpService.GetExternalIpAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 
-        var localAddresses = this.GetLocalAddresses();
-        var primaryLocal = localAddresses.FirstOrDefault() ?? "127.0.0.1";
         var port = this.configFileProvider?.Port ?? 7889;
         var btPort = this.configService?.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
         var boundInterface = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
             ? this.configService.NetworkInterfaceBinding
             : this.configService?.BindInterface;
         var activeInterface = !string.IsNullOrWhiteSpace(boundInterface) ? boundInterface : "Auto";
+        var localAddresses = this.GetLocalAddresses();
+        var primaryLocal = ResolvePrimaryLocalIp(boundInterface, localAddresses);
 
         var portMappings = new List<PortMappingInfo>();
         if (this.natPmpPortMapperService?.ActiveMappings != null && this.natPmpPortMapperService.ActiveMappings.Count > 0)
@@ -179,6 +181,10 @@ public class NetworkStatusService : INetworkStatusService
     public List<string> GetLocalAddresses()
     {
         var addresses = new List<string>();
+        var boundInterface = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService?.BindInterface;
+        var restrictToBoundInterface = !IsUnboundInterface(boundInterface);
 
         NetworkInterface[] interfaces;
         try
@@ -199,11 +205,17 @@ public class NetworkStatusService : INetworkStatusService
                 continue;
             }
 
+            if (restrictToBoundInterface && !InterfaceMatches(ni, boundInterface))
+            {
+                continue;
+            }
+
             try
             {
-                foreach (var ip in ni.GetIPProperties().UnicastAddresses)
+                var props = ni.GetIPProperties();
+                foreach (var ip in props.UnicastAddresses)
                 {
-                    if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                    if (ManagedSocketBindingProvider.IsUsableBindUnicastAddress(ip.Address))
                     {
                         addresses.Add(ip.Address.ToString());
                     }
@@ -215,6 +227,79 @@ public class NetworkStatusService : INetworkStatusService
             }
         }
 
-        return addresses.Distinct().ToList();
+        return OrderLocalAddresses(addresses.Distinct().ToList());
+    }
+
+    private static string ResolvePrimaryLocalIp(string boundInterface, List<string> localAddresses)
+    {
+        if (!IsUnboundInterface(boundInterface))
+        {
+            var trimmed = boundInterface.Trim();
+            if (IPAddress.TryParse(trimmed, out var parsed) &&
+                ManagedSocketBindingProvider.IsUsableBindUnicastAddress(parsed))
+            {
+                return parsed.ToString();
+            }
+
+            var fromInterface = ManagedSocketBindingProvider.GetInterfaceIp(trimmed, AddressFamily.InterNetwork)
+                ?? ManagedSocketBindingProvider.GetInterfaceIp(trimmed, AddressFamily.InterNetworkV6);
+            if (fromInterface != null)
+            {
+                return fromInterface.ToString();
+            }
+        }
+
+        var preferred = SelectPreferredLocalAddress(localAddresses);
+        return preferred ?? "127.0.0.1";
+    }
+
+    private static string SelectPreferredLocalAddress(List<string> localAddresses)
+    {
+        if (localAddresses == null || localAddresses.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var address in localAddresses)
+        {
+            if (IPAddress.TryParse(address, out var ip) && ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                return address;
+            }
+        }
+
+        return localAddresses.FirstOrDefault();
+    }
+
+    private static List<string> OrderLocalAddresses(List<string> addresses)
+    {
+        if (addresses == null || addresses.Count <= 1)
+        {
+            return addresses ?? new List<string>();
+        }
+
+        return addresses
+            .OrderBy(a => IPAddress.TryParse(a, out var ip) && ip.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
+            .ThenBy(a => a, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool IsUnboundInterface(string boundInterface)
+    {
+        return string.IsNullOrWhiteSpace(boundInterface) ||
+            string.Equals(boundInterface, "Auto", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(boundInterface, "Any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(boundInterface, "all", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool InterfaceMatches(NetworkInterface networkInterface, string interfaceName)
+    {
+        if (networkInterface == null || string.IsNullOrWhiteSpace(interfaceName))
+        {
+            return false;
+        }
+
+        return string.Equals(networkInterface.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(networkInterface.Id, interfaceName, StringComparison.OrdinalIgnoreCase);
     }
 }
