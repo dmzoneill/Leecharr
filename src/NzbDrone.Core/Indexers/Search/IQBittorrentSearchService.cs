@@ -15,6 +15,8 @@ public class QBittorrentSearchResultItem
 
     public string FileUrl { get; set; }
 
+    public string InfoHash { get; set; }
+
     public int NbLeechers { get; set; }
 
     public int NbSeeders { get; set; }

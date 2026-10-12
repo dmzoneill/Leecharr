@@ -266,7 +266,9 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                                     if (isDuplicate)
                                     {
                                         var existing = job.Results.FirstOrDefault(r =>
-                                            (!string.IsNullOrWhiteSpace(infoHash) && string.Equals(ExtractBtih(r.FileUrl), infoHash, StringComparison.OrdinalIgnoreCase)) ||
+                                            (!string.IsNullOrWhiteSpace(infoHash) &&
+                                                (string.Equals(r.InfoHash, infoHash, StringComparison.OrdinalIgnoreCase) ||
+                                                 string.Equals(ExtractBtih(r.FileUrl), infoHash, StringComparison.OrdinalIgnoreCase))) ||
                                             (!string.IsNullOrWhiteSpace(fileUrl) && string.Equals(r.FileUrl, fileUrl, StringComparison.OrdinalIgnoreCase)) ||
                                             (!string.IsNullOrWhiteSpace(descrLink) && string.Equals(r.DescrLink, descrLink, StringComparison.OrdinalIgnoreCase)));
 
@@ -304,6 +306,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                                             FileName = item.Title ?? "Unknown",
                                             FileSize = item.Size,
                                             FileUrl = fileUrl,
+                                            InfoHash = infoHash,
                                             NbLeechers = item.Leechers,
                                             NbSeeders = item.Seeders,
                                             SiteUrl = !string.IsNullOrWhiteSpace(indexer.Url)
