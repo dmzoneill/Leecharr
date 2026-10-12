@@ -146,6 +146,48 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task AddFromParsedTorrentAsync_WhenV2PieceLayout_AssignsPerFilePieceIndices()
+    {
+        const int pieceLength = 16384;
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+            V2InfoHash = "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+            UsesV2PieceLayout = true,
+            Name = "V2MultiFile",
+            PieceLength = pieceLength,
+            PieceCount = 2,
+            TotalSize = 2,
+            Files = new List<ParsedTorrentFile>
+            {
+                new() { Path = "a.bin", Size = 1, ByteOffset = 0 },
+                new() { Path = "b.bin", Size = 1, ByteOffset = pieceLength },
+            },
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            var t = callInfo.Arg<Torrent>();
+            t.Id = 99;
+            return t;
+        });
+
+        var insertedFiles = new List<TorrentFile>();
+        this.fileRepository.InsertMany(Arg.Do<IEnumerable<TorrentFile>>(files => insertedFiles.AddRange(files)));
+
+        await this.service.AddFromParsedTorrentAsync(parsed, "movies", "/downloads/movies", false, Array.Empty<byte>());
+
+        insertedFiles.Should().HaveCount(2);
+        insertedFiles[0].PieceOffset.Should().Be(0);
+        insertedFiles[0].PieceCount.Should().Be(1);
+        insertedFiles[0].ByteOffset.Should().Be(0);
+        insertedFiles[1].PieceOffset.Should().Be(1);
+        insertedFiles[1].PieceCount.Should().Be(1);
+        insertedFiles[1].ByteOffset.Should().Be(pieceLength);
+    }
+
+    [Test]
     public async Task RenameFileAsync_WhenEngineSucceeds_UpdatesDatabaseRecord()
     {
         var file = new TorrentFile { Id = 10, TorrentId = 42, Path = "folder/old_video.mkv" };

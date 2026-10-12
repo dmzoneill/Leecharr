@@ -263,14 +263,28 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         {
             var pieceLength = Math.Max(1, parsed.PieceLength);
             long runningByteOffset = 0;
+            var runningV2PieceOffset = 0;
             var torrentFiles = new List<TorrentFile>();
             foreach (var file in parsed.Files)
             {
-                var effectiveByteOffset = file.ByteOffset > 0 ? file.ByteOffset : runningByteOffset;
-                var startPiece = (int)(effectiveByteOffset / pieceLength);
-                var endByte = effectiveByteOffset + file.Size - 1;
-                var endPiece = file.Size > 0 ? (int)(endByte / pieceLength) : startPiece;
-                var pieceCount = file.Size > 0 ? (endPiece - startPiece + 1) : 0;
+                long effectiveByteOffset;
+                int startPiece;
+                int pieceCount;
+                if (parsed.UsesV2PieceLayout)
+                {
+                    startPiece = runningV2PieceOffset;
+                    pieceCount = TorrentFileParser.CalculateFilePieceCount(file.Size, pieceLength);
+                    effectiveByteOffset = (long)startPiece * pieceLength;
+                    runningV2PieceOffset += pieceCount;
+                }
+                else
+                {
+                    effectiveByteOffset = file.ByteOffset > 0 ? file.ByteOffset : runningByteOffset;
+                    startPiece = (int)(effectiveByteOffset / pieceLength);
+                    var endByte = effectiveByteOffset + file.Size - 1;
+                    var endPiece = file.Size > 0 ? (int)(endByte / pieceLength) : startPiece;
+                    pieceCount = file.Size > 0 ? (endPiece - startPiece + 1) : 0;
+                }
 
                 var torrentFile = new TorrentFile
                 {
