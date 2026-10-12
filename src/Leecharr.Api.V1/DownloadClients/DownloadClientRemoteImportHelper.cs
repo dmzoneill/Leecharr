@@ -30,6 +30,31 @@ public static class DownloadClientRemoteImportHelper
         }
     }
 
+    public static string ResolveImportCategory(string requestCategory, string remoteCategory, string clientCategory)
+    {
+        if (!string.IsNullOrWhiteSpace(requestCategory))
+        {
+            return requestCategory;
+        }
+
+        if (!string.IsNullOrWhiteSpace(remoteCategory))
+        {
+            return remoteCategory;
+        }
+
+        return clientCategory;
+    }
+
+    public static string ResolveImportSavePath(string requestSavePath, string remoteSavePath)
+    {
+        if (!string.IsNullOrWhiteSpace(requestSavePath))
+        {
+            return requestSavePath;
+        }
+
+        return !string.IsNullOrWhiteSpace(remoteSavePath) ? remoteSavePath : null;
+    }
+
     public static bool ShouldStartPaused(string remoteState)
     {
         if (string.IsNullOrWhiteSpace(remoteState))
