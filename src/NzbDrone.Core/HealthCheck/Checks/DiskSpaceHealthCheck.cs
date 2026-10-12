@@ -65,11 +65,12 @@ public class DiskSpaceHealthCheck : IHealthCheck
             var disks = await disksTask.ConfigureAwait(false);
             if (disks == null || disks.Count == 0)
             {
-                return HealthCheckResult.Ok("DiskSpace");
+                return HealthCheckResult.Error("DiskSpace", "Unable to query disk space: no disks were returned");
             }
 
             var errors = new List<string>();
             var warnings = new List<string>();
+            var usableDiskCount = 0;
 
             var configThresholdMb = this.configService?.LowDiskSpaceThresholdMb;
             var warningThresholdBytes = configThresholdMb.HasValue && configThresholdMb.Value > 0
@@ -87,6 +88,7 @@ public class DiskSpaceHealthCheck : IHealthCheck
                     continue;
                 }
 
+                usableDiskCount++;
                 var freePercent = (double)disk.FreeSpace / disk.TotalSpace;
                 var freeGb = disk.FreeSpace / (1024.0 * 1024 * 1024);
 
@@ -101,6 +103,11 @@ public class DiskSpaceHealthCheck : IHealthCheck
                     warnings.Add($"{disk.Path} has {freeGb:0.00} GB free ({freePercent:P1})");
                     this.eventAggregator?.PublishEvent(new DiskSpaceLowEvent(disk.Path, disk.FreeSpace, disk.TotalSpace, freePercent));
                 }
+            }
+
+            if (usableDiskCount == 0)
+            {
+                return HealthCheckResult.Error("DiskSpace", "Unable to query disk space: no disks reported a usable size");
             }
 
             if (errors.Count > 0)

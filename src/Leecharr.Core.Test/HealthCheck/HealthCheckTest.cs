@@ -298,6 +298,37 @@ public class HealthCheckTest
     }
 
     [Test]
+    public async Task DiskSpaceHealthCheck_ReturnsError_WhenNoDisksReturned()
+    {
+        var diskService = Substitute.For<IDiskSpaceService>();
+        diskService.GetDiskSpace().Returns(new List<DiskSpaceInfo>());
+
+        var check = new DiskSpaceHealthCheck(diskService);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Source.Should().Be("DiskSpace");
+        result.Message.Should().Contain("no disks were returned");
+    }
+
+    [Test]
+    public async Task DiskSpaceHealthCheck_ReturnsError_WhenAllDisksHaveZeroSize()
+    {
+        var diskService = Substitute.For<IDiskSpaceService>();
+        diskService.GetDiskSpace().Returns(new List<DiskSpaceInfo>
+        {
+            new DiskSpaceInfo { Path = "/downloads", FreeSpace = 0, TotalSpace = 0 },
+        });
+
+        var check = new DiskSpaceHealthCheck(diskService);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Source.Should().Be("DiskSpace");
+        result.Message.Should().Contain("no disks reported a usable size");
+    }
+
+    [Test]
     public async Task DiskSpaceHealthCheck_ReturnsWarning_WhenDiskSpaceLessThan5Gb()
     {
         var diskService = Substitute.For<IDiskSpaceService>();
