@@ -16,6 +16,7 @@ public class CommandWorker : BackgroundService
     public const int DefaultMaxConcurrency = 3;
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
 
     private readonly IManageCommandQueue commandQueue;
     private readonly ICommandExecutor commandExecutor;
@@ -119,7 +120,7 @@ public class CommandWorker : BackgroundService
                                 this.concurrencySemaphore.Release();
                             }
                         },
-                        CancellationToken.None);
+                        stoppingToken);
 
                     this.activeTasks.Add(task);
                 }
@@ -143,13 +144,42 @@ public class CommandWorker : BackgroundService
             }
         }
 
-        try
+        foreach (var commandId in this.activeCommandIds.Keys.ToArray())
         {
-            await Task.WhenAll(this.activeTasks).ConfigureAwait(false);
+            try
+            {
+                this.commandQueue.Cancel(commandId);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "Error cancelling command {0} during CommandWorker shutdown", commandId);
+            }
         }
-        catch (Exception ex)
+
+        var pendingTasks = this.activeTasks.Where(t => !t.IsCompleted).ToArray();
+        if (pendingTasks.Length > 0)
         {
-            this.logger.Trace(ex, "Active tasks cancelled during CommandWorker shutdown");
+            var drainAll = Task.WhenAll(pendingTasks);
+            var finished = await Task.WhenAny(drainAll, Task.Delay(ShutdownDrainTimeout, CancellationToken.None)).ConfigureAwait(false);
+            if (finished != drainAll)
+            {
+                var stillRunning = pendingTasks.Count(t => !t.IsCompleted);
+                this.logger.Warn(
+                    "Command worker shutdown timed out after {0} seconds with {1} in-flight command task(s) still running",
+                    ShutdownDrainTimeout.TotalSeconds,
+                    stillRunning);
+            }
+            else
+            {
+                try
+                {
+                    await drainAll.ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Trace(ex, "Active tasks faulted during CommandWorker shutdown");
+                }
+            }
         }
     }
 }

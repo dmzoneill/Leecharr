@@ -453,6 +453,53 @@ public class CommandExecutorTest
     }
 
     [Test]
+    public async Task CommandWorker_Shutdown_CompletesWhenCommandIgnoresCancellation()
+    {
+        var queue = Substitute.For<IManageCommandQueue>();
+        var commandModel = new CommandModel
+        {
+            Id = 7,
+            Name = "IgnoresCancel",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        var queued = new List<CommandModel> { commandModel };
+        queue.GetQueued().Returns(_ =>
+        {
+            var result = queued.ToArray();
+            queued.Clear();
+            return result;
+        });
+        queue.LinkExecutionCancellation(7, Arg.Any<CancellationToken>()).Returns(CancellationToken.None);
+        queue.Cancel(7).Returns(true);
+
+        var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var commandExecutor = Substitute.For<ICommandExecutor>();
+        commandExecutor.ExecuteAsync(Arg.Any<CommandModel>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                executionStarted.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan);
+            });
+
+        var worker = new CommandWorker(queue, commandExecutor);
+
+        using var workerCts = new CancellationTokenSource();
+        await worker.StartAsync(workerCts.Token);
+
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        workerCts.Cancel();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        await worker.StopAsync(CancellationToken.None);
+        stopwatch.Stop();
+
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(8));
+        queue.Received(1).Cancel(7);
+    }
+
+    [Test]
     public async Task ExecuteAsync_WhenCancelCommitsBeforeFinalPersist_KeepsCancelledStatus()
     {
         var commandModel = new CommandModel
