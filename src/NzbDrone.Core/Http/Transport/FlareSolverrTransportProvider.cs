@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -313,16 +314,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             if (root.TryGetProperty("status", out var st) && st.GetString() == "ok")
             {
                 var solution = root.GetProperty("solution");
-                var status = solution.GetProperty("status").GetInt32();
-                var responseBody = solution.GetProperty("response").GetString() ?? string.Empty;
-
-                var httpResponse = new HttpResponseMessage((HttpStatusCode)status)
-                {
-                    Content = new StringContent(responseBody, Encoding.UTF8, "text/html"),
-                    RequestMessage = request,
-                };
-
-                return httpResponse;
+                return BuildHttpResponseFromSolution(solution, request);
             }
 
             // If session expired / invalid on FlareSolverr side, clear session and retry once
@@ -336,6 +328,152 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         }
 
         return await this.httpClient.SendAsync(request, cancellationToken);
+    }
+
+    private static HttpResponseMessage BuildHttpResponseFromSolution(JsonElement solution, HttpRequestMessage request)
+    {
+        var status = solution.GetProperty("status").GetInt32();
+        var httpResponse = new HttpResponseMessage((HttpStatusCode)status)
+        {
+            RequestMessage = request,
+        };
+
+        var bodyBytes = ExtractSolutionResponseBytes(solution);
+        string contentType = null;
+
+        if (solution.TryGetProperty("headers", out var headersElement))
+        {
+            ApplySolutionHeaders(httpResponse, headersElement, ref contentType);
+        }
+
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            contentType = InferContentType(bodyBytes, request);
+        }
+
+        var content = new ByteArrayContent(bodyBytes);
+        if (!string.IsNullOrWhiteSpace(contentType) &&
+            MediaTypeHeaderValue.TryParse(contentType, out var mediaType))
+        {
+            content.Headers.ContentType = mediaType;
+        }
+
+        httpResponse.Content = content;
+        return httpResponse;
+    }
+
+    private static byte[] ExtractSolutionResponseBytes(JsonElement solution)
+    {
+        if (!solution.TryGetProperty("response", out var responseElement) ||
+            responseElement.ValueKind != JsonValueKind.String)
+        {
+            return Array.Empty<byte>();
+        }
+
+        var responseText = responseElement.GetString() ?? string.Empty;
+        if (solution.TryGetProperty("responseEncoding", out var encodingElement) &&
+            string.Equals(encodingElement.GetString(), "base64", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrEmpty(responseText) ? Array.Empty<byte>() : Convert.FromBase64String(responseText);
+        }
+
+        return Encoding.UTF8.GetBytes(responseText);
+    }
+
+    private static void ApplySolutionHeaders(HttpResponseMessage message, JsonElement headersElement, ref string contentType)
+    {
+        if (headersElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var header in headersElement.EnumerateObject())
+            {
+                ApplySolutionHeader(message, header.Name, header.Value.GetString() ?? string.Empty, ref contentType);
+            }
+
+            return;
+        }
+
+        if (headersElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var header in headersElement.EnumerateArray())
+        {
+            if (!header.TryGetProperty("name", out var nameElement))
+            {
+                continue;
+            }
+
+            var name = nameElement.GetString();
+            var value = header.TryGetProperty("value", out var valueElement) ? valueElement.GetString() : string.Empty;
+            ApplySolutionHeader(message, name, value ?? string.Empty, ref contentType);
+        }
+    }
+
+    private static void ApplySolutionHeader(HttpResponseMessage message, string name, string value, ref string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (name.Equals("content-type", StringComparison.OrdinalIgnoreCase))
+        {
+            contentType = value;
+            return;
+        }
+
+        if (name.Equals("content-length", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("transfer-encoding", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!message.Headers.TryAddWithoutValidation(name, value))
+        {
+            message.Content?.Headers.TryAddWithoutValidation(name, value);
+        }
+    }
+
+    private static string InferContentType(byte[] bodyBytes, HttpRequestMessage request)
+    {
+        if (bodyBytes.Length >= 4 &&
+            bodyBytes[0] == (byte)'d' &&
+            bodyBytes[1] == (byte)'8' &&
+            bodyBytes[2] == (byte)':' &&
+            (bodyBytes[3] == (byte)'a' || bodyBytes[3] == (byte)'A'))
+        {
+            return "application/x-bittorrent";
+        }
+
+        var prefixLength = Math.Min(bodyBytes.Length, 512);
+        var prefix = prefixLength == 0 ? string.Empty : Encoding.UTF8.GetString(bodyBytes, 0, prefixLength).TrimStart();
+
+        if (prefix.StartsWith("<?xml", StringComparison.Ordinal) ||
+            prefix.StartsWith("<rss", StringComparison.OrdinalIgnoreCase) ||
+            prefix.StartsWith("<feed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "application/rss+xml; charset=utf-8";
+        }
+
+        if (prefix.StartsWith('{', StringComparison.Ordinal) || prefix.StartsWith('[', StringComparison.Ordinal))
+        {
+            return "application/json; charset=utf-8";
+        }
+
+        if (prefix.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase) ||
+            prefix.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+        {
+            return "text/html; charset=utf-8";
+        }
+
+        var requestPath = request.RequestUri?.AbsolutePath ?? string.Empty;
+        if (requestPath.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
+        {
+            return "application/x-bittorrent";
+        }
+
+        return "application/octet-stream";
     }
 
     public void Dispose()
