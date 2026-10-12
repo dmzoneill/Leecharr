@@ -269,6 +269,18 @@ public class ConfigResourceMappersTest
         var badResult = await controller.SaveConfig(invalidResource);
         badResult.Result.Should().BeOfType<BadRequestObjectResult>();
 
+        this.configService.ClearReceivedCalls();
+        var invalidWithBind = new BitTorrentConfigResource
+        {
+            AnnounceIntervalSeconds = 59,
+            MinAnnounceIntervalSeconds = 30,
+            ScrapeIntervalSeconds = 60,
+            NetworkInterfaceBinding = "tun0",
+        };
+        var badBindResult = await controller.SaveConfig(invalidWithBind);
+        badBindResult.Result.Should().BeOfType<BadRequestObjectResult>();
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+
         // Valid resource save
         var validResource = new BitTorrentConfigResource
         {
