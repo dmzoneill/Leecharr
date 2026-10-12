@@ -2,14 +2,18 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Datastore;
 using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Extraction;
 using NzbDrone.Core.HealthCheck;
@@ -589,5 +593,102 @@ public class HealthCheckTest
 
         eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
             e.Source == "TestCheck" && !e.IsResolved && e.Message == "Degraded warning"));
+    }
+
+    [Test]
+    public async Task DatabaseIntegrityCheck_OnPostgreSql_WhenSchemaComplete_ReturnsOk()
+    {
+        var database = Substitute.For<IDatabase>();
+        database.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var connection = Substitute.For<IDbConnection>();
+        var command = Substitute.For<IDbCommand>();
+        database.OpenConnection().Returns(connection);
+        connection.CreateCommand().Returns(command);
+        command.ExecuteScalar().Returns(3, 12, 4, 0);
+
+        var check = new DatabaseIntegrityCheck(database);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        result.Source.Should().Be("Database");
+    }
+
+    [Test]
+    public async Task DatabaseIntegrityCheck_OnPostgreSql_WhenCoreTablesMissing_ReturnsError()
+    {
+        var database = Substitute.For<IDatabase>();
+        database.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var connection = Substitute.For<IDbConnection>();
+        var command = Substitute.For<IDbCommand>();
+        database.OpenConnection().Returns(connection);
+        connection.CreateCommand().Returns(command);
+        command.ExecuteScalar().Returns(1);
+
+        var check = new DatabaseIntegrityCheck(database);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Message.Should().Contain("schema is incomplete");
+    }
+
+    [Test]
+    public async Task DatabaseIntegrityCheck_OnPostgreSql_WhenMigrationHistoryEmpty_ReturnsError()
+    {
+        var database = Substitute.For<IDatabase>();
+        database.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var connection = Substitute.For<IDbConnection>();
+        var command = Substitute.For<IDbCommand>();
+        database.OpenConnection().Returns(connection);
+        connection.CreateCommand().Returns(command);
+        command.ExecuteScalar().Returns(3, 0);
+
+        var check = new DatabaseIntegrityCheck(database);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Message.Should().Contain("migration history is empty");
+    }
+
+    [Test]
+    public async Task DatabaseIntegrityCheck_OnSqlite_WhenQuickCheckFails_ReturnsError()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"db-integrity-{Guid.NewGuid():N}.db");
+        using (var fileConnection = new SqliteConnection($"Data Source={path}"))
+        {
+            fileConnection.Open();
+            using var cmd = fileConnection.CreateCommand();
+            cmd.CommandText = "CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO records (note) VALUES ('ok');";
+            cmd.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+        var bytes = File.ReadAllBytes(path);
+        for (var i = 100; i < bytes.Length; i++)
+        {
+            bytes[i] = 0xAA;
+        }
+
+        File.WriteAllBytes(path, bytes);
+
+        using var corruptFileConnection = new SqliteConnection($"Data Source={path}");
+        corruptFileConnection.Open();
+        var corruptFileDb = new Database(() => corruptFileConnection, DatabaseType.SQLite);
+        var corruptResult = await new DatabaseIntegrityCheck(corruptFileDb).CheckAsync();
+
+        corruptResult.Type.Should().Be(HealthCheckResultType.Error);
+        corruptResult.Message.Should().Contain("integrity check failed");
+
+        SqliteConnection.ClearAllPools();
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
     }
 }
