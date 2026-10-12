@@ -1317,6 +1317,8 @@ public class QBittorrentApiControllerTest
             Progress = 0.5,
             Downloaded = 500000000,
             Uploaded = 250000000,
+            UploadLimit = 512,
+            DownloadLimit = 1024,
         };
         this.torrentService.GetByInfoHash("hash1").Returns(torrent);
         this.downloadEngine.GetTorrentResourceMetrics(1).Returns(new TorrentResourceMetrics
@@ -1351,6 +1353,8 @@ public class QBittorrentApiControllerTest
         dict["seeds"].Should().Be(5);
         dict["peers"].Should().Be(10);
         dict["total_size"].Should().Be(1000000000L);
+        dict["up_limit"].Should().Be(524288);
+        dict["dl_limit"].Should().Be(1048576);
     }
 
     [Test]
