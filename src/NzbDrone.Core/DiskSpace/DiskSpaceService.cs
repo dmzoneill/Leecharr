@@ -96,6 +96,42 @@ public class DiskSpaceService : IDiskSpaceService
             }
         }
 
+        try
+        {
+            foreach (var mount in DriveSpaceProbe.GetProbeableMountPoints())
+            {
+                try
+                {
+                    if (!DriveSpaceProbe.TryProbeDrive(mount, DriveSpaceProbe.DefaultProbeTimeout, out var probe))
+                    {
+                        continue;
+                    }
+
+                    var volumeKey = $"{probe.DriveFormat}_{probe.TotalBytes}_{probe.VolumeLabel}_{probe.MountPath}";
+                    if (seen.Add(probe.MountPath) && seenVolumes.Add(volumeKey))
+                    {
+                        result.Add(new DiskSpaceInfo
+                        {
+                            Path = probe.MountPath,
+                            Label = !string.IsNullOrWhiteSpace(probe.VolumeLabel) ? probe.VolumeLabel : probe.MountPath,
+                            FreeSpace = probe.FreeBytes,
+                            TotalSpace = probe.TotalBytes,
+                            FileSystemType = probe.DriveFormat ?? string.Empty,
+                            IsReadOnly = probe.TotalBytes > 0 && probe.FreeBytes == 0,
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Trace(ex, "Failed to read drive properties for '{0}'", mount);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to enumerate fixed drives");
+        }
+
         return result;
     }
 
@@ -113,22 +149,50 @@ public class DiskSpaceService : IDiskSpaceService
                 return;
             }
 
-            var freeSpace = this.diskProvider.GetAvailableSpace(path);
-            var totalSpace = this.diskProvider.GetTotalSize(path);
+            long? freeSpace;
+            long? totalSpace;
+            DriveSpaceSnapshot probeSnapshot = default;
+            var hasProbeSnapshot = this.diskProvider is DiskProvider concreteDiskProvider &&
+                                   concreteDiskProvider.TryQueryPathSpace(path, out probeSnapshot);
+
+            if (hasProbeSnapshot && probeSnapshot.TotalBytes > 0)
+            {
+                freeSpace = probeSnapshot.FreeBytes;
+                totalSpace = probeSnapshot.TotalBytes;
+            }
+            else
+            {
+                freeSpace = this.diskProvider.GetAvailableSpace(path);
+                totalSpace = this.diskProvider.GetTotalSize(path);
+            }
 
             if (freeSpace.HasValue && totalSpace.HasValue && totalSpace.Value > 0)
             {
-                var drive = this.diskProvider.GetDrive(path);
                 string volumeKey;
                 string driveRoot = null;
-                if (drive != null)
+                string fileSystemType = string.Empty;
+                var isReadOnly = false;
+                if (hasProbeSnapshot && probeSnapshot.TotalBytes > 0)
                 {
-                    driveRoot = drive.RootDirectory.FullName;
-                    volumeKey = $"{drive.DriveFormat}_{totalSpace.Value}_{drive.VolumeLabel}_{driveRoot}";
+                    driveRoot = probeSnapshot.MountPath;
+                    fileSystemType = probeSnapshot.DriveFormat ?? string.Empty;
+                    volumeKey = $"{probeSnapshot.DriveFormat}_{probeSnapshot.TotalBytes}_{probeSnapshot.VolumeLabel}_{probeSnapshot.MountPath}";
+                    isReadOnly = probeSnapshot.TotalBytes > 0 && probeSnapshot.FreeBytes == 0;
                 }
                 else
                 {
-                    volumeKey = $"{totalSpace.Value}_{path}";
+                    var drive = this.diskProvider.GetDrive(path);
+                    if (drive != null)
+                    {
+                        driveRoot = drive.Name;
+                        fileSystemType = drive.DriveFormat ?? string.Empty;
+                        volumeKey = $"{drive.DriveFormat}_{totalSpace.Value}_{drive.VolumeLabel}_{driveRoot}";
+                        isReadOnly = drive.TotalSize > 0 && drive.AvailableFreeSpace == 0;
+                    }
+                    else
+                    {
+                        volumeKey = $"{totalSpace.Value}_{path}";
+                    }
                 }
 
                 var isSubdirectoryOfSharedVolume = result.Any(existing =>
@@ -157,8 +221,8 @@ public class DiskSpaceService : IDiskSpaceService
                         Label = label,
                         FreeSpace = freeSpace.Value,
                         TotalSpace = totalSpace.Value,
-                        FileSystemType = drive?.DriveFormat ?? string.Empty,
-                        IsReadOnly = drive != null && drive.TotalSize > 0 && drive.AvailableFreeSpace == 0,
+                        FileSystemType = fileSystemType,
+                        IsReadOnly = isReadOnly,
                     };
                     result.Add(info);
                 }

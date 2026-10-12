@@ -15,48 +15,68 @@ namespace NzbDrone.Common.Disk;
 public class DiskProvider : IDiskProvider
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private readonly object spaceProbeLock = new();
+    private string cachedProbePath;
+    private DriveSpaceSnapshot? cachedProbeSnapshot;
 
     public long? GetAvailableSpace(string path)
     {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null;
-        }
-
-        try
-        {
-            var drive = GetBestMatchingDrive(path);
-            return drive?.AvailableFreeSpace;
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
-        {
-            Logger.Trace(ex, "Failed to determine available space for path: {0}", path);
-            return null;
-        }
+        return this.TryQueryPathSpace(path, out var snapshot) ? snapshot.FreeBytes : null;
     }
 
     public long? GetTotalSize(string path)
     {
+        return this.TryQueryPathSpace(path, out var snapshot) ? snapshot.TotalBytes : null;
+    }
+
+    public bool TryQueryPathSpace(string path, out DriveSpaceSnapshot snapshot)
+    {
+        snapshot = default;
         if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        lock (this.spaceProbeLock)
+        {
+            if (this.cachedProbeSnapshot.HasValue &&
+                string.Equals(this.cachedProbePath, path, StringComparison.Ordinal))
+            {
+                snapshot = this.cachedProbeSnapshot.Value;
+                return true;
+            }
+        }
+
+        if (!DriveSpaceProbe.TryReadSpace(path, DriveSpaceProbe.DefaultProbeTimeout, out snapshot))
+        {
+            return false;
+        }
+
+        lock (this.spaceProbeLock)
+        {
+            this.cachedProbePath = path;
+            this.cachedProbeSnapshot = snapshot;
+        }
+
+        return true;
+    }
+
+    public DriveInfo GetDrive(string path)
+    {
+        if (!DriveSpaceProbe.TryResolveMount(path, out var mountPath))
         {
             return null;
         }
 
         try
         {
-            var drive = GetBestMatchingDrive(path);
-            return drive?.TotalSize;
+            return new DriveInfo(mountPath);
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
         {
-            Logger.Trace(ex, "Failed to determine total size for path: {0}", path);
+            Logger.Trace(ex, "Failed to create drive info for mount '{0}'", mountPath);
             return null;
         }
-    }
-
-    public DriveInfo GetDrive(string path)
-    {
-        return GetBestMatchingDrive(path);
     }
 
     private static DriveInfo GetBestMatchingDrive(string path)
@@ -489,7 +509,7 @@ public class DiskProvider : IDiskProvider
         return path;
     }
 
-    private static string ResolveSymlinkPath(string path)
+    internal static string ResolveSymlinkPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
