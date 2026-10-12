@@ -78,7 +78,7 @@ public class TransmissionRemoteCliAndWireIntegrationTests : IntegrationTestBase
 
         using var addReq = new HttpRequestMessage(HttpMethod.Post, "transmission/rpc/")
         {
-            Content = new StringContent(addPayload, Encoding.UTF8, "application/x-www-form-urlencoded"),
+            Content = new StringContent($"json={Uri.EscapeDataString(addPayload)}", Encoding.UTF8, "application/x-www-form-urlencoded"),
         };
         addReq.Headers.Add("X-Transmission-Session-Id", sessionId);
 
