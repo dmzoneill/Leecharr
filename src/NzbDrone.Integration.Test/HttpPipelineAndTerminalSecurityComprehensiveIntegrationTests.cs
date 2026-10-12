@@ -270,12 +270,13 @@ public class HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests : Inte
         await middleware.InvokeAsync(httpsContext);
         httpsContext.Response.Headers[SecurityHeadersMiddleware.StrictTransportSecurityHeader].ToString().Should().Be("max-age=31536000; includeSubDomains");
 
-        // 3. X-Forwarded-Proto applies HSTS
+        // 3. Spoofed X-Forwarded-Proto on HTTP must not apply HSTS
         var fwdContext = new DefaultHttpContext();
+        fwdContext.Request.Scheme = "http";
         fwdContext.Request.Headers["X-Forwarded-Proto"] = "https";
 
         await middleware.InvokeAsync(fwdContext);
-        fwdContext.Response.Headers[SecurityHeadersMiddleware.StrictTransportSecurityHeader].ToString().Should().Be("max-age=31536000; includeSubDomains");
+        fwdContext.Response.Headers.ContainsKey(SecurityHeadersMiddleware.StrictTransportSecurityHeader).Should().BeFalse();
     }
 
     [Test]
