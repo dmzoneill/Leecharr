@@ -308,6 +308,8 @@ public class HealthCheckServiceTest
 
     private class NullReturningCheck : IHealthCheck
     {
+        public string Source => nameof(NullReturningCheck);
+
         public Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
         {
             return Task.FromResult<HealthCheckResult>(null!);
@@ -316,6 +318,8 @@ public class HealthCheckServiceTest
 
     private class SlowTestCheck : IHealthCheck
     {
+        public string Source => "SlowTestCheck";
+
         public async Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
         {
             await Task.Delay(TimeSpan.FromSeconds(5), ct);

@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class ExtractorHealthCheck : IHealthCheck
 {
+    public string Source => "ExtractorHealth";
+
     private readonly IArchiveExtractorManager extractorManager;
 
     public ExtractorHealthCheck(IArchiveExtractorManager extractorManager)

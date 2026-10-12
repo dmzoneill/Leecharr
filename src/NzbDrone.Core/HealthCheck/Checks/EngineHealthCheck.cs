@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class EngineHealthCheck : IHealthCheck
 {
+    public string Source => "EngineHealth";
+
     private readonly IDownloadEngine engine;
 
     public EngineHealthCheck(IDownloadEngine engine)

@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class HttpTransportHealthCheck : IHealthCheck
 {
+    public string Source => "HttpTransportHealth";
+
     private readonly IHttpTransportManager httpTransportManager;
 
     public HttpTransportHealthCheck(IHttpTransportManager httpTransportManager)

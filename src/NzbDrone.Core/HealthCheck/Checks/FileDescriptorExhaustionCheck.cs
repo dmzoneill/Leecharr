@@ -11,6 +11,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 /// </summary>
 public class FileDescriptorExhaustionCheck : IHealthCheck
 {
+    public string Source => "FileDescriptors";
+
     private readonly IFileDescriptorProvider fileDescriptorProvider;
 
     public FileDescriptorExhaustionCheck(IFileDescriptorProvider fileDescriptorProvider = null)

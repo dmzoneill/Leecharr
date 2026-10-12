@@ -138,9 +138,19 @@ public class HealthCheckService : IHealthCheckService, IDisposable
         return new List<HealthCheckResult>(resultsArray);
     }
 
+    private static string ResolveCheckSource(IHealthCheck check)
+    {
+        if (!string.IsNullOrWhiteSpace(check.Source))
+        {
+            return check.Source;
+        }
+
+        return check.GetType().Name;
+    }
+
     private async Task<HealthCheckResult> ExecuteCheckWithTimeoutAsync(IHealthCheck check, CancellationToken cancellationToken)
     {
-        var checkName = check.GetType().Name;
+        var checkSource = ResolveCheckSource(check);
         using var timeoutCts = new CancellationTokenSource(this.perCheckTimeout);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
@@ -152,8 +162,8 @@ public class HealthCheckService : IHealthCheckService, IDisposable
             var completedTask = await Task.WhenAny(checkTask, timeoutTask).ConfigureAwait(false);
             if (completedTask != checkTask)
             {
-                this.logger.Warn("Health check {0} timed out after {1}s", checkName, this.perCheckTimeout.TotalSeconds);
-                var timeoutResult = HealthCheckResult.Error(checkName, $"Health check timed out after {this.perCheckTimeout.TotalSeconds:0.#}s");
+                this.logger.Warn("Health check {0} timed out after {1}s", checkSource, this.perCheckTimeout.TotalSeconds);
+                var timeoutResult = HealthCheckResult.Error(checkSource, $"Health check timed out after {this.perCheckTimeout.TotalSeconds:0.#}s");
                 this.HandleStateTransition(timeoutResult);
                 return timeoutResult;
             }
@@ -161,7 +171,7 @@ public class HealthCheckService : IHealthCheckService, IDisposable
             var result = await checkTask.ConfigureAwait(false);
             if (result == null)
             {
-                result = HealthCheckResult.Ok(checkName);
+                result = HealthCheckResult.Ok(checkSource);
             }
 
             if (result.Type != HealthCheckResultType.Ok)
@@ -178,15 +188,15 @@ public class HealthCheckService : IHealthCheckService, IDisposable
         }
         catch (OperationCanceledException)
         {
-            this.logger.Warn("Health check {0} timed out after {1}s", checkName, this.perCheckTimeout.TotalSeconds);
-            var timeoutResult = HealthCheckResult.Error(checkName, $"Health check timed out after {this.perCheckTimeout.TotalSeconds:0.#}s");
+            this.logger.Warn("Health check {0} timed out after {1}s", checkSource, this.perCheckTimeout.TotalSeconds);
+            var timeoutResult = HealthCheckResult.Error(checkSource, $"Health check timed out after {this.perCheckTimeout.TotalSeconds:0.#}s");
             this.HandleStateTransition(timeoutResult);
             return timeoutResult;
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Health check {0} threw an unhandled exception", checkName);
-            var errorResult = HealthCheckResult.Error(checkName, $"Health check failed with exception: {ex.Message}");
+            this.logger.Error(ex, "Health check {0} threw an unhandled exception", checkSource);
+            var errorResult = HealthCheckResult.Error(checkSource, $"Health check failed with exception: {ex.Message}");
             this.HandleStateTransition(errorResult);
             return errorResult;
         }

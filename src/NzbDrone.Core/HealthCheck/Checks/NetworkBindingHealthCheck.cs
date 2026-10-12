@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class NetworkBindingHealthCheck : IHealthCheck
 {
+    public string Source => "NetworkBindingHealth";
+
     private readonly INetworkBindingManager networkBindingManager;
 
     public NetworkBindingHealthCheck(INetworkBindingManager networkBindingManager)

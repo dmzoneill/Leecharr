@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class MemoryHealthCheck : IHealthCheck
 {
+    public string Source => "Memory";
+
     private const double WarningLoadThreshold = 0.90; // 90%
     private const double ErrorLoadThreshold = 0.95; // 95%
     private const long WarningFreeMemoryThresholdBytes = 256L * 1024 * 1024; // 256 MB

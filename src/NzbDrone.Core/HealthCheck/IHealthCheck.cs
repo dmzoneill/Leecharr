@@ -7,6 +7,8 @@ namespace NzbDrone.Core.HealthCheck;
 
 public interface IHealthCheck
 {
+    string Source { get; }
+
     Task<HealthCheckResult> CheckAsync(CancellationToken ct = default);
 }
 

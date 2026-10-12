@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class MediaMetadataHealthCheck : IHealthCheck
 {
+    public string Source => "MediaMetadataHealth";
+
     private readonly IMediaMetadataManager metadataManager;
 
     public MediaMetadataHealthCheck(IMediaMetadataManager metadataManager)

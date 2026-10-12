@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class MediaInspectorHealthCheck : IHealthCheck
 {
+    public string Source => "MediaInspectorHealth";
+
     private readonly IMediaInspectorManager inspectorManager;
 
     public MediaInspectorHealthCheck(IMediaInspectorManager inspectorManager)

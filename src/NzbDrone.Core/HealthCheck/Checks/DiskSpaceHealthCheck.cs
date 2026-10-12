@@ -14,6 +14,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class DiskSpaceHealthCheck : IHealthCheck
 {
+    public string Source => "DiskSpace";
+
     private const long ErrorThresholdBytes = 1024L * 1024 * 1024; // 1 GB
     private const long DefaultWarningThresholdBytes = 5L * 1024 * 1024 * 1024; // 5 GB
     private const double WarningPercentThreshold = 0.05; // 5%

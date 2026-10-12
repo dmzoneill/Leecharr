@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class NoArrConnectionsCheck : IHealthCheck
 {
+    public string Source => "NoArrConnections";
+
     private readonly IArrConnectionRepository arrRepo;
 
     public NoArrConnectionsCheck(IArrConnectionRepository arrRepo)

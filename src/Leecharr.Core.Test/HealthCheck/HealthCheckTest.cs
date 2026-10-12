@@ -489,6 +489,7 @@ public class HealthCheckTest
     public async Task HealthCheckService_WhenCheckTimesOut_ReturnsErrorWithoutBlockingOtherChecks()
     {
         var slowCheck = Substitute.For<IHealthCheck>();
+        slowCheck.Source.Returns("SlowCheck");
         slowCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
         {
             await Task.Delay(500);
@@ -508,7 +509,7 @@ public class HealthCheckTest
 
         results.Should().HaveCount(2);
         var fastResult = results.Find(r => r.Source == "FastCheck");
-        var slowResult = results.Find(r => r.Source == slowCheck.GetType().Name);
+        var slowResult = results.Find(r => r.Source == "SlowCheck");
 
         fastResult.Should().NotBeNull();
         fastResult.Type.Should().Be(HealthCheckResultType.Ok);
@@ -516,6 +517,34 @@ public class HealthCheckTest
         slowResult.Should().NotBeNull();
         slowResult.Type.Should().Be(HealthCheckResultType.Error);
         slowResult.Message.Should().Contain("timed out");
+    }
+
+    [Test]
+    public async Task HealthCheckService_WhenCheckTimesOutThenRecovers_PublishesResolvedHealthIssueEvent()
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        var mockCheck = Substitute.For<IHealthCheck>();
+        mockCheck.Source.Returns("DiskSpace");
+
+        using var service = new HealthCheckService(
+            new[] { mockCheck },
+            eventAggregator,
+            TimeSpan.FromMilliseconds(50),
+            Timeout.InfiniteTimeSpan);
+
+        mockCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            await Task.Delay(500);
+            return HealthCheckResult.Ok("DiskSpace");
+        });
+        await service.PerformChecksAsync();
+        eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.Source == "DiskSpace" && !e.IsResolved && e.Message.Contains("timed out")));
+
+        mockCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(HealthCheckResult.Ok("DiskSpace")));
+        await service.PerformChecksAsync();
+        eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.Source == "DiskSpace" && e.IsResolved));
     }
 
     [Test]

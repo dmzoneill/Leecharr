@@ -10,6 +10,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class DatabaseIntegrityCheck : IHealthCheck
 {
+    public string Source => "Database";
+
     private const int ExpectedCoreTableCount = 3;
 
     private readonly IDatabase database;

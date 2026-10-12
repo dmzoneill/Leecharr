@@ -12,6 +12,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class AppFolderPermissionsCheck : IHealthCheck
 {
+    public string Source => "AppFolderPermissions";
+
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly IAppFolderInfo appFolderInfo;
     private readonly Func<string, bool> isWritableCheck;

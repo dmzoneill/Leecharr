@@ -9,6 +9,8 @@ namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class NoIndexersCheck : IHealthCheck
 {
+    public string Source => "NoIndexers";
+
     private readonly IIndexerRepository indexerRepo;
 
     public NoIndexersCheck(IIndexerRepository indexerRepo)
