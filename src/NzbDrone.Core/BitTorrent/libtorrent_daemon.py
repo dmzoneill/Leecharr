@@ -568,7 +568,7 @@ class LibTorrentManager:
         h = self.find_handle(params.get("info_hash"))
         if h:
             save_path = params.get("save_path")
-            flags = int(params.get("flags", 1))
+            flags = int(params.get("flags", 0))
             with self.lock:
                 h.move_storage(save_path, flags)
             return {"status": "storage_moved"}

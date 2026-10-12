@@ -40,6 +40,10 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private static readonly string[] FallbackPythonCandidates = ["python3", "python", "/usr/bin/python3", "/usr/local/bin/python3"];
 
+    // libtorrent 2.x move_flags_t (move_storage flags parameter)
+    private const int MoveStorageAlwaysReplaceFiles = 0;
+    private const int MoveStorageResetSavePath = 3;
+
     private readonly ConcurrentDictionary<int, LibTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<int> torrentsHaltedByKillSwitch = new();
@@ -922,12 +926,13 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         {
             try
             {
-                await this.SendRpcRequestAsync("move_storage", new Dictionary<string, object>
+                var response = await this.SendRpcRequestAsync("move_storage", new Dictionary<string, object>
                 {
                     ["info_hash"] = task.InfoHash,
                     ["save_path"] = newSavePath,
-                    ["flags"] = moveFiles ? 1 : 0,
+                    ["flags"] = moveFiles ? MoveStorageAlwaysReplaceFiles : MoveStorageResetSavePath,
                 });
+                EnsureLibTorrentMoveStorageSuccess(response, torrentId);
             }
             catch (Exception ex)
             {
@@ -1013,6 +1018,26 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
         return response.TryGetValue("status", out var statusObj) &&
                string.Equals(statusObj?.ToString(), "renamed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void EnsureLibTorrentMoveStorageSuccess(Dictionary<string, object> response, int torrentId)
+    {
+        if (response == null)
+        {
+            throw new InvalidOperationException($"libtorrent move_storage returned no response for torrent {torrentId}");
+        }
+
+        if (response.TryGetValue("error", out var errorObj) && errorObj != null && !string.IsNullOrWhiteSpace(errorObj.ToString()))
+        {
+            throw new InvalidOperationException($"libtorrent move_storage failed for torrent {torrentId}: {errorObj}");
+        }
+
+        if (!response.TryGetValue("status", out var statusObj) ||
+            !string.Equals(statusObj?.ToString(), "storage_moved", StringComparison.OrdinalIgnoreCase))
+        {
+            var status = statusObj?.ToString() ?? "unknown";
+            throw new InvalidOperationException($"libtorrent move_storage did not complete for torrent {torrentId} (status: {status})");
+        }
     }
 
     public IDownloadTask GetTask(int torrentId)
