@@ -148,12 +148,7 @@ public static class Bootstrap
                 }
                 else
                 {
-                    var ip = bindAddress switch
-                    {
-                        "127.0.0.1" => IPAddress.Loopback,
-                        _ when IPAddress.TryParse(bindAddress, out var parsed) => parsed,
-                        _ => IPAddress.Any,
-                    };
+                    var ip = HostBindingAddresses.ResolveListenAddress(bindAddress);
 
                     serverOptions.Listen(ip, configProvider.Port);
 
