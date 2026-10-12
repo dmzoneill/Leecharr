@@ -51,11 +51,11 @@ public class TagRepository : BasicRepository<Tag>, ITagRepository
         }
         catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
         {
-            return this.GetByLabel(candidate.Label) ?? throw;
+            return this.GetByLabel(candidate.Label) ?? throw ex;
         }
         catch (PostgresException ex) when (ex.SqlState == "23505")
         {
-            return this.GetByLabel(candidate.Label) ?? throw;
+            return this.GetByLabel(candidate.Label) ?? throw ex;
         }
     }
 }

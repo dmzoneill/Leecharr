@@ -134,12 +134,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
     public bool IsConfigured()
     {
-        var hasIndexer = this.repository.All().Any(i =>
-            !string.IsNullOrWhiteSpace(i.Url) &&
-            !string.IsNullOrWhiteSpace(i.ApiKey) &&
-            ((i.Implementation != null && i.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-            i.Url.Contains("9696", StringComparison.OrdinalIgnoreCase)));
+        var hasIndexer = this.repository.All().Any(ProwlarrInstanceDiscovery.IsSyncTarget);
 
         if (hasIndexer)
         {
@@ -166,12 +161,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
     {
         var targets = new List<(string Url, string ApiKey, bool SyncCategories)>();
 
-        var indexers = this.repository.All().Where(i =>
-            !string.IsNullOrWhiteSpace(i.Url) &&
-            !string.IsNullOrWhiteSpace(i.ApiKey) &&
-            ((i.Implementation != null && i.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-            i.Url.Contains("9696", StringComparison.OrdinalIgnoreCase))).ToList();
+        var indexers = this.repository.All().Where(ProwlarrInstanceDiscovery.IsSyncTarget).ToList();
 
         foreach (var idx in indexers)
         {
