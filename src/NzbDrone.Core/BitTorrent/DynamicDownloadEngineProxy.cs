@@ -497,10 +497,10 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         await engine.ForceAnnounceAsync(torrentId);
     }
 
-    public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    public async Task<IReadOnlyList<string>> AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
     {
         var engine = await this.GetReadyEngineAsync();
-        await engine.AddTrackersAsync(torrentId, trackers);
+        return await engine.AddTrackersAsync(torrentId, trackers);
     }
 
     public async Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)

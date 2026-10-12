@@ -2445,7 +2445,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    public async Task<IReadOnlyList<string>> AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
     {
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null && trackers != null)
         {
@@ -2456,8 +2456,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 var trackerList = trackers.Where(tr => !string.IsNullOrWhiteSpace(tr)).Select(tr => tr.Trim()).ToList();
                 if (trackerList.Count == 0)
                 {
-                    return;
+                    return Array.Empty<string>();
                 }
+
+                var addedUrls = new List<string>();
 
                 if (this.trackerEntryRepository != null)
                 {
@@ -2506,6 +2508,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             if (addedTracker != null)
                             {
                                 newlyAddedTrackers.Add(addedTracker);
+                                addedUrls.Add(tr);
                             }
                         }
                         catch (Exception ex)
@@ -2531,8 +2534,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         }
                     }
                 }
+
+                return addedUrls;
             }
         }
+
+        return Array.Empty<string>();
     }
 
     public async Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)

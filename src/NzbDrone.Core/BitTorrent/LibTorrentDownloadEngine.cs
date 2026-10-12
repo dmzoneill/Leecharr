@@ -633,8 +633,15 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
-    public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    public async Task<IReadOnlyList<string>> AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
     {
+        var trackerList = trackers?.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            ?? new List<string>();
+        if (trackerList.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
             try
@@ -642,14 +649,17 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 await this.SendRpcRequestAsync("add_trackers", new Dictionary<string, object>
                 {
                     ["info_hash"] = task.InfoHash,
-                    ["trackers"] = trackers.ToArray(),
+                    ["trackers"] = trackerList.ToArray(),
                 });
+                return trackerList;
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error adding trackers in libtorrent for {0}", torrentId);
             }
         }
+
+        return Array.Empty<string>();
     }
 
     public async Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)
