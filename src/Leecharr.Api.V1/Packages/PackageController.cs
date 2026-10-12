@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -28,6 +29,7 @@ public class PackageExportRequest
 }
 
 [V1ApiController("packages")]
+[Authorize(Policy = "RequireOperator")]
 public class PackageController : Controller
 {
     private static readonly HashSet<char> InvalidFileNameChars = new(
