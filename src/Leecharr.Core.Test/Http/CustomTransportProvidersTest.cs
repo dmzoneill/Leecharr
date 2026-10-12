@@ -115,6 +115,30 @@ public class CustomTransportProvidersTest
     }
 
     [Test]
+    public void FlareSolverr_ProxyConfiguration_BypassesOutboundProxyForSolverClient()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("proxy.local");
+        config.ProxyPort.Returns(8080);
+        config.ProxyAuthEnabled.Returns(true);
+        config.ProxyUsername.Returns("proxyuser");
+        config.ProxyPassword.Returns("proxypass");
+
+        using var provider = new FlareSolverrTransportProvider(config);
+
+        provider.SolverHandler.Should().NotBeNull();
+        provider.SolverHandler!.UseProxy.Should().BeFalse();
+
+        provider.FallbackHandler.Should().NotBeNull();
+        provider.FallbackHandler!.UseProxy.Should().BeTrue();
+        var proxy = provider.FallbackHandler.Proxy as WebProxy;
+        proxy.Should().NotBeNull();
+        proxy!.Address!.Host.Should().Be("proxy.local");
+        proxy.Address.Port.Should().Be(8080);
+    }
+
+    [Test]
     public void CurlImpersonate_ProxyConfiguration_MapsSchemesAndCredentialsCorrectly()
     {
         var config = Substitute.For<IConfigService>();
