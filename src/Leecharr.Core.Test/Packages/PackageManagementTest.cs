@@ -63,6 +63,7 @@ public class PackageManagementTest
         this.packageImportService = new PackageImportService(
             this.torrentService,
             this.torrentFileParser,
+            this.tagRepository,
             this.appFolderInfo,
             this.configService);
     }
@@ -253,7 +254,7 @@ public class PackageManagementTest
             TotalSize = 1024,
             Status = TorrentStatus.Downloading,
         };
-        this.torrentService.AddFromParsedTorrentAsync(parsedMock, "Media", Arg.Any<string>(), false, Arg.Any<byte[]>())
+        this.torrentService.AddFromParsedTorrentAsync(parsedMock, "Media", Arg.Any<string>(), false, Arg.Any<byte[]>(), null, null, Arg.Any<List<int>>(), null, null)
             .Returns(Task.FromResult(restoredTorrent));
 
         var options = new PackageImportOptions
@@ -464,6 +465,168 @@ public class PackageManagementTest
             targetSeparator: '/');
 
         translated.Should().Be("tvshow/episode.mkv");
+    }
+
+    [Test]
+    public void PackagePathTranslator_IsPathUnderDirectory_RejectsPrefixSiblingPaths()
+    {
+        var destDir = Path.Combine(this.tempDirectory, "downloads");
+        Directory.CreateDirectory(destDir);
+        var siblingFile = Path.Combine(this.tempDirectory, "downloads_evil", "secret.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(siblingFile)!);
+
+        PackagePathTranslator.IsPathUnderDirectory(siblingFile, destDir).Should().BeFalse();
+        PackagePathTranslator.IsPathUnderDirectory(Path.Combine(destDir, "movie.mkv"), destDir).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ImportPackageAsync_PayloadOutsideDestination_ThrowsSecurityException()
+    {
+        var infoHash = "0123456789abcdef0123456789abcdef01234567";
+        var destDir = Path.Combine(this.tempDirectory, "downloads");
+        Directory.CreateDirectory(destDir);
+
+        using var memoryStream = new MemoryStream();
+        await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
+        await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var payload = Encoding.UTF8.GetBytes("escaped");
+            using var payloadMs = new MemoryStream(payload);
+            var escapedPath = Path.Combine("..", "downloads_evil", "escaped.bin").Replace('\\', '/');
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, $"payload/{infoHash}/{escapedPath}")
+            {
+                DataStream = payloadMs,
+            });
+        }
+
+        memoryStream.Position = 0;
+        var options = new PackageImportOptions
+        {
+            DestinationPath = destDir,
+            RestoreTorrents = false,
+        };
+
+        var act = async () => await this.packageImportService.ImportPackageAsync(memoryStream, options);
+        await act.Should().ThrowAsync<SecurityException>();
+    }
+
+    [Test]
+    public async Task ImportPackageAsync_AbsolutePayloadSiblingPath_ThrowsInvalidOperationException()
+    {
+        var infoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        var destDir = Path.Combine(this.tempDirectory, "downloads");
+        Directory.CreateDirectory(destDir);
+        var siblingFile = Path.Combine(this.tempDirectory, "downloads_evil", "escaped.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(siblingFile)!);
+
+        using var memoryStream = new MemoryStream();
+        await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
+        await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var payload = Encoding.UTF8.GetBytes("escaped");
+            using var payloadMs = new MemoryStream(payload);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, $"payload/{infoHash}/escaped.bin")
+            {
+                DataStream = payloadMs,
+            });
+        }
+
+        memoryStream.Position = 0;
+        var options = new PackageImportOptions
+        {
+            DestinationPath = destDir,
+            PathRemappings = new Dictionary<string, string> { ["escaped.bin"] = siblingFile },
+            RestoreTorrents = false,
+        };
+
+        var act = async () => await this.packageImportService.ImportPackageAsync(memoryStream, options);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*outside target directory*");
+    }
+
+    [Test]
+    public async Task ImportPackageAsync_ExistingPayloadFile_IsNotOverwritten()
+    {
+        var infoHash = "abcdef0123456789abcdef0123456789abcdef01";
+        var destDir = Path.Combine(this.tempDirectory, "payload_dest");
+        Directory.CreateDirectory(destDir);
+        var existingPath = Path.Combine(destDir, "keep.txt");
+        await File.WriteAllTextAsync(existingPath, "original-content");
+
+        using var memoryStream = new MemoryStream();
+        await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
+        await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var payload = Encoding.UTF8.GetBytes("replacement");
+            using var payloadMs = new MemoryStream(payload);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, $"payload/{infoHash}/keep.txt")
+            {
+                DataStream = payloadMs,
+            });
+        }
+
+        memoryStream.Position = 0;
+        var result = await this.packageImportService.ImportPackageAsync(memoryStream, new PackageImportOptions
+        {
+            DestinationPath = destDir,
+            RestoreTorrents = false,
+        });
+
+        result.ExtractedFiles.Should().BeEmpty();
+        (await File.ReadAllTextAsync(existingPath)).Should().Be("original-content");
+    }
+
+    [Test]
+    public async Task ImportPackageAsync_ManifestTags_PassedToTorrentService()
+    {
+        var infoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var torrentsDir = Path.Combine(this.tempDirectory, "torrents");
+        Directory.CreateDirectory(torrentsDir);
+        var torrentBytes = Encoding.UTF8.GetBytes("d8:announce3:udpe");
+        await File.WriteAllBytesAsync(Path.Combine(torrentsDir, $"{infoHash}.torrent"), torrentBytes);
+
+        this.tagRepository.All().Returns(new List<Tag> { new Tag { Id = 7, Label = "ImportedTag" } });
+        this.torrentService.GetByInfoHash(infoHash).Returns((Torrent)null!);
+
+        var parsed = new ParsedTorrent { Name = "Tagged Torrent", InfoHash = infoHash, TotalSize = 100 };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.torrentService
+            .AddFromParsedTorrentAsync(parsed, "tv", Arg.Any<string>(), false, Arg.Any<byte[]>(), null, null, Arg.Is<List<int>>(ids => ids.SequenceEqual(new List<int> { 7 })), null, null)
+            .Returns(Task.FromResult(new Torrent { Id = 1, Name = "Tagged Torrent", InfoHash = infoHash, Category = "tv" }));
+
+        using var memoryStream = new MemoryStream();
+        await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
+        await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var manifest = new PackageManifest
+            {
+                Torrents = new List<PackageTorrentItem>
+                {
+                    new() { Name = "Tagged Torrent", InfoHash = infoHash, Category = "tv", Tags = new List<string> { "ImportedTag" } },
+                },
+            };
+            var manifestBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(manifest));
+            using var manifestMs = new MemoryStream(manifestBytes);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, "manifest.json") { DataStream = manifestMs });
+
+            using var metainfoMs = new MemoryStream(torrentBytes);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, $"metainfo/{infoHash}.torrent") { DataStream = metainfoMs });
+        }
+
+        memoryStream.Position = 0;
+        var result = await this.packageImportService.ImportPackageAsync(memoryStream, new PackageImportOptions { RestoreTorrents = true });
+
+        result.ImportedTorrentsCount.Should().Be(1);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsed,
+            "tv",
+            Arg.Any<string>(),
+            false,
+            Arg.Any<byte[]>(),
+            null,
+            null,
+            Arg.Is<List<int>>(ids => ids.SequenceEqual(new List<int> { 7 })),
+            null,
+            null);
     }
 
     [Test]
