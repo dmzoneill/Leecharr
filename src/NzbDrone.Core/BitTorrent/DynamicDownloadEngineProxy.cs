@@ -608,6 +608,12 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public IDownloadTask GetTask(int torrentId)
         => this.GetActiveOrMigratingEngine()?.GetTask(torrentId);
 
+    public IReadOnlyList<string> GetTorrentPieceHashes(int torrentId)
+        => this.GetActiveOrMigratingEngine()?.GetTorrentPieceHashes(torrentId);
+
+    public IReadOnlyList<string> GetTorrentPieceHashesFromBytes(byte[] torrentBytes)
+        => this.GetActiveOrMigratingEngine()?.GetTorrentPieceHashesFromBytes(torrentBytes);
+
     public IEnumerable<IDownloadTask> GetAllTasks()
         => this.GetActiveOrMigratingEngine()?.GetAllTasks() ?? Enumerable.Empty<IDownloadTask>();
 
