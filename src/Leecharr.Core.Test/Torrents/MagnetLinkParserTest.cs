@@ -331,6 +331,14 @@ public class MagnetLinkParserTest
     }
 
     [Test]
+    public void BuildMagnetUri_WhenInfoHashContainsMagnetDelimiters_ThrowsFormatException()
+    {
+        var malicious = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&tr=http://attacker.example/announce";
+        Action act = () => MagnetLinkParser.BuildMagnetUri(malicious);
+        act.Should().Throw<FormatException>();
+    }
+
+    [Test]
     public void BuildMagnetUri_WithNameAndTrackers_EscapesAndFormatsDnAndTr()
     {
         var v1Hex = "0123456789abcdef0123456789abcdef01234567";
