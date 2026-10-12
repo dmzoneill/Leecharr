@@ -8,7 +8,7 @@ namespace NzbDrone.Host;
 
 public static class IndexHtmlInjection
 {
-    public static string BuildHeadInjection(string? effectiveUrlBase)
+    public static string BuildHeadInjection(string effectiveUrlBase)
     {
         var urlBase = effectiveUrlBase ?? string.Empty;
         var baseHref = string.IsNullOrEmpty(urlBase)
@@ -19,7 +19,7 @@ public static class IndexHtmlInjection
         return $"<base href=\"{encodedBaseHref}\" /><script>window.Leecharr = {{ urlBase: {encodedUrlBaseJson} }};</script>";
     }
 
-    public static string InjectIntoHtml(string html, string? effectiveUrlBase)
+    public static string InjectIntoHtml(string html, string effectiveUrlBase)
     {
         var injection = BuildHeadInjection(effectiveUrlBase);
         if (html.Contains("<head>", StringComparison.OrdinalIgnoreCase))
