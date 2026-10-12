@@ -7,4 +7,8 @@
     <PackageReference Include="DryIoc.dll" Version="5.4.3" />
     <PackageReference Include="NLog" Version="6.2.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Leecharr.Core.Test" />
+  </ItemGroup>
 </Project>
