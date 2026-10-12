@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,10 +18,19 @@ public class DiskSpaceHealthCheck : IHealthCheck
     private const long DefaultWarningThresholdBytes = 5L * 1024 * 1024 * 1024; // 5 GB
     private const double WarningPercentThreshold = 0.05; // 5%
 
+    private enum DiskSpaceAlertLevel
+    {
+        None,
+        Warning,
+        Critical,
+    }
+
     private readonly IDiskSpaceService diskSpaceService;
     private readonly IConfigService configService;
     private readonly IEventAggregator eventAggregator;
     private readonly TimeSpan queryTimeout;
+    private readonly ConcurrentDictionary<string, DiskSpaceAlertLevel> previousAlertLevels = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object alertTransitionLock = new();
 
     public DiskSpaceHealthCheck(
         IDiskSpaceService diskSpaceService,
@@ -95,13 +105,16 @@ public class DiskSpaceHealthCheck : IHealthCheck
                 if (disk.FreeSpace < errorThresholdBytes)
                 {
                     errors.Add($"{disk.Path} has only {freeGb:0.00} GB free");
-                    this.eventAggregator?.PublishEvent(new DiskSpaceCriticalEvent(disk.Path, disk.FreeSpace));
-                    this.eventAggregator?.PublishEvent(new HealthIssueEvent(torrent: null, "DiskSpace", $"Critically low disk space on {disk.Path}: {freeGb:0.00} GB free", isResolved: false));
+                    this.PublishDiskAlertEventsIfTransitioned(disk, DiskSpaceAlertLevel.Critical, freePercent);
                 }
                 else if (disk.FreeSpace < warningThresholdBytes || freePercent < WarningPercentThreshold)
                 {
                     warnings.Add($"{disk.Path} has {freeGb:0.00} GB free ({freePercent:P1})");
-                    this.eventAggregator?.PublishEvent(new DiskSpaceLowEvent(disk.Path, disk.FreeSpace, disk.TotalSpace, freePercent));
+                    this.PublishDiskAlertEventsIfTransitioned(disk, DiskSpaceAlertLevel.Warning, freePercent);
+                }
+                else
+                {
+                    this.PublishDiskAlertEventsIfTransitioned(disk, DiskSpaceAlertLevel.None, freePercent);
                 }
             }
 
@@ -139,6 +152,39 @@ public class DiskSpaceHealthCheck : IHealthCheck
             return HealthCheckResult.Error(
                 "DiskSpace",
                 $"Disk space health check failed: {ex.Message}");
+        }
+    }
+
+    private void PublishDiskAlertEventsIfTransitioned(DiskSpaceInfo disk, DiskSpaceAlertLevel currentLevel, double freePercent)
+    {
+        if (this.eventAggregator == null || disk == null || string.IsNullOrWhiteSpace(disk.Path))
+        {
+            return;
+        }
+
+        lock (this.alertTransitionLock)
+        {
+            var hasPrevious = this.previousAlertLevels.TryGetValue(disk.Path, out var previousLevel);
+            if (hasPrevious && previousLevel == currentLevel)
+            {
+                return;
+            }
+
+            this.previousAlertLevels[disk.Path] = currentLevel;
+
+            if (!hasPrevious && currentLevel == DiskSpaceAlertLevel.None)
+            {
+                return;
+            }
+
+            if (currentLevel == DiskSpaceAlertLevel.Critical)
+            {
+                this.eventAggregator.PublishEvent(new DiskSpaceCriticalEvent(disk.Path, disk.FreeSpace));
+            }
+            else if (currentLevel == DiskSpaceAlertLevel.Warning)
+            {
+                this.eventAggregator.PublishEvent(new DiskSpaceLowEvent(disk.Path, disk.FreeSpace, disk.TotalSpace, freePercent));
+            }
         }
     }
 }

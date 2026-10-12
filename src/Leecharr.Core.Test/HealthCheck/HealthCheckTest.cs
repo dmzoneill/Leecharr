@@ -444,7 +444,7 @@ public class HealthCheckTest
     }
 
     [Test]
-    public async Task DiskSpaceHealthCheck_WhenCriticallyLow_PublishesHealthIssueEvent()
+    public async Task DiskSpaceHealthCheck_WhenCriticallyLow_PublishesDiskSpaceCriticalEventOnce()
     {
         var diskService = Substitute.For<IDiskSpaceService>();
         diskService.GetDiskSpace().Returns(new List<DiskSpaceInfo>
@@ -454,11 +454,14 @@ public class HealthCheckTest
 
         var eventAggregator = Substitute.For<IEventAggregator>();
         var check = new DiskSpaceHealthCheck(diskService, eventAggregator: eventAggregator);
-        var result = await check.CheckAsync();
 
-        result.Type.Should().Be(HealthCheckResultType.Error);
-        eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
-            e.Source == "DiskSpace" && !e.IsResolved && e.Message.Contains("/downloads")));
+        var firstResult = await check.CheckAsync();
+        var secondResult = await check.CheckAsync();
+
+        firstResult.Type.Should().Be(HealthCheckResultType.Error);
+        secondResult.Type.Should().Be(HealthCheckResultType.Error);
+        eventAggregator.Received(1).PublishEvent(Arg.Is<DiskSpaceCriticalEvent>(e => e.DrivePath == "/downloads"));
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
     }
 
     [Test]
