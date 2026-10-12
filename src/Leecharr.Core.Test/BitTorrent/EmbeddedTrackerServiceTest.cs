@@ -575,6 +575,47 @@ public class EmbeddedTrackerServiceTest
     }
 
     [Test]
+    public void ProcessAnnounce_PublicIpv4WithIpv6Parameter_RegistersSecondaryPeerForPeers6()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xDD;
+        var ipv6Address = IPAddress.Parse("2001:db8::3");
+        var publicIpv4 = IPAddress.Parse("203.0.113.20");
+
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = publicIpv4,
+            Port = 6881,
+            Ipv6 = ipv6Address,
+            Ipv6Port = 6882,
+            Left = 0,
+            Compact = true,
+        });
+
+        var peers = this.trackerService.GetPeersForSwarm(Convert.ToHexString(infoHash));
+        peers.Should().HaveCount(2);
+        peers.Should().Contain(p => p.Ip.Equals(publicIpv4) && p.Port == 6881);
+        peers.Should().Contain(p => p.Ip.Equals(ipv6Address) && p.Port == 6882);
+
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.2"),
+            Port = 5000,
+            Left = 100,
+            Compact = true,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("peers6").Should().BeTrue();
+        var peers6 = ((BEncodedString)dict["peers6"]).Span;
+        peers6.Length.Should().Be(18);
+        peers6.Slice(0, 16).ToArray().Should().Equal(ipv6Address.GetAddressBytes());
+        BinaryPrimitives.ReadUInt16BigEndian(peers6.Slice(16, 2)).Should().Be(6882);
+    }
+
+    [Test]
     public void ProcessAnnounce_CompactMode_WithIPv6Peers_SerializesPeers6KeyUnderBep7()
     {
         var infoHash = new byte[20];

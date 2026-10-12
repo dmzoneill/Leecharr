@@ -92,6 +92,31 @@ public class EmbeddedTrackerControllerTest
     }
 
     [Test]
+    public void ParseAnnounceQuery_PublicRemoteIp_PreservesIpv6WithoutReplacingRemoteIp()
+    {
+        var publicIpv4 = IPAddress.Parse("203.0.113.10");
+        var query = "?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100&ipv6=%5B2001:db8::2%5D:6882";
+        var request = EmbeddedTrackerController.ParseAnnounceQuery(query, publicIpv4);
+
+        request.RemoteIp.Should().Be(publicIpv4);
+        request.Ipv6.Should().NotBeNull();
+        request.Ipv6.ToString().Should().Be("2001:db8::2");
+        request.Ipv6Port.Should().Be(6882);
+    }
+
+    [Test]
+    public void ParseAnnounceQuery_PublicRemoteIpv6_PreservesQueryIpv4WithoutReplacingRemoteIp()
+    {
+        var publicIpv6 = IPAddress.Parse("2001:db8::10");
+        var query = "?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100&ip=198.51.100.5";
+        var request = EmbeddedTrackerController.ParseAnnounceQuery(query, publicIpv6);
+
+        request.RemoteIp.Should().Be(publicIpv6);
+        request.QueryIpv4.Should().NotBeNull();
+        request.QueryIpv4.ToString().Should().Be("198.51.100.5");
+    }
+
+    [Test]
     public void Announce_ParsesNoPeerId_WhenSpecified()
     {
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
