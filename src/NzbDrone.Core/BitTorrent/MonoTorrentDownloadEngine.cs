@@ -3366,6 +3366,83 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return task;
     }
 
+    public IReadOnlyList<string> GetTorrentPieceHashes(int torrentId)
+    {
+        if (!this.tasks.TryGetValue(torrentId, out var task) || task?.Manager == null)
+        {
+            return null;
+        }
+
+        var manager = task.Manager;
+        if (manager.Torrent?.Pieces != null)
+        {
+            var fromTorrent = PieceHashesFromMonoTorrent(manager.Torrent.Pieces);
+            if (fromTorrent != null)
+            {
+                return fromTorrent;
+            }
+        }
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(manager.MetadataPath) && File.Exists(manager.MetadataPath) &&
+                Torrent.TryLoad(manager.MetadataPath, out var metadataTorrent))
+            {
+                return PieceHashesFromMonoTorrent(metadataTorrent.Pieces);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to read piece hashes from metadata path for torrent {0}", torrentId);
+        }
+
+        return null;
+    }
+
+    public IReadOnlyList<string> GetTorrentPieceHashesFromBytes(byte[] torrentBytes)
+    {
+        if (torrentBytes == null || torrentBytes.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            if (Torrent.TryLoad(torrentBytes, out var torrent))
+            {
+                return PieceHashesFromMonoTorrent(torrent.Pieces);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to load torrent bytes for piece hashes");
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<string> PieceHashesFromMonoTorrent(Hashes pieces)
+    {
+        if (pieces == null || pieces.Count == 0)
+        {
+            return null;
+        }
+
+        var list = new List<string>(pieces.Count);
+        for (var i = 0; i < pieces.Count; i++)
+        {
+            var hash = pieces.ReadHash(i);
+            if (hash == null || hash.Length == 0)
+            {
+                continue;
+            }
+
+            list.Add(Convert.ToHexString(hash).ToLowerInvariant());
+        }
+
+        return list.Count > 0 ? list : null;
+    }
+
     public IEnumerable<IDownloadTask> GetAllTasks()
     {
         return this.tasks.Values;

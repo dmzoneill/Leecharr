@@ -3021,7 +3021,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.NotFound();
         }
 
-        var result = new List<string>();
+        byte[] torrentFileBytes = null;
 
         try
         {
@@ -3031,17 +3031,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             var filePath = Path.Combine(appData, "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
             if (global::System.IO.File.Exists(filePath))
             {
-                var bytes = global::System.IO.File.ReadAllBytes(filePath);
-                var parsed = this.torrentFileParser.Parse(bytes);
+                torrentFileBytes = global::System.IO.File.ReadAllBytes(filePath);
+                var parsed = this.torrentFileParser.Parse(torrentFileBytes);
                 if (parsed.PieceHashes != null && parsed.PieceHashes.Length >= 20)
                 {
-                    for (var i = 0; i + 20 <= parsed.PieceHashes.Length; i += 20)
-                    {
-                        var hex = Convert.ToHexString(parsed.PieceHashes, i, 20).ToLowerInvariant();
-                        result.Add(hex);
-                    }
-
-                    return this.Ok(result);
+                    return this.Ok(PieceHashesToHexList(parsed.PieceHashes));
                 }
             }
         }
@@ -3050,14 +3044,33 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             this.logger.Debug(ex, "Failed to read piece hashes from torrent file for {0}", hash);
         }
 
-        var task = this.downloadEngine?.GetTask(torrent.Id);
-        var pieceCount = torrent.PieceCount > 0 ? torrent.PieceCount : (task?.PieceBitfield?.Length ?? 0);
-        for (var i = 0; i < pieceCount; i++)
+        if (torrentFileBytes != null)
         {
-            result.Add(new string('0', 40));
+            var fromTorrentFile = this.downloadEngine?.GetTorrentPieceHashesFromBytes(torrentFileBytes);
+            if (fromTorrentFile != null && fromTorrentFile.Count > 0)
+            {
+                return this.Ok(fromTorrentFile.ToList());
+            }
         }
 
-        return this.Ok(result);
+        var fromEngine = this.downloadEngine?.GetTorrentPieceHashes(torrent.Id);
+        if (fromEngine != null && fromEngine.Count > 0)
+        {
+            return this.Ok(fromEngine.ToList());
+        }
+
+        return this.Ok(new List<string>());
+    }
+
+    private static List<string> PieceHashesToHexList(byte[] pieceHashes)
+    {
+        var result = new List<string>();
+        for (var i = 0; i + 20 <= pieceHashes.Length; i += 20)
+        {
+            result.Add(Convert.ToHexString(pieceHashes, i, 20).ToLowerInvariant());
+        }
+
+        return result;
     }
 
     [HttpGet("transfer/info")]

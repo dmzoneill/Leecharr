@@ -77,6 +77,10 @@ public interface IDownloadEngine
 
     IDownloadTask GetTask(int torrentId);
 
+    IReadOnlyList<string> GetTorrentPieceHashes(int torrentId) => null;
+
+    IReadOnlyList<string> GetTorrentPieceHashesFromBytes(byte[] torrentBytes) => null;
+
     IEnumerable<IDownloadTask> GetAllTasks();
 
     TorrentEngineMetrics GetEngineMetrics() => new();

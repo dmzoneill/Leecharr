@@ -2612,7 +2612,7 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
-    public void GetPieceHashes_ExistingTorrent_ReturnsPieceHashes()
+    public void GetPieceHashes_ExistingTorrentWithoutMetadata_ReturnsEmptyList()
     {
         var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", PieceCount = 3 };
         this.torrentService.GetByInfoHash("hash1").Returns(torrent);
@@ -2623,7 +2623,20 @@ public class QBittorrentApiControllerTest
         var okResult = (OkObjectResult)result.Result;
         var list = okResult.Value as List<string>;
         list.Should().NotBeNull();
-        list!.Count.Should().Be(3);
+        list!.Should().BeEmpty();
+    }
+
+    [Test]
+    public void GetPieceHashes_WhenEngineHasMetadata_ReturnsEngineHashes()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", PieceCount = 2 };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+        this.downloadEngine.GetTorrentPieceHashes(1).Returns(new List<string> { "aa", "bb" });
+
+        var result = this.controller.GetPieceHashes("hash1");
+
+        var list = ((OkObjectResult)result.Result!).Value as List<string>;
+        list.Should().Equal("aa", "bb");
     }
 
     [Test]
