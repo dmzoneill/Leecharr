@@ -21,6 +21,16 @@ public class SeedingStatsResource
 
     public int PausedTorrents { get; set; }
 
+    public int QueuedTorrents { get; set; }
+
+    public int CheckingTorrents { get; set; }
+
+    public int ErrorTorrents { get; set; }
+
+    public int StalledTorrents { get; set; }
+
+    public int CompletedTorrents { get; set; }
+
     public long DownloadSpeed { get; set; }
 
     public long UploadSpeed { get; set; }
@@ -89,10 +99,15 @@ public class SeedingController : Controller
 
         return this.Ok(new SeedingStatsResource
         {
-            ActiveTorrents = torrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding),
+            ActiveTorrents = torrents.Count(IsActiveTorrent),
             DownloadingTorrents = torrents.Count(t => t.Status == TorrentStatus.Downloading),
             SeedingTorrents = torrents.Count(t => t.Status == TorrentStatus.Seeding),
-            PausedTorrents = torrents.Count(t => t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped),
+            PausedTorrents = torrents.Count(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped),
+            QueuedTorrents = torrents.Count(t => t.Status == TorrentStatus.Queued),
+            CheckingTorrents = torrents.Count(t => t.Status is TorrentStatus.Checking or TorrentStatus.QueuedForChecking),
+            ErrorTorrents = torrents.Count(t => t.Status == TorrentStatus.Error),
+            StalledTorrents = torrents.Count(t => t.Status == TorrentStatus.Stalled),
+            CompletedTorrents = torrents.Count(t => t.Status == TorrentStatus.Completed),
             DownloadSpeed = torrents.Sum(t => t.DownloadSpeed),
             UploadSpeed = torrents.Sum(t => t.UploadSpeed),
             TotalDownloaded = totalDown,
@@ -173,6 +188,20 @@ public class SeedingController : Controller
         return this.Ok();
     }
 
+    private static bool IsActiveTorrent(Torrent torrent)
+    {
+        if (torrent.DownloadSpeed > 0 || torrent.UploadSpeed > 0)
+        {
+            return true;
+        }
+
+        return torrent.Status is TorrentStatus.Downloading
+            or TorrentStatus.Seeding
+            or TorrentStatus.Stalled
+            or TorrentStatus.Checking
+            or TorrentStatus.QueuedForChecking;
+    }
+
     private static void RecordSample(List<Torrent> torrents)
     {
         var now = DateTime.UtcNow;
@@ -187,7 +216,7 @@ public class SeedingController : Controller
 
             var totalDown = torrents.Sum(t => t.DownloadSpeed);
             var totalUp = torrents.Sum(t => t.UploadSpeed);
-            var activeCount = torrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding);
+            var activeCount = torrents.Count(IsActiveTorrent);
             var totalPeers = torrents.Sum(t => t.Seeders + t.Leechers);
             var avgRatio = torrents.Count > 0 ? torrents.Average(t => t.Ratio) : 0.0;
 
