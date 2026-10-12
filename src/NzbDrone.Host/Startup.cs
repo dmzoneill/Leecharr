@@ -356,16 +356,7 @@ public class Startup
                 {
                     var html = await File.ReadAllTextAsync(indexPath);
                     var effectiveUrlBase = context.Request.PathBase.HasValue ? context.Request.PathBase.Value : urlBase;
-                    var baseHref = string.IsNullOrEmpty(effectiveUrlBase) ? "/" : (effectiveUrlBase.EndsWith('/') ? effectiveUrlBase : effectiveUrlBase + "/");
-                    var injection = $"<base href=\"{baseHref}\" /><script>window.Leecharr = {{ urlBase: \"{effectiveUrlBase}\" }};</script>";
-                    if (html.Contains("<head>", StringComparison.OrdinalIgnoreCase))
-                    {
-                        html = html.Replace("<head>", $"<head>{injection}", StringComparison.OrdinalIgnoreCase);
-                    }
-                    else
-                    {
-                        html = injection + html;
-                    }
+                    html = IndexHtmlInjection.InjectIntoHtml(html, effectiveUrlBase);
 
                     context.Response.ContentType = "text/html; charset=utf-8";
                     context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
@@ -509,16 +500,7 @@ public class Startup
             {
                 var html = await File.ReadAllTextAsync(indexPath);
                 var effectiveUrlBase = context.Request.PathBase.HasValue ? context.Request.PathBase.Value : urlBase;
-                var baseHref = string.IsNullOrEmpty(effectiveUrlBase) ? "/" : (effectiveUrlBase.EndsWith('/') ? effectiveUrlBase : effectiveUrlBase + "/");
-                var injection = $"<base href=\"{baseHref}\" /><script>window.Leecharr = {{ urlBase: \"{effectiveUrlBase}\" }};</script>";
-                if (html.Contains("<head>", StringComparison.OrdinalIgnoreCase))
-                {
-                    html = html.Replace("<head>", $"<head>{injection}", StringComparison.OrdinalIgnoreCase);
-                }
-                else
-                {
-                    html = injection + html;
-                }
+                html = IndexHtmlInjection.InjectIntoHtml(html, effectiveUrlBase);
 
                 context.Response.ContentType = "text/html; charset=utf-8";
                 context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
