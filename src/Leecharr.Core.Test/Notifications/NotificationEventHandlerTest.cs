@@ -150,6 +150,46 @@ public class NotificationEventHandlerTest
             Arg.Any<HttpMethod>());
     }
 
+    [TestCase(TorrentStatus.Paused)]
+    [TestCase(TorrentStatus.Stopped)]
+    [TestCase(TorrentStatus.Queued)]
+    [TestCase(TorrentStatus.Checking)]
+    [TestCase(TorrentStatus.QueuedForChecking)]
+    public async Task Handle_TorrentStatusChangedEvent_WhenLeavingErrorOrStalledForNonRecovery_DoesNotDispatchHealthRestored(TorrentStatus newStatus)
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 21,
+            Name = "Webhook recovery",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "http://test/webhook",
+            OnHealthRestored = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 211,
+            Name = "Still broken ISO",
+            Status = newStatus,
+        };
+
+        this.handler.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = torrent,
+            OldStatus = TorrentStatus.Stalled,
+            NewStatus = newStatus,
+        });
+
+        await Task.Delay(10);
+
+        await this.webhookDispatcher.DidNotReceive().DispatchAsync(
+            Arg.Any<string>(),
+            Arg.Any<object>());
+    }
+
     [Test]
     public async Task Handle_HealthIssueEvent_WhenNotResolved_DispatchesHealthIssueNotification()
     {
