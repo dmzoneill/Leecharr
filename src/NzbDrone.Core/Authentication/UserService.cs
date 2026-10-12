@@ -15,6 +15,26 @@ public class UserService : IUserService
     private const int SaltByteSize = 16;
     private const int HashByteSize = 32;
 
+    private static readonly string DummyVerificationSalt;
+    private static readonly string DummyVerificationHash;
+
+    static UserService()
+    {
+        var saltBytes = new byte[SaltByteSize];
+        saltBytes[0] = 0x4c;
+        saltBytes[1] = 0xc8;
+        saltBytes[2] = 0x13;
+        saltBytes[3] = 0x55;
+        DummyVerificationSalt = Convert.ToBase64String(saltBytes);
+        var hashBytes = Rfc2898DeriveBytes.Pbkdf2(
+            string.Empty,
+            saltBytes,
+            DefaultPbkdf2Iterations,
+            HashAlgorithmName.SHA256,
+            HashByteSize);
+        DummyVerificationHash = Convert.ToBase64String(hashBytes);
+    }
+
     private readonly IUserRepository userRepository;
     private readonly IUserSessionRepository userSessionRepository;
     private readonly IUserSessionCache userSessionCache;
@@ -68,14 +88,34 @@ public class UserService : IUserService
         }
 
         var user = this.userRepository.FindByUsername(username);
-        if (user == null || string.IsNullOrEmpty(user.PasswordHash) || string.IsNullOrEmpty(user.Salt))
+        var hasPasswordCredentials = user != null &&
+            !string.IsNullOrEmpty(user.PasswordHash) &&
+            !string.IsNullOrEmpty(user.Salt);
+
+        string storedPasswordHash;
+        string storedSalt;
+        int verificationIterations;
+        if (hasPasswordCredentials)
         {
+            storedPasswordHash = user.PasswordHash;
+            storedSalt = user.Salt;
+            verificationIterations = user.Iterations > 0 ? user.Iterations : this.defaultIterations;
+        }
+        else
+        {
+            storedPasswordHash = DummyVerificationHash;
+            storedSalt = DummyVerificationSalt;
+            verificationIterations = this.defaultIterations;
+        }
+
+        if (!this.VerifyPassword(password, storedPasswordHash, storedSalt, verificationIterations))
+        {
+            this.logger.Warn("Failed login attempt for username: {0}", username);
             return null;
         }
 
-        if (!this.VerifyPassword(password, user.PasswordHash, user.Salt, user.Iterations))
+        if (!hasPasswordCredentials)
         {
-            this.logger.Warn("Failed login attempt for username: {0}", username);
             return null;
         }
 

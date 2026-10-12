@@ -154,6 +154,14 @@ public class UserServiceTest
     }
 
     [Test]
+    public void Authenticate_WithUnknownUsername_ShouldReturnNull()
+    {
+        var authenticated = this.userService.Authenticate("nobody", "AnyPassword123!");
+
+        Assert.That(authenticated, Is.Null);
+    }
+
+    [Test]
     public void UpdatePassword_WhenCalled_InvalidatesUserSessionsAndClearsCache()
     {
         var sessionRepo = Substitute.For<IUserSessionRepository>();
