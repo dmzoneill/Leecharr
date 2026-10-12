@@ -382,6 +382,59 @@ public class PackageManagementTest
     }
 
     [Test]
+    public async Task ImportPackageAsync_DuplicateTorrent_WithSkipDuplicatesFalse_AppliesPackage()
+    {
+        var infoHash = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+        var existingTorrent = new Torrent
+        {
+            Id = 88,
+            Name = "Old Name",
+            InfoHash = infoHash,
+            Category = "OldCategory",
+            TotalSize = 100,
+            Status = TorrentStatus.Seeding,
+        };
+        this.torrentService.GetByInfoHash(infoHash).Returns(existingTorrent);
+
+        var torrentBytes = Encoding.UTF8.GetBytes("d8:announce3:udpe");
+        var parsed = new ParsedTorrent { Name = "Restored Name", InfoHash = infoHash, TotalSize = 2048 };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.torrentService.UpdateAsync(Arg.Any<Torrent>()).Returns(callInfo => callInfo.Arg<Torrent>());
+
+        using var memoryStream = new MemoryStream();
+        await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
+        await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var manifest = new PackageManifest
+            {
+                Torrents = new List<PackageTorrentItem>
+                {
+                    new() { Name = "Restored Name", InfoHash = infoHash, Category = "NewCategory" },
+                },
+            };
+            var manifestBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(manifest));
+            using var manifestMs = new MemoryStream(manifestBytes);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, "manifest.json") { DataStream = manifestMs });
+
+            using var metainfoMs = new MemoryStream(torrentBytes);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, $"metainfo/{infoHash}.torrent") { DataStream = metainfoMs });
+        }
+
+        memoryStream.Position = 0;
+        var result = await this.packageImportService.ImportPackageAsync(memoryStream, new PackageImportOptions
+        {
+            RestoreTorrents = true,
+            SkipDuplicates = false,
+        });
+
+        result.SkippedDuplicatesCount.Should().Be(0);
+        result.ImportedTorrentsCount.Should().Be(1);
+        result.Torrents.Should().ContainSingle(t => t.Id == 88 && !t.IsDuplicate && t.Category == "NewCategory");
+        await this.torrentService.Received(1).UpdateAsync(Arg.Is<Torrent>(t => t.Id == 88 && t.Name == "Restored Name" && t.Category == "NewCategory"));
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(default!);
+    }
+
+    [Test]
     public async Task ImportPackageAsync_ZipSlipAttack_ThrowsSecurityException()
     {
         using var memoryStream = new MemoryStream();

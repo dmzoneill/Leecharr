@@ -271,7 +271,7 @@ public class PackageImportService : IPackageImportService
 
                     // Check duplicate
                     var existing = this.torrentService.GetByInfoHash(infoHash);
-                    if (existing != null)
+                    if (existing != null && options.SkipDuplicates)
                     {
                         result.SkippedDuplicates.Add(infoHash);
                         result.Torrents.Add(new PackageImportTorrentSummary
@@ -310,29 +310,45 @@ public class PackageImportService : IPackageImportService
                                 : this.configService?.DownloadDir);
 
                         var tagIds = this.ResolveTagIds(item.Tags);
-                        var added = await this.torrentService.AddFromParsedTorrentAsync(
-                            parsed,
-                            item.Category,
-                            savePath,
-                            startPaused: false,
-                            rawBytes: rawBytes,
-                            sequentialDownload: null,
-                            firstLastPiecePriority: null,
-                            tags: tagIds);
+                        Torrent restored;
+                        if (existing != null)
+                        {
+                            restored = await this.ApplyPackageToExistingTorrentAsync(
+                                existing,
+                                parsed,
+                                item.Name,
+                                item.Category,
+                                savePath,
+                                rawBytes,
+                                tagIds,
+                                cancellationToken);
+                        }
+                        else
+                        {
+                            restored = await this.torrentService.AddFromParsedTorrentAsync(
+                                parsed,
+                                item.Category,
+                                savePath,
+                                startPaused: false,
+                                rawBytes: rawBytes,
+                                sequentialDownload: null,
+                                firstLastPiecePriority: null,
+                                tags: tagIds);
+                        }
 
-                        if (added != null)
+                        if (restored != null)
                         {
                             result.Torrents.Add(new PackageImportTorrentSummary
                             {
-                                Id = added.Id,
-                                Name = added.Name,
-                                InfoHash = added.InfoHash,
-                                Category = added.Category,
+                                Id = restored.Id,
+                                Name = restored.Name,
+                                InfoHash = restored.InfoHash,
+                                Category = restored.Category,
                                 Tags = item.Tags,
-                                TotalSize = added.TotalSize,
+                                TotalSize = restored.TotalSize,
                                 IsDuplicate = false,
-                                Status = added.Status.ToString(),
-                                SavePath = added.SavePath,
+                                Status = restored.Status.ToString(),
+                                SavePath = restored.SavePath,
                             });
                         }
                         else
@@ -412,5 +428,88 @@ public class PackageImportService : IPackageImportService
         }
 
         return tagIds;
+    }
+
+    private async Task<Torrent> ApplyPackageToExistingTorrentAsync(
+        Torrent existing,
+        ParsedTorrent parsed,
+        string manifestName,
+        string manifestCategory,
+        string savePath,
+        byte[] rawBytes,
+        List<int> tagIds,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(existing);
+        ArgumentNullException.ThrowIfNull(parsed);
+
+        if (!string.IsNullOrWhiteSpace(manifestName))
+        {
+            existing.Name = manifestName;
+        }
+        else if (!string.IsNullOrWhiteSpace(parsed.Name))
+        {
+            existing.Name = parsed.Name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifestCategory))
+        {
+            existing.Category = manifestCategory;
+        }
+
+        if (tagIds != null && tagIds.Count > 0)
+        {
+            existing.TagIds = tagIds.Distinct().ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(savePath))
+        {
+            existing.SavePath = savePath;
+        }
+
+        if (parsed.TotalSize > 0)
+        {
+            existing.TotalSize = parsed.TotalSize;
+        }
+
+        if (parsed.PieceCount > 0)
+        {
+            existing.PieceCount = parsed.PieceCount;
+        }
+
+        if (parsed.PieceLength > 0)
+        {
+            existing.PieceLength = parsed.PieceLength;
+        }
+
+        if (!string.IsNullOrWhiteSpace(parsed.Comment))
+        {
+            existing.Comment = parsed.Comment;
+        }
+
+        await this.SaveMetainfoFileAsync(existing.InfoHash, rawBytes, cancellationToken);
+
+        return await this.torrentService.UpdateAsync(existing);
+    }
+
+    private async Task SaveMetainfoFileAsync(string infoHash, byte[] rawBytes, CancellationToken cancellationToken)
+    {
+        if (rawBytes == null || rawBytes.Length == 0 || string.IsNullOrWhiteSpace(infoHash))
+        {
+            return;
+        }
+
+        try
+        {
+            var appData = this.appFolderInfo?.AppDataFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var torrentsDir = Path.Combine(appData, "Torrents");
+            Directory.CreateDirectory(torrentsDir);
+            var filePath = Path.Combine(torrentsDir, $"{infoHash.ToLowerInvariant()}.torrent");
+            await File.WriteAllBytesAsync(filePath, rawBytes, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to save .torrent file for {0} during package import", infoHash);
+        }
     }
 }
