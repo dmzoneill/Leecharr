@@ -28,6 +28,7 @@ public class YamlScriptRunner : IScriptRunner
 
     private static readonly Regex VariableRegex = new(@"\$\{([^}]+)\}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly char[] ExtensionDelimiters = [',', ';', ' '];
+    private static readonly string[] StrictNotEqualsOperator = ["!=="];
     private static readonly string[] EqualsOperator = ["=="];
     private static readonly string[] NotEqualsOperator = ["!="];
     private static readonly string[] GreaterThanOrEqualOperator = [">="];
@@ -1541,6 +1542,17 @@ public class YamlScriptRunner : IScriptRunner
         return true;
     }
 
+    private static bool ContainsBinaryComparisonOperator(string atom)
+    {
+        return atom.Contains("!==")
+            || atom.Contains("!=")
+            || atom.Contains("==")
+            || atom.Contains(">=")
+            || atom.Contains("<=")
+            || atom.Contains('>')
+            || atom.Contains('<');
+    }
+
     private static bool EvaluateConditionAtom(string atom)
     {
         if (atom.StartsWith('!'))
@@ -1558,62 +1570,74 @@ public class YamlScriptRunner : IScriptRunner
             return functionResult;
         }
 
-        // Single boolean expression like: ${torrent.isPrivate}
-        if (!atom.Contains("==") && !atom.Contains("!=") && !atom.Contains(">=") && !atom.Contains("<=") && !atom.Contains('>') && !atom.Contains('<'))
+        if (!ContainsBinaryComparisonOperator(atom))
         {
             return !IsFalsy(atom);
+        }
+
+        if (atom.Contains("!=="))
+        {
+            var parts = atom.Split(StrictNotEqualsOperator, StringSplitOptions.TrimEntries);
+            return parts.Length == 2 && !AreEqual(parts[0], parts[1]);
+        }
+
+        if (atom.Contains("!="))
+        {
+            var parts = atom.Split(NotEqualsOperator, StringSplitOptions.TrimEntries);
+            return parts.Length == 2 && !AreEqual(parts[0], parts[1]);
         }
 
         if (atom.Contains("=="))
         {
             var parts = atom.Split(EqualsOperator, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2)
-            {
-                return AreEqual(parts[0], parts[1]);
-            }
+            return parts.Length == 2 && AreEqual(parts[0], parts[1]);
         }
-        else if (atom.Contains("!="))
-        {
-            var parts = atom.Split(NotEqualsOperator, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2)
-            {
-                return !AreEqual(parts[0], parts[1]);
-            }
-        }
-        else if (atom.Contains(">="))
+
+        if (atom.Contains(">="))
         {
             var parts = atom.Split(GreaterThanOrEqualOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l >= r;
             }
+
+            return false;
         }
-        else if (atom.Contains("<="))
+
+        if (atom.Contains("<="))
         {
             var parts = atom.Split(LessThanOrEqualOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l <= r;
             }
+
+            return false;
         }
-        else if (atom.Contains('>'))
+
+        if (atom.Contains('>'))
         {
             var parts = atom.Split(GreaterThanOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l > r;
             }
+
+            return false;
         }
-        else if (atom.Contains('<'))
+
+        if (atom.Contains('<'))
         {
             var parts = atom.Split(LessThanOperator, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l < r;
             }
+
+            return false;
         }
 
-        return !IsFalsy(atom);
+        return false;
     }
 
     private static List<string> SplitConditionExpression(string expr, string delimiter)

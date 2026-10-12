@@ -1075,6 +1075,41 @@ public class YamlScriptRunnerTest
     }
 
     [Test]
+    public void ShouldEvaluateConditions_WithStrictNotEqualAndInvalidNumericComparison()
+    {
+        var torrent = new Torrent
+        {
+            Id = 201,
+            Name = "StrictNotEqualTorrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var yaml = "name: 'Strict not equal'\n" +
+            "steps:\n" +
+            "  - name: 'Not paused'\n" +
+            "    condition: '${torrent.status} !== \"Paused\"'\n" +
+            "    actions:\n" +
+            "      - addTag: 'TagStrictNotEqual'\n" +
+            "  - name: 'Invalid numeric guard'\n" +
+            "    condition: '5 >= n/a'\n" +
+            "    actions:\n" +
+            "      - addTag: 'TagInvalidNumeric'\n";
+
+        var script = new AutomationScript
+        {
+            Name = "Strict Not Equal Script",
+            Code = yaml,
+            Language = AutomationLanguage.Yaml,
+        };
+
+        var result = _runner.Execute(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("TagStrictNotEqual");
+        result.TagsToAdd.Should().NotContain("TagInvalidNumeric");
+    }
+
+    [Test]
     public void ShouldSubstituteAllTorrentVariables_AndInputsAndSecrets()
     {
         var torrent = new Torrent
