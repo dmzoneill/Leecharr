@@ -912,7 +912,7 @@ public class EmbeddedTrackerServiceTest
         result.Peers.Should().BeEmpty();
 
         var peers = this.trackerService.GetPeersForSwarm(Convert.ToHexString(infoHash));
-        peers.Should().ContainSingle(p => p.Ip.ToString() == "10.0.0.2" && p.Left == 0);
+        peers.Should().ContainSingle(p => p.Ip.Equals(negativeLeftReq.RemoteIp) && p.Left == 0);
     }
 
     [TestCase(0)]
