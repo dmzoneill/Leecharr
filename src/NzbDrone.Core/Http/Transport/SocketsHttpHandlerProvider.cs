@@ -14,7 +14,7 @@ using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Http.Transport;
 
-public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
+public class SocketsHttpHandlerProvider : IHttpTransportProvider, IHttpOutboundProxyRefreshable, IDisposable
 {
     private readonly HttpClient httpClient;
     private readonly SocketsHttpHandler handler;
@@ -154,43 +154,17 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
             },
         };
 
-        var proxyType = configService?.ProxyType?.ToLowerInvariant() ?? "none";
-        var proxyHost = configService?.ProxyHost;
-        var proxyPort = configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" or "socks4a" ? 1080 : 8080);
-
-        if (!string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
-        {
-            if (proxyType is "socks4" or "socks4a")
-            {
-                this.logger.Warn("SOCKS4/SOCKS4a proxy is not supported by .NET SocketsHttpHandler for HTTP traffic (supported only for raw TCP sockets). Proxy configuration ignored for SocketsHttpHandler.");
-                this.handler.UseProxy = false;
-                this.handler.Proxy = null;
-            }
-            else
-            {
-                var scheme = proxyType switch
-                {
-                    "socks5" => "socks5",
-                    "http" => "http",
-                    "https" => "https",
-                    _ => "http",
-                };
-
-                var proxy = new WebProxy(ProxyUriHelper.BuildProxyUri(scheme, proxyHost, proxyPort));
-                if (configService.ProxyAuthEnabled && !string.IsNullOrEmpty(configService.ProxyUsername))
-                {
-                    proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);
-                }
-
-                this.handler.Proxy = proxy;
-                this.handler.UseProxy = true;
-            }
-        }
+        this.RefreshOutboundProxy();
 
         this.httpClient = new HttpClient(this.handler, disposeHandler: true)
         {
             Timeout = TimeSpan.FromSeconds(30),
         };
+    }
+
+    public void RefreshOutboundProxy()
+    {
+        HttpOutboundProxyConfigurator.Apply(this.handler, this.configService, HttpOutboundProxyProfile.SocketsHttpHandler, this.logger);
     }
 
     public Task<HttpTransportHealthCheckResult> ProbeHealthAsync()

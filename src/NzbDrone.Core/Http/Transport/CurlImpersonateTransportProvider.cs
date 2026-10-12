@@ -11,7 +11,7 @@ using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.Http.Transport;
 
-public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposable
+public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOutboundProxyRefreshable, IDisposable
 {
     private readonly HttpClient fallbackClient;
     private readonly SocketsHttpHandler handler;
@@ -51,34 +51,17 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
             EnableMultipleHttp2Connections = true,
         };
 
-        var proxyType = configService?.ProxyType?.ToLowerInvariant() ?? "none";
-        var proxyHost = configService?.ProxyHost;
-        var proxyPort = configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" ? 1080 : 8080);
-
-        if (!string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
-        {
-            var scheme = proxyType switch
-            {
-                "socks5" => "socks5h",
-                "socks4" => "socks4",
-                "http" => "http",
-                _ => "http",
-            };
-
-            var proxy = new WebProxy(ProxyUriHelper.BuildProxyUri(scheme, proxyHost, proxyPort));
-            if (configService.ProxyAuthEnabled && !string.IsNullOrEmpty(configService.ProxyUsername))
-            {
-                proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);
-            }
-
-            this.handler.Proxy = proxy;
-            this.handler.UseProxy = true;
-        }
+        this.RefreshOutboundProxy();
 
         this.fallbackClient = new HttpClient(this.handler, disposeHandler: true)
         {
             Timeout = TimeSpan.FromSeconds(30),
         };
+    }
+
+    public void RefreshOutboundProxy()
+    {
+        HttpOutboundProxyConfigurator.Apply(this.handler, this.configService, HttpOutboundProxyProfile.CurlImpersonate);
     }
 
     public Task<HttpTransportHealthCheckResult> ProbeHealthAsync()

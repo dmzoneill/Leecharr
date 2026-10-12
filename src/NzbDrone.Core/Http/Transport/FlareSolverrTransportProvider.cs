@@ -17,7 +17,7 @@ using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.Http.Transport;
 
-public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
+public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutboundProxyRefreshable, IDisposable
 {
     private readonly IConfigService configService;
     private readonly HttpClient solverHttpClient;
@@ -85,35 +85,23 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
                 AutomaticDecompression = DecompressionMethods.All,
             };
 
-            var proxyType = configService?.ProxyType?.ToLowerInvariant() ?? "none";
-            var proxyHost = configService?.ProxyHost;
-            var proxyPort = configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" ? 1080 : 8080);
-
-            if (!string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
-            {
-                var scheme = proxyType switch
-                {
-                    "socks5" => "socks5",
-                    "socks4" => "socks4",
-                    "http" => "http",
-                    _ => "http",
-                };
-
-                var proxy = new WebProxy(ProxyUriHelper.BuildProxyUri(scheme, proxyHost, proxyPort));
-                if (configService.ProxyAuthEnabled && !string.IsNullOrEmpty(configService.ProxyUsername))
-                {
-                    proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);
-                }
-
-                this.fallbackHandler.Proxy = proxy;
-                this.fallbackHandler.UseProxy = true;
-            }
+            this.RefreshOutboundProxy();
 
             this.fallbackHttpClient = new HttpClient(this.fallbackHandler, disposeHandler: true)
             {
                 Timeout = TimeSpan.FromSeconds(60),
             };
         }
+    }
+
+    public void RefreshOutboundProxy()
+    {
+        if (this.fallbackHandler == null)
+        {
+            return;
+        }
+
+        HttpOutboundProxyConfigurator.Apply(this.fallbackHandler, this.configService, HttpOutboundProxyProfile.FlareSolverrFallback);
     }
 
     public async Task<HttpTransportHealthCheckResult> ProbeHealthAsync()
@@ -125,7 +113,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            using var resp = await this.httpClient.GetAsync(url, cts.Token);
+            using var resp = await this.solverHttpClient.GetAsync(url, cts.Token);
             if (resp.IsSuccessStatusCode)
             {
                 return new HttpTransportHealthCheckResult
@@ -180,7 +168,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             };
 
             var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            using var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
+            using var response = await this.solverHttpClient.PostAsync(endpoint, jsonContent, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
@@ -233,7 +221,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             };
 
             var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            using var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
+            using var response = await this.solverHttpClient.PostAsync(endpoint, jsonContent, cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -272,7 +260,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             this.logger.Warn(ex, "FlareSolverr execution failed, falling back to direct HTTP request");
         }
 
-        return await this.httpClient.SendAsync(request, cancellationToken);
+        return await this.fallbackHttpClient.SendAsync(request, cancellationToken);
     }
 
     private async Task<HttpResponseMessage> ExecuteFlareSolverrRequestAsync(
@@ -303,7 +291,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
         }
 
         var jsonContent = new StringContent(JsonSerializer.Serialize(payloadDict), Encoding.UTF8, "application/json");
-        using var response = await this.httpClient.PostAsync(endpoint, jsonContent, cancellationToken);
+        using var response = await this.solverHttpClient.PostAsync(endpoint, jsonContent, cancellationToken);
 
         if (response.IsSuccessStatusCode)
         {
@@ -327,7 +315,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
             }
         }
 
-        return await this.httpClient.SendAsync(request, cancellationToken);
+        return await this.fallbackHttpClient.SendAsync(request, cancellationToken);
     }
 
     private static HttpResponseMessage BuildHttpResponseFromSolution(JsonElement solution, HttpRequestMessage request)
@@ -490,7 +478,12 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
                 this.logger.Debug(ex, "Failed to destroy FlareSolverr sessions during dispose");
             }
 
-            this.httpClient.Dispose();
+            this.solverHttpClient.Dispose();
+
+            if (!ReferenceEquals(this.solverHttpClient, this.fallbackHttpClient))
+            {
+                this.fallbackHttpClient.Dispose();
+            }
         }
     }
 }
