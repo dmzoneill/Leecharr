@@ -517,6 +517,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             if (dict.Count > 0)
             {
                 this.configService.SaveConfigDictionary(dict);
+
+                if (this.speedSchedulerService != null &&
+                    (dict.ContainsKey("MaxDownloadSpeedKbps") ||
+                     dict.ContainsKey("MaxUploadSpeedKbps") ||
+                     dict.ContainsKey("AltDownloadSpeedKbps") ||
+                     dict.ContainsKey("AltUploadSpeedKbps")))
+                {
+                    await this.speedSchedulerService.ApplyCurrentLimitsAsync();
+                }
             }
         }
         catch (Exception ex)
@@ -3220,16 +3229,28 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("transfer/setDownloadLimit")]
-    public ActionResult SetTransferDownloadLimit([FromForm] long limit)
+    public async Task<ActionResult> SetTransferDownloadLimit([FromForm] long limit)
     {
         this.configService.SaveConfigDictionary(new Dictionary<string, object> { ["MaxDownloadSpeedKbps"] = (int)(limit / 1024) });
+
+        if (this.speedSchedulerService != null)
+        {
+            await this.speedSchedulerService.ApplyCurrentLimitsAsync();
+        }
+
         return this.Content("Ok.", "text/plain");
     }
 
     [HttpPost("transfer/setUploadLimit")]
-    public ActionResult SetTransferUploadLimit([FromForm] long limit)
+    public async Task<ActionResult> SetTransferUploadLimit([FromForm] long limit)
     {
         this.configService.SaveConfigDictionary(new Dictionary<string, object> { ["MaxUploadSpeedKbps"] = (int)(limit / 1024) });
+
+        if (this.speedSchedulerService != null)
+        {
+            await this.speedSchedulerService.ApplyCurrentLimitsAsync();
+        }
+
         return this.Content("Ok.", "text/plain");
     }
 
