@@ -233,6 +233,18 @@ public class YamlScriptRunner : IScriptRunner
                         options["json"] = true;
                     }
 
+                    if (step.Http.TimeoutSeconds is int httpTimeoutSeconds && httpTimeoutSeconds > 0)
+                    {
+                        options["timeout"] = httpTimeoutSeconds;
+                    }
+
+                    if (step.Http.AllowInsecure == true)
+                    {
+                        options["allowInsecureTls"] = true;
+                    }
+
+                    var continueOnHttpError = step.Http.ContinueOnError == true;
+
                     object? body = null;
                     if (step.Http.Body != null)
                     {
@@ -255,33 +267,40 @@ public class YamlScriptRunner : IScriptRunner
 
                     logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [HTTP] {method} {url}");
 
-                    object response;
-                    switch (method)
+                    try
                     {
-                        case "POST":
-                            response = httpClient.post(url, body, options);
-                            break;
-                        case "PUT":
-                            response = httpClient.put(url, body, options);
-                            break;
-                        case "DELETE":
-                            response = httpClient.delete(url, options);
-                            break;
-                        default:
-                            response = httpClient.get(url, options);
-                            break;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(step.Register) && response is Dictionary<string, object?> respDict)
-                    {
-                        var regKey = step.Register.Trim();
-                        foreach (var kvp in respDict)
+                        object response;
+                        switch (method)
                         {
-                            variableContext[$"{regKey}.{kvp.Key}"] = kvp.Value;
+                            case "POST":
+                                response = httpClient.post(url, body, options);
+                                break;
+                            case "PUT":
+                                response = httpClient.put(url, body, options);
+                                break;
+                            case "DELETE":
+                                response = httpClient.delete(url, options);
+                                break;
+                            default:
+                                response = httpClient.get(url, options);
+                                break;
                         }
 
-                        variableContext[regKey] = respDict;
-                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [REGISTER] Saved response to '${{{regKey}}}' (status: {respDict.GetValueOrDefault("status")})");
+                        if (!string.IsNullOrWhiteSpace(step.Register) && response is Dictionary<string, object?> respDict)
+                        {
+                            var regKey = step.Register.Trim();
+                            foreach (var kvp in respDict)
+                            {
+                                variableContext[$"{regKey}.{kvp.Key}"] = kvp.Value;
+                            }
+
+                            variableContext[regKey] = respDict;
+                            logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [REGISTER] Saved response to '${{{regKey}}}' (status: {respDict.GetValueOrDefault("status")})");
+                        }
+                    }
+                    catch (Exception ex) when (continueOnHttpError)
+                    {
+                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [HTTP] Error (continuing): {ex.Message}");
                     }
                 }
 

@@ -1252,6 +1252,105 @@ public class YamlScriptRunnerTest
     }
 
     [Test]
+    public void ShouldContinueYamlWorkflow_WhenHttpStepHasContinueOnError()
+    {
+        var yaml = "name: 'HTTP Continue On Error'\n" +
+            "steps:\n" +
+            "  - name: 'Failing HTTP'\n" +
+            "    http:\n" +
+            "      method: 'GET'\n" +
+            "      url: 'http://127.0.0.1:1/unreachable'\n" +
+            "      continueOnError: true\n" +
+            "  - name: 'After Failure'\n" +
+            "    actions:\n" +
+            "      - addTag: 'survived-http-error'\n";
+
+        var script = new AutomationScript
+        {
+            Name = "HTTP Continue",
+            Code = yaml,
+            Language = AutomationLanguage.Yaml,
+        };
+
+        var result = _runner.Execute(script, new Torrent { Id = 24, Name = "HttpTorrent" });
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("survived-http-error");
+        result.OutputLog.Should().Contain("Error (continuing)");
+    }
+
+    [Test]
+    public void ShouldAbortYamlWorkflow_WhenHttpStepFailsWithoutContinueOnError()
+    {
+        var yaml = "name: 'HTTP Abort On Error'\n" +
+            "steps:\n" +
+            "  - name: 'Failing HTTP'\n" +
+            "    http:\n" +
+            "      method: 'GET'\n" +
+            "      url: 'http://127.0.0.1:1/unreachable'\n" +
+            "  - name: 'Never Runs'\n" +
+            "    actions:\n" +
+            "      - addTag: 'should-not-run'\n";
+
+        var script = new AutomationScript
+        {
+            Name = "HTTP Abort",
+            Code = yaml,
+            Language = AutomationLanguage.Yaml,
+        };
+
+        var result = _runner.Execute(script, new Torrent { Id = 25, Name = "HttpTorrent" });
+
+        result.Success.Should().BeFalse();
+        result.TagsToAdd.Should().NotContain("should-not-run");
+    }
+
+    [Test]
+    public async Task ShouldHonorHttpTimeoutSeconds_OnYamlHttpStep()
+    {
+        var port = GetFreePort();
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        var serverTask = Task.Run(async () =>
+        {
+            var context = await listener.GetContextAsync();
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            var response = context.Response;
+            var buffer = Encoding.UTF8.GetBytes("slow");
+            response.ContentLength64 = buffer.Length;
+            await response.OutputStream.WriteAsync(buffer);
+            response.OutputStream.Close();
+        });
+
+        var yaml = "name: 'HTTP Timeout'\n" +
+            "steps:\n" +
+            "  - name: 'Slow HTTP'\n" +
+            "    http:\n" +
+            "      method: 'GET'\n" +
+                   $"      url: 'http://127.0.0.1:{port}/slow'\n" +
+            "      timeoutSeconds: 1\n" +
+            "      continueOnError: true\n" +
+            "  - name: 'After Timeout'\n" +
+            "    actions:\n" +
+            "      - addTag: 'after-timeout'\n";
+
+        var script = new AutomationScript
+        {
+            Name = "HTTP Timeout",
+            Code = yaml,
+            Language = AutomationLanguage.Yaml,
+        };
+
+        var result = _runner.Execute(script, new Torrent { Id = 26, Name = "HttpTorrent" });
+        await serverTask;
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("after-timeout");
+    }
+
+    [Test]
     public void ShouldReturnSuccessFalse_WhenYamlHasInvalidSyntax()
     {
         var yaml = "name: [broken yaml: \n  steps: \n     - - invalid syntax:::";
