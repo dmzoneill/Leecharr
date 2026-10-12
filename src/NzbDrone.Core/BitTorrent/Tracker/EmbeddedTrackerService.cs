@@ -69,6 +69,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
     private readonly Timer cleanupTimer;
     private long totalAnnounces;
     private long totalScrapes;
+    private int swarmSlotCount;
     private int disposed;
 
     public EmbeddedTrackerService(
@@ -239,12 +240,18 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             return;
         }
 
-        var swarm = this.swarms.GetOrAdd(normalizedHex, _ => new SwarmState
+        var newSwarm = new SwarmState
         {
             InfoHash = normalizedBytes,
             LastActivityUtc = this.UtcNow,
             IsRegistered = true,
-        });
+        };
+
+        var swarm = this.swarms.GetOrAdd(normalizedHex, newSwarm);
+        if (!ReferenceEquals(swarm, newSwarm))
+        {
+            this.ReleaseSwarmSlot();
+        }
 
         lock (swarm)
         {
@@ -271,8 +278,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             {
                 if (swarm.Peers.IsEmpty)
                 {
-                    ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
-                        new KeyValuePair<string, SwarmState>(normalizedHex, swarm));
+                    this.TryRemoveSwarm(normalizedHex, swarm);
                 }
                 else
                 {
@@ -380,6 +386,10 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                 };
 
                 swarm = this.swarms.GetOrAdd(hexKey, newSwarm);
+                if (!ReferenceEquals(swarm, newSwarm))
+                {
+                    this.ReleaseSwarmSlot();
+                }
             }
 
             lock (swarm)
@@ -396,8 +406,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                         {
                             if (!swarm.IsRegistered)
                             {
-                                ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
-                                    new KeyValuePair<string, SwarmState>(hexKey, swarm));
+                                this.TryRemoveSwarm(hexKey, swarm);
                             }
                         }
                     }
@@ -626,8 +635,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                 {
                     if (swarm.Peers.IsEmpty)
                     {
-                        ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
-                            new KeyValuePair<string, SwarmState>(hexKey, swarm));
+                        this.TryRemoveSwarm(hexKey, swarm);
                     }
                 }
             }
@@ -663,8 +671,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                 {
                     if (swarm.Peers.IsEmpty)
                     {
-                        ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
-                            new KeyValuePair<string, SwarmState>(hexKey, swarm));
+                        this.TryRemoveSwarm(hexKey, swarm);
                     }
                 }
             }
@@ -673,14 +680,14 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
     private bool TryAcquireSwarmSlot()
     {
-        if (this.swarms.Count < this.MaxSwarms)
+        if (this.TryIncrementSwarmSlotCount())
         {
             return true;
         }
 
         this.PruneInactivePeers();
 
-        if (this.swarms.Count < this.MaxSwarms)
+        if (this.TryIncrementSwarmSlotCount())
         {
             return true;
         }
@@ -699,18 +706,51 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             {
                 if (swarm.Peers.IsEmpty && !swarm.IsRegistered)
                 {
-                    ((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
-                        new KeyValuePair<string, SwarmState>(hexKey, swarm));
+                    this.TryRemoveSwarm(hexKey, swarm);
                 }
             }
 
-            if (this.swarms.Count < this.MaxSwarms)
+            if (this.TryIncrementSwarmSlotCount())
             {
                 return true;
             }
         }
 
-        return this.swarms.Count < this.MaxSwarms;
+        return this.TryIncrementSwarmSlotCount();
+    }
+
+    private bool TryIncrementSwarmSlotCount()
+    {
+        while (true)
+        {
+            var current = Volatile.Read(ref this.swarmSlotCount);
+            if (current >= this.MaxSwarms)
+            {
+                return false;
+            }
+
+            if (Interlocked.CompareExchange(ref this.swarmSlotCount, current + 1, current) == current)
+            {
+                return true;
+            }
+        }
+    }
+
+    private void ReleaseSwarmSlot()
+    {
+        Interlocked.Decrement(ref this.swarmSlotCount);
+    }
+
+    private bool TryRemoveSwarm(string hexKey, SwarmState swarm)
+    {
+        if (((ICollection<KeyValuePair<string, SwarmState>>)this.swarms).Remove(
+                new KeyValuePair<string, SwarmState>(hexKey, swarm)))
+        {
+            this.ReleaseSwarmSlot();
+            return true;
+        }
+
+        return false;
     }
 
     private byte[] BuildAnnounceResponse(int seeders, int leechers, IReadOnlyCollection<TrackerPeerState> candidatePeers, TrackerAnnounceRequest request)

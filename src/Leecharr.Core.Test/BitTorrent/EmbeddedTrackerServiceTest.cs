@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using MonoTorrent.BEncoding;
 using NLog;
@@ -510,6 +512,50 @@ public class EmbeddedTrackerServiceTest
         ((BEncodedString)dict["failure reason"]).Text.Should().Be("Tracker swarm limit reached.");
 
         this.trackerService.ActiveSwarmsCount.Should().Be(2);
+    }
+
+    [Test]
+    public void Announce_ConcurrentNewSwarms_DoesNotExceedMaxSwarms()
+    {
+        const int maxSwarms = 32;
+        const int announceAttempts = 256;
+        using var tracker = new EmbeddedTrackerService(this.configService, this.torrentRepository, maxSwarms: maxSwarms);
+
+        var successes = 0;
+        var failures = 0;
+        Parallel.For(
+            0,
+            announceAttempts,
+            new ParallelOptions { MaxDegreeOfParallelism = 16 },
+            i =>
+            {
+                var infoHash = new byte[20];
+                infoHash[0] = (byte)(i >> 8);
+                infoHash[1] = (byte)i;
+                infoHash[2] = 0xAB;
+
+                var result = tracker.Announce(new TrackerAnnounceRequest
+                {
+                    InfoHashBytes = infoHash,
+                    RemoteIp = IPAddress.Parse($"10.{i >> 8 & 0xFF}.{i & 0xFF}.1"),
+                    Port = 6000 + (i % 1000),
+                    Left = 100,
+                });
+
+                if (result.Success)
+                {
+                    Interlocked.Increment(ref successes);
+                }
+                else
+                {
+                    Interlocked.Increment(ref failures);
+                    result.FailureReason.Should().Be("Tracker swarm limit reached.");
+                }
+            });
+
+        tracker.ActiveSwarmsCount.Should().Be(maxSwarms);
+        successes.Should().Be(maxSwarms);
+        failures.Should().Be(announceAttempts - maxSwarms);
     }
 
     [Test]
