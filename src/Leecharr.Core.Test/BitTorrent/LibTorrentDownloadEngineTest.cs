@@ -49,6 +49,20 @@ public class LibTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task ProbeHealthAsync_WhenRpcUnreachable_ReturnsUnhealthy()
+    {
+        var handler = new MockHttpMessageHandler(_ => throw new HttpRequestException("Connection refused"));
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var health = await engine.ProbeHealthAsync();
+
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("unavailable");
+        health.DependencyChecks.Should().Contain(check => check.Contains("RPC connection", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Test]
     public void LibTorrentDownloadEngine_ImplementsIHandleConfigSavedEvent()
     {
         typeof(IHandle<ConfigSavedEvent>).IsAssignableFrom(typeof(LibTorrentDownloadEngine)).Should().BeTrue();

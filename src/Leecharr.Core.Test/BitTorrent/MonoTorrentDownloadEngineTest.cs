@@ -635,8 +635,19 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
-    public async Task ProbeHealthAsync_ReturnsHealthy()
+    public async Task ProbeHealthAsync_WhenEngineNotStarted_ReturnsUnhealthy()
     {
+        var health = await this.engine.ProbeHealthAsync();
+        health.Should().NotBeNull();
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("not running");
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenEngineRunning_ReturnsHealthy()
+    {
+        await this.engine.StartAsync();
+
         var health = await this.engine.ProbeHealthAsync();
         health.Should().NotBeNull();
         health.IsHealthy.Should().BeTrue();

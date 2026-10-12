@@ -308,6 +308,21 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public Task<EngineHealthCheckResult> ProbeHealthAsync()
     {
+        if (this.engine == null || this.isEngineStopping)
+        {
+            return Task.FromResult(new EngineHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "MonoTorrent engine is not running.",
+                DependencyChecks = new List<string>
+                {
+                    ".NET Runtime: OK",
+                    "MonoTorrent Assembly: OK",
+                },
+                Warnings = new List<string> { "Start the BitTorrent engine to enable transfers." },
+            });
+        }
+
         return Task.FromResult(new EngineHealthCheckResult
         {
             IsHealthy = true,

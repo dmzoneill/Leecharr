@@ -225,29 +225,26 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             sw.Stop();
             var nativeLib = GetNativeLibraryPath();
             var pythonBin = FindPythonBinary();
+            if (!string.IsNullOrWhiteSpace(nativeLib))
+            {
+                checks.Add($"libtorrent shared library found: {nativeLib}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(pythonBin))
+            {
+                checks.Add($"Python interpreter found: {pythonBin}");
+            }
+
             if (!string.IsNullOrWhiteSpace(nativeLib) || !string.IsNullOrWhiteSpace(pythonBin))
             {
-                if (!string.IsNullOrWhiteSpace(nativeLib))
-                {
-                    checks.Add($"libtorrent shared library found: {nativeLib}");
-                }
-
-                if (!string.IsNullOrWhiteSpace(pythonBin))
-                {
-                    checks.Add($"Python interpreter found: {pythonBin}");
-                }
-
-                return new EngineHealthCheckResult
-                {
-                    IsHealthy = true,
-                    StatusMessage = $"libtorrent engine ready (embedded sidecar will auto-spawn on engine start).",
-                    DependencyChecks = checks,
-                    Warnings = warnings,
-                };
+                warnings.Add("libtorrent RPC is not responding. The embedded sidecar will auto-spawn when the engine is started.");
             }
 
             checks.Add($"libtorrent RPC connection to {rpcUrl} failed: {ex.Message}");
-            warnings.Add("Neither a running libtorrent daemon nor native libtorrent-rasterbar shared library was detected.");
+            if (string.IsNullOrWhiteSpace(nativeLib) && string.IsNullOrWhiteSpace(pythonBin))
+            {
+                warnings.Add("Neither a running libtorrent daemon nor native libtorrent-rasterbar shared library was detected.");
+            }
 
             return new EngineHealthCheckResult
             {

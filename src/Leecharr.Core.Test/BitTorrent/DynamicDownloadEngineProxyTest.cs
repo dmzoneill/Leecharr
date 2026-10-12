@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -91,6 +92,19 @@ public class DynamicDownloadEngineProxyTest
         this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
         this.proxy.ActiveEngine.Should().BeSameAs(this.monoTorrentEngine);
         this.proxy.ProtocolName.Should().Be("BitTorrent");
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenNoActiveEngine_ReturnsUnhealthy()
+    {
+        var field = typeof(DynamicDownloadEngineProxy).GetField("activeEngine", BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+        field!.SetValue(this.proxy, null);
+
+        var result = await this.proxy.ProbeHealthAsync();
+
+        result.IsHealthy.Should().BeFalse();
+        result.StatusMessage.Should().Contain("not active");
     }
 
     [Test]

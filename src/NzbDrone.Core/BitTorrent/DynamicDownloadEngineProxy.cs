@@ -644,7 +644,17 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public async Task<EngineHealthCheckResult> ProbeHealthAsync()
     {
         var engine = await this.GetReadyEngineAsync();
-        return engine != null ? await engine.ProbeHealthAsync() : new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" };
+        if (engine == null)
+        {
+            return new EngineHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = "No BitTorrent download engine is active.",
+                Warnings = new List<string> { "Start the download engine to run health checks against a live session." },
+            };
+        }
+
+        return await engine.ProbeHealthAsync();
     }
 
     public IDownloadTask GetTask(int torrentId)
