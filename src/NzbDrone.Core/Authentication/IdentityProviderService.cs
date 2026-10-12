@@ -79,7 +79,8 @@ public class IdentityProviderService : IIdentityProviderService
 
             if (string.IsNullOrEmpty(targetUrl))
             {
-                return true;
+                this.logger.Warn("Identity provider {0} has no connection URL configured", provider.Name);
+                return false;
             }
 
             this.safeHttpClientService.ValidateUrl(targetUrl);
