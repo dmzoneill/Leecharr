@@ -19,7 +19,10 @@ namespace NzbDrone.Core.Http.Transport;
 public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
 {
     private readonly IConfigService configService;
-    private readonly HttpClient httpClient;
+    private readonly HttpClient solverHttpClient;
+    private readonly HttpClient fallbackHttpClient;
+    private readonly SocketsHttpHandler solverHandler;
+    private readonly SocketsHttpHandler fallbackHandler;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<string, string> sessionPool = new(StringComparer.OrdinalIgnoreCase);
     private bool disposed;
@@ -50,17 +53,33 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
 
     public IReadOnlyDictionary<string, string> ActiveSessions => this.sessionPool;
 
+    internal SocketsHttpHandler SolverHandler => this.solverHandler;
+
+    internal SocketsHttpHandler FallbackHandler => this.fallbackHandler;
+
     public FlareSolverrTransportProvider(IConfigService configService = null, HttpClient httpClient = null)
     {
         this.configService = configService;
 
         if (httpClient != null)
         {
-            this.httpClient = httpClient;
+            this.solverHttpClient = httpClient;
+            this.fallbackHttpClient = httpClient;
         }
         else
         {
-            var handler = new SocketsHttpHandler
+            this.solverHandler = new SocketsHttpHandler
+            {
+                AutomaticDecompression = DecompressionMethods.All,
+                UseProxy = false,
+            };
+
+            this.solverHttpClient = new HttpClient(this.solverHandler, disposeHandler: true)
+            {
+                Timeout = TimeSpan.FromSeconds(60),
+            };
+
+            this.fallbackHandler = new SocketsHttpHandler
             {
                 AutomaticDecompression = DecompressionMethods.All,
             };
@@ -85,11 +104,11 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
                     proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);
                 }
 
-                handler.Proxy = proxy;
-                handler.UseProxy = true;
+                this.fallbackHandler.Proxy = proxy;
+                this.fallbackHandler.UseProxy = true;
             }
 
-            this.httpClient = new HttpClient(handler, disposeHandler: true)
+            this.fallbackHttpClient = new HttpClient(this.fallbackHandler, disposeHandler: true)
             {
                 Timeout = TimeSpan.FromSeconds(60),
             };
