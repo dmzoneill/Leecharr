@@ -175,12 +175,34 @@ public class PackageExportService : IPackageExportService
 
     private string FindTorrentFilePath(string infoHash)
     {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return null;
+        }
+
+        var hash = infoHash.ToLowerInvariant();
+        var pathsToTry = new List<string>();
+
         if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
         {
-            var p = Path.Combine(this.appFolderInfo.AppDataFolder, "torrents", $"{infoHash}.torrent");
-            if (File.Exists(p))
+            var appData = this.appFolderInfo.AppDataFolder;
+            pathsToTry.Add(Path.Combine(appData, "Torrents", $"{hash}.torrent"));
+            pathsToTry.Add(Path.Combine(appData, "Leecharr", "Torrents", $"{hash}.torrent"));
+            pathsToTry.Add(Path.Combine(appData, "torrents", $"{hash}.torrent"));
+        }
+
+        var roamingAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(roamingAppData))
+        {
+            pathsToTry.Add(Path.Combine(roamingAppData, "Torrents", $"{hash}.torrent"));
+            pathsToTry.Add(Path.Combine(roamingAppData, "Leecharr", "Torrents", $"{hash}.torrent"));
+        }
+
+        foreach (var path in pathsToTry.Distinct())
+        {
+            if (File.Exists(path))
             {
-                return p;
+                return path;
             }
         }
 

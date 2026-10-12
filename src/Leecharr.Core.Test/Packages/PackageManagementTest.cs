@@ -196,7 +196,7 @@ public class PackageManagementTest
     public async Task ExportPackageAsync_WithMetainfoAndPayload_IncludesFilesAndTarStructure()
     {
         var infoHash = "aabbccddeeff00112233445566778899aabbccdd";
-        var torrentsDir = Path.Combine(this.tempDirectory, "torrents");
+        var torrentsDir = Path.Combine(this.tempDirectory, "Torrents");
         Directory.CreateDirectory(torrentsDir);
         var torrentFilePath = Path.Combine(torrentsDir, $"{infoHash}.torrent");
         await File.WriteAllBytesAsync(torrentFilePath, new byte[] { 0x64, 0x38, 0x3A, 0x61, 0x6E, 0x6E, 0x6F, 0x75, 0x6E, 0x63, 0x65, 0x65 });
@@ -240,7 +240,7 @@ public class PackageManagementTest
     public async Task ImportPackageAsync_Roundtrip_ExportsAndImportsSuccessfully()
     {
         var infoHash = "1234567890abcdef1234567890abcdef12345678";
-        var torrentsDir = Path.Combine(this.tempDirectory, "torrents");
+        var torrentsDir = Path.Combine(this.tempDirectory, "Torrents");
         Directory.CreateDirectory(torrentsDir);
         var torrentFilePath = Path.Combine(torrentsDir, $"{infoHash}.torrent");
         await File.WriteAllBytesAsync(torrentFilePath, Encoding.UTF8.GetBytes("d8:announce3:udpe"));
@@ -724,7 +724,7 @@ public class PackageManagementTest
     public async Task ImportPackageAsync_ManifestTags_PassedToTorrentService()
     {
         var infoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        var torrentsDir = Path.Combine(this.tempDirectory, "torrents");
+        var torrentsDir = Path.Combine(this.tempDirectory, "Torrents");
         Directory.CreateDirectory(torrentsDir);
         var torrentBytes = Encoding.UTF8.GetBytes("d8:announce3:udpe");
         await File.WriteAllBytesAsync(Path.Combine(torrentsDir, $"{infoHash}.torrent"), torrentBytes);
