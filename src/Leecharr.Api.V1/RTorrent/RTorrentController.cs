@@ -481,7 +481,12 @@ public class RTorrentController : ControllerBase
             case "load.start":
             case "load.verbose":
             case "load_start":
-                if (paramValues.Count >= 2)
+                Torrent added = null;
+                if (paramValues.Count < 2)
+                {
+                    throw new InvalidOperationException("Failed to add torrent");
+                }
+
                 {
                     var isRaw = methodName.Contains("raw", StringComparison.OrdinalIgnoreCase);
                     var isStart = methodName.Contains("start", StringComparison.OrdinalIgnoreCase);
@@ -557,7 +562,7 @@ public class RTorrentController : ControllerBase
                         if (torrentBytes != null && torrentBytes.Length > 0)
                         {
                             var parsed = this.torrentFileParser.Parse(torrentBytes);
-                            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, torrentBytes);
+                            added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, torrentBytes);
                             if (added != null && customPriority.HasValue)
                             {
                                 await this.ApplyRTorrentTorrentPriorityAsync(added, customPriority.Value);
@@ -568,7 +573,7 @@ public class RTorrentController : ControllerBase
                     {
                         if (uriStr.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                         {
-                            var added = await this.torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
+                            added = await this.torrentService.AddFromMagnetAsync(uriStr, customCategory, customDir, !isStart);
                             if (added != null && customPriority.HasValue)
                             {
                                 await this.ApplyRTorrentTorrentPriorityAsync(added, customPriority.Value);
@@ -578,7 +583,7 @@ public class RTorrentController : ControllerBase
                         {
                             var bytes = await global::System.IO.File.ReadAllBytesAsync(uriStr);
                             var parsed = this.torrentFileParser.Parse(bytes);
-                            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
+                            added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
                             if (added != null && customPriority.HasValue)
                             {
                                 await this.ApplyRTorrentTorrentPriorityAsync(added, customPriority.Value);
@@ -589,13 +594,18 @@ public class RTorrentController : ControllerBase
                             var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
                             var bytes = await this.safeHttpClientService.DownloadBytesAsync(uriStr, maxSizeBytes: maxTorrentBytes);
                             var parsed = this.torrentFileParser.Parse(bytes);
-                            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
+                            added = await this.torrentService.AddFromParsedTorrentAsync(parsed, customCategory, customDir, !isStart, bytes);
                             if (added != null && customPriority.HasValue)
                             {
                                 await this.ApplyRTorrentTorrentPriorityAsync(added, customPriority.Value);
                             }
                         }
                     }
+                }
+
+                if (added == null)
+                {
+                    throw new InvalidOperationException("Failed to add torrent");
                 }
 
                 return new XElement("i4", 0);
