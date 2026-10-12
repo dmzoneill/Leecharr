@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.Webhooks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
@@ -30,6 +31,7 @@ using NzbDrone.Core.Messaging.Events;
 namespace Leecharr.Api.V1.System;
 
 [V1ApiController("system/developer")]
+[Authorize(Policy = "RequireAdmin")]
 public class SystemDeveloperController : Controller
 {
     private static readonly HashSet<string> BaseCommandProperties = new(StringComparer.OrdinalIgnoreCase)

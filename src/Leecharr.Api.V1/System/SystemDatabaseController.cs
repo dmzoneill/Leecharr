@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Datastore;
@@ -18,6 +19,7 @@ using NzbDrone.Core.Datastore;
 namespace Leecharr.Api.V1.System;
 
 [V1ApiController("system/database")]
+[Authorize(Policy = "RequireAdmin")]
 [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA3001:Review SQL queries for security vulnerabilities", Justification = "Admin SQL explorer intentionally executes user-supplied and schema introspection SQL queries.")]
 public class SystemDatabaseController : Controller
 {
