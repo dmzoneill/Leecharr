@@ -102,6 +102,46 @@ public class CommandQueueManagerTest
     }
 
     [Test]
+    public void FailStaleCommands_WhenOneUpdateFails_ContinuesMarkingRemainingCommandsAsFailed()
+    {
+        var runningCommand1 = new CommandModel
+        {
+            Id = 101,
+            Name = "ProwlarrSync",
+            Status = CommandStatus.Running,
+        };
+
+        var runningCommand2 = new CommandModel
+        {
+            Id = 102,
+            Name = "RssSync",
+            Status = CommandStatus.Running,
+        };
+
+        this.repository.GetByStatus(CommandStatus.Running)
+            .Returns(new List<CommandModel> { runningCommand1, runningCommand2 });
+
+        this.repository.When(r => r.Update(Arg.Is<CommandModel>(c => c.Id == 101)))
+            .Do(_ => throw new InvalidOperationException("database locked"));
+
+        var updatedCommands = new List<CommandModel>();
+        this.repository.When(r => r.Update(Arg.Is<CommandModel>(c => c.Id != 101)))
+            .Do(callInfo => updatedCommands.Add(callInfo.Arg<CommandModel>()));
+
+        this.commandQueueManager.FailStaleCommands();
+
+        runningCommand1.Status.Should().Be(CommandStatus.Failed);
+        runningCommand1.Message.Should().Be("Command was interrupted by application restart.");
+
+        runningCommand2.Status.Should().Be(CommandStatus.Failed);
+        runningCommand2.Message.Should().Be("Command was interrupted by application restart.");
+        runningCommand2.EndedAt.Should().NotBeNull();
+
+        updatedCommands.Should().ContainSingle().Which.Should().BeSameAs(runningCommand2);
+        this.repository.Received(2).Update(Arg.Any<CommandModel>());
+    }
+
+    [Test]
     public void Push_CreatesQueuedCommandModelAndInsertsIntoRepository()
     {
         var command = new SampleTestCommand { Payload = "test" };

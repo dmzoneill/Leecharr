@@ -111,11 +111,18 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
 
         foreach (var command in runningCommands)
         {
-            this.logger.Warn("Marking stale command {0} (ID: {1}) as Failed due to application restart", command.Name, command.Id);
-            command.Status = CommandStatus.Failed;
-            command.EndedAt = DateTime.UtcNow;
-            command.Message = "Command was interrupted by application restart.";
-            this.repository.Update(command);
+            try
+            {
+                this.logger.Warn("Marking stale command {0} (ID: {1}) as Failed due to application restart", command.Name, command.Id);
+                command.Status = CommandStatus.Failed;
+                command.EndedAt = DateTime.UtcNow;
+                command.Message = "Command was interrupted by application restart.";
+                this.repository.Update(command);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Failed to mark stale command {0} (ID: {1}) as Failed after application restart", command.Name, command.Id);
+            }
         }
     }
 
