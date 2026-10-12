@@ -247,6 +247,45 @@ public class DownloadClientControllerTest
     }
 
     [Test]
+    public async Task ImportTorrents_Bulk_WhenRequestOverridesProvided_UsesRequestCategorySavePathAndStartPaused()
+    {
+        var hash = "5555555555555555555555555555555555555555";
+        var json = $"[{{\"hash\":\"{hash}\",\"name\":\"Item 5\",\"save_path\":\"/path/remote\",\"category\":\"remote-cat\"}}]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var clientDef = new DownloadClientDefinition { Id = 1, Name = "Client1", ClientType = "qBittorrent", Host = "localhost", Port = 8080, Enable = true, Category = "client-cat" };
+        this.repository.Get(1).Returns(clientDef);
+        this.torrentService.GetByInfoHash(hash).Returns((Torrent)null!);
+
+        var controller = new DownloadClientController(this.repository, this.torrentService, httpClient);
+        var request = new ImportRequest
+        {
+            InfoHashes = new List<string> { hash },
+            Category = "request-cat",
+            SavePath = "/path/request",
+            StartPaused = true,
+        };
+
+        var result = await controller.ImportTorrents(1, request);
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var syncResult = okResult!.Value as SyncResultResource;
+        syncResult.Should().NotBeNull();
+        syncResult!.SyncedCount.Should().Be(1);
+
+        await this.torrentService.Received(1).AddFromMagnetAsync(
+            "magnet:?xt=urn:btih:5555555555555555555555555555555555555555&dn=Item%205",
+            "request-cat",
+            "/path/request",
+            true);
+    }
+
+    [Test]
     public async Task ImportTorrents_Bulk_WhenHashNotOnRemoteClient_CountsFailedWithoutAdding()
     {
         var json = "[]";
