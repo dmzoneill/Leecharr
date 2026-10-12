@@ -940,21 +940,29 @@ public class RTorrentController : ControllerBase
 
             case "throttle.global_down.max_rate.set_kb":
             case "throttle.global_down.max_rate.set":
-                var globalDownKb = (int)Math.Max(0, ExtractRateValue(paramValues));
+            {
+                var globalDownRaw = ExtractRateValue(paramValues);
+                var globalDownIsKb = methodName.EndsWith("_kb", StringComparison.OrdinalIgnoreCase);
+                var globalDownKb = globalDownIsKb ? (int)Math.Max(0, globalDownRaw) : (int)Math.Max(0, globalDownRaw / 1024);
                 this.configService.SaveConfigDictionary(new Dictionary<string, object>
                 {
                     ["MaxDownloadSpeedKbps"] = globalDownKb,
                 });
                 return new XElement("i4", 0);
+            }
 
             case "throttle.global_up.max_rate.set_kb":
             case "throttle.global_up.max_rate.set":
-                var globalUpKb = (int)Math.Max(0, ExtractRateValue(paramValues));
+            {
+                var globalUpRaw = ExtractRateValue(paramValues);
+                var globalUpIsKb = methodName.EndsWith("_kb", StringComparison.OrdinalIgnoreCase);
+                var globalUpKb = globalUpIsKb ? (int)Math.Max(0, globalUpRaw) : (int)Math.Max(0, globalUpRaw / 1024);
                 this.configService.SaveConfigDictionary(new Dictionary<string, object>
                 {
                     ["MaxUploadSpeedKbps"] = globalUpKb,
                 });
                 return new XElement("i4", 0);
+            }
 
             case "set_download_rate":
                 var setDlRaw = ExtractRateValue(paramValues);
@@ -975,14 +983,18 @@ public class RTorrentController : ControllerBase
                 return new XElement("i4", 0);
 
             case "throttle.global_down.max_rate.get_kb":
-            case "throttle.global_down.max_rate":
             case "get_download_rate_limit":
                 return new XElement("i8", this.configService.MaxDownloadSpeedKbps);
 
+            case "throttle.global_down.max_rate":
+                return new XElement("i8", (long)this.configService.MaxDownloadSpeedKbps * 1024);
+
             case "throttle.global_up.max_rate.get_kb":
-            case "throttle.global_up.max_rate":
             case "get_upload_rate_limit":
                 return new XElement("i8", this.configService.MaxUploadSpeedKbps);
+
+            case "throttle.global_up.max_rate":
+                return new XElement("i8", (long)this.configService.MaxUploadSpeedKbps * 1024);
 
             default:
                 if (methodName.StartsWith("d.", StringComparison.OrdinalIgnoreCase) && paramValues.Count > 0 && paramValues[0] is string dHash)
