@@ -191,6 +191,29 @@ public class DynamicDownloadEngineProxyTest
     }
 
     [Test]
+    public async Task SwitchEngineAsync_DoesNotPauseQueuedOrStalledTorrentsDuringRehydration()
+    {
+        this.torrentRepository.All().Returns(new List<Torrent>
+        {
+            new() { Id = 10, Name = "Queued", InfoHash = "0123456789ABCDEF0123456789ABCDEF01234567", Status = TorrentStatus.Queued },
+            new() { Id = 11, Name = "Stalled", InfoHash = "FEDCBA9876543210FEDCBA9876543210FEDCBA98", Status = TorrentStatus.Stalled },
+            new() { Id = 12, Name = "Paused", InfoHash = "ABCDEF0123456789ABCDEF0123456789ABCDEF01", Status = TorrentStatus.Paused },
+        });
+
+        await this.proxy.StartAsync();
+        this.monoTorrentEngine.ClearReceivedCalls();
+
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        result.TorrentsMigrated.Should().Be(3);
+        await this.libTorrentEngine.Received(3).AddTorrentAsync(Arg.Any<Torrent>(), null, Arg.Any<string>());
+        await this.libTorrentEngine.Received(1).PauseTorrentAsync(12);
+        await this.libTorrentEngine.DidNotReceive().PauseTorrentAsync(10);
+        await this.libTorrentEngine.DidNotReceive().PauseTorrentAsync(11);
+    }
+
+    [Test]
     public async Task SwitchEngineAsync_WhenTargetAlreadyActive_ReturnsSuccessWithoutWork()
     {
         var result = await this.proxy.SwitchEngineAsync("MonoTorrent");
