@@ -57,6 +57,20 @@ public class UpdateControllerTest
     }
 
     [Test]
+    public async Task GetUpdates_WhenNoPackagesAvailable_ReturnsServiceUnavailable()
+    {
+        var updateService = Substitute.For<IUpdateCheckService>();
+        updateService.GetAvailableUpdatesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(new List<UpdatePackage>()));
+
+        var controller = new UpdateController(updateService);
+        var actionResult = await controller.GetUpdates();
+
+        actionResult.Result.Should().BeOfType<ObjectResult>();
+        var objectResult = actionResult.Result as ObjectResult;
+        objectResult!.StatusCode.Should().Be(503);
+    }
+
+    [Test]
     public async Task GetUpdates_PopulatesIsContainerFromOsInfo()
     {
         var originalEnv = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
