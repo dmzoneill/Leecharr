@@ -663,7 +663,7 @@ public class ConfigService : IConfigService
 
         foreach (var (key, value) in configValues)
         {
-            var strValue = value?.ToString() ?? string.Empty;
+            var strValue = FormatConfigDictionaryValue(value);
 
             if (allConfig.TryGetValue(key, out var existing))
             {
@@ -749,12 +749,40 @@ public class ConfigService : IConfigService
     {
         var value = this.GetValue(key, string.Empty);
 
-        if (double.TryParse(value, out var result))
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        var styles = NumberStyles.Float | NumberStyles.AllowThousands;
+
+        if (value.Contains(',') && !value.Contains('.'))
+        {
+            if (double.TryParse(value, styles, CultureInfo.CurrentCulture, out var commaCultureResult))
+            {
+                return commaCultureResult;
+            }
+        }
+
+        if (double.TryParse(value, styles, CultureInfo.InvariantCulture, out var result)
+            || double.TryParse(value, styles, CultureInfo.CurrentCulture, out result))
         {
             return result;
         }
 
         return defaultValue;
+    }
+
+    private static string FormatConfigDictionaryValue(object value)
+    {
+        return value switch
+        {
+            null => string.Empty,
+            double d => d.ToString(CultureInfo.InvariantCulture),
+            float f => f.ToString(CultureInfo.InvariantCulture),
+            decimal m => m.ToString(CultureInfo.InvariantCulture),
+            _ => value.ToString() ?? string.Empty,
+        };
     }
 
     private bool ConfigKeyExists(string key)
