@@ -400,6 +400,65 @@ public class EmbeddedTransmissionEngineTest
     }
 
     [Test]
+    public void TransmissionTorrentFilePathsMatch_RequiresExactPath_NotSuffix()
+    {
+        EmbeddedTransmissionEngine.TransmissionTorrentFilePathsMatch("movie.mkv", "extras/movie.mkv").Should().BeFalse();
+        EmbeddedTransmissionEngine.TransmissionTorrentFilePathsMatch("Season 1/episode.mkv", "episode.mkv").Should().BeFalse();
+        EmbeddedTransmissionEngine.TransmissionTorrentFilePathsMatch("movie.mkv", "movie.mkv").Should().BeTrue();
+        EmbeddedTransmissionEngine.TransmissionTorrentFilePathsMatch("\\Season 1\\episode.mkv", "Season 1/episode.mkv").Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SetFilePriorityAsync_MatchesExactTorrentFilePath_NotSuffix()
+    {
+        var torrentSetBodies = new List<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":99}}}"),
+                };
+            }
+
+            if (method == "torrent-get")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrents\":[{\"files\":[{\"name\":\"extras/movie.mkv\"},{\"name\":\"movie.mkv\"}]}]}}"),
+                };
+            }
+
+            if (method == "torrent-set")
+            {
+                torrentSetBodies.Add(body);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+        await engine.SetFilePriorityAsync(42, "movie.mkv", 0);
+
+        torrentSetBodies.Should().HaveCount(1);
+        using var setDoc = JsonDocument.Parse(torrentSetBodies[0]);
+        var filesUnwanted = setDoc.RootElement.GetProperty("arguments").GetProperty("files-unwanted");
+        filesUnwanted.GetArrayLength().Should().Be(1);
+        filesUnwanted[0].GetInt32().Should().Be(1);
+    }
+
+    [Test]
     public async Task NetworkBindingProviderSwitchedEvent_DispatchesBoundIpRatherThanZeroZeroZeroZero()
     {
         this.configService.NetworkInterfaceBinding.Returns("wg0");
