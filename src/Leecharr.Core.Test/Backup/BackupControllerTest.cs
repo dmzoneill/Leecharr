@@ -582,6 +582,48 @@ public class BackupControllerTest
     }
 
     [Test]
+    public async Task Restore_WhenWalMergeFails_Returns500AndDoesNotStageDatabaseRestore()
+    {
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_backup_wal_merge_fail.zip");
+
+        var tempDb = Path.Combine(this.testTempDir, "temp_source.db");
+        using (var conn = new SqliteConnection($"Data Source={tempDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "PRAGMA journal_mode = WAL; CREATE TABLE wal_table (id INTEGER PRIMARY KEY, content TEXT); INSERT INTO wal_table (content) VALUES ('wal-only-commit');";
+            cmd.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+
+        var tempWal = Path.Combine(this.testTempDir, "temp_source.db-wal");
+        File.Exists(tempWal).Should().BeTrue();
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            zip.CreateEntryFromFile(tempDb, "leecharr.db");
+            zip.CreateEntryFromFile(tempWal, "leecharr.db-wal");
+        }
+
+        var failingController = new TestableBackupController(this.appFolderInfo)
+        {
+            SimulateWalCheckpointFailure = true,
+        };
+
+        var result = await failingController.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(500);
+
+        var json = System.Text.Json.JsonSerializer.Serialize(objResult.Value);
+        json.Should().Contain("merge WAL");
+        File.Exists(Path.Combine(this.testTempDir, "leecharr.db.restore")).Should().BeFalse("failed WAL merge must not stage leecharr.db.restore");
+    }
+
+    [Test]
     public async Task Restore_WhenBackupIncludesWal_ExtractsWalAndIntegrityCheckPasses()
     {
         var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
@@ -646,6 +688,8 @@ public class BackupControllerTest
 
         public bool SimulateDeleteBackupFailure { get; set; }
 
+        public bool SimulateWalCheckpointFailure { get; set; }
+
         public TestableBackupController(
             IAppFolderInfo appFolderInfo,
             IDiskProvider diskProvider = null,
@@ -684,6 +728,17 @@ public class BackupControllerTest
             }
 
             base.DeleteBackupArchive(physicalPath);
+        }
+
+        protected override bool TryMergeStagedWalIntoDatabase(string stagedDb, string stagedWal, out string errorMessage)
+        {
+            if (this.SimulateWalCheckpointFailure)
+            {
+                errorMessage = "Failed to merge WAL from backup into the SQLite database file.";
+                return false;
+            }
+
+            return base.TryMergeStagedWalIntoDatabase(stagedDb, stagedWal, out errorMessage);
         }
     }
 
@@ -1349,5 +1404,86 @@ public class BackupControllerTest
         json.Should().Contain("Failed to extract backup archive.");
         json.Should().NotContain("EndOfCentralDirectoryBlock");
         json.Should().NotContain("InvalidDataException");
+    }
+
+    [Test]
+    public async Task Restore_WhenConfigOnlyBackup_RemovesStalePendingDatabaseRestore()
+    {
+        var staleRestoreDb = Path.Combine(this.testTempDir, "leecharr.db.restore");
+        using (var conn = new SqliteConnection($"Data Source={staleRestoreDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO records (note) VALUES ('stale-pending-restore');";
+            cmd.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_config_only_backup.zip");
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var configEntry = zip.CreateEntry("config.xml");
+            using var writer = new StreamWriter(configEntry.Open());
+            writer.Write("<config-only/>");
+        }
+
+        var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<OkObjectResult>();
+
+        File.Exists(staleRestoreDb).Should().BeFalse("config-only restore must clear a stale leecharr.db.restore");
+        File.ReadAllText(Path.Combine(this.testTempDir, "config.xml")).Should().Be("<config-only/>");
+
+        var okResult = (OkObjectResult)result;
+        var json = System.Text.Json.JsonSerializer.Serialize(okResult.Value);
+        json.Should().Contain("did not contain a SQLite database");
+        json.Should().NotContain("apply database changes");
+    }
+
+    [Test]
+    public async Task Restore_WhenEmptyBackupArchive_ReturnsBadRequestAndRemovesStalePendingDatabaseRestore()
+    {
+        var staleRestoreDb = Path.Combine(this.testTempDir, "leecharr.db.restore");
+        File.WriteAllText(staleRestoreDb, "stale");
+
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_empty_backup.zip");
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            zip.CreateEntry("readme.txt");
+        }
+
+        var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<BadRequestObjectResult>();
+        File.Exists(staleRestoreDb).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Restore_WhenPostgreSqlDumpOnSQLite_ReturnsBadRequestAndRemovesStalePendingDatabaseRestore()
+    {
+        var staleRestoreDb = Path.Combine(this.testTempDir, "leecharr.db.restore");
+        File.WriteAllText(staleRestoreDb, "stale");
+
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_pg_on_sqlite_backup.zip");
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var sqlEntry = zip.CreateEntry("leecharr_postgres.sql");
+            using (var writer = new StreamWriter(sqlEntry.Open()))
+            {
+                writer.Write("-- postgres dump");
+            }
+        }
+
+        var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<BadRequestObjectResult>();
+        File.Exists(staleRestoreDb).Should().BeFalse();
     }
 }

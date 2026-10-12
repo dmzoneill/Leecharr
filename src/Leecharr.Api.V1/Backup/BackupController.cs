@@ -481,23 +481,10 @@ public class BackupController : Controller
                     // 1. If stagedWal exists in stagingDir (legacy archive format), checkpoint it into stagedDb before integrity check
                     if (global::System.IO.File.Exists(stagedWal) && new FileInfo(stagedWal).Length > 0)
                     {
-                        try
+                        if (!this.TryMergeStagedWalIntoDatabase(stagedDb, stagedWal, out var walMergeError))
                         {
-                            using (var conn = new SqliteConnection($"Data Source={stagedDb}"))
-                            {
-                                conn.Open();
-                                using var cmd = conn.CreateCommand();
-                                cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
-                                cmd.ExecuteNonQuery();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            this.logger.Warn(ex, "Failed to checkpoint staged WAL into staged database: {0}", stagedWal);
-                        }
-                        finally
-                        {
-                            SqliteConnection.ClearAllPools();
+                            this.logger.Error("Failed to merge staged WAL into database at {0}: {1}", stagedWal, walMergeError);
+                            return this.StatusCode(500, new { success = false, message = walMergeError });
                         }
                     }
 
@@ -535,22 +522,47 @@ public class BackupController : Controller
                     }
                 }
 
+                var restoreDbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db.restore");
+                var databaseStaged = false;
+
                 // 3. Stage the verified restored database for safe startup replacement
                 if (global::System.IO.File.Exists(stagedDb))
                 {
-                    var restoreDbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db.restore");
                     global::System.IO.File.Copy(stagedDb, restoreDbPath, overwrite: true);
+                    databaseStaged = true;
                 }
 
+                var hasConfigInArchive = global::System.IO.File.Exists(stagedConfig);
+
                 // 4. Restore config.xml if present in backup archive
-                if (global::System.IO.File.Exists(stagedConfig))
+                if (hasConfigInArchive)
                 {
                     var liveConfig = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
                     global::System.IO.File.Copy(stagedConfig, liveConfig, overwrite: true);
                 }
 
-                this.logger.Info("Restored backup archive from {0}", physicalPath);
-                return this.Ok(new { success = true, message = "Backup restored successfully. Please restart Leecharr to apply database changes." });
+                if (databaseStaged)
+                {
+                    this.logger.Info("Restored backup archive from {0}", physicalPath);
+                    return this.Ok(new { success = true, message = "Backup restored successfully. Please restart Leecharr to apply database changes." });
+                }
+
+                this.RemovePendingSqliteDbRestore();
+
+                if (global::System.IO.File.Exists(stagedPgSql))
+                {
+                    this.logger.Error("Backup {0} contains a PostgreSQL database dump but Leecharr is configured for SQLite", physicalPath);
+                    return this.BadRequest(new { success = false, message = "Backup contains a PostgreSQL database dump but Leecharr is configured for SQLite." });
+                }
+
+                if (hasConfigInArchive)
+                {
+                    this.logger.Info("Restored config from backup archive {0} (no SQLite database in archive)", physicalPath);
+                    return this.Ok(new { success = true, message = "Config restored successfully. (Backup did not contain a SQLite database). Please restart Leecharr." });
+                }
+
+                this.logger.Error("Backup archive {0} did not contain a SQLite database or config.xml", physicalPath);
+                return this.BadRequest(new { success = false, message = "Backup archive did not contain a SQLite database or config.xml." });
             }
         }
         catch (Exception ex)
@@ -571,6 +583,80 @@ public class BackupController : Controller
             {
                 // Ignore temp staging cleanup error
             }
+        }
+    }
+
+    [NonAction]
+    protected virtual bool TryMergeStagedWalIntoDatabase(string stagedDb, string stagedWal, out string errorMessage)
+    {
+        errorMessage = string.Empty;
+        try
+        {
+            using (var conn = new SqliteConnection($"Data Source={stagedDb}"))
+            {
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                cmd.ExecuteNonQuery();
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to checkpoint staged WAL into staged database: {0}", stagedWal);
+            errorMessage = "Failed to merge WAL from backup into the SQLite database file.";
+            return false;
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+        }
+
+        if (global::System.IO.File.Exists(stagedWal) && new FileInfo(stagedWal).Length > 0)
+        {
+            errorMessage = "WAL from backup could not be fully merged into the SQLite database file.";
+            return false;
+        }
+
+        this.TryDeleteStagingSidecarFile(stagedWal);
+        this.TryDeleteStagingSidecarFile(stagedDb + "-shm");
+        return true;
+    }
+
+    [NonAction]
+    private void TryDeleteStagingSidecarFile(string path)
+    {
+        if (!global::System.IO.File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            global::System.IO.File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to delete staging sidecar file {0}", path);
+        }
+    }
+
+    [NonAction]
+    private void RemovePendingSqliteDbRestore()
+    {
+        var restoreDbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db.restore");
+        if (!global::System.IO.File.Exists(restoreDbPath))
+        {
+            return;
+        }
+
+        try
+        {
+            global::System.IO.File.Delete(restoreDbPath);
+            this.logger.Info("Removed stale pending SQLite database restore at {0}", restoreDbPath);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to remove stale pending SQLite database restore at {0}", restoreDbPath);
         }
     }
 
