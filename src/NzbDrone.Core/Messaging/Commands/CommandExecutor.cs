@@ -186,29 +186,7 @@ public class CommandExecutor : ICommandExecutor
         }
         finally
         {
-            if (handler is IAsyncDisposable asyncDisposable)
-            {
-                try
-                {
-                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Error disposing async command handler for {0}", command.Name);
-                }
-            }
-            else if (handler is IDisposable disposable)
-            {
-                try
-                {
-                    disposable.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Error disposing command handler for {0}", command.Name);
-                }
-            }
-
+            // Handlers are resolved from DryIoc as singletons; the container owns their lifetime.
             if (command.Id != 0)
             {
                 var latest = this.repository?.Get(command.Id);
