@@ -874,6 +874,11 @@ public static class NotificationPayloadBuilder
                 ? $"Category: {torrent.Category ?? "None"} | Status: {torrent.Status} | Progress: {torrent.Progress * 100:F1}% | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
                 : ExtractMessage(genericPayload, $"Event: {eventType}");
 
+            if (torrent != null)
+            {
+                torrentDetails = AppendHealthDetailsToTorrentSummary(torrentDetails, genericPayload, eventType);
+            }
+
             var overview = ExtractOverview(meta);
             var rawDesc = !string.IsNullOrWhiteSpace(overview)
                 ? $"{torrentDetails}\n\n{overview}"
@@ -927,14 +932,32 @@ public static class NotificationPayloadBuilder
                 var status = EscapeSlackMrkdwn(torrent.Status.ToString());
                 var sizeMb = $"{torrent.TotalSize / (1024.0 * 1024.0):F2} MB";
 
+                var healthReason = TryGetHealthEventMessage(genericPayload, eventType);
+                var healthSource = ExtractHealthSource(genericPayload);
                 text = $"*Leecharr [{eventType}]* - *{torrentName}*\nCategory: {category} | Status: {status} | Size: {sizeMb}";
-                sectionFields = new object[]
+                if (!string.IsNullOrWhiteSpace(healthReason))
+                {
+                    text += $"\nReason: {EscapeSlackMrkdwn(healthReason)}";
+                }
+
+                var fields = new List<object>
                 {
                     new { type = "mrkdwn", text = $"*Torrent:*\n{torrentName}" },
                     new { type = "mrkdwn", text = $"*Category:*\n{category}" },
                     new { type = "mrkdwn", text = $"*Status:*\n{status}" },
                     new { type = "mrkdwn", text = $"*Size:*\n{sizeMb}" },
                 };
+                if (!string.IsNullOrWhiteSpace(healthSource))
+                {
+                    fields.Add(new { type = "mrkdwn", text = $"*Source:*\n{EscapeSlackMrkdwn(healthSource)}" });
+                }
+
+                if (!string.IsNullOrWhiteSpace(healthReason))
+                {
+                    fields.Add(new { type = "mrkdwn", text = $"*Message:*\n{EscapeSlackMrkdwn(healthReason)}" });
+                }
+
+                sectionFields = fields.ToArray();
             }
             else
             {
@@ -994,6 +1017,21 @@ public static class NotificationPayloadBuilder
                 ? $"*Leecharr \\[{EscapeTelegramMarkdown(eventType)}\\]*\n*{EscapeTelegramMarkdown(torrent.Name)}*\nCategory: {EscapeTelegramMarkdown(torrent.Category ?? "None")}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {EscapeTelegramMarkdown(torrent.Status.ToString())}"
                 : $"*Leecharr \\[{EscapeTelegramMarkdown(eventType)}\\]*\n{EscapeTelegramMarkdown(ExtractMessage(genericPayload, eventType))}";
 
+            if (torrent != null)
+            {
+                var healthReason = TryGetHealthEventMessage(genericPayload, eventType);
+                if (!string.IsNullOrWhiteSpace(healthReason))
+                {
+                    var healthSource = ExtractHealthSource(genericPayload);
+                    if (!string.IsNullOrWhiteSpace(healthSource))
+                    {
+                        text += $"\nSource: {EscapeTelegramMarkdown(healthSource)}";
+                    }
+
+                    text += $"\nReason: {EscapeTelegramMarkdown(healthReason)}";
+                }
+            }
+
             var payloadDict = new Dictionary<string, object>
             {
                 ["text"] = TruncateTelegramMarkdown(text, 4096),
@@ -1013,7 +1051,9 @@ public static class NotificationPayloadBuilder
             return new
             {
                 title = $"Leecharr: {eventType}",
-                message = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ExtractMessage(genericPayload, eventType),
+                message = torrent != null
+                    ? (TryGetHealthEventMessage(genericPayload, eventType) ?? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}")
+                    : ExtractMessage(genericPayload, eventType),
                 priority = ResolveGotifyPriority(eventType),
             };
         }
@@ -1021,7 +1061,9 @@ public static class NotificationPayloadBuilder
         if (string.Equals(implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
         {
             var rawTitle = $"Leecharr: {eventType}";
-            var rawMessage = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ExtractMessage(genericPayload, eventType);
+            var rawMessage = torrent != null
+                ? (TryGetHealthEventMessage(genericPayload, eventType) ?? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}")
+                : ExtractMessage(genericPayload, eventType);
 
             var (pushoverPriority, retry, expire, device, pushoverSound) = ExtractPushoverSettings(settings);
             var priority = PushoverSettingsSpecifyPriority(settings)
@@ -1069,7 +1111,10 @@ public static class NotificationPayloadBuilder
         {
             var title = $"Leecharr: {eventType}";
             var body = torrent != null
-                ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nStatus: {torrent.Status}\nProgress: {torrent.Progress * 100:F1}%\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
+                ? AppendHealthDetailsToTorrentSummary(
+                    $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nStatus: {torrent.Status}\nProgress: {torrent.Progress * 100:F1}%\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB",
+                    genericPayload,
+                    eventType)
                 : ExtractMessage(genericPayload, $"Event: {eventType}");
 
             var isWarning = eventType.Contains("HealthIssue", StringComparison.OrdinalIgnoreCase) ||
@@ -1091,6 +1136,47 @@ public static class NotificationPayloadBuilder
         }
 
         return genericPayload;
+    }
+
+    internal static bool IsHealthNotificationEvent(string eventType)
+    {
+        return string.Equals(eventType, "OnHealthIssue", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "OnHealthRestored", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static string TryGetHealthEventMessage(object genericPayload, string eventType)
+    {
+        if (!IsHealthNotificationEvent(eventType))
+        {
+            return null;
+        }
+
+        var message = ExtractMessage(genericPayload, null);
+        return string.IsNullOrWhiteSpace(message) ? null : message;
+    }
+
+    internal static string ExtractHealthSource(object genericPayload)
+    {
+        return ExtractPropertyString(genericPayload, "Source")
+            ?? ExtractPropertyString(genericPayload, "source")
+            ?? ExtractPropertyString(genericPayload, "health", "source");
+    }
+
+    internal static string AppendHealthDetailsToTorrentSummary(string torrentSummary, object genericPayload, string eventType)
+    {
+        var healthReason = TryGetHealthEventMessage(genericPayload, eventType);
+        if (string.IsNullOrWhiteSpace(healthReason))
+        {
+            return torrentSummary;
+        }
+
+        var healthSource = ExtractHealthSource(genericPayload);
+        if (!string.IsNullOrWhiteSpace(healthSource))
+        {
+            torrentSummary = $"Source: {healthSource}\n{torrentSummary}";
+        }
+
+        return $"{torrentSummary}\nReason: {healthReason}";
     }
 
     internal static string ExtractMessage(object payload, string fallback)

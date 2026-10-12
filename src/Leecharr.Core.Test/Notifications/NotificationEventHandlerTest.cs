@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -213,15 +214,27 @@ public class NotificationEventHandlerTest
             ErrorMessage = "Tracker error: Connection refused",
         };
 
+        object capturedPayload = null;
+        this.webhookDispatcher.DispatchAsync(
+                Arg.Any<string>(),
+                Arg.Do<object>(p => capturedPayload = p),
+                Arg.Any<string>(),
+                Arg.Any<HttpMethod>(),
+                Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                this.webhookTcs.TrySetResult(true);
+                return Task.FromResult(true);
+            });
+
         this.handler.Handle(new HealthIssueEvent(torrent, "Tracker", "Tracker error: Connection refused", isResolved: false));
 
         await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        await this.webhookDispatcher.Received().DispatchAsync(
-            "http://test/webhook",
-            Arg.Any<object>(),
-            Arg.Any<string>(),
-            Arg.Any<HttpMethod>());
+        capturedPayload.Should().NotBeNull();
+        var json = JsonSerializer.Serialize(capturedPayload);
+        json.Should().Contain("Tracker error: Connection refused");
+        json.Should().Contain("\"source\":\"Tracker\"");
     }
 
     [Test]
