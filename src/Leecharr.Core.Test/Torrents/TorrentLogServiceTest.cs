@@ -201,6 +201,34 @@ public class TorrentLogServiceTest
     }
 
     [Test]
+    public void GetLogs_MergesRepositoryHistory_WhenMemoryCacheIsNonEmpty()
+    {
+        var repo = Substitute.For<ITorrentEventLogRepository>();
+        var olderTimestamp = DateTime.UtcNow.AddHours(-2);
+        repo.GetLogsForTorrent(25, Arg.Any<int>()).Returns(new List<TorrentEventLog>
+        {
+            new()
+            {
+                Id = 101,
+                TorrentId = 25,
+                Level = "Info",
+                Source = "Engine",
+                Message = "Persisted before restart",
+                Timestamp = olderTimestamp,
+            },
+        });
+
+        var serviceWithRepo = new TorrentLogService(repo);
+        serviceWithRepo.Log(25, "Info", "Engine", "Logged after restart");
+
+        var logs = serviceWithRepo.GetLogs(25, 10);
+        logs.Should().HaveCount(2);
+        logs[0].Message.Should().Be("Logged after restart");
+        logs[1].Message.Should().Be("Persisted before restart");
+        repo.Received(1).GetLogsForTorrent(25, 10);
+    }
+
+    [Test]
     public void GetLogs_FallsBackToRepository_WhenMemoryCacheIsEmpty()
     {
         var repo = Substitute.For<ITorrentEventLogRepository>();
