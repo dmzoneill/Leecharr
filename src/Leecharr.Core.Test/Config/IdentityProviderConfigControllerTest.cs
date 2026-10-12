@@ -136,6 +136,51 @@ public class IdentityProviderConfigControllerTest
     }
 
     [Test]
+    public void Create_WhenProviderIdOrNameMissing_ReturnsBadRequestAndDoesNotAdd()
+    {
+        var resource = new IdentityProviderResource
+        {
+            ProviderId = string.Empty,
+            Name = "SAML IdP",
+            ProviderType = IdentityProviderType.Saml,
+            IsEnabled = true,
+        };
+
+        var result = this.controller.Create(resource);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        this.providerService.DidNotReceive().Add(Arg.Any<IdentityProviderDefinition>());
+        _ = this.dynamicAuthManager.DidNotReceive().RegisterOrUpdateOidcProviderAsync(Arg.Any<IdentityProviderDefinition>());
+    }
+
+    [Test]
+    public void Create_WhenEnabledSaml_DoesNotRegisterOidcScheme()
+    {
+        var resource = new IdentityProviderResource
+        {
+            ProviderId = "okta-saml",
+            Name = "Okta SAML",
+            ProviderType = IdentityProviderType.Saml,
+            IsEnabled = true,
+            IssuerUrl = "https://idp.example.com/sso",
+            ClientId = "not-used-for-oidc",
+        };
+
+        this.providerService.Add(Arg.Any<IdentityProviderDefinition>()).Returns(callInfo =>
+        {
+            var def = callInfo.Arg<IdentityProviderDefinition>();
+            def.Id = 7;
+            return def;
+        });
+
+        var result = this.controller.Create(resource);
+
+        result.Result.Should().BeOfType<CreatedResult>();
+        this.providerService.Received(1).Add(Arg.Is<IdentityProviderDefinition>(p => p.ProviderType == IdentityProviderType.Saml));
+        _ = this.dynamicAuthManager.DidNotReceive().RegisterOrUpdateOidcProviderAsync(Arg.Any<IdentityProviderDefinition>());
+    }
+
+    [Test]
     public void Create_WhenNull_ReturnsBadRequest()
     {
         var result = this.controller.Create(null!);
@@ -334,6 +379,37 @@ public class IdentityProviderConfigControllerTest
         this.providerService.Received(1).Update(Arg.Is<IdentityProviderDefinition>(p =>
             p.Id == 1 &&
             p.ClientSecretEncrypted == "abc*123*xyz!~*key"));
+    }
+
+    [Test]
+    public void Update_WhenEnabledSaml_RemovesOidcSchemeAndDoesNotRegister()
+    {
+        var existing = new IdentityProviderDefinition
+        {
+            Id = 1,
+            ProviderId = "okta-saml",
+            Name = "Okta SAML",
+            ProviderType = IdentityProviderType.Saml,
+            IsEnabled = true,
+        };
+
+        this.providerService.GetById(1).Returns(existing);
+        this.providerService.Update(Arg.Any<IdentityProviderDefinition>()).Returns(x => x.Arg<IdentityProviderDefinition>());
+
+        var resource = new IdentityProviderResource
+        {
+            ProviderId = "okta-saml",
+            Name = "Okta SAML",
+            ProviderType = IdentityProviderType.Saml,
+            IsEnabled = true,
+            IssuerUrl = "https://idp.example.com/sso",
+        };
+
+        var result = this.controller.Update(1, resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        _ = this.dynamicAuthManager.Received(1).RemoveProviderSchemeAsync("okta-saml");
+        _ = this.dynamicAuthManager.DidNotReceive().RegisterOrUpdateOidcProviderAsync(Arg.Any<IdentityProviderDefinition>());
     }
 
     [Test]

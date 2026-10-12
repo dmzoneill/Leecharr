@@ -96,6 +96,12 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
             return this.BadRequest();
         }
 
+        var validation = this.SharedValidator.Validate(resource);
+        if (!validation.IsValid)
+        {
+            return this.BadRequest(validation.Errors);
+        }
+
         var existingProvider = this.providerService.GetByProviderId(resource.ProviderId);
         if (existingProvider != null)
         {
@@ -105,7 +111,7 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
         var model = ToModel(resource);
         var created = this.providerService.Add(model);
 
-        if (created.IsEnabled)
+        if (created.IsEnabled && UsesOpenIdConnectScheme(created.ProviderType))
         {
             _ = this.dynamicAuthManager.RegisterOrUpdateOidcProviderAsync(created);
         }
@@ -119,6 +125,12 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
         if (resource == null)
         {
             return this.BadRequest();
+        }
+
+        var validation = this.SharedValidator.Validate(resource);
+        if (!validation.IsValid)
+        {
+            return this.BadRequest(validation.Errors);
         }
 
         var existing = this.providerService.GetById(id);
@@ -146,7 +158,7 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
 
         var updated = this.providerService.Update(model);
 
-        if (updated.IsEnabled)
+        if (updated.IsEnabled && UsesOpenIdConnectScheme(updated.ProviderType))
         {
             _ = this.dynamicAuthManager.RegisterOrUpdateOidcProviderAsync(updated);
         }
@@ -197,6 +209,11 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
         var success = await this.providerService.TestConnectionAsync(model);
 
         return this.Ok(new { success, message = success ? "Connection successful" : "Failed to reach provider endpoint" });
+    }
+
+    private static bool UsesOpenIdConnectScheme(IdentityProviderType providerType)
+    {
+        return providerType == IdentityProviderType.Oidc || providerType == IdentityProviderType.Social;
     }
 
     private static IdentityProviderResource ToResource(IdentityProviderDefinition model)
