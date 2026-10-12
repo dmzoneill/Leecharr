@@ -297,7 +297,7 @@ public class FileBrowserServiceTest
         this.service.Copy(source, destDir);
 
         this.diskProvider.Received(1).CreateFolder(expectedTargetDir);
-        this.diskProvider.Received(1).CopyFile(fileInSource, fileInTarget, true);
+        this.diskProvider.Received(1).CopyFile(fileInSource, fileInTarget, false);
     }
 
     [Test]
@@ -476,6 +476,41 @@ public class FileBrowserServiceTest
     {
         Action act = () => this.service.Rename("/etc/shadow", "shadow_bak");
         act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void Copy_WhenTargetFileExists_ThrowsInvalidOperationException()
+    {
+        var source = "/downloads/source.mkv";
+        var destDir = "/storage/movies";
+        var targetFile = "/storage/movies/source.mkv";
+
+        this.diskProvider.FolderExists(destDir).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(false);
+        this.diskProvider.FileExists(source).Returns(true);
+        this.diskProvider.FileExists(targetFile).Returns(true);
+
+        var action = () => this.service.Copy(source, destDir);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage($"Destination '{targetFile}' already exists.");
+        this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void Copy_WhenTargetDirectoryExists_ThrowsInvalidOperationException()
+    {
+        var source = "/downloads/album";
+        var destDir = "/storage/music";
+        var targetDir = "/storage/music/album";
+
+        this.diskProvider.FolderExists(destDir).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(true);
+        this.diskProvider.FolderExists(targetDir).Returns(true);
+
+        var action = () => this.service.Copy(source, destDir);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage($"Destination '{targetDir}' already exists.");
+        this.diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
     }
 
     [Test]

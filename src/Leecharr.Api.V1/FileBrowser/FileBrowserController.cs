@@ -590,6 +590,7 @@ public class FileBrowserController : Controller
 
         var files = this.Request.Form.Files;
         var uploaded = new List<string>();
+        var failed = new List<string>();
         foreach (var file in files)
         {
             if (file.Length > 0)
@@ -606,13 +607,24 @@ public class FileBrowserController : Controller
                     continue;
                 }
 
-                using var stream = new FileStream(targetFile, FileMode.Create, FileAccess.Write, FileShare.None);
+                if (global::System.IO.File.Exists(targetFile))
+                {
+                    failed.Add($"{cleanFileName}: Destination '{targetFile}' already exists.");
+                    continue;
+                }
+
+                using var stream = new FileStream(targetFile, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 await file.CopyToAsync(stream);
                 uploaded.Add(targetFile);
             }
         }
 
-        return this.Ok(new { Success = true, Uploaded = uploaded });
+        return this.Ok(new
+        {
+            Success = failed.Count == 0 && uploaded.Count > 0,
+            Uploaded = uploaded,
+            Failed = failed,
+        });
     }
 
     private string GetRequestApiKey()

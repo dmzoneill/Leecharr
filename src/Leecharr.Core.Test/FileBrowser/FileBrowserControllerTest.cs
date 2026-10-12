@@ -144,6 +144,50 @@ public class FileBrowserControllerTest
     }
 
     [Test]
+    public async Task Upload_WhenTargetFileAlreadyExists_RecordsFailureWithoutOverwriting()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        var existingFile = Path.Combine(tempDir, "notes.txt");
+        await File.WriteAllTextAsync(existingFile, "keep me");
+
+        try
+        {
+            this.fileBrowserService.ResolvePath(tempDir).Returns(tempDir);
+            this.fileBrowserService.IsRootOrSystemDirectory(tempDir).Returns(false);
+            this.fileBrowserService.IsRootPath(tempDir).Returns(false);
+            this.fileBrowserService.IsRootOrSystemDirectory(existingFile).Returns(false);
+
+            var uploadBytes = Encoding.UTF8.GetBytes("new content");
+            var formFile = new FormFile(new MemoryStream(uploadBytes), 0, uploadBytes.Length, "files", "notes.txt")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "text/plain",
+            };
+
+            var httpContext = new DefaultHttpContext();
+            httpContext.Request.ContentType = "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW";
+            httpContext.Request.Form = new FormCollection(
+                new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>(),
+                new FormFileCollection { formFile });
+
+            this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+            var result = await this.controller.Upload(tempDir);
+
+            result.Should().BeOfType<OkObjectResult>();
+            (await File.ReadAllTextAsync(existingFile)).Should().Be("keep me");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public void Download_WhenPathIsDirectory_ReturnsBadRequest()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
