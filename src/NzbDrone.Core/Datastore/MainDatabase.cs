@@ -65,7 +65,7 @@ public class MainDatabase : IMainDatabase
             {
                 conn.Open();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "PRAGMA quick_check(1);";
+                cmd.CommandText = "PRAGMA integrity_check;";
                 var result = cmd.ExecuteScalar()?.ToString();
                 if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
                 {
