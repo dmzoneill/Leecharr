@@ -99,6 +99,18 @@ public class TagRepositoryTest
     }
 
     [Test]
+    public void GetOrCreate_WhenCaseVariantExists_ReturnsExistingTag()
+    {
+        var first = this.repository.Insert(new Tag { Label = "Movies" });
+
+        var second = this.repository.GetOrCreate(new Tag { Label = "movies", Color = "#ffffff" });
+
+        second.Should().NotBeNull();
+        second!.Id.Should().Be(first.Id);
+        second.Label.Should().Be("Movies");
+    }
+
+    [Test]
     public void InsertAndGet_PersistsColorAndSeedingPolicies()
     {
         var tag = new Tag
