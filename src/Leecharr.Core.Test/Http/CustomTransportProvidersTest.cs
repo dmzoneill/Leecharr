@@ -283,6 +283,53 @@ public class CustomTransportProvidersTest
         content.Should().Contain("Solved");
 
         requestedBodies.Should().Contain(b => b.Contains("request.get") && b.Contains("https://private-tracker.org/feed") && b.Contains("maxTimeout"));
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/rss+xml");
+    }
+
+    [Test]
+    public async Task ExecuteRequestAsync_FlareSolverr_PreservesSolutionHeadersAndBinaryBody()
+    {
+        var torrentBytes = Encoding.UTF8.GetBytes("d8:announce35:http://tracker.example/announceee");
+        var torrentBase64 = Convert.ToBase64String(torrentBytes);
+
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+
+            if (body.Contains("sessions.create"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"session\":\"sess_bin\"}"),
+                };
+            }
+
+            if (body.Contains("request.get"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        $"{{\"status\":\"ok\",\"solution\":{{\"status\":200,\"responseEncoding\":\"base64\",\"response\":\"{torrentBase64}\",\"headers\":{{\"content-type\":\"application/x-bittorrent\",\"x-test\":\"present\"}}}}}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var provider = new FlareSolverrTransportProvider(config, httpClient);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://private-tracker.org/download?id=1");
+
+        var response = await provider.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.Contains("x-test").Should().BeTrue();
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/x-bittorrent");
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        bytes.Should().Equal(torrentBytes);
     }
 
     [Test]
