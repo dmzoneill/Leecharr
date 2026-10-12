@@ -1,6 +1,10 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
+using System.Linq;
 using System.Net;
+using System.Net.Sockets;
+using NzbDrone.Core.Network.Binding;
 
 namespace NzbDrone.Core.BitTorrent.Tracker;
 
@@ -8,17 +12,55 @@ public static class TrackerBindAddressHelper
 {
     public static IPAddress ResolveBindAddress(string bindAddressStr)
     {
-        var bindAddress = IPAddress.Any;
-
-        if (!string.IsNullOrWhiteSpace(bindAddressStr) && bindAddressStr != "0.0.0.0" && bindAddressStr != "*")
+        if (string.IsNullOrWhiteSpace(bindAddressStr))
         {
-            if (IPAddress.TryParse(bindAddressStr, out var parsed))
-            {
-                bindAddress = parsed;
-            }
+            return IPAddress.Any;
         }
 
-        return bindAddress;
+        var trimmed = bindAddressStr.Trim();
+        if (IsWildcardBindAddress(trimmed))
+        {
+            return IPAddress.Any;
+        }
+
+        if (IPAddress.TryParse(trimmed, out var parsed))
+        {
+            return parsed;
+        }
+
+        var fromInterface = ManagedSocketBindingProvider.GetInterfaceIp(trimmed, AddressFamily.InterNetwork)
+            ?? ManagedSocketBindingProvider.GetInterfaceIp(trimmed, AddressFamily.InterNetworkV6);
+        if (fromInterface != null)
+        {
+            return fromInterface;
+        }
+
+        try
+        {
+            var hostAddresses = Dns.GetHostAddresses(trimmed);
+            var resolved = hostAddresses.FirstOrDefault(ManagedSocketBindingProvider.IsUsableBindUnicastAddress)
+                ?? hostAddresses.FirstOrDefault(IPAddress.IsLoopback);
+            if (resolved != null)
+            {
+                return resolved;
+            }
+        }
+        catch (SocketException)
+        {
+        }
+        catch (ArgumentException)
+        {
+        }
+
+        // Operator set a non-wildcard bind value we could not resolve; do not listen on every interface.
+        return IPAddress.Loopback;
+    }
+
+    private static bool IsWildcardBindAddress(string bindAddressStr)
+    {
+        return bindAddressStr == "0.0.0.0"
+               || bindAddressStr == "*"
+               || string.Equals(bindAddressStr, "::", StringComparison.Ordinal);
     }
 
     public static bool BindsAllInterfaces(IPAddress bindAddress)

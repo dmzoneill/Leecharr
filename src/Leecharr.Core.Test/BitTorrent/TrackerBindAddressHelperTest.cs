@@ -26,6 +26,25 @@ public class TrackerBindAddressHelperTest
     }
 
     [Test]
+    public void ResolveBindAddress_TrimsWhitespaceBeforeParsing()
+    {
+        TrackerBindAddressHelper.ResolveBindAddress("127.0.0.1 ").Should().Be(IPAddress.Loopback);
+    }
+
+    [Test]
+    public void ResolveBindAddress_FailsClosed_WhenValueDoesNotParse()
+    {
+        TrackerBindAddressHelper.ResolveBindAddress("not-a-valid-bind").Should().Be(IPAddress.Loopback);
+        TrackerBindAddressHelper.ResolveBindAddress("leecharr-missing-if-1232").Should().Be(IPAddress.Loopback);
+    }
+
+    [Test]
+    public void ResolveBindAddress_ResolvesLocalhostHostname()
+    {
+        TrackerBindAddressHelper.ResolveBindAddress("localhost").Should().Be(IPAddress.Loopback);
+    }
+
+    [Test]
     public void IsHttpRequestAllowed_AllowsAnyInterface_WhenBindIsWildcard()
     {
         TrackerBindAddressHelper.IsHttpRequestAllowed("0.0.0.0", IPAddress.Parse("192.168.1.5")).Should().BeTrue();
