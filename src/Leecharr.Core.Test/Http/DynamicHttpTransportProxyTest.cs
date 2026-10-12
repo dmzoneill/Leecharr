@@ -181,6 +181,31 @@ public class DynamicHttpTransportProxyTest
     }
 
     [Test]
+    public void Handle_ConfigSavedEvent_RefreshesOutboundProxyOnTransportProviders()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ActiveHttpTransportProvider.Returns("SocketsHttpHandler");
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("proxy-a.local");
+        config.ProxyPort.Returns(8080);
+        config.ProxyAuthEnabled.Returns(false);
+
+        using var sockets = new SocketsHttpHandlerProvider(config);
+        using var curl = new CurlImpersonateTransportProvider(config);
+        using var flare = new FlareSolverrTransportProvider(config);
+        var providers = new List<IHttpTransportProvider> { sockets, curl, flare };
+
+        using var proxy = new DynamicHttpTransportProxy(providers, config, this.eventAggregator);
+
+        config.ProxyHost.Returns("proxy-b.local");
+        proxy.Handle(new ConfigSavedEvent());
+
+        ((WebProxy)sockets.Handler.Proxy!).Address!.Host.Should().Be("proxy-b.local");
+        curl.Proxy!.Address!.Host.Should().Be("proxy-b.local");
+        ((WebProxy)flare.FallbackHandler!.Proxy!).Address!.Host.Should().Be("proxy-b.local");
+    }
+
+    [Test]
     public async Task SwitchProviderAsync_SwitchesActiveProviderAndPersistsConfig()
     {
         var result = await this.proxy.SwitchProviderAsync("CurlImpersonate");

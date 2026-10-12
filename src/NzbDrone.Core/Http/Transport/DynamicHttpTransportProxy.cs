@@ -346,6 +346,21 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
 
     public void Handle(ConfigSavedEvent message)
     {
+        foreach (var provider in this.availableProviders)
+        {
+            if (provider is IHttpOutboundProxyRefreshable refreshable)
+            {
+                try
+                {
+                    refreshable.RefreshOutboundProxy();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to refresh outbound HTTP proxy on provider {0}", provider.ProviderId);
+                }
+            }
+        }
+
         var desiredProviderId = this.configService?.ActiveHttpTransportProvider;
         if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
             !string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))

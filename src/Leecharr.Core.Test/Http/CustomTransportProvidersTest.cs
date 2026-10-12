@@ -139,6 +139,66 @@ public class CustomTransportProvidersTest
     }
 
     [Test]
+    public void RefreshOutboundProxy_WhenProxyHostChanges_UpdatesSocketsHandlerProxy()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("proxy-a.local");
+        config.ProxyPort.Returns(8080);
+        config.ProxyAuthEnabled.Returns(false);
+
+        using var provider = new SocketsHttpHandlerProvider(config);
+        var initialProxy = provider.Handler.Proxy as WebProxy;
+        initialProxy.Should().NotBeNull();
+        initialProxy!.Address!.Host.Should().Be("proxy-a.local");
+
+        config.ProxyHost.Returns("proxy-b.local");
+        provider.RefreshOutboundProxy();
+
+        var updatedProxy = provider.Handler.Proxy as WebProxy;
+        updatedProxy!.Address!.Host.Should().Be("proxy-b.local");
+    }
+
+    [Test]
+    public void RefreshOutboundProxy_WhenProxyDisabled_ClearsSocketsHandlerProxy()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("proxy.local");
+        config.ProxyPort.Returns(8080);
+        config.ProxyAuthEnabled.Returns(false);
+
+        using var provider = new SocketsHttpHandlerProvider(config);
+        provider.Handler.UseProxy.Should().BeTrue();
+
+        config.ProxyType.Returns("none");
+        provider.RefreshOutboundProxy();
+
+        provider.Handler.UseProxy.Should().BeFalse();
+        provider.Handler.Proxy.Should().BeNull();
+    }
+
+    [Test]
+    public void RefreshOutboundProxy_FlareSolverr_UpdatesFallbackHandlerOnly()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("proxy-a.local");
+        config.ProxyPort.Returns(8080);
+        config.ProxyAuthEnabled.Returns(false);
+
+        using var provider = new FlareSolverrTransportProvider(config);
+        provider.SolverHandler!.UseProxy.Should().BeFalse();
+        (provider.FallbackHandler!.Proxy as WebProxy)!.Address!.Host.Should().Be("proxy-a.local");
+
+        config.ProxyHost.Returns("proxy-b.local");
+        provider.RefreshOutboundProxy();
+
+        provider.SolverHandler!.UseProxy.Should().BeFalse();
+        (provider.FallbackHandler!.Proxy as WebProxy)!.Address!.Host.Should().Be("proxy-b.local");
+    }
+
+    [Test]
     public void CurlImpersonate_ProxyConfiguration_MapsSchemesAndCredentialsCorrectly()
     {
         var config = Substitute.For<IConfigService>();
