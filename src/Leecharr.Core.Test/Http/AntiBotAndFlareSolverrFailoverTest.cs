@@ -30,7 +30,6 @@ public class AntiBotAndFlareSolverrFailoverTest
             "<script src=\"https://challenges.cloudflare.com/turnstile/v0/api.js\"></script><div class=\"cf-turnstile\"></div>",
             "<form id=\"challenge-form\" class=\"challenge-form\"><input name=\"_cf_chl_opt\" value=\"xyz\" /></form>",
             "<html><body><div id=\"cf-browser-verification\">Verifying...</div></body></html>",
-            "<html><body><div>Protected by cloudflare-nginx</div></body></html>",
         };
 
         foreach (var body in cfBodies)
@@ -39,6 +38,10 @@ public class AntiBotAndFlareSolverrFailoverTest
             AntiBotChallengeDetector.IsChallenge(HttpStatusCode.Forbidden, body).Should().BeTrue();
             AntiBotChallengeDetector.IsChallenge(HttpStatusCode.ServiceUnavailable, body).Should().BeTrue();
         }
+
+        var broadOnlyBody = "<html><body><div>Protected by cloudflare-nginx</div></body></html>";
+        AntiBotChallengeDetector.IsChallenge(broadOnlyBody).Should().BeFalse("broad tokens alone are not definite challenge pages");
+        AntiBotChallengeDetector.IsChallenge(HttpStatusCode.Forbidden, broadOnlyBody).Should().BeTrue();
     }
 
     [Test]
@@ -59,6 +62,28 @@ public class AntiBotAndFlareSolverrFailoverTest
 
         var isNormalChallenge = await AntiBotChallengeDetector.IsChallengeAsync(normalResponse);
         isNormalChallenge.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AntiBotChallengeDetector_OkResponseWithBroadTokens_IsNotChallenge()
+    {
+        var bodies = new[]
+        {
+            "<?xml version=\"1.0\"?><rss><channel><title>Indexer</title><description>cf_clearance cookie docs</description></rss>",
+            "<?xml version=\"1.0\"?><rss><channel><item><title>turnstile migration notes</title></item></channel></rss>",
+            "<html><body>Ray ID: abc123 — normal status page</body></html>",
+        };
+
+        foreach (var body in bodies)
+        {
+            using var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body),
+            };
+
+            var isChallenge = await AntiBotChallengeDetector.IsChallengeAsync(response);
+            isChallenge.Should().BeFalse($"OK body should not be treated as challenge: {body}");
+        }
     }
 
     [Test]
