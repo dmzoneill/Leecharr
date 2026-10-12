@@ -344,4 +344,56 @@ public class GeneralConfigControllerTest
         MessageHub.ResetForTesting();
         RpcSessionStore.InvalidateAllSessions();
     }
+
+    [Test]
+    public async Task SaveConfig_WhenMaskedApiKeySubmitted_ReturnsMaskedApiKeyInResponse()
+    {
+        const string storedKey = "1234567890abcdef";
+        this.configFileProvider.ApiKey.Returns(storedKey);
+        this.configFileProvider.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(call =>
+            {
+                if (call.Arg<Dictionary<string, object>>().TryGetValue("ApiKey", out var apiKey))
+                {
+                    this.configFileProvider.ApiKey.Returns((string)apiKey!);
+                }
+            });
+
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            ApiKey = "************cdef",
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        var accepted = actionResult.Result as AcceptedResult;
+        accepted.Should().NotBeNull();
+        var response = accepted!.Value as GeneralConfigResource;
+        response.Should().NotBeNull();
+        response!.ApiKey.Should().Be("************cdef");
+        response.ApiKey.Should().NotBe(storedKey);
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenMaskedSslCertPasswordSubmitted_ReturnsMaskedPasswordInResponse()
+    {
+        const string storedPassword = "super-secret-cert-password";
+        this.configFileProvider.SslCertPassword.Returns(storedPassword);
+
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            SslCertPassword = "********",
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        var accepted = actionResult.Result as AcceptedResult;
+        accepted.Should().NotBeNull();
+        var response = accepted!.Value as GeneralConfigResource;
+        response.Should().NotBeNull();
+        response!.SslCertPassword.Should().Be("********");
+        response.SslCertPassword.Should().NotBe(storedPassword);
+    }
 }

@@ -69,7 +69,10 @@ public abstract class ConfigController<TResource> : Controller
                 this.configService.SaveConfigDictionary(dictionary);
             }
 
-            return await Task.FromResult(this.Accepted(resource));
+            var response = this.ToResource(this.configService);
+            response.Id = resource.Id > 0 ? resource.Id : 1;
+
+            return await Task.FromResult(this.Accepted(response));
         }
         catch (Exception ex)
         {
