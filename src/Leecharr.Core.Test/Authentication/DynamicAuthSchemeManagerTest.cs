@@ -67,6 +67,7 @@ public class DynamicAuthSchemeManagerTest
         await this.manager.RegisterOrUpdateOidcProviderAsync(provider);
 
         capturedOptions.Should().NotBeNull();
+        capturedOptions.SaveTokens.Should().BeFalse("IdP tokens must not be written into the auth cookie");
         capturedOptions.Events.Should().NotBeNull();
         capturedOptions.Events.OnTokenValidated.Should().NotBeNull();
 
