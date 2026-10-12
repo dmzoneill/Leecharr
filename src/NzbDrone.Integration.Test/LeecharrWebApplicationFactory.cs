@@ -149,6 +149,36 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         }
 
         this.WaitForHealthy();
+        this.AlignEmbeddedTrackerHttpPortWithTestHost();
+    }
+
+    private void AlignEmbeddedTrackerHttpPortWithTestHost()
+    {
+        try
+        {
+            var listenPort = new Uri(this.BaseUrl).Port;
+            if (listenPort <= 0)
+            {
+                return;
+            }
+
+            var configService = this.app.Services.GetService<IConfigService>();
+            if (configService == null)
+            {
+                return;
+            }
+
+            configService.SaveConfigDictionary(new Dictionary<string, object>
+            {
+                { "TrackerServerEnabled", true },
+                { "TrackerHttpEnabled", true },
+                { "TrackerHttpPort", listenPort },
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AlignEmbeddedTrackerHttpPort] Warning: {ex.Message}");
+        }
     }
 
     private void ConfigureEmbeddedTrackerHttpPort()

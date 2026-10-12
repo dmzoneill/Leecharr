@@ -206,6 +206,60 @@ public class ArrWebhookRegistrationTest
     }
 
     [Test]
+    public void RegisterWebhook_WhenSeedarrWebhookUsesArrPath_CreatesLeecharrViaPostWithoutUpdatingSeedarr()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            if (req.Method == HttpMethod.Get)
+            {
+                var existingJson = @"[
+                    {
+                        ""id"": 1,
+                        ""name"": ""Seedarr"",
+                        ""implementation"": ""Webhook"",
+                        ""fields"": [
+                            { ""name"": ""url"", ""value"": ""http://seedarr.local:9898/api/v1/webhook/arr"" }
+                        ]
+                    }
+                ]";
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(existingJson),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 42}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.MethodNotAllowed);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-api-key",
+            Enable = true,
+            WebhookEnabled = true,
+            WebhookHost = "leecharr.local",
+        };
+
+        registration.RegisterWebhook(conn).Should().BeTrue();
+        requests.Should().Contain(r => r.Method == HttpMethod.Post);
+        requests.Should().NotContain(r => r.Method == HttpMethod.Put);
+    }
+
+    [Test]
     public void UnregisterWebhook_WhenExistingFound_SendsDelete()
     {
         var requests = new List<HttpRequestMessage>();
