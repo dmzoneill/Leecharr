@@ -167,9 +167,11 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             normalizedDest = targetDir;
         }
 
-        var destinationSnapshot = this.CaptureDestinationSnapshot(normalizedDest);
+        var destinationSnapshot = NativeExtractorDestinationRollback.Capture(this.diskProvider, normalizedDest, this.logger);
         var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
+        try
+        {
         foreach (var candidatePassword in passwordsToTry)
         {
             Process process = null;
@@ -210,7 +212,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                         this.logger.Trace(ex, "Failed to kill 7-Zip process on cancellation");
                     }
 
-                    this.RollbackExtractedFiles(normalizedDest, destinationSnapshot);
+                    NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
                     this.logger.Warn("7-Zip extraction of '{0}' was canceled.", archivePath);
                     throw;
                 }
@@ -221,7 +223,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                     return true;
                 }
 
-                this.RollbackExtractedFiles(normalizedDest, destinationSnapshot);
+                NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
 
                 var stderr = await stderrTask;
                 if (passwordsToTry.Count > 1)
@@ -235,12 +237,12 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             }
             catch (OperationCanceledException)
             {
-                this.RollbackExtractedFiles(normalizedDest, destinationSnapshot);
+                NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
                 throw;
             }
             catch (Exception ex)
             {
-                this.RollbackExtractedFiles(normalizedDest, destinationSnapshot);
+                NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
                 this.logger.Error(ex, "7-Zip failed to extract archive: {0}", archivePath);
                 return false;
             }
@@ -266,177 +268,10 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
         }
 
         return false;
-    }
-
-    private sealed class DestinationSnapshot
-    {
-        public HashSet<string> Files { get; init; } = new(StringComparer.OrdinalIgnoreCase);
-
-        public HashSet<string> Directories { get; init; } = new(StringComparer.OrdinalIgnoreCase);
-
-        public bool IsReliable { get; init; } = true;
-    }
-
-    private DestinationSnapshot CaptureDestinationSnapshot(string path)
-    {
-        if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
-        {
-            return new DestinationSnapshot();
         }
-
-        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var filesReliable = this.SnapshotFiles(path, files);
-        var directoriesReliable = this.SnapshotDirectories(path, directories);
-        var snapshot = new DestinationSnapshot
+        finally
         {
-            Files = files,
-            Directories = directories,
-            IsReliable = filesReliable && directoriesReliable,
-        };
-
-        if (!snapshot.IsReliable)
-        {
-            this.logger.Warn("Pre-extraction snapshot of '{0}' was incomplete; rollback will be skipped if extraction fails.", path);
-        }
-
-        return snapshot;
-    }
-
-    private bool SnapshotFiles(string current, HashSet<string> files)
-    {
-        var reliable = true;
-
-        try
-        {
-            foreach (var file in this.diskProvider.GetFiles(current, recursive: false))
-            {
-                files.Add(file);
-            }
-        }
-        catch (Exception ex)
-        {
-            this.logger.Trace(ex, "Failed to list files in '{Directory}' during snapshot", current);
-            reliable = false;
-        }
-
-        try
-        {
-            foreach (var dir in this.diskProvider.GetDirectories(current))
-            {
-                if (!this.SnapshotFiles(dir, files))
-                {
-                    reliable = false;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            this.logger.Trace(ex, "Failed to list subdirectories of '{Directory}' during file snapshot", current);
-            reliable = false;
-        }
-
-        return reliable;
-    }
-
-    private bool SnapshotDirectories(string current, HashSet<string> directories)
-    {
-        var reliable = true;
-
-        try
-        {
-            foreach (var dir in this.diskProvider.GetDirectories(current))
-            {
-                if (directories.Add(dir) && !this.SnapshotDirectories(dir, directories))
-                {
-                    reliable = false;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            this.logger.Trace(ex, "Failed to recurse into directory '{Directory}' during snapshot", current);
-            reliable = false;
-        }
-
-        return reliable;
-    }
-
-    private HashSet<string> GetAllDirectories(string path)
-    {
-        var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
-        {
-            return dirs;
-        }
-
-        this.SnapshotDirectories(path, dirs);
-        return dirs;
-    }
-
-    private void RollbackExtractedFiles(string targetDir, DestinationSnapshot destinationSnapshot)
-    {
-        if (this.diskProvider == null || destinationSnapshot == null)
-        {
-            return;
-        }
-
-        if (!destinationSnapshot.IsReliable)
-        {
-            this.logger.Warn("Skipping rollback of extracted files in '{0}' because the pre-extraction snapshot was incomplete.", targetDir);
-            return;
-        }
-
-        try
-        {
-            if (!this.diskProvider.FolderExists(targetDir))
-            {
-                return;
-            }
-
-            var currentFiles = this.diskProvider.GetFiles(targetDir, recursive: true);
-            foreach (var file in currentFiles)
-            {
-                if (!destinationSnapshot.Files.Contains(file))
-                {
-                    try
-                    {
-                        if (this.diskProvider.FileExists(file))
-                        {
-                            this.diskProvider.DeleteFile(file);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Warn(ex, "Failed to clean up partial extracted file '{0}'", file);
-                    }
-                }
-            }
-
-            var currentDirectories = this.GetAllDirectories(targetDir)
-                .OrderByDescending(d => d.Length);
-
-            foreach (var dir in currentDirectories)
-            {
-                if (!destinationSnapshot.Directories.Contains(dir))
-                {
-                    try
-                    {
-                        if (this.diskProvider.FolderExists(dir) && this.diskProvider.FolderEmpty(dir))
-                        {
-                            this.diskProvider.DeleteFolder(dir, recursive: true);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Warn(ex, "Failed to clean up newly created directory '{0}'", dir);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            this.logger.Warn(ex, "Failed to rollback extracted files in: {0}", targetDir);
+            NativeExtractorDestinationRollback.ReleaseBackups(this.diskProvider, destinationSnapshot, this.logger);
         }
     }
 
