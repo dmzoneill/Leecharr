@@ -9,6 +9,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Automation;
 using NzbDrone.Core.BitTorrent;
@@ -44,6 +45,8 @@ public class AutomationServiceTest
     private INotificationRepository _notificationRepository;
     private IWebhookDispatcher _webhookDispatcher;
     private ITrackerEntryRepository _trackerEntryRepository;
+    private ITorrentFileService _torrentFileService;
+    private IAppFolderInfo _appFolderInfo;
 
     [SetUp]
     public void SetUp()
@@ -63,6 +66,8 @@ public class AutomationServiceTest
         _notificationRepository = Substitute.For<INotificationRepository>();
         _webhookDispatcher = Substitute.For<IWebhookDispatcher>();
         _trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
+        _torrentFileService = Substitute.For<ITorrentFileService>();
+        _appFolderInfo = Substitute.For<IAppFolderInfo>();
 
         _tagRepository.All().Returns(new List<Tag>());
         _torrentService.UpdateAsync(Arg.Any<Torrent>()).Returns(ci => ci.Arg<Torrent>());
@@ -2298,6 +2303,131 @@ public class AutomationServiceTest
                 urls.Count() == 2 &&
                 urls.Contains("http://tracker.backup.com/announce") &&
                 urls.Contains("http://tracker.extra.com/announce")));
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldRemoveTrackers_FromRepositoryAndEngine()
+    {
+        var torrent = new Torrent
+        {
+            Id = 107,
+            Name = "RemoveTrackerTorrent",
+            TrackerUrl = "http://tracker.dead.com/announce",
+        };
+        var trackerEntry = new TrackerEntry
+        {
+            Id = 77,
+            TorrentId = 107,
+            Url = "http://tracker.dead.com/announce",
+        };
+        _trackerEntryRepository.GetByTorrentId(107).Returns(new List<TrackerEntry> { trackerEntry });
+
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            TrackersToRemove = new List<string> { "http://tracker.dead.com/announce" },
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            downloadEngine: _downloadEngine,
+            torrentService: _torrentService,
+            trackerEntryRepository: _trackerEntryRepository);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        torrent.TrackerUrl.Should().BeNull();
+        _trackerEntryRepository.Received(1).Delete(77);
+        await _downloadEngine.Received(1).RemoveTrackersAsync(
+            107,
+            Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://tracker.dead.com/announce")));
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldSetFilePriorities_ForMatchingPatterns()
+    {
+        var torrent = new Torrent { Id = 108, Name = "PriorityTorrent" };
+        _torrentFileService.GetFiles(108).Returns(new List<TorrentFile>
+        {
+            new TorrentFile { Id = 1, TorrentId = 108, Path = "Movie/sample.mkv" },
+            new TorrentFile { Id = 2, TorrentId = 108, Path = "Movie/main.mkv" },
+        });
+
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            FilePriorities = new List<Tuple<string, string>>
+            {
+                new Tuple<string, string>("*.sample.mkv", "donotdownload"),
+            },
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentFileService: _torrentFileService);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        await _torrentFileService.Received(1).SetPriorityAsync(1, 0);
+        await _torrentFileService.DidNotReceive().SetPriorityAsync(2, Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldExportTorrent_ToDestinationPath()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr-automation-export-" + Guid.NewGuid().ToString("N"));
+        var torrentsDir = Path.Combine(tempRoot, "Torrents");
+        Directory.CreateDirectory(torrentsDir);
+        var infoHash = "abcd1234ef567890abcd1234ef567890abcd1234";
+        var sourcePath = Path.Combine(torrentsDir, $"{infoHash}.torrent");
+        await File.WriteAllBytesAsync(sourcePath, new byte[] { 0x64, 0x38, 0x3A });
+        var destinationPath = Path.Combine(tempRoot, "backup", "Movie.torrent");
+
+        _appFolderInfo.AppDataFolder.Returns(tempRoot);
+        _diskProvider.FileExists(sourcePath).Returns(true);
+        _diskProvider.When(x => x.CreateFolder(Arg.Any<string>())).Do(_ => { });
+        _diskProvider.When(x => x.CopyFile(sourcePath, destinationPath, true)).Do(_ => File.Copy(sourcePath, destinationPath, overwrite: true));
+
+        var torrent = new Torrent
+        {
+            Id = 109,
+            Name = "Movie",
+            InfoHash = infoHash,
+        };
+
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            TorrentExportDestination = destinationPath,
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            diskProvider: _diskProvider,
+            appFolderInfo: _appFolderInfo);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        File.Exists(destinationPath).Should().BeTrue();
+        _diskProvider.Received(1).CopyFile(sourcePath, destinationPath, true);
+
+        try
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+        catch
+        {
+            // Best-effort cleanup for temp export test files.
+        }
     }
 
     [Test]

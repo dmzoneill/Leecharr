@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
@@ -48,6 +49,8 @@ public class AutomationService : IAutomationService
     private readonly IArchiveExtractorService? _archiveExtractorService;
     private readonly ITorrentService? _torrentService;
     private readonly ITrackerEntryRepository? _trackerEntryRepository;
+    private readonly ITorrentFileService? _torrentFileService;
+    private readonly IAppFolderInfo? _appFolderInfo;
     private readonly Logger _logger;
     private readonly JintScriptRunner _jintRunner;
     private readonly YamlScriptRunner _yamlRunner;
@@ -69,7 +72,9 @@ public class AutomationService : IAutomationService
         IDiskProvider? diskProvider = null,
         IArchiveExtractorService? archiveExtractorService = null,
         ITorrentService? torrentService = null,
-        ITrackerEntryRepository? trackerEntryRepository = null)
+        ITrackerEntryRepository? trackerEntryRepository = null,
+        ITorrentFileService? torrentFileService = null,
+        IAppFolderInfo? appFolderInfo = null)
     {
         _scriptRepository = scriptRepository;
         _torrentRepository = torrentRepository;
@@ -87,6 +92,8 @@ public class AutomationService : IAutomationService
         _archiveExtractorService = archiveExtractorService;
         _torrentService = torrentService;
         _trackerEntryRepository = trackerEntryRepository;
+        _torrentFileService = torrentFileService;
+        _appFolderInfo = appFolderInfo;
         _logger = LogManager.GetCurrentClassLogger();
         _jintRunner = new JintScriptRunner(commandQueue, configFileProvider);
         _yamlRunner = new YamlScriptRunner(commandQueue);
@@ -621,6 +628,68 @@ public class AutomationService : IAutomationService
             }
         }
 
+        // Tracker removal
+        if (result.TrackersToRemove.Count > 0)
+        {
+            var removalPatterns = result.TrackersToRemove
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (removalPatterns.Count > 0)
+            {
+                var urlsToRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+                {
+                    foreach (var pattern in removalPatterns)
+                    {
+                        if (TrackerUrlMatches(pattern, torrent.TrackerUrl))
+                        {
+                            urlsToRemove.Add(torrent.TrackerUrl.Trim());
+                            torrent.TrackerUrl = null;
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (_trackerEntryRepository != null)
+                {
+                    foreach (var entry in _trackerEntryRepository.GetByTorrentId(torrent.Id).ToList())
+                    {
+                        if (string.IsNullOrWhiteSpace(entry.Url))
+                        {
+                            continue;
+                        }
+
+                        foreach (var pattern in removalPatterns)
+                        {
+                            if (TrackerUrlMatches(pattern, entry.Url))
+                            {
+                                urlsToRemove.Add(entry.Url.Trim());
+                                _trackerEntryRepository.Delete(entry.Id);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (_downloadEngine != null && urlsToRemove.Count > 0)
+                {
+                    try
+                    {
+                        await _downloadEngine.RemoveTrackersAsync(torrent.Id, urlsToRemove).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to remove trackers from torrent {0}", torrent.Id);
+                    }
+                }
+            }
+        }
+
         // Status mutations (pause, resume, remove)
         if (result.ShouldRemove)
         {
@@ -753,6 +822,16 @@ public class AutomationService : IAutomationService
             {
                 await _downloadEngine.ForceAnnounceAsync(torrent.Id).ConfigureAwait(false);
             }
+        }
+
+        if (result.FilePriorities.Count > 0)
+        {
+            await ApplyFilePriorityRulesAsync(torrent, result.FilePriorities).ConfigureAwait(false);
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.TorrentExportDestination))
+        {
+            await ExportTorrentFileAsync(torrent, result.TorrentExportDestination.Trim()).ConfigureAwait(false);
         }
     }
 
@@ -1041,6 +1120,190 @@ public class AutomationService : IAutomationService
 
         return string.Equals(fileName, trimmed, StringComparison.OrdinalIgnoreCase) ||
             fileName.EndsWith("." + trimmed.TrimStart('.'), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TrackerUrlMatches(string pattern, string trackerUrl)
+    {
+        if (string.IsNullOrWhiteSpace(pattern) || string.IsNullOrWhiteSpace(trackerUrl))
+        {
+            return false;
+        }
+
+        var trimmedPattern = pattern.Trim();
+        var trimmedUrl = trackerUrl.Trim();
+        if (string.Equals(trimmedUrl, trimmedPattern, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (trimmedPattern.Contains('*', StringComparison.Ordinal) || trimmedPattern.Contains('?', StringComparison.Ordinal))
+        {
+            return MatchesPattern(trimmedUrl, trimmedPattern);
+        }
+
+        return trimmedUrl.Contains(trimmedPattern, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ParseAutomationFilePriority(string? priority)
+    {
+        if (string.IsNullOrWhiteSpace(priority))
+        {
+            return 3;
+        }
+
+        if (int.TryParse(priority, out var parsed))
+        {
+            return Math.Clamp(parsed, 0, 7);
+        }
+
+        if (string.Equals(priority, "donotdownload", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(priority, "off", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (string.Equals(priority, "high", StringComparison.OrdinalIgnoreCase))
+        {
+            return 4;
+        }
+
+        if (string.Equals(priority, "low", StringComparison.OrdinalIgnoreCase))
+        {
+            return 2;
+        }
+
+        return 3;
+    }
+
+    private async Task ApplyFilePriorityRulesAsync(Torrent torrent, List<Tuple<string, string>> rules)
+    {
+        if (_torrentFileService == null || rules == null || rules.Count == 0)
+        {
+            return;
+        }
+
+        var files = _torrentFileService.GetFiles(torrent.Id).ToList();
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var rule in rules)
+        {
+            if (string.IsNullOrWhiteSpace(rule.Item1))
+            {
+                continue;
+            }
+
+            var pattern = rule.Item1.Trim();
+            var priority = ParseAutomationFilePriority(rule.Item2);
+            foreach (var file in files)
+            {
+                if (string.IsNullOrWhiteSpace(file.Path))
+                {
+                    continue;
+                }
+
+                var fileName = Path.GetFileName(file.Path);
+                var normalizedPath = file.Path.Replace('\\', '/');
+                if (!MatchesPattern(fileName, pattern) && !MatchesPattern(normalizedPath, pattern))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await _torrentFileService.SetPriorityAsync(file.Id, priority).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to set file priority for {0} on torrent {1}", file.Path, torrent.Id);
+                }
+            }
+        }
+    }
+
+    private async Task ExportTorrentFileAsync(Torrent torrent, string destinationPath)
+    {
+        if (string.IsNullOrWhiteSpace(torrent.InfoHash))
+        {
+            _logger.Warn("Cannot export torrent {0}: missing info hash", torrent.Id);
+            return;
+        }
+
+        var sourcePath = ResolveCachedTorrentPath(torrent.InfoHash);
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            _logger.Warn("Cannot export torrent {0}: cached .torrent file not found", torrent.Id);
+            return;
+        }
+
+        try
+        {
+            var destinationDirectory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                if (_diskProvider != null)
+                {
+                    _diskProvider.CreateFolder(destinationDirectory);
+                }
+                else
+                {
+                    Directory.CreateDirectory(destinationDirectory);
+                }
+            }
+
+            if (_diskProvider != null)
+            {
+                _diskProvider.CopyFile(sourcePath, destinationPath, overwrite: true);
+            }
+            else
+            {
+                File.Copy(sourcePath, destinationPath, overwrite: true);
+            }
+
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to export torrent {0} to {1}", torrent.Id, destinationPath);
+        }
+    }
+
+    private string? ResolveCachedTorrentPath(string infoHash)
+    {
+        var hash = infoHash.Trim().ToLowerInvariant();
+        var pathsToTry = new List<string>();
+
+        if (_appFolderInfo != null && !string.IsNullOrWhiteSpace(_appFolderInfo.AppDataFolder))
+        {
+            pathsToTry.Add(Path.Combine(_appFolderInfo.AppDataFolder, "Torrents", $"{hash}.torrent"));
+            pathsToTry.Add(Path.Combine(_appFolderInfo.AppDataFolder, "Leecharr", "Torrents", $"{hash}.torrent"));
+        }
+
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(appData))
+        {
+            pathsToTry.Add(Path.Combine(appData, "Torrents", $"{hash}.torrent"));
+            pathsToTry.Add(Path.Combine(appData, "Leecharr", "Torrents", $"{hash}.torrent"));
+        }
+
+        foreach (var path in pathsToTry)
+        {
+            if (_diskProvider != null)
+            {
+                if (_diskProvider.FileExists(path))
+                {
+                    return path;
+                }
+            }
+            else if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
     }
 
     internal async Task<bool> ExtractArchiveWithServiceAsync(Torrent torrent, string? destination, bool deleteArchive)
