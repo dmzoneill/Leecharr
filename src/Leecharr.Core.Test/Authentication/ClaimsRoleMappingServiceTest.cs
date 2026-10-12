@@ -98,4 +98,19 @@ public class ClaimsRoleMappingServiceTest
 
         Assert.That(roles, Does.Contain("User"));
     }
+
+    [Test]
+    public void ResolveRoles_WhenRulesConfiguredAndNoMatch_ShouldNotGrantAdminForAdminGroupName()
+    {
+        var provider = new IdentityProviderDefinition
+        {
+            Name = "OIDC",
+            RoleMappingRules = "{\"Admin\":\"^Leecharr-Admins$\"}",
+        };
+
+        var roles = this.service.ResolveRoles(provider, new List<string> { "admin", "other-group" }, false);
+
+        Assert.That(roles, Does.Contain("User"));
+        Assert.That(roles, Does.Not.Contain("Admin"));
+    }
 }
