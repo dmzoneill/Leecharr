@@ -259,6 +259,11 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (!TryGetFlareSolverrCommand(request.Method, out _))
+        {
+            return await this.fallbackHttpClient.SendAsync(request, cancellationToken);
+        }
+
         var endpoint = !string.IsNullOrWhiteSpace(this.configService?.GetValue("FlareSolverrUrl", string.Empty))
             ? this.configService.GetValue("FlareSolverrUrl", this.FlareSolverrUrl)
             : this.FlareSolverrUrl;
@@ -273,9 +278,13 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
         catch (Exception ex)
         {
             this.logger.Warn(ex, "FlareSolverr execution failed, falling back to direct HTTP request");
-        }
+            if (CanSafelyFallbackToDirectHttp(request.Method))
+            {
+                return await this.fallbackHttpClient.SendAsync(request, cancellationToken);
+            }
 
-        return await this.fallbackHttpClient.SendAsync(request, cancellationToken);
+            throw;
+        }
     }
 
     private async Task<HttpResponseMessage> ExecuteFlareSolverrRequestAsync(
@@ -286,7 +295,11 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
         bool isRetry,
         CancellationToken cancellationToken)
     {
-        var method = request.Method == HttpMethod.Post ? "request.post" : "request.get";
+        if (!TryGetFlareSolverrCommand(request.Method, out var method))
+        {
+            return await this.fallbackHttpClient.SendAsync(request, cancellationToken);
+        }
+
         var payloadDict = new Dictionary<string, object>
         {
             ["cmd"] = method,
@@ -330,7 +343,41 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
             }
         }
 
-        return await this.fallbackHttpClient.SendAsync(request, cancellationToken);
+        if (CanSafelyFallbackToDirectHttp(request.Method))
+        {
+            return await this.fallbackHttpClient.SendAsync(request, cancellationToken);
+        }
+
+        return CreateFlareSolverrFailureResponse(request);
+    }
+
+    private static bool TryGetFlareSolverrCommand(HttpMethod method, out string command)
+    {
+        if (method == HttpMethod.Get)
+        {
+            command = "request.get";
+            return true;
+        }
+
+        if (method == HttpMethod.Post)
+        {
+            command = "request.post";
+            return true;
+        }
+
+        command = null;
+        return false;
+    }
+
+    private static bool CanSafelyFallbackToDirectHttp(HttpMethod method) => method == HttpMethod.Get;
+
+    private static HttpResponseMessage CreateFlareSolverrFailureResponse(HttpRequestMessage request)
+    {
+        return new HttpResponseMessage(HttpStatusCode.BadGateway)
+        {
+            RequestMessage = request,
+            Content = new StringContent("FlareSolverr request failed"),
+        };
     }
 
     private static HttpResponseMessage BuildHttpResponseFromSolution(JsonElement solution, HttpRequestMessage request)
