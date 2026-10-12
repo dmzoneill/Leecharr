@@ -69,6 +69,30 @@ public class UpdateCheckService : IUpdateCheckService
         return $"Leecharr.{version}.{GetPackagePlatformIdentifier()}{GetPackageExtension()}";
     }
 
+    public static string SelectPackageAssetFileName(IEnumerable<string> assetNames, string platformIdentifier, string packageExtension, string fallbackFileName)
+    {
+        if (assetNames == null)
+        {
+            return fallbackFileName;
+        }
+
+        var expectedSuffix = platformIdentifier + packageExtension;
+        foreach (var name in assetNames)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            if (name.EndsWith(expectedSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return name;
+            }
+        }
+
+        return fallbackFileName;
+    }
+
     public async Task<List<UpdatePackage>> GetAvailableUpdatesAsync(CancellationToken cancellationToken = default)
     {
         await this.cacheLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -168,40 +192,20 @@ public class UpdateCheckService : IUpdateCheckService
 
                 if (elem.TryGetProperty("assets", out var assetsProp) && assetsProp.ValueKind == JsonValueKind.Array)
                 {
-                    string matchedPlatformAsset = null;
-                    string matchedExtensionAsset = null;
-
+                    var assetNames = new List<string>();
                     foreach (var asset in assetsProp.EnumerateArray())
                     {
                         if (asset.TryGetProperty("name", out var nameProp))
                         {
                             var nameStr = nameProp.GetString();
-                            if (string.IsNullOrWhiteSpace(nameStr))
+                            if (!string.IsNullOrWhiteSpace(nameStr))
                             {
-                                continue;
-                            }
-
-                            if (nameStr.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase) &&
-                                nameStr.EndsWith(packageExtension, StringComparison.OrdinalIgnoreCase))
-                            {
-                                matchedPlatformAsset = nameStr;
-                                break;
-                            }
-
-                            if (nameStr.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase))
-                            {
-                                matchedPlatformAsset ??= nameStr;
-                            }
-                            else if (nameStr.EndsWith(packageExtension, StringComparison.OrdinalIgnoreCase) ||
-                                        nameStr.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
-                                        nameStr.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                            {
-                                matchedExtensionAsset ??= nameStr;
+                                assetNames.Add(nameStr);
                             }
                         }
                     }
 
-                    fileName = matchedPlatformAsset ?? matchedExtensionAsset ?? fileName;
+                    fileName = SelectPackageAssetFileName(assetNames, platformIdentifier, packageExtension, fileName);
                 }
 
                 var isInstalled = string.Equals(cleanVersion, currentVer, StringComparison.OrdinalIgnoreCase) ||
