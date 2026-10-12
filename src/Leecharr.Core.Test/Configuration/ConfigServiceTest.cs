@@ -102,6 +102,9 @@ public class ConfigServiceTest
         this.service.EnableBep27PrivateTorrents.Should().BeTrue();
         this.service.MaxGlobalConnections.Should().Be(300);
         this.service.MaxActiveDownloads.Should().Be(3);
+        this.service.DownloadQueueSize.Should().Be(3);
+        this.service.MaxActiveUploads.Should().Be(3);
+        this.service.SeedQueueSize.Should().Be(3);
         this.service.ThemeStyle.Should().Be("dark");
         this.service.AutoEnrichEnabled.Should().BeTrue();
         this.service.SchedulerMonday.Should().BeTrue();
@@ -381,6 +384,40 @@ public class ConfigServiceTest
 
         uuids.Should().OnlyContain(u => u == uuids.First());
         this.store.Count(c => c.Key.Equals("InstanceUuid", StringComparison.OrdinalIgnoreCase)).Should().Be(1);
+    }
+
+    [Test]
+    public void QueueLimitAliases_WhenNeitherKeyStored_ReturnSameDefault()
+    {
+        this.service.MaxActiveDownloads.Should().Be(this.service.DownloadQueueSize);
+        this.service.MaxActiveUploads.Should().Be(this.service.SeedQueueSize);
+    }
+
+    [Test]
+    public void QueueLimitAliases_WhenOnlyDownloadQueueSizeStored_ExposeSameValueOnBothGetters()
+    {
+        this.store.Add(new ConfigModel { Key = "DownloadQueueSize", Value = "7" });
+
+        this.service.MaxActiveDownloads.Should().Be(7);
+        this.service.DownloadQueueSize.Should().Be(7);
+    }
+
+    [Test]
+    public void QueueLimitAliases_WhenOnlyMaxActiveDownloadsStored_ExposeSameValueOnBothGetters()
+    {
+        this.store.Add(new ConfigModel { Key = "MaxActiveDownloads", Value = "4" });
+
+        this.service.MaxActiveDownloads.Should().Be(4);
+        this.service.DownloadQueueSize.Should().Be(4);
+    }
+
+    [Test]
+    public void QueueLimitAliases_WhenOnlySeedQueueSizeStored_ExposeSameValueOnBothGetters()
+    {
+        this.store.Add(new ConfigModel { Key = "SeedQueueSize", Value = "6" });
+
+        this.service.MaxActiveUploads.Should().Be(6);
+        this.service.SeedQueueSize.Should().Be(6);
     }
 
     [Test]
