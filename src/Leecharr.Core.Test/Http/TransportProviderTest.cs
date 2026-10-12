@@ -72,4 +72,30 @@ public class TransportProviderTest
         proxy!.Address!.Scheme.Should().Be("socks5");
         proxy.Address.ToString().Should().Be("socks5://127.0.0.1:1080/");
     }
+
+    [TestCase("::1", "socks5h://[::1]:1080/")]
+    [TestCase("2001:db8::1", "socks5h://[2001:db8::1]:1080/")]
+    public void CurlImpersonateTransportProvider_WithIpv6ProxyHost_BracketsAuthority(string proxyHost, string expectedUri)
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("socks5");
+        config.ProxyHost.Returns(proxyHost);
+        config.ProxyPort.Returns(1080);
+
+        using var provider = new CurlImpersonateTransportProvider(config);
+        provider.Proxy!.Address!.ToString().Should().Be(expectedUri);
+    }
+
+    [Test]
+    public void SocketsHttpHandlerProvider_WithIpv6ProxyHost_BracketsAuthority()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("http");
+        config.ProxyHost.Returns("2001:db8::1");
+        config.ProxyPort.Returns(8080);
+
+        using var provider = new SocketsHttpHandlerProvider(config);
+        var proxy = provider.Handler.Proxy as WebProxy;
+        proxy!.Address!.ToString().Should().Be("http://[2001:db8::1]:8080/");
+    }
 }

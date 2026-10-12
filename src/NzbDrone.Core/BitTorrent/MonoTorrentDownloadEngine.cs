@@ -28,6 +28,7 @@ using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Binding;
@@ -787,10 +788,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 var proxyHost = this.configService.ProxyHost;
                 var proxyPort = this.configService.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType == "socks5" ? 1080 : 8080);
-                var formattedHost = proxyHost.Contains(':') && !proxyHost.StartsWith('[')
-                    ? $"[{proxyHost}]"
-                    : proxyHost;
-                var proxyUri = new Uri($"{proxyType}://{formattedHost}:{proxyPort}");
+                var proxyUri = ProxyUriHelper.BuildProxyUri(proxyType, proxyHost, proxyPort);
 
                 ICredentials credentials = null;
                 if (!string.IsNullOrWhiteSpace(this.configService.ProxyUsername))

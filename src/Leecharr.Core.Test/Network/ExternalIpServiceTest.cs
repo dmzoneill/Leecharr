@@ -187,11 +187,24 @@ public class ExternalIpServiceTest
     }
 
     [Test]
-    public void GetExternalIpAsync_WhenProxyUriInvalid_ReleasesFetchLockForRetry()
+    public void CreateHttpClient_WhenIpv6ProxyHost_BracketsAuthority()
     {
         var config = Substitute.For<IConfigService>();
         config.ProxyType.Returns("socks5");
         config.ProxyHost.Returns("2001:db8::1");
+        config.ProxyPort.Returns(1080);
+
+        var proxy = CreateHttpClientProxy(new ExternalIpService(config));
+
+        proxy.Address!.ToString().Should().Be("socks5://[2001:db8::1]:1080/");
+    }
+
+    [Test]
+    public void GetExternalIpAsync_WhenProxyUriInvalid_ReleasesFetchLockForRetry()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("socks5");
+        config.ProxyHost.Returns("bad host");
         config.ProxyPort.Returns(1080);
         config.InstanceUuid.Returns("test-uuid");
 
