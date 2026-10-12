@@ -147,5 +147,4 @@ public class NotificationHub : Hub
 
         await this.Groups.RemoveFromGroupAsync(this.Context.ConnectionId, $"level-{level.ToLowerInvariant()}");
     }
-
 }

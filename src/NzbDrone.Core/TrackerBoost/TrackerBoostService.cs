@@ -1257,7 +1257,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         foreach (var candidate in candidateDetections)
         {
-            if (!this.ShouldPersistInjectedTracker(candidate.TrackerUrl, engineAdded, clientCount))
+            if (!ShouldPersistInjectedTracker(candidate.TrackerUrl, engineAdded, clientCount))
             {
                 continue;
             }
@@ -1471,7 +1471,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         var alreadyPersisted = existingTrackers.Contains(trimmedUrl.ToLowerInvariant());
         var engineAdded = await this.AddTrackersToEngineAsync(torrentId, new[] { trimmedUrl }).ConfigureAwait(false);
         var clientCount = await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, new[] { trimmedUrl }).ConfigureAwait(false);
-        var injectSucceeded = this.ShouldPersistInjectedTracker(trimmedUrl, engineAdded, clientCount);
+        var injectSucceeded = ShouldPersistInjectedTracker(trimmedUrl, engineAdded, clientCount);
 
         if (!alreadyPersisted)
         {
@@ -1749,7 +1749,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
     }
 
-    private bool ShouldPersistInjectedTracker(string trackerUrl, IReadOnlyList<string> engineAdded, int successfulClientCount)
+    private static bool ShouldPersistInjectedTracker(string trackerUrl, IReadOnlyList<string> engineAdded, int successfulClientCount)
     {
         if (successfulClientCount > 0)
         {

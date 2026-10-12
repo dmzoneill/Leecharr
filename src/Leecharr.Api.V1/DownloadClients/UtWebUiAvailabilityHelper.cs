@@ -19,7 +19,7 @@ public static class UtWebUiAvailabilityHelper
             return 0;
         }
 
-        double? availability = task.SwarmAvailability
+        var availability = task.SwarmAvailability
             ?? task.Metrics?.SwarmAvailability
             ?? task.GetResourceMetrics()?.SwarmAvailability;
 

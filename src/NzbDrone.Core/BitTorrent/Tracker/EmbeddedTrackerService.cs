@@ -400,7 +400,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
                     if (isStopped)
                     {
-                        this.RemoveAnnouncePeers(swarm, request, peerKey);
+                        RemoveAnnouncePeers(swarm, request, peerKey);
 
                         if (swarm.Peers.IsEmpty)
                         {
@@ -995,7 +995,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         return Convert.FromHexString(hex);
     }
 
-    private void RemoveAnnouncePeers(SwarmState swarm, TrackerAnnounceRequest request, string primaryPeerKey)
+    private static void RemoveAnnouncePeers(SwarmState swarm, TrackerAnnounceRequest request, string primaryPeerKey)
     {
         swarm.Peers.TryRemove(primaryPeerKey, out _);
         foreach (var (secondaryIp, secondaryPort) in GetSecondaryPeerEndpoints(request))

@@ -29,6 +29,10 @@ namespace NzbDrone.Core.BitTorrent;
 
 public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>, IHandle<NetworkBindingProviderSwitchedEvent>, IHandle<ConfigSavedEvent>
 {
+    // libtorrent 2.x move_flags_t (move_storage flags parameter)
+    private const int MoveStorageAlwaysReplaceFiles = 0;
+    private const int MoveStorageResetSavePath = 3;
+
     private readonly IConfigService configService;
     private readonly IStoragePathService storagePathService;
     private readonly ICategoryService categoryService;
@@ -39,10 +43,6 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     private readonly Logger logger;
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private static readonly string[] FallbackPythonCandidates = ["python3", "python", "/usr/bin/python3", "/usr/local/bin/python3"];
-
-    // libtorrent 2.x move_flags_t (move_storage flags parameter)
-    private const int MoveStorageAlwaysReplaceFiles = 0;
-    private const int MoveStorageResetSavePath = 3;
 
     private readonly ConcurrentDictionary<int, LibTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);

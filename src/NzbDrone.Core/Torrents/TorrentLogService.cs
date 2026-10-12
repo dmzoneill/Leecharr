@@ -99,7 +99,7 @@ public class TorrentLogService : ITorrentLogService,
 
         var effectiveLimit = Math.Max(1, limit);
 
-        TorrentEventLog[] memorySnapshot = Array.Empty<TorrentEventLog>();
+        var memorySnapshot = Array.Empty<TorrentEventLog>();
         if (LogsByTorrent.TryGetValue(torrentId, out var buffer))
         {
             buffer.Touch();

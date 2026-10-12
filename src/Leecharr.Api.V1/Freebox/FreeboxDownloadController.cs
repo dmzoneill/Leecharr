@@ -12,8 +12,8 @@ using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NzbDrone.Common.Extensions;
 using NLog;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
@@ -166,7 +166,7 @@ public class FreeboxDownloadController : ControllerBase
                 });
             }
 
-            var challenge = this.IssueLoginChallenge();
+            var challenge = IssueLoginChallenge();
             return this.Ok(new
             {
                 success = true,
@@ -178,7 +178,7 @@ public class FreeboxDownloadController : ControllerBase
             });
         }
 
-        var openChallenge = this.IssueLoginChallenge();
+        var openChallenge = IssueLoginChallenge();
         return this.Ok(new
         {
             success = true,
@@ -561,7 +561,7 @@ public class FreeboxDownloadController : ControllerBase
         return torrent.Status == TorrentStatus.Error ? "error" : "none";
     }
 
-    private string IssueLoginChallenge()
+    private static string IssueLoginChallenge()
     {
         var challenge = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
         lock (LoginChallengeLock)

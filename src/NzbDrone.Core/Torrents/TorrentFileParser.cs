@@ -72,6 +72,8 @@ public class TorrentFileParser : ITorrentFileParser
 {
     public const int MaxBencodeDepth = 64;
     public const int MaxPieceLength = 256 * 1024 * 1024; // 256 MiB
+    private const long MinUnixTimeSeconds = -62135596800L;
+    private const long MaxUnixTimeSeconds = 253402300799L;
     private static readonly char[] PathSeparators = ['/', '\\'];
 
     private readonly Logger logger;
@@ -460,9 +462,6 @@ public class TorrentFileParser : ITorrentFileParser
             throw new InvalidTorrentFileException("Malformed bencode: unclosed dictionary or list.");
         }
     }
-
-    private const long MinUnixTimeSeconds = -62135596800L;
-    private const long MaxUnixTimeSeconds = 253402300799L;
 
     private static bool TryParseCreationDateUtc(long unixSeconds, out DateTime creationDateUtc)
     {

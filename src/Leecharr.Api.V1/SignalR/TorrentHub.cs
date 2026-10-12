@@ -130,5 +130,4 @@ public class TorrentHub : Hub
     {
         await this.Groups.RemoveFromGroupAsync(this.Context.ConnectionId, "torrents");
     }
-
 }

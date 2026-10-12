@@ -204,7 +204,6 @@ public class JintScriptRunner : IScriptRunner
 
         sb.AppendLine(line.ToString());
     }
-
 }
 
 #pragma warning disable SA1300 // Element should begin with upper-case letter (DSL wrapper)

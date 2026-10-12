@@ -6,13 +6,13 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
-using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Torrents;
 

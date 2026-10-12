@@ -40,7 +40,7 @@ public class DatabaseIntegrityCheck : IHealthCheck
 
             if (this.database.DatabaseType == DatabaseType.PostgreSQL)
             {
-                return Task.FromResult(this.CheckPostgreSqlIntegrity(cmd));
+                return Task.FromResult(CheckPostgreSqlIntegrity(cmd));
             }
 
             cmd.CommandText = "PRAGMA quick_check;";
@@ -64,7 +64,7 @@ public class DatabaseIntegrityCheck : IHealthCheck
         }
     }
 
-    private HealthCheckResult CheckPostgreSqlIntegrity(System.Data.IDbCommand cmd)
+    private static HealthCheckResult CheckPostgreSqlIntegrity(System.Data.IDbCommand cmd)
     {
         cmd.CommandText = @"
 SELECT COUNT(*)

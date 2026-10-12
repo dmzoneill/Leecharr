@@ -527,7 +527,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
             return "application/rss+xml; charset=utf-8";
         }
 
-        if (prefix.StartsWith("{", StringComparison.Ordinal) || prefix.StartsWith("[", StringComparison.Ordinal))
+        if (prefix.StartsWith('{') || prefix.StartsWith('['))
         {
             return "application/json; charset=utf-8";
         }

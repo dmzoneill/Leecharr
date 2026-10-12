@@ -15,25 +15,20 @@ public class UserService : IUserService
     private const int SaltByteSize = 16;
     private const int HashByteSize = 32;
 
-    private static readonly string DummyVerificationSalt;
-    private static readonly string DummyVerificationHash;
+    private static readonly byte[] DummyVerificationSaltBytes =
+    [
+        0x4c, 0xc8, 0x13, 0x55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ];
 
-    static UserService()
-    {
-        var saltBytes = new byte[SaltByteSize];
-        saltBytes[0] = 0x4c;
-        saltBytes[1] = 0xc8;
-        saltBytes[2] = 0x13;
-        saltBytes[3] = 0x55;
-        DummyVerificationSalt = Convert.ToBase64String(saltBytes);
-        var hashBytes = Rfc2898DeriveBytes.Pbkdf2(
+    private static readonly string DummyVerificationSalt = Convert.ToBase64String(DummyVerificationSaltBytes);
+
+    private static readonly string DummyVerificationHash = Convert.ToBase64String(
+        Rfc2898DeriveBytes.Pbkdf2(
             string.Empty,
-            saltBytes,
+            DummyVerificationSaltBytes,
             DefaultPbkdf2Iterations,
             HashAlgorithmName.SHA256,
-            HashByteSize);
-        DummyVerificationHash = Convert.ToBase64String(hashBytes);
-    }
+            HashByteSize));
 
     private readonly IUserRepository userRepository;
     private readonly IUserSessionRepository userSessionRepository;

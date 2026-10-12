@@ -53,8 +53,8 @@ public class MemoryHealthCheck : IHealthCheck
 
             long freeBytes;
             double loadRatio;
-            long usedMb = memoryLoadBytes / (1024 * 1024);
-            long totalMb = totalBytes > 0 ? totalBytes / (1024 * 1024) : 0;
+            var usedMb = memoryLoadBytes / (1024 * 1024);
+            var totalMb = totalBytes > 0 ? totalBytes / (1024 * 1024) : 0;
             var workingSetMb = workingSet / (1024 * 1024);
 
             if (totalBytes > 0)

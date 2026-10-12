@@ -39,7 +39,6 @@ public class PackageController : Controller
     private readonly IPackageExportService packageExportService;
     private readonly ITorrentService torrentService;
     private readonly IPackageImportService packageImportService;
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private static readonly char[] IdSeparators = [',', ';'];
 
     public PackageController(

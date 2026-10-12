@@ -22,7 +22,6 @@ namespace Leecharr.Api.V1.ArrIntegration;
 [Authorize(Policy = "RequireOperator")]
 public class ArrConnectionController : Controller
 {
-    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler { AllowAutoRedirect = false })
     {
         Timeout = TimeSpan.FromSeconds(10),
