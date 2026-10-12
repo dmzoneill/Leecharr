@@ -12,6 +12,16 @@ namespace Leecharr.Core.Test.Torrents;
 public class InfoHashCalculatorTest
 {
     [Test]
+    public void Calculate_FromWireBytes_PreservesNonCanonicalKeyOrder()
+    {
+        var infoBytes = "d3:zzzi1e3:aaai2e4:name4:teste"u8.ToArray();
+
+        var hash = InfoHashCalculator.Calculate(infoBytes);
+
+        hash.Should().Be("ba3a7e56d2c16dff4a7112f74700c7e4ab918842");
+    }
+
+    [Test]
     public void Calculate_CalculatesCorrectSha1Hex()
     {
         var dict = new BDictionary

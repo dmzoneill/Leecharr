@@ -518,6 +518,38 @@ public class TorrentFileParserTest
     }
 
     [Test]
+    public void Parse_WhenInfoDictionaryIsNotCanonicallyOrdered_UsesWireInfoBytesForV1Hash()
+    {
+        var pieces = new byte[20];
+        Array.Fill(pieces, (byte)0xab);
+
+        using var infoStream = new MemoryStream();
+        infoStream.Write("d3:zzzi1e6:lengthi16384e4:name4:test12:piece lengthi16384e6:pieces20:"u8);
+        infoStream.Write(pieces);
+        infoStream.WriteByte((byte)'e');
+        var infoBytes = infoStream.ToArray();
+
+        using var torrentStream = new MemoryStream();
+        torrentStream.Write("d8:announce35:http://tracker.example.com/announce4:info"u8);
+        torrentStream.Write(infoBytes);
+        torrentStream.WriteByte((byte)'e');
+        var torrentBytes = torrentStream.ToArray();
+
+        var expectedHash = InfoHashCalculator.Calculate(infoBytes);
+
+        var parsed = this.parser.Parse(torrentBytes);
+
+        parsed.V1InfoHash.Should().Be(expectedHash);
+        parsed.V1InfoHash.Should().NotBe(InfoHashCalculator.Calculate(new BencodeNET.Objects.BDictionary
+        {
+            ["name"] = new BencodeNET.Objects.BString("test"),
+            ["length"] = new BencodeNET.Objects.BNumber(16384),
+            ["piece length"] = new BencodeNET.Objects.BNumber(16384),
+            ["pieces"] = new BencodeNET.Objects.BString(pieces),
+        }));
+    }
+
+    [Test]
     public void Parse_WhenPaddingFilesPresentInV1_FiltersPaddingFiles()
     {
         var pieceLength = 16384;
