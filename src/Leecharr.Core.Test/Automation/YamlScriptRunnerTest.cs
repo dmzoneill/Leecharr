@@ -437,6 +437,58 @@ public class YamlScriptRunnerTest
     }
 
     [Test]
+    public void DryRun_ShouldNotMutateFilesystem_ForYamlFileActions()
+    {
+        var commandQueue = Substitute.For<IManageCommandQueue>();
+        var runner = new YamlScriptRunner(commandQueue);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var nfoFile = Path.Combine(tempDir, "movie.nfo");
+            var src = Path.Combine(tempDir, "source.txt");
+            var destLink = Path.Combine(tempDir, "linked.txt");
+            File.WriteAllText(nfoFile, "nfo content");
+            File.WriteAllText(src, "link source");
+
+            var yaml = "name: 'Dry Run FS'\n" +
+                        "steps:\n" +
+                        "  - name: 'Filesystem actions'\n" +
+                        "    actions:\n" +
+                        "      - cleanExtensions:\n" +
+                        $"          directory: '{tempDir}'\n" +
+                        "          extensions: 'nfo'\n" +
+                        "      - createHardlink:\n" +
+                        $"          source: '{src}'\n" +
+                        $"          dest: '{destLink}'\n";
+
+            var script = new AutomationScript
+            {
+                Name = "Dry Run Script",
+                Code = yaml,
+                Language = AutomationLanguage.Yaml,
+            };
+
+            var result = runner.Execute(script, new Torrent { Id = 61, Name = "DryRunTorrent" }, dryRun: true);
+
+            result.Success.Should().BeTrue();
+            File.Exists(nfoFile).Should().BeTrue();
+            File.Exists(destLink).Should().BeFalse();
+            result.OutputLog.Should().Contain("[DRY-RUN]");
+            commandQueue.DidNotReceive().PushRaw(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CommandTrigger>());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public void ShouldCleanExtensionsOnDisk_WithMaxSizeLimit_DoesNotDeleteNonMatchingExtensions()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

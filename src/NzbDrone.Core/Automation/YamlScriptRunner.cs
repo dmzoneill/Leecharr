@@ -39,12 +39,13 @@ public class YamlScriptRunner : IScriptRunner
         AutomationScript script,
         Torrent? torrent = null,
         List<string>? torrentTags = null,
-        Dictionary<string, object>? customInputs = null)
+        Dictionary<string, object>? customInputs = null,
+        bool dryRun = false)
     {
         var result = new AutomationExecutionResult();
         var logBuilder = new StringBuilder();
         var sw = Stopwatch.StartNew();
-        var systemContext = new ScriptSystemContext(_commandQueue, result);
+        var systemContext = new ScriptSystemContext(_commandQueue, result, dryRun: dryRun);
 
         try
         {
@@ -683,14 +684,21 @@ public class YamlScriptRunner : IScriptRunner
                             {
                                 if (File.Exists(src))
                                 {
-                                    var destDir = Path.GetDirectoryName(dest);
-                                    if (!string.IsNullOrEmpty(destDir))
+                                    if (dryRun)
                                     {
-                                        Directory.CreateDirectory(destDir);
+                                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [DRY-RUN] createHardlink: {src} -> {dest}");
                                     }
+                                    else
+                                    {
+                                        var destDir = Path.GetDirectoryName(dest);
+                                        if (!string.IsNullOrEmpty(destDir))
+                                        {
+                                            Directory.CreateDirectory(destDir);
+                                        }
 
-                                    CreateHardLink(dest, src);
-                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createHardlink: {src} -> {dest}");
+                                        CreateHardLink(dest, src);
+                                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createHardlink: {src} -> {dest}");
+                                    }
                                 }
                             }
                             catch (Exception ex)
@@ -707,9 +715,16 @@ public class YamlScriptRunner : IScriptRunner
                             {
                                 if (File.Exists(src) || Directory.Exists(src))
                                 {
-                                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                                    File.CreateSymbolicLink(dest, src);
-                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createSymlink: {src} -> {dest}");
+                                    if (dryRun)
+                                    {
+                                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [DRY-RUN] createSymlink: {src} -> {dest}");
+                                    }
+                                    else
+                                    {
+                                        Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                                        File.CreateSymbolicLink(dest, src);
+                                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createSymlink: {src} -> {dest}");
+                                    }
                                 }
                             }
                             catch (Exception ex)
@@ -742,12 +757,18 @@ public class YamlScriptRunner : IScriptRunner
                                         var sizeMatches = maxSize <= 0 || fi.Length <= maxSize;
                                         if (extensionMatches && sizeMatches)
                                         {
-                                            File.Delete(f);
+                                            if (!dryRun)
+                                            {
+                                                File.Delete(f);
+                                            }
+
                                             count++;
                                         }
                                     }
 
-                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] cleanExtensions: removed {count} files");
+                                    var cleanVerb = dryRun ? "would remove" : "removed";
+                                    var cleanPrefix = dryRun ? "[DRY-RUN] " : string.Empty;
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] {cleanPrefix}[ACTION] cleanExtensions: {cleanVerb} {count} files");
                                 }
                             }
                             catch (Exception ex)
@@ -766,29 +787,34 @@ public class YamlScriptRunner : IScriptRunner
                                 if (!OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(perm) && (File.Exists(path) || Directory.Exists(path)))
                                 {
                                     var mode = ParseUnixFileMode(perm);
-                                    if (File.Exists(path))
+                                    if (!dryRun)
                                     {
-                                        File.SetUnixFileMode(path, mode);
-                                    }
-                                    else if (Directory.Exists(path))
-                                    {
-                                        new DirectoryInfo(path).UnixFileMode = mode;
-                                        if (recursive)
+                                        if (File.Exists(path))
                                         {
-                                            foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
+                                            File.SetUnixFileMode(path, mode);
+                                        }
+                                        else if (Directory.Exists(path))
+                                        {
+                                            new DirectoryInfo(path).UnixFileMode = mode;
+                                            if (recursive)
                                             {
-                                                File.SetUnixFileMode(file, mode);
-                                            }
+                                                foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
+                                                {
+                                                    File.SetUnixFileMode(file, mode);
+                                                }
 
-                                            foreach (var dir in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
-                                            {
-                                                new DirectoryInfo(dir).UnixFileMode = mode;
+                                                foreach (var dir in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+                                                {
+                                                    new DirectoryInfo(dir).UnixFileMode = mode;
+                                                }
                                             }
                                         }
                                     }
                                 }
 
-                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setFilePermissions: {perm} on {path} (recursive: {recursive})");
+                                var permPrefix = dryRun ? "[DRY-RUN] " : string.Empty;
+                                var permVerb = dryRun ? "would set" : "set";
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] {permPrefix}[ACTION] setFilePermissions: {permVerb} {perm} on {path} (recursive: {recursive})");
                             }
                             catch (Exception ex)
                             {
