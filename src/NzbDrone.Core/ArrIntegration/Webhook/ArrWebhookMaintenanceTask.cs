@@ -44,15 +44,15 @@ public class ArrWebhookMaintenanceTask : IHandle<ApplicationStartedEvent>
     {
         this.LastStartupTask = Task.Run(async () =>
         {
-            var failed = this.RegisterAllConnections();
-            if (failed.Count > 0)
+            var failedIds = this.RegisterAllConnections();
+            if (failedIds.Count > 0)
             {
-                await this.RetryFailedConnectionsAsync(failed);
+                await this.RetryFailedConnectionsAsync(failedIds);
             }
         }, CancellationToken.None);
     }
 
-    public List<ArrConnectionDefinition> RegisterAllConnections()
+    public List<int> RegisterAllConnections()
     {
         var connections = this.repository.All()
             .Where(c => c.Enable && (c.WebhookEnabled || c.EnableAutomaticAdd))
@@ -60,14 +60,14 @@ public class ArrWebhookMaintenanceTask : IHandle<ApplicationStartedEvent>
 
         if (connections.Count == 0)
         {
-            return new List<ArrConnectionDefinition>();
+            return new List<int>();
         }
 
         this.logger.Info("Arr connection maintenance: checking {0} connection(s)", connections.Count);
 
         var registered = 0;
         var failed = 0;
-        var failedList = new List<ArrConnectionDefinition>();
+        var failedIds = new List<int>();
 
         foreach (var connection in connections)
         {
@@ -80,25 +80,25 @@ public class ArrWebhookMaintenanceTask : IHandle<ApplicationStartedEvent>
                 else
                 {
                     failed++;
-                    failedList.Add(connection);
+                    failedIds.Add(connection.Id);
                     this.logger.Warn("Arr connection maintenance: failed to register in {0} at {1}", connection.ArrType, connection.Url);
                 }
             }
             catch (Exception ex)
             {
                 failed++;
-                failedList.Add(connection);
+                failedIds.Add(connection.Id);
                 this.logger.Error(ex, "Arr connection maintenance: error registering in {0}", connection.ArrType);
             }
         }
 
         this.logger.Info("Arr connection maintenance complete: {0} registered, {1} failed", registered, failed);
-        return failedList;
+        return failedIds;
     }
 
-    private async Task RetryFailedConnectionsAsync(List<ArrConnectionDefinition> failedConnections)
+    private async Task RetryFailedConnectionsAsync(List<int> failedConnectionIds)
     {
-        var currentFailed = failedConnections;
+        var currentFailed = failedConnectionIds;
         foreach (var delay in this.RetryDelays)
         {
             try
@@ -113,9 +113,15 @@ public class ArrWebhookMaintenanceTask : IHandle<ApplicationStartedEvent>
 
             this.logger.Info("Arr connection maintenance retry: re-checking {0} failed connection(s)", currentFailed.Count);
 
-            var nextFailed = new List<ArrConnectionDefinition>();
-            foreach (var connection in currentFailed)
+            var nextFailed = new List<int>();
+            foreach (var connectionId in currentFailed)
             {
+                var connection = this.GetConnectionForRetry(connectionId);
+                if (connection == null)
+                {
+                    continue;
+                }
+
                 try
                 {
                     if (this.webhookRegistration.Register(connection))
@@ -124,13 +130,13 @@ public class ArrWebhookMaintenanceTask : IHandle<ApplicationStartedEvent>
                     }
                     else
                     {
-                        nextFailed.Add(connection);
+                        nextFailed.Add(connectionId);
                         this.logger.Warn("Arr connection maintenance retry: still failing for {0} at {1}", connection.ArrType, connection.Url);
                     }
                 }
                 catch (Exception ex)
                 {
-                    nextFailed.Add(connection);
+                    nextFailed.Add(connectionId);
                     this.logger.Error(ex, "Arr connection maintenance retry: error registering in {0}", connection.ArrType);
                 }
             }
@@ -142,5 +148,21 @@ public class ArrWebhookMaintenanceTask : IHandle<ApplicationStartedEvent>
                 break;
             }
         }
+    }
+
+    private ArrConnectionDefinition GetConnectionForRetry(int connectionId)
+    {
+        var connection = this.repository.Get(connectionId);
+        if (connection == null)
+        {
+            return null;
+        }
+
+        if (!connection.Enable || (!connection.WebhookEnabled && !connection.EnableAutomaticAdd))
+        {
+            return null;
+        }
+
+        return connection;
     }
 }
