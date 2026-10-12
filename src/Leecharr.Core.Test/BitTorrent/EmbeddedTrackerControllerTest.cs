@@ -101,6 +101,33 @@ public class EmbeddedTrackerControllerTest
     }
 
     [Test]
+    public void ParseAnnounceQuery_OmittedCompact_DefaultsToDictionaryPeerList()
+    {
+        var query = "?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881";
+        var request = EmbeddedTrackerController.ParseAnnounceQuery(query, IPAddress.Loopback);
+
+        request.Compact.Should().BeFalse();
+    }
+
+    [Test]
+    public void ParseAnnounceQuery_CompactOne_EnablesCompactPeerList()
+    {
+        var query = "?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&compact=1";
+        var request = EmbeddedTrackerController.ParseAnnounceQuery(query, IPAddress.Loopback);
+
+        request.Compact.Should().BeTrue();
+    }
+
+    [Test]
+    public void ParseAnnounceQuery_CompactZero_UsesDictionaryPeerList()
+    {
+        var query = "?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&compact=0";
+        var request = EmbeddedTrackerController.ParseAnnounceQuery(query, IPAddress.Loopback);
+
+        request.Compact.Should().BeFalse();
+    }
+
+    [Test]
     public void ParseAnnounceQuery_PublicRemoteIp_PreservesIpv6WithoutReplacingRemoteIp()
     {
         var publicIpv4 = IPAddress.Parse("203.0.113.10");

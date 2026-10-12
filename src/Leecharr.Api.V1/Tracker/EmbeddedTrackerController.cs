@@ -273,7 +273,6 @@ public class EmbeddedTrackerController : ControllerBase
         var request = new TrackerAnnounceRequest
         {
             RemoteIp = remoteIp ?? IPAddress.Loopback,
-            Compact = true,
         };
 
         if (string.IsNullOrWhiteSpace(rawQuery))
