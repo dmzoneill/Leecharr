@@ -260,7 +260,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                             }
                         }
 
-                        if (!isIgnoredDownload)
+                        if (!isIgnoredDownload && torrent.Status == TorrentStatus.Downloading)
                         {
                             activeDownloads++;
                             activeTotal++;
@@ -398,7 +398,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                             }
                         }
 
-                        if (!isIgnoredUpload)
+                        if (!isIgnoredUpload && torrent.Status == TorrentStatus.Seeding)
                         {
                             activeUploads++;
                             activeTotal++;

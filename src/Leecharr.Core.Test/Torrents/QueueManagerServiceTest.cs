@@ -427,6 +427,54 @@ public class QueueManagerServiceTest
     }
 
     [Test]
+    public async Task ProcessQueueAsync_WhenResumeThrows_DoesNotConsumeDownloadSlotForLaterQueuedTorrents()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "FailsResume", Status = TorrentStatus.Queued, Progress = 0.0, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "NextInQueue", Status = TorrentStatus.Queued, Progress = 0.0, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+        this.downloadEngine.ResumeTorrentAsync(1).Returns(Task.FromException(new InvalidOperationException("Engine error")));
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrents[0].Status.Should().Be(TorrentStatus.Queued);
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(1);
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 2 && t.Status == TorrentStatus.Downloading));
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenSeedingResumeThrows_DoesNotConsumeUploadSlotForLaterQueuedTorrents()
+    {
+        this.configService.MaxActiveUploads.Returns(1);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "FailsSeedingResume", Status = TorrentStatus.Queued, Progress = 1.0, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "NextSeed", Status = TorrentStatus.Queued, Progress = 1.0, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+        this.downloadEngine.ResumeTorrentAsync(1).Returns(Task.FromException(new InvalidOperationException("Engine error")));
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrents[0].Status.Should().Be(TorrentStatus.Queued);
+        torrents[1].Status.Should().Be(TorrentStatus.Seeding);
+
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(1);
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 2 && t.Status == TorrentStatus.Seeding));
+    }
+
+    [Test]
     public async Task ProcessQueueAsync_WhenPauseThrows_DoesNotUpdateStatusOrDatabase()
     {
         this.configService.MaxActiveDownloads.Returns(1);
