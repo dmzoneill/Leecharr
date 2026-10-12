@@ -221,9 +221,10 @@ public class TorrentFileParser : ITorrentFileParser
 
             result.UsesV2PieceLayout = isV2 && !hasV1Pieces;
 
-            if (torrent.ContainsKey("creation date") && torrent["creation date"] is BNumber creationDateNum)
+            if (torrent.ContainsKey("creation date") && torrent["creation date"] is BNumber creationDateNum
+                && TryParseCreationDateUtc(creationDateNum.Value, out var creationDateUtc))
             {
-                result.CreationDate = DateTimeOffset.FromUnixTimeSeconds(creationDateNum.Value).UtcDateTime;
+                result.CreationDate = creationDateUtc;
             }
 
             long rawTotalSize = 0;
@@ -453,6 +454,21 @@ public class TorrentFileParser : ITorrentFileParser
         {
             throw new InvalidTorrentFileException("Malformed bencode: unclosed dictionary or list.");
         }
+    }
+
+    private const long MinUnixTimeSeconds = -62135596800L;
+    private const long MaxUnixTimeSeconds = 253402300799L;
+
+    private static bool TryParseCreationDateUtc(long unixSeconds, out DateTime creationDateUtc)
+    {
+        if (unixSeconds < MinUnixTimeSeconds || unixSeconds > MaxUnixTimeSeconds)
+        {
+            creationDateUtc = default;
+            return false;
+        }
+
+        creationDateUtc = DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
+        return true;
     }
 
     private static BString GetUtf8String(BDictionary dict, string key)
