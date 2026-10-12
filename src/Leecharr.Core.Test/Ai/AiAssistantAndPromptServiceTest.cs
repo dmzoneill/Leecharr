@@ -936,10 +936,23 @@ public class AiAssistantAndPromptServiceTest
         var handler = new MockHttpMessageHandler((req, ct) =>
         {
             capturedRequest = req;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            if (req.RequestUri?.AbsolutePath == "/api/version")
             {
-                Content = new StringContent("{\"version\": \"0.5.1\"}"),
-            });
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"version\": \"0.5.1\"}"),
+                });
+            }
+
+            if (req.RequestUri?.AbsolutePath == "/api/tags")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"models\":[{\"name\":\"deepseek-r1:8b\"}]}"),
+                });
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         });
 
         using var client = new HttpClient(handler);
