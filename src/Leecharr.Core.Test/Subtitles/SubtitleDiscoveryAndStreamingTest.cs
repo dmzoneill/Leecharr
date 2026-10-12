@@ -77,6 +77,46 @@ public class SubtitleDiscoveryAndStreamingTest
     }
 
     [Test]
+    public void DiscoverSubtitles_WhenGenericSubtitleInEpisodeFolder_MatchesForSeasonPack()
+    {
+        var videoFile = new TorrentFile
+        {
+            Id = 1,
+            Path = "Show/S01E05/episode.mkv",
+            Size = 1_000_000_000L,
+        };
+
+        var allFiles = new List<TorrentFile>
+        {
+            videoFile,
+            new()
+            {
+                Id = 2,
+                Path = "Show/S01E06/other.mkv",
+                Size = 1_000_000_000L,
+            },
+            new()
+            {
+                Id = 3,
+                Path = "Show/S01E05/English.srt",
+                Size = 50_000L,
+            },
+            new()
+            {
+                Id = 4,
+                Path = "Show/S01E06/English.srt",
+                Size = 50_000L,
+            },
+        };
+
+        var discovered = this.discoveryService.DiscoverSubtitles(videoFile, allFiles);
+
+        discovered.Should().HaveCount(1);
+        discovered[0].Path.Should().Be("Show/S01E05/English.srt");
+        discovered[0].Language.Should().Be("eng");
+    }
+
+    [Test]
     public void DiscoverSubtitles_PtBrTag_ReportsPortugueseBrazil()
     {
         var videoFile = new TorrentFile
