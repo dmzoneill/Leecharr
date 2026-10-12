@@ -10,15 +10,15 @@ namespace NzbDrone.Core.Ai;
 internal static class AiChatFallbackContext
 {
     private static readonly AsyncLocal<bool?> LastChatUsedFallback = new();
-    private static bool lastCommittedFallback;
 
-    public static bool LastChatUsedFallbackValue => LastChatUsedFallback.Value ?? lastCommittedFallback;
+    public static bool LastChatUsedFallbackValue => LastChatUsedFallback.Value ?? false;
+
+    public static bool? CurrentFlowValue => LastChatUsedFallback.Value;
 
     public static bool? CurrentFlowValue => LastChatUsedFallback.Value;
 
     public static void SetLastChatUsedFallback(bool value)
     {
         LastChatUsedFallback.Value = value;
-        lastCommittedFallback = value;
     }
 }
