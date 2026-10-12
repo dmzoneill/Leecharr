@@ -1927,6 +1927,60 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task AddFromParsedTorrentAsync_WhenRootedSavePathOutsideAllowList_FallsBackToDefaultDownloadDir()
+    {
+        var defaultDir = "/downloads/completed";
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns(defaultDir);
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+            Name = "OutsidePathTorrent",
+            PieceLength = 16384,
+            TotalSize = 16384,
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 102;
+            return insertedTorrent;
+        });
+
+        await this.service.AddFromParsedTorrentAsync(parsed, category: "movies", savePath: "/tmp/outside");
+
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.SavePath.Should().Be(defaultDir);
+    }
+
+    [Test]
+    public async Task AddFromMagnetAsync_WhenRootedSavePathOutsideAllowList_FallsBackToDefaultDownloadDir()
+    {
+        var defaultDir = "/downloads/completed";
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns(defaultDir);
+
+        var infoHash = "3333333333333333333333333333333333333333";
+        var magnetUri = $"magnet:?xt=urn:btih:{infoHash}&dn=OutsideMagnet";
+        this.torrentRepository.GetByInfoHash(infoHash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 103;
+            return insertedTorrent;
+        });
+
+        await this.service.AddFromMagnetAsync(magnetUri, category: "movies", savePath: "/home/user/outside");
+
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.SavePath.Should().Be(defaultDir);
+    }
+
+    [Test]
     public void Handle_TorrentDownloadCompletedEvent_WhenCategoryAutoStopFalse_SetsStatusToSeeding()
     {
         var torrent = new Torrent

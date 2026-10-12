@@ -223,31 +223,35 @@ public class QBittorrentApiTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task TorrentLifecycle_AddWithDownloadPath_SetsSavePath()
+    public async Task TorrentLifecycle_AddWithDisallowedDownloadPath_FallsBackToDefaultSavePath()
     {
         const string hash = "2123456789abcdef0123456789abcdef0123456a";
         var magnet = $"magnet:?xt=urn:btih:{hash}&dn=QBitDownloadPathTorrent";
-        var customPath = "/downloads/custom_qbit_dir";
+        var disallowedPath = "/downloads/custom_qbit_dir";
 
-        // Add Torrent with downloadPath parameter
         var addForm = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string, string>("urls", magnet),
-            new KeyValuePair<string, string>("downloadPath", customPath),
+            new KeyValuePair<string, string>("downloadPath", disallowedPath),
             new KeyValuePair<string, string>("paused", "true"),
         });
 
         var addResponse = await this.Client.PostAsync("/api/v2/torrents/add", addForm);
         addResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // Verify save_path matches customPath in torrent info
         var infoResponse = await this.GetAsync($"/api/v2/torrents/info?hashes={hash}");
         infoResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var infoJson = await infoResponse.Content.ReadAsStringAsync();
         infoJson.Should().Contain(hash);
-        infoJson.Should().Contain(customPath);
+        infoJson.Should().NotContain(disallowedPath);
 
-        // Clean up
+        using var doc = JsonDocument.Parse(infoJson);
+        var torrent = doc.RootElement.EnumerateArray().FirstOrDefault();
+        var savePath = torrent.GetProperty("save_path").GetString();
+        savePath.Should().NotBeNullOrWhiteSpace();
+        savePath.Should().Contain("/downloads");
+        savePath.Should().NotEndWith("custom_qbit_dir");
+
         var deleteForm = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string, string>("hashes", hash),
