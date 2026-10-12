@@ -836,6 +836,36 @@ public class PackageManagementTest
     }
 
     [Test]
+    public async Task PackageController_ExportPost_QueryIncludePayloadHonoredWhenBodyOmitsIt()
+    {
+        var torrent = new Torrent { Id = 9, Name = "Payload Query Torrent" };
+        this.torrentService.Get(9).Returns(torrent);
+
+        var mockExport = Substitute.For<IPackageExportService>();
+        mockExport.ExportPackageAsync(
+                Arg.Any<Stream>(),
+                Arg.Any<IEnumerable<int>>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var controller = new PackageController(mockExport, this.torrentService);
+        var request = new PackageExportRequest
+        {
+            TorrentIds = new List<int> { 9 },
+        };
+
+        var result = await controller.ExportPost(request, includePayload: true);
+        result.Should().BeOfType<FileStreamResult>();
+
+        await mockExport.Received(1).ExportPackageAsync(
+            Arg.Any<Stream>(),
+            Arg.Is<IEnumerable<int>>(ids => ids.SequenceEqual(new[] { 9 })),
+            true,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task PackageController_Export_StreamsThroughPipeWithoutBufferingEntireArchive()
     {
         var torrent = new Torrent { Id = 8, Name = "Streaming Export Torrent" };
