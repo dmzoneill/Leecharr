@@ -65,6 +65,8 @@ public class ClaimsRoleMappingService : IClaimsRoleMappingService
                     {
                         return assignedRoles.ToList();
                     }
+
+                    return new List<string> { "User" };
                 }
             }
             catch (Exception ex)
@@ -73,7 +75,7 @@ public class ClaimsRoleMappingService : IClaimsRoleMappingService
             }
         }
 
-        // Direct matching fallback
+        // Direct matching fallback when no role-mapping rules are configured
         if (validGroups.Any(g => g.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
                                     g.Equals("admins", StringComparison.OrdinalIgnoreCase) ||
                                     g.Equals("leecharr-admins", StringComparison.OrdinalIgnoreCase)))
