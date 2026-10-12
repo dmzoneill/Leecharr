@@ -176,6 +176,14 @@ public class EngineResourceMetricsTest
     }
 
     [Test]
+    public void ResolveConnectedLeechersFromLibtorrentStatus_SubtractsSeedsFromTotalPeers()
+    {
+        LibTorrentDownloadEngine.ResolveConnectedLeechersFromLibtorrentStatus(8, 10).Should().Be(2);
+        LibTorrentDownloadEngine.ResolveConnectedLeechersFromLibtorrentStatus(0, 5).Should().Be(5);
+        LibTorrentDownloadEngine.ResolveConnectedLeechersFromLibtorrentStatus(10, 8).Should().Be(0);
+    }
+
+    [Test]
     public void MapDaemonTorrentState_Finished_MapsToCompletedNotSeeding()
     {
         LibTorrentDownloadEngine.MapDaemonTorrentState("finished", 1.0).Should().Be(TorrentStatus.Completed);
