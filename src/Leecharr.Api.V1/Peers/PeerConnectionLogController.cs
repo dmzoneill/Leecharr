@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Network.GeoIp;
@@ -14,6 +15,7 @@ using NzbDrone.Core.Torrents;
 namespace Leecharr.Api.V1.Peers;
 
 [V1ApiController("peerlog")]
+[Authorize(Policy = "RequireOperator")]
 public class PeerConnectionLogController : Controller
 {
     private readonly ITorrentService torrentService;

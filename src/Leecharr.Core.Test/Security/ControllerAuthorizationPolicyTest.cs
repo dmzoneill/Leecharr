@@ -14,6 +14,7 @@ using Leecharr.Api.V1.FileBrowser;
 using Leecharr.Api.V1.Indexers;
 using Leecharr.Api.V1.Notifications;
 using Leecharr.Api.V1.Packages;
+using Leecharr.Api.V1.Peers;
 using Leecharr.Api.V1.Seeding;
 using Leecharr.Api.V1.System;
 using Leecharr.Api.V1.Tags;
@@ -64,6 +65,7 @@ public class ControllerAuthorizationPolicyTest
     [TestCase(typeof(TrackerBoostController), "RequireOperator")]
     [TestCase(typeof(PackageController), "RequireOperator")]
     [TestCase(typeof(AutomationController), "RequireOperator")]
+    [TestCase(typeof(PeerConnectionLogController), "RequireOperator")]
     public void OperatorControllers_HaveRequireOperatorPolicy(Type controllerType, string expectedPolicy)
     {
         var authAttr = controllerType.GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
