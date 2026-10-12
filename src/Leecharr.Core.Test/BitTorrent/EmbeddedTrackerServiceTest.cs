@@ -879,6 +879,42 @@ public class EmbeddedTrackerServiceTest
         ((BEncodedDictionary)BEncodedValue.Decode(resp2)).ContainsKey("failure reason").Should().BeFalse();
     }
 
+    [Test]
+    public void Announce_NegativeLeft_IsTreatedAsSeeder_AndDoesNotReceiveOtherSeeders()
+    {
+        var infoHash = new byte[20];
+        Array.Fill(infoHash, (byte)0xAB);
+
+        var seederReq = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Left = 0,
+        };
+        this.trackerService.Announce(seederReq).Success.Should().BeTrue();
+
+        var negativeLeftReq = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.2"),
+            Port = 6882,
+            PeerIdBytes = new byte[20],
+            Left = -1,
+            Compact = true,
+        };
+        var result = this.trackerService.Announce(negativeLeftReq);
+
+        result.Success.Should().BeTrue();
+        result.Seeders.Should().Be(2);
+        result.Leechers.Should().Be(0);
+        result.Peers.Should().BeEmpty();
+
+        var peers = this.trackerService.GetPeersForSwarm(Convert.ToHexString(infoHash));
+        peers.Should().ContainSingle(p => p.Ip.ToString() == "10.0.0.2" && p.Left == 0);
+    }
+
     [TestCase(0)]
     [TestCase(-1)]
     [TestCase(65536)]

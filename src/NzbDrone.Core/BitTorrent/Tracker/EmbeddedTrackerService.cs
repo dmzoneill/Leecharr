@@ -358,6 +358,11 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             };
         }
 
+        if (request.Left < 0)
+        {
+            request.Left = 0;
+        }
+
         SwarmState swarm;
         while (true)
         {
