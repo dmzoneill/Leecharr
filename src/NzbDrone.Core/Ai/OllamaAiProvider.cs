@@ -555,6 +555,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                             return heuristic;
                         }
 
+                        EnrichNaturalLanguageSearchFromHeuristic(searchParams, heuristic);
                         return searchParams;
                     }
                 }
@@ -745,7 +746,8 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(heuristic.Category) && string.IsNullOrWhiteSpace(ollama.Category))
+        if (!string.IsNullOrWhiteSpace(heuristic.Category) && string.IsNullOrWhiteSpace(ollama.Category)
+            && (!ollama.Year.HasValue || string.IsNullOrWhiteSpace(ollama.Resolution)))
         {
             return true;
         }
@@ -766,6 +768,19 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
         }
 
         return false;
+    }
+
+    private static void EnrichNaturalLanguageSearchFromHeuristic(AiSearchParameters ollama, AiSearchParameters heuristic)
+    {
+        if (heuristic == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ollama.Category) && !string.IsNullOrWhiteSpace(heuristic.Category))
+        {
+            ollama.Category = heuristic.Category;
+        }
     }
 
     public void Dispose()
