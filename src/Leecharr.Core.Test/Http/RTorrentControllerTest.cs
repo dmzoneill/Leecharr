@@ -1899,6 +1899,91 @@ public class RTorrentControllerTest
     }
 
     [Test]
+    public async Task HandleXmlRpc_LoadStart_InsufficientParams_ReturnsFault()
+    {
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>load.start</methodName>
+                <params>
+                <param><value><string></string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<methodResponse><fault><value><struct>");
+        contentResult.Content.Should().Contain("<name>faultString</name><value><string>Failed to add torrent</string></value>");
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromMagnetAsync(default!, default, default, default);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_LoadStart_WhenAddReturnsNull_ReturnsFault()
+    {
+        var magnet = "magnet:?xt=urn:btih:1111111111111111111111111111111111111111";
+        this.torrentService
+            .AddFromMagnetAsync(magnet, null, null, false)
+            .Returns((Torrent)null!);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>load.start</methodName>
+                <params>
+                <param><value><string></string></value></param>
+                <param><value><string>{magnet}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<methodResponse><fault><value><struct>");
+        contentResult.Content.Should().Contain("Failed to add torrent");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_LoadStart_WhenAddSucceeds_ReturnsZero()
+    {
+        var magnet = "magnet:?xt=urn:btih:2222222222222222222222222222222222222222";
+        var torrent = new Torrent
+        {
+            Id = 99,
+            InfoHash = "2222222222222222222222222222222222222222",
+            Name = "Added.Torrent",
+        };
+        this.torrentService
+            .AddFromMagnetAsync(magnet, null, null, false)
+            .Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>load.start</methodName>
+                <params>
+                <param><value><string></string></value></param>
+                <param><value><string>{magnet}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).AddFromMagnetAsync(magnet, null, null, false);
+    }
+
+    [Test]
     public async Task HandleXmlRpc_EmptyRequestBody_ReturnsDefaultVersion()
     {
         this.SetRequestBody(string.Empty);
