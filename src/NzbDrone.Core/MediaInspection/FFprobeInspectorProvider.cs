@@ -330,8 +330,12 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
 
                     if (string.Equals(codecType, "video", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!IsAttachedPictureStream(stream) &&
-                            string.IsNullOrEmpty(info.VideoCodec) &&
+                        if (IsEmbeddedCoverVideoStream(stream))
+                        {
+                            continue;
+                        }
+
+                        if (string.IsNullOrEmpty(info.VideoCodec) &&
                             stream.TryGetProperty("codec_name", out var vCodec) &&
                             vCodec.ValueKind == JsonValueKind.String)
                         {
@@ -906,6 +910,25 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
     }
 
     private static bool IsAttachedPictureStream(JsonElement stream) => IsFfprobeDispositionSet(stream, "attached_pic");
+
+    private static bool IsEmbeddedCoverVideoStream(JsonElement stream)
+    {
+        if (IsAttachedPictureStream(stream))
+        {
+            return true;
+        }
+
+        if (!stream.TryGetProperty("codec_name", out var codecProp) || codecProp.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        var codec = codecProp.GetString() ?? string.Empty;
+        return codec.Equals("mjpeg", StringComparison.OrdinalIgnoreCase) ||
+            codec.Equals("png", StringComparison.OrdinalIgnoreCase) ||
+            codec.Equals("bmp", StringComparison.OrdinalIgnoreCase) ||
+            codec.Equals("gif", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool IsCommentaryAudioStream(JsonElement stream) => IsFfprobeDispositionSet(stream, "comment");
 

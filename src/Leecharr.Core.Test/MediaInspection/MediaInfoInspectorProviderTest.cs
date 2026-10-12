@@ -248,6 +248,76 @@ sleep 300
     }
 
     [Test]
+    public void ParseMediaInfoJson_WhenJpegCoverTrackLast_KeepsFeatureDimensions()
+    {
+        var json = @"
+{
+""media"": {
+    ""track"": [
+        {
+        ""@type"": ""General"",
+        ""Format"": ""Matroska"",
+        ""Duration"": ""7200.0""
+        },
+        {
+        ""@type"": ""Video"",
+        ""Format"": ""HEVC"",
+        ""Width"": ""3840"",
+        ""Height"": ""2160""
+        },
+        {
+        ""@type"": ""Video"",
+        ""Format"": ""JPEG"",
+        ""Width"": ""800"",
+        ""Height"": ""600"",
+        ""Title"": ""Cover""
+        }
+    ]
+}
+}";
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "Movie.2160p.UHD.mkv");
+
+        info.Should().NotBeNull();
+        info!.VideoCodec.Should().Be("HEVC");
+        info.Width.Should().Be(3840);
+        info.Height.Should().Be(2160);
+    }
+
+    [Test]
+    public void ParseMediaInfoJson_WhenPngCoverTrackFirst_UsesFeatureVideoCodecAndDimensions()
+    {
+        var json = @"
+{
+""media"": {
+    ""track"": [
+        {
+        ""@type"": ""General"",
+        ""Format"": ""MP4""
+        },
+        {
+        ""@type"": ""Video"",
+        ""Format"": ""PNG"",
+        ""Width"": ""500"",
+        ""Height"": ""750""
+        },
+        {
+        ""@type"": ""Video"",
+        ""Format"": ""AVC"",
+        ""Width"": ""1920"",
+        ""Height"": ""1080""
+        }
+    ]
+}
+}";
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mp4");
+
+        info.Should().NotBeNull();
+        info!.VideoCodec.Should().Be("AVC");
+        info.Width.Should().Be(1920);
+        info.Height.Should().Be(1080);
+    }
+
+    [Test]
     public void ParseMediaInfoJson_WhenNumericFieldsAreJsonNumbers_ParsesCorrectly()
     {
         var json = @"

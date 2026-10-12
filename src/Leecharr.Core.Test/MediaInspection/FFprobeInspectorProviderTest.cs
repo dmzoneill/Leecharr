@@ -868,6 +868,39 @@ sleep 300
     }
 
     [Test]
+    public void ParseFFprobeJson_WhenCoverArtVideoStreamLast_KeepsFeatureDimensions()
+    {
+        var json = @"
+{
+    ""format"": {
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""7200.0""
+    },
+    ""streams"": [
+    {
+        ""codec_type"": ""video"",
+        ""codec_name"": ""hevc"",
+        ""width"": 3840,
+        ""height"": 2160
+    },
+    {
+        ""codec_type"": ""video"",
+        ""codec_name"": ""mjpeg"",
+        ""width"": 800,
+        ""height"": 600,
+        ""disposition"": { ""attached_pic"": 1 }
+    }
+    ]
+}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "Movie.2160p.UHD.mkv");
+
+        info.Should().NotBeNull();
+        info!.Width.Should().Be(3840);
+        info.Height.Should().Be(2160);
+        info.VideoCodec.Should().Be("HEVC / H.265");
+    }
+
+    [Test]
     public async Task ProbeHealthAsync_WhenVersionCommandSucceeds_ReturnsHealthy()
     {
         var mockScript = Path.Combine(this.tempDirectory, "mock_ffprobe_version.sh");
