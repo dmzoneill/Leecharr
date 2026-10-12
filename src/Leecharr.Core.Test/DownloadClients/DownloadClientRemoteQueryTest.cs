@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.DownloadClients;
+using Microsoft.AspNetCore.DataProtection;
 using NUnit.Framework;
 using NzbDrone.Core.DownloadClients;
 
@@ -17,6 +18,56 @@ namespace Leecharr.Core.Test.DownloadClients;
 [TestFixture]
 public class DownloadClientRemoteQueryTest
 {
+    [Test]
+    public async Task QueryRemoteClientItemsAsync_QBittorrent_DataProtectedPassword_SendsPlaintextToLogin()
+    {
+        var provider = new EphemeralDataProtectionProvider();
+        var protector = provider.CreateProtector("DownloadClient.Password");
+        const string plainPassword = "real-secret";
+        var protectedPassword = DownloadClientPasswordHelper.Protect(plainPassword, protector);
+        string loginPassword = null;
+
+        var loginResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("Ok."),
+        };
+        var infoResponse = new DisposableHttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]", Encoding.UTF8, "application/json"),
+        };
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v2/auth/login", StringComparison.Ordinal))
+            {
+                loginPassword = req.Content is FormUrlEncodedContent form
+                    ? form.ReadAsStringAsync().GetAwaiter().GetResult()
+                    : null;
+                return loginResponse;
+            }
+
+            return infoResponse;
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var client = new DownloadClientDefinition
+        {
+            Name = "QBit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Username = "admin",
+            Password = protectedPassword,
+        };
+
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, httpClient, protector: protector);
+
+        items.Should().BeEmpty();
+        loginPassword.Should().Contain($"password={plainPassword}");
+        protectedPassword.Should().StartWith("enc:");
+        loginPassword.Should().NotContain("enc:");
+    }
+
     [Test]
     public async Task QueryRemoteClientItemsAsync_QBittorrent_DisposesAllHttpResponses()
     {

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Leecharr.Api.V1.ArrIntegration;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.DownloadClients;
@@ -27,18 +28,21 @@ public class DownloadClientSyncController : Controller
     private readonly ITorrentService torrentService;
     private readonly HttpClient httpClient;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IDataProtector protector;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DownloadClientSyncController(
         IDownloadClientRepository clientRepository,
         ITorrentService torrentService,
         HttpClient httpClient = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IDataProtectionProvider dataProtectionProvider = null)
     {
         this.clientRepository = clientRepository;
         this.torrentService = torrentService;
         this.httpClient = httpClient;
         this.safeHttpClientService = safeHttpClientService;
+        this.protector = dataProtectionProvider?.CreateProtector("DownloadClient.Password");
     }
 
     [HttpPost("sync")]
@@ -56,7 +60,7 @@ public class DownloadClientSyncController : Controller
             {
                 try
                 {
-                    var queryResult = await DownloadClientRemoteQuery.QueryRemoteClientItemsDetailedAsync(client, this.httpClient, this.safeHttpClientService);
+                    var queryResult = await DownloadClientRemoteQuery.QueryRemoteClientItemsDetailedAsync(client, this.httpClient, this.safeHttpClientService, protector: this.protector);
                     if (!queryResult.IsSuccess)
                     {
                         failedClients++;
