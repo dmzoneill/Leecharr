@@ -141,6 +141,29 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetTorrentsInfo_CompleteTorrentWithoutDateCompleted_UsesZeroCompletionOn()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Complete Torrent",
+            InfoHash = "hash1",
+            Status = TorrentStatus.Completed,
+            Progress = 1.0,
+            DateCompleted = null,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var actionResult = this.controller.GetTorrentsInfo();
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<IEnumerable<Dictionary<string, object>>>().Subject;
+        var entry = list.Should().ContainSingle().Subject;
+
+        Convert.ToInt64(entry["completion_on"]).Should().Be(0L);
+    }
+
+    [Test]
     public void GetMainData_IncludesSequentialDownloadAndFirstLastPiecePriority()
     {
         var torrent = new Torrent
