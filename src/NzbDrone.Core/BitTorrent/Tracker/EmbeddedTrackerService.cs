@@ -30,11 +30,11 @@ public class TrackerPeerState
 
     public long Downloaded { get; set; }
 
-    public long Left { get; set; }
+    public long? Left { get; set; }
 
     public DateTime LastAnnounceUtc { get; set; } = DateTime.UtcNow;
 
-    public bool IsSeeder => this.Left == 0;
+    public bool IsSeeder => this.Completed || this.Left == 0;
 
     public bool Completed { get; set; }
 }
@@ -364,7 +364,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             };
         }
 
-        if (request.Left < 0)
+        if (request.Left is < 0)
         {
             request.Left = 0;
         }
@@ -1026,7 +1026,11 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         peer.Port = port;
         peer.Uploaded = request.Uploaded;
         peer.Downloaded = request.Downloaded;
-        peer.Left = request.Left;
+        if (request.Left.HasValue)
+        {
+            peer.Left = request.Left.Value;
+        }
+
         peer.LastAnnounceUtc = this.UtcNow;
 
         if (isCompleted && !wasSeeder)

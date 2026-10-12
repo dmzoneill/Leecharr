@@ -24,7 +24,7 @@ public class TrackerAnnounceRequest
 
     public long Downloaded { get; set; }
 
-    public long Left { get; set; }
+    public long? Left { get; set; }
 
     public string Event { get; set; }
 

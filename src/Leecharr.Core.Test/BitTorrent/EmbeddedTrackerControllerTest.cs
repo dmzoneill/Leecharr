@@ -83,12 +83,21 @@ public class EmbeddedTrackerControllerTest
     }
 
     [Test]
-    public void ParseAnnounceQuery_NegativeLeft_IsIgnoredAndDefaultsToZero()
+    public void ParseAnnounceQuery_NegativeLeft_IsIgnoredAndLeftRemainsUnset()
     {
         var query = "?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=-1";
         var request = EmbeddedTrackerController.ParseAnnounceQuery(query, IPAddress.Loopback);
 
-        request.Left.Should().Be(0);
+        request.Left.Should().BeNull();
+    }
+
+    [Test]
+    public void ParseAnnounceQuery_OmittedLeft_RemainsUnset()
+    {
+        var query = "?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881";
+        var request = EmbeddedTrackerController.ParseAnnounceQuery(query, IPAddress.Loopback);
+
+        request.Left.Should().BeNull();
     }
 
     [Test]
