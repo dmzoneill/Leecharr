@@ -3091,30 +3091,39 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
     }
 
+    public static void DeriveResolutionFromDimensions(MediaContainerInfo info, int width, int height)
+    {
+        if (width >= 3800 || height >= 2100)
+        {
+            info.Resolution = "4K UHD (2160p)";
+        }
+        else if (height >= 1400)
+        {
+            info.Resolution = "1440p";
+        }
+        else if (width >= 1900 || height >= 1000)
+        {
+            info.Resolution = "1080p";
+        }
+        else if (width >= 1200 || height >= 700)
+        {
+            info.Resolution = "720p";
+        }
+        else if (height >= 500 || (width >= 700 && height >= 500))
+        {
+            info.Resolution = "576p";
+        }
+        else if (width >= 640 || height >= 400)
+        {
+            info.Resolution = "480p";
+        }
+    }
+
     private static void ApplyResolution(MediaContainerInfo info, int width, int height)
     {
         if (string.IsNullOrEmpty(info.Resolution))
         {
-            if (width >= 3800 || height >= 2100)
-            {
-                info.Resolution = "4K UHD (2160p)";
-            }
-            else if (width >= 1900 || height >= 1000)
-            {
-                info.Resolution = "1080p";
-            }
-            else if (width >= 1200 || height >= 700)
-            {
-                info.Resolution = "720p";
-            }
-            else if (height >= 500 || (width >= 700 && height >= 500))
-            {
-                info.Resolution = "576p";
-            }
-            else if (width >= 640 || height >= 400)
-            {
-                info.Resolution = "480p";
-            }
+            DeriveResolutionFromDimensions(info, width, height);
         }
     }
 
@@ -3658,6 +3667,19 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 if (info.Height == 0)
                 {
                     info.Height = 2160;
+                }
+            }
+            else if (Regex.IsMatch(normalized, @"\b(1440P|QHD)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
+            {
+                info.Resolution = "1440p";
+                if (info.Width == 0)
+                {
+                    info.Width = 2560;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 1440;
                 }
             }
             else if (Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
