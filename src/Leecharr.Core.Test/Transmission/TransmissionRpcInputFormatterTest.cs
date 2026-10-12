@@ -106,6 +106,25 @@ public class TransmissionRpcInputFormatterTest
     }
 
     [Test]
+    public async Task ReadRequestBodyAsync_should_deserialize_torrent_add_magnet_with_ampersand_in_form_urlencoded_body()
+    {
+        var hash = "8888888888888888888888888888888888888888";
+        var json = $"{{\"method\":\"torrent-add\",\"arguments\":{{\"filename\":\"magnet:?xt=urn:btih:{hash}&dn=TransmissionCliCompatibilityMovie\"}},\"tag\":456}}";
+        var innerStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+        var nonSeekableStream = new NonSeekableStream(innerStream);
+        var context = CreateContext(nonSeekableStream, contentType: "application/x-www-form-urlencoded");
+
+        var result = await _formatter.ReadRequestBodyAsync(context, Encoding.UTF8);
+
+        Assert.That(result.HasError, Is.False);
+        var request = result.Model as TransmissionRpcRequest;
+        Assert.That(request, Is.Not.Null);
+        Assert.That(request.Method, Is.EqualTo("torrent-add"));
+        Assert.That(request.Arguments["filename"].GetString(), Does.Contain("&dn="));
+        Assert.That(request.Tag.GetInt32(), Is.EqualTo(456));
+    }
+
+    [Test]
     public async Task ReadRequestBodyAsync_should_deserialize_form_with_query_field()
     {
         var json = "{\"method\":\"session-get\",\"tag\":123}";

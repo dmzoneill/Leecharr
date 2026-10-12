@@ -23,7 +23,6 @@ namespace NzbDrone.Integration.Test;
 public class TransmissionRemoteCliAndWireIntegrationTests : IntegrationTestBase
 {
     private const string TestHash = "8888888888888888888888888888888888888888";
-    private const string TestName = "TransmissionCliCompatibilityMovie";
 
     [Test]
     public async Task TransmissionRpc_FormUrlEncodedWithTrailingSlash_NegotiatesSessionAndReturnsSuccess()
@@ -71,7 +70,7 @@ public class TransmissionRemoteCliAndWireIntegrationTests : IntegrationTestBase
             method = "torrent-add",
             arguments = new
             {
-                filename = $"magnet:?xt=urn:btih:{TestHash}&dn={TestName}",
+                filename = $"magnet:?xt=urn:btih:{TestHash}",
             },
             tag = 456,
         });
@@ -83,10 +82,10 @@ public class TransmissionRemoteCliAndWireIntegrationTests : IntegrationTestBase
         addReq.Headers.Add("X-Transmission-Session-Id", sessionId);
 
         var addResponse = await this.Client.SendAsync(addReq);
-        addResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var addResponseBody = await addResponse.Content.ReadAsStringAsync();
+        addResponse.StatusCode.Should().Be(HttpStatusCode.OK, addResponseBody);
 
-        var addJson = await addResponse.Content.ReadAsStringAsync();
-        using var addDoc = JsonDocument.Parse(addJson);
+        using var addDoc = JsonDocument.Parse(addResponseBody);
         addDoc.RootElement.GetProperty("result").GetString().Should().Be("success");
         addDoc.RootElement.GetProperty("tag").GetInt32().Should().Be(456);
 
