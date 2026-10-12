@@ -157,8 +157,7 @@ public class NotificationEventHandler :
             this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", message.Torrent);
             this.Dispatch(n => n.OnManualInteractionRequired, "OnManualInteractionRequired", message.Torrent);
         }
-        else if ((message.OldStatus is TorrentStatus.Error or TorrentStatus.Stalled) &&
-                    message.NewStatus != TorrentStatus.Error && message.NewStatus != TorrentStatus.Stalled)
+        else if (IsTorrentHealthRestored(message.OldStatus, message.NewStatus))
         {
             this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", message.Torrent);
         }
@@ -322,6 +321,16 @@ public class NotificationEventHandler :
     internal static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload, string settings = null)
     {
         return NotificationPayloadBuilder.BuildProviderPayload(implementation, eventType, torrent, (object)meta, genericPayload, settings);
+    }
+
+    private static bool IsTorrentHealthRestored(TorrentStatus oldStatus, TorrentStatus newStatus)
+    {
+        if (oldStatus is not (TorrentStatus.Error or TorrentStatus.Stalled))
+        {
+            return false;
+        }
+
+        return newStatus is TorrentStatus.Downloading or TorrentStatus.Seeding or TorrentStatus.Completed;
     }
 
     private void DispatchGeneric(Func<NotificationDefinition, bool> predicate, string eventType, object payload)
