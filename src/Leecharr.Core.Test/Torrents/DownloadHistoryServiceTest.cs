@@ -1292,6 +1292,7 @@ public class DownloadHistoryServiceTest
         var result = this.service.RecordTorrentAdded(torrent);
 
         result.DateCompleted.Should().NotBeNull();
+        result.Status.Should().Be("Completed");
     }
 
     [Test]
@@ -1763,7 +1764,8 @@ public class DownloadHistoryServiceTest
             Reason = "Seeding completed",
         });
         existing.DateCompleted.Should().NotBeNull();
-        existing.RemovalReason.Should().Be("Seeding completed");
+        existing.Status.Should().Be("Completed");
+        existing.RemovalReason.Should().BeNull();
         existing.Uploaded.Should().Be(100);
         existing.SeedingTime.Should().Be(3600);
         this.historyRepository.Received(1).Update(existing);
@@ -1771,9 +1773,19 @@ public class DownloadHistoryServiceTest
         this.service.Handle(new TorrentStatusChangedEvent
         {
             Torrent = t,
+            NewStatus = TorrentStatus.Paused,
+            Reason = "AutoStop after completion",
+        });
+        existing.RemovalReason.Should().BeNull();
+        this.historyRepository.Received(2).Update(existing);
+
+        this.service.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = t,
             NewStatus = TorrentStatus.Error,
             Reason = "I/O Error",
         });
-        existing.RemovalReason.Should().Be("I/O Error");
+        existing.RemovalReason.Should().BeNull();
+        this.historyRepository.Received(3).Update(existing);
     }
 }

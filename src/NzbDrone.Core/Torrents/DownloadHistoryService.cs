@@ -269,7 +269,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             Source = source ?? (torrent.Category ?? "Manual"),
             MagnetUrl = magnetUrl,
             DownloadUrl = downloadUrl,
-            Status = "Active",
+            Status = torrent.Progress >= 1.0 ? "Completed" : "Active",
         };
 
         try
@@ -305,7 +305,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         existing.TorrentId = torrent.Id;
         existing.Title = torrent.Name ?? existing.Title;
         existing.TotalSize = torrent.TotalSize > 0 ? torrent.TotalSize : existing.TotalSize;
-        existing.Status = "Active";
+        existing.Status = torrent.Progress >= 1.0 ? "Completed" : "Active";
+        if (torrent.Progress >= 1.0 && existing.DateCompleted == null)
+        {
+            existing.DateCompleted = DateTime.UtcNow;
+        }
+
         existing.DateRemoved = null;
         existing.IsPrivate = torrent.IsPrivate;
         ApplyTorrentHashesToHistory(existing, torrent);
@@ -1159,14 +1164,14 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         {
             if (message.NewStatus == TorrentStatus.Error || message.NewStatus == TorrentStatus.Paused || message.NewStatus == TorrentStatus.Seeding)
             {
-                if (message.NewStatus == TorrentStatus.Seeding && history.DateCompleted == null)
+                if (message.NewStatus == TorrentStatus.Seeding)
                 {
-                    history.DateCompleted = DateTime.UtcNow;
-                }
+                    if (history.DateCompleted == null)
+                    {
+                        history.DateCompleted = DateTime.UtcNow;
+                    }
 
-                if (!string.IsNullOrWhiteSpace(message.Reason))
-                {
-                    history.RemovalReason = message.Reason;
+                    history.Status = "Completed";
                 }
 
                 history.Uploaded = message.Torrent.Uploaded;
