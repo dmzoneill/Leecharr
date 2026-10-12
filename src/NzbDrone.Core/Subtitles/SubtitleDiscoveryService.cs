@@ -262,16 +262,17 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
         string twoLetter = null;
         string languageName = null;
 
-        foreach (var token in tokens)
+        for (var i = 0; i < tokens.Length; i++)
         {
-            var key = token.ToLowerInvariant();
-            if (LanguageMap.TryGetValue(key, out var entry))
+            if (!TryMatchLanguageToken(tokens, i, out var entry))
             {
-                languageCode = entry.Code;
-                twoLetter = entry.TwoLetter;
-                languageName = entry.DisplayName;
-                break;
+                continue;
             }
+
+            languageCode = entry.Code;
+            twoLetter = entry.TwoLetter;
+            languageName = entry.DisplayName;
+            break;
         }
 
         // If not found in tokens, check parent folder name (e.g. Subs/English/...)
@@ -322,6 +323,34 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
             IsHearingImpaired = isSdh,
             IsDefault = trackId == 1 && !isForced
         };
+    }
+
+    private static bool TryMatchLanguageToken(string[] tokens, int index, out LanguageEntry entry)
+    {
+        entry = null;
+        if (index >= tokens.Length)
+        {
+            return false;
+        }
+
+        var first = tokens[index].ToLowerInvariant();
+        if (index + 1 < tokens.Length)
+        {
+            var second = tokens[index + 1].ToLowerInvariant();
+            if (LanguageMap.TryGetValue($"{first}-{second}", out entry) ||
+                LanguageMap.TryGetValue($"{first}_{second}", out entry))
+            {
+                return true;
+            }
+        }
+
+        if (LanguageMap.TryGetValue(first, out entry))
+        {
+            return true;
+        }
+
+        entry = null;
+        return false;
     }
 
     private static bool IsInsideSubsFolder(string subPath, string videoDir)
