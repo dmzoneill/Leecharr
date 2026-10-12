@@ -879,7 +879,16 @@ public class AuthController : ControllerBase
     {
         if (!string.IsNullOrWhiteSpace(requestId))
         {
+            PruneExpiredSamlState();
             PendingSamlRequests[requestId] = DateTime.UtcNow.Add(SamlRequestTtl);
+        }
+    }
+
+    public static void RecordPendingSamlRequestExpiry(string requestId, DateTime expiryUtc)
+    {
+        if (!string.IsNullOrWhiteSpace(requestId))
+        {
+            PendingSamlRequests[requestId] = expiryUtc;
         }
     }
 
@@ -890,7 +899,18 @@ public class AuthController : ControllerBase
             return false;
         }
 
-        return PendingSamlRequests.TryGetValue(inResponseTo, out var expiry) && DateTime.UtcNow <= expiry;
+        if (!PendingSamlRequests.TryGetValue(inResponseTo, out var expiry))
+        {
+            return false;
+        }
+
+        if (DateTime.UtcNow <= expiry)
+        {
+            return true;
+        }
+
+        PendingSamlRequests.TryRemove(inResponseTo, out _);
+        return false;
     }
 
     public static bool ConsumePendingSamlRequest(string inResponseTo)
@@ -925,6 +945,7 @@ public class AuthController : ControllerBase
             return true;
         }
 
+        PruneExpiredSamlState();
         var now = DateTime.UtcNow;
         if (ProcessedSamlAssertions.TryGetValue(assertionId, out var expiry))
         {
@@ -938,6 +959,44 @@ public class AuthController : ControllerBase
 
         ProcessedSamlAssertions[assertionId] = now.Add(SamlReplayTtl);
         return true;
+    }
+
+    public static int TrackedPendingSamlRequestsCount => PendingSamlRequests.Count;
+
+    public static int TrackedProcessedSamlAssertionsCount => ProcessedSamlAssertions.Count;
+
+    public static void PruneExpiredSamlState(DateTime? utcNow = null, int maxTrackedSamlIds = MaxTrackedIps)
+    {
+        var now = utcNow ?? DateTime.UtcNow;
+        PruneExpiredSamlDictionary(PendingSamlRequests, now, maxTrackedSamlIds);
+        PruneExpiredSamlDictionary(ProcessedSamlAssertions, now, maxTrackedSamlIds);
+    }
+
+    private static void PruneExpiredSamlDictionary(ConcurrentDictionary<string, DateTime> dictionary, DateTime now, int maxTrackedSamlIds)
+    {
+        foreach (var kvp in dictionary)
+        {
+            if (kvp.Value <= now)
+            {
+                dictionary.TryRemove(kvp.Key, out _);
+            }
+        }
+
+        if (maxTrackedSamlIds > 0 && dictionary.Count > maxTrackedSamlIds)
+        {
+            var targetCount = maxTrackedSamlIds / 2;
+            var excess = Math.Max(1, dictionary.Count - targetCount);
+            var toRemove = dictionary
+                .OrderBy(kvp => kvp.Value)
+                .Take(excess)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var key in toRemove)
+            {
+                dictionary.TryRemove(key, out _);
+            }
+        }
     }
 
     public static int TrackedLoginAttemptsCount => LoginAttempts.Count;
