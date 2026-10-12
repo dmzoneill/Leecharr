@@ -83,6 +83,15 @@ public class EmbeddedTrackerControllerTest
     }
 
     [Test]
+    public void ParseAnnounceQuery_NegativeLeft_IsIgnoredAndDefaultsToZero()
+    {
+        var query = "?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=-1";
+        var request = EmbeddedTrackerController.ParseAnnounceQuery(query, IPAddress.Loopback);
+
+        request.Left.Should().Be(0);
+    }
+
+    [Test]
     public void Announce_ParsesNoPeerId_WhenSpecified()
     {
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
