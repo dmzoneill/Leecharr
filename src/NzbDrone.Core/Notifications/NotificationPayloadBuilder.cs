@@ -36,22 +36,22 @@ public static class NotificationPayloadBuilder
                 var root = doc.RootElement;
                 if (root.TryGetProperty("chat_id", out var c) || root.TryGetProperty("chatId", out c))
                 {
-                    chatId = c.GetString() ?? c.ToString();
+                    chatId = JsonSettingString(c);
                 }
 
                 if (root.TryGetProperty("token", out var t) || root.TryGetProperty("botToken", out t) || root.TryGetProperty("apiKey", out t) || root.TryGetProperty("appToken", out t))
                 {
-                    token = t.GetString() ?? t.ToString();
+                    token = JsonSettingString(t);
                 }
 
                 if (root.TryGetProperty("user", out var u) || root.TryGetProperty("userKey", out u))
                 {
-                    user = u.GetString() ?? u.ToString();
+                    user = JsonSettingString(u);
                 }
 
                 if (root.TryGetProperty("sound", out var s) || root.TryGetProperty("Sound", out s))
                 {
-                    sound = s.GetString() ?? s.ToString();
+                    sound = JsonSettingString(s);
                 }
             }
             catch (JsonException ex)
@@ -97,6 +97,11 @@ public static class NotificationPayloadBuilder
         }
 
         return (chatId, token, user, sound);
+    }
+
+    private static string JsonSettingString(JsonElement element)
+    {
+        return element.ValueKind == JsonValueKind.String ? element.GetString() ?? string.Empty : element.GetRawText();
     }
 
     public static (string Username, string AvatarUrl) ExtractDiscordSettings(string settings)
