@@ -20,6 +20,12 @@ public class CommandExecutor : ICommandExecutor
 {
     private static readonly ConcurrentDictionary<string, Type> CommandTypeCache = new(StringComparer.OrdinalIgnoreCase);
 
+    private sealed class UnknownCommandTypeSentinel
+    {
+    }
+
+    private static readonly Type UnknownCommandType = typeof(UnknownCommandTypeSentinel);
+
     private readonly IServiceFactory serviceFactory;
     private readonly IBasicRepository<CommandModel> repository;
     private readonly IEventAggregator eventAggregator;
@@ -225,25 +231,30 @@ public class CommandExecutor : ICommandExecutor
 
     private static Type FindCommandType(string name)
     {
-        return CommandTypeCache.GetOrAdd(name, static n =>
-            AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a =>
+        var cached = CommandTypeCache.GetOrAdd(name, static n => ResolveCommandType(n) ?? UnknownCommandType);
+        return cached == UnknownCommandType ? null : cached;
+    }
+
+    private static Type ResolveCommandType(string name)
+    {
+        return AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a =>
+            {
+                try
                 {
-                    try
-                    {
-                        return a.GetTypes();
-                    }
-                    catch
-                    {
-                        return Array.Empty<Type>();
-                    }
-                })
-                .FirstOrDefault(t =>
-                    (t.Name.Equals(n, StringComparison.OrdinalIgnoreCase) ||
-                        t.Name.Equals(n + "Command", StringComparison.OrdinalIgnoreCase)) &&
-                    t.IsClass &&
-                    !t.IsAbstract &&
-                    typeof(Command).IsAssignableFrom(t)));
+                    return a.GetTypes();
+                }
+                catch
+                {
+                    return Array.Empty<Type>();
+                }
+            })
+            .FirstOrDefault(t =>
+                (t.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                    t.Name.Equals(name + "Command", StringComparison.OrdinalIgnoreCase)) &&
+                t.IsClass &&
+                !t.IsAbstract &&
+                typeof(Command).IsAssignableFrom(t));
     }
 
     private static Command DeserializeCommand(string body, Type commandType)
