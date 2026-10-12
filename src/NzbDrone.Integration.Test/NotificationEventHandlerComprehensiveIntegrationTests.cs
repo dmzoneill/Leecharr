@@ -575,6 +575,8 @@ public class NotificationEventHandlerComprehensiveIntegrationTests : Integration
         var json = JsonSerializer.Serialize(dispatch.Payload);
         json.Should().Contain("\"eventType\":\"OnHealthIssue\"");
         json.Should().Contain("Gentoo.Minimal.iso");
+        json.Should().Contain("Connection timed out");
+        json.Should().Contain("\"source\":\"Tracker\"");
     }
 
     [Test]

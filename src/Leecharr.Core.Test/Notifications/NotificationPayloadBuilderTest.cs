@@ -404,4 +404,27 @@ public class NotificationPayloadBuilderTest
         text.Should().NotBeNull();
         text.Should().Contain(@"*Leecharr \[OnHealthIssue\]*");
     }
+
+    [Test]
+    public void BuildProviderPayload_Gotify_HealthIssueWithTorrent_IncludesHealthMessage()
+    {
+        var torrent = new Torrent
+        {
+            Id = 7,
+            Name = "Tracker Failed Torrent",
+            Category = "Movies",
+            Status = TorrentStatus.Stalled,
+        };
+
+        var genericPayload = new
+        {
+            Message = "Connection refused",
+            Source = "Tracker",
+            IsResolved = false,
+        };
+
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Gotify", "OnHealthIssue", torrent, null, genericPayload, null);
+        var json = JsonSerializer.Serialize(result);
+        json.Should().Contain("Connection refused");
+    }
 }

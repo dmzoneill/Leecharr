@@ -196,11 +196,11 @@ public class NotificationEventHandler :
         {
             if (message.IsResolved)
             {
-                this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", torrent);
+                this.Dispatch(n => n.OnHealthRestored, "OnHealthRestored", torrent, message.Source, message.Message, message.IsResolved);
             }
             else
             {
-                this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", torrent);
+                this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", torrent, message.Source, message.Message, message.IsResolved);
             }
 
             return;
@@ -383,7 +383,7 @@ public class NotificationEventHandler :
         }
     }
 
-    private void Dispatch(Func<NotificationDefinition, bool> predicate, string eventType, Torrent torrent)
+    private void Dispatch(Func<NotificationDefinition, bool> predicate, string eventType, Torrent torrent, string healthSource = null, string healthMessage = null, bool? healthIsResolved = null)
     {
         var activeNotifications = this.notificationRepository.GetEnabled().Where(predicate).ToList();
         if (activeNotifications.Count == 0)
@@ -472,6 +472,17 @@ public class NotificationEventHandler :
                 subtitleLanguages,
             },
             files,
+            health = string.IsNullOrWhiteSpace(healthMessage)
+                ? null
+                : new
+                {
+                    source = healthSource ?? string.Empty,
+                    message = healthMessage,
+                    isResolved = healthIsResolved ?? false,
+                },
+            Message = healthMessage,
+            Source = healthSource,
+            IsResolved = healthIsResolved ?? false,
         };
 
         foreach (var notif in activeNotifications)
