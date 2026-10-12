@@ -699,7 +699,22 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"result\":true");
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
-            (int)d["MaxActiveDownloads"] == 12));
+            (int)d["MaxActiveTorrents"] == 12 && !d.ContainsKey("MaxActiveDownloads")));
+    }
+
+    [Test]
+    public async Task HandleRpc_WebSetConfig_WithMaxActiveLimitAndDownloading_KeepsSeparateCaps()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"web.set_config\",\"params\":[{\"max_active_limit\": 8, \"max_active_downloading\": 3}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["MaxActiveTorrents"] == 8 && (int)d["MaxActiveDownloads"] == 3));
     }
 
     [Test]
