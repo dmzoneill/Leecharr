@@ -99,38 +99,40 @@ public class TorrentLogService : ITorrentLogService,
 
         var effectiveLimit = Math.Max(1, limit);
 
+        TorrentEventLog[] memorySnapshot = Array.Empty<TorrentEventLog>();
         if (LogsByTorrent.TryGetValue(torrentId, out var buffer))
         {
             buffer.Touch();
-
-            var snapshot = buffer.Queue.ToArray();
-            if (snapshot.Length > 0)
-            {
-                var count = Math.Min(effectiveLimit, snapshot.Length);
-                var result = new List<TorrentEventLog>(count);
-                for (var i = snapshot.Length - 1; i >= snapshot.Length - count; i--)
-                {
-                    result.Add(snapshot[i]);
-                }
-
-                return result;
-            }
+            memorySnapshot = buffer.Queue.ToArray();
         }
 
+        List<TorrentEventLog> dbLogs = null;
         if (this.repository != null)
         {
             try
             {
-                var dbLogs = this.repository.GetLogsForTorrent(torrentId, effectiveLimit);
-                if (dbLogs != null && dbLogs.Count > 0)
-                {
-                    return dbLogs;
-                }
+                dbLogs = this.repository.GetLogsForTorrent(torrentId, effectiveLimit);
             }
             catch (Exception ex)
             {
                 this.logger.Debug(ex, "Failed to load torrent event logs from database for torrent {0}", torrentId);
             }
+        }
+
+        var hasDbLogs = dbLogs != null && dbLogs.Count > 0;
+        if (hasDbLogs && memorySnapshot.Length > 0)
+        {
+            return MergeLogs(dbLogs, memorySnapshot, effectiveLimit);
+        }
+
+        if (hasDbLogs)
+        {
+            return dbLogs;
+        }
+
+        if (memorySnapshot.Length > 0)
+        {
+            return TakeNewestMemoryLogs(memorySnapshot, effectiveLimit);
         }
 
         return Array.Empty<TorrentEventLog>();
@@ -257,6 +259,56 @@ public class TorrentLogService : ITorrentLogService,
         {
             this.ClearLogs(message.Torrent.Id);
         }
+    }
+
+    private static IReadOnlyList<TorrentEventLog> TakeNewestMemoryLogs(TorrentEventLog[] snapshot, int limit)
+    {
+        var count = Math.Min(limit, snapshot.Length);
+        var result = new List<TorrentEventLog>(count);
+        for (var i = snapshot.Length - 1; i >= snapshot.Length - count; i--)
+        {
+            result.Add(snapshot[i]);
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<TorrentEventLog> MergeLogs(
+        IReadOnlyList<TorrentEventLog> dbLogs,
+        TorrentEventLog[] memorySnapshot,
+        int limit)
+    {
+        var mergedById = new Dictionary<int, TorrentEventLog>();
+        var withoutId = new List<TorrentEventLog>();
+
+        void AddEntry(TorrentEventLog log)
+        {
+            if (log.Id > 0)
+            {
+                mergedById[log.Id] = log;
+            }
+            else
+            {
+                withoutId.Add(log);
+            }
+        }
+
+        foreach (var log in dbLogs)
+        {
+            AddEntry(log);
+        }
+
+        foreach (var log in memorySnapshot)
+        {
+            AddEntry(log);
+        }
+
+        return mergedById.Values
+            .Concat(withoutId)
+            .OrderByDescending(log => log.Timestamp)
+            .ThenByDescending(log => log.Id)
+            .Take(limit)
+            .ToList();
     }
 
     private static void EvictOldestTorrentsIfNeeded()
