@@ -251,7 +251,7 @@ public class OllamaAiProviderTest
             var body = await req.Content.ReadAsStringAsync(ct);
             using var doc = System.Text.Json.JsonDocument.Parse(body);
             var prompt = doc.RootElement.GetProperty("prompt").GetString();
-            if (string.Equals(prompt, "block-until-release", StringComparison.Ordinal))
+            if (string.Equals(prompt, "tell me about ratio", StringComparison.OrdinalIgnoreCase))
             {
                 await releaseFallbackCall.Task;
                 throw new HttpRequestException("Sidecar offline");
@@ -268,7 +268,7 @@ public class OllamaAiProviderTest
         var fallbackFlow = Task.Run(async () =>
         {
             using var provider = new OllamaAiProvider(this.configService, client);
-            var reply = await provider.GenerateChatResponseAsync("block-until-release");
+            var reply = await provider.GenerateChatResponseAsync("tell me about ratio");
             return (reply, provider.LastChatUsedFallback);
         });
 

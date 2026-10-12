@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using FluentAssertions;
+using MonoTorrent.Trackers;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
@@ -22,7 +24,7 @@ public class MultiTrackerFailoverServiceTest
 
         var utc = new DateTime(2026, 10, 11, 12, 0, 0, DateTimeKind.Utc);
         var service = new MultiTrackerFailoverService(config, () => utc);
-        var tracker = Substitute.For<MonoTorrent.Trackers.ITracker>();
+        var tracker = Substitute.For<ITracker>();
         tracker.Uri.Returns(new Uri("http://tracker.example/announce"));
 
         service.RecordAnnounceOutcome(42, 0, tracker, false, utc);
@@ -44,18 +46,16 @@ public class MultiTrackerFailoverServiceTest
         var utc = new DateTime(2026, 10, 11, 12, 0, 0, DateTimeKind.Utc);
         var service = new MultiTrackerFailoverService(config, () => utc);
 
-        var tier = Substitute.For<MonoTorrent.Trackers.TrackerTier>();
-        var trackerA = Substitute.For<MonoTorrent.Trackers.ITracker>();
-        var trackerB = Substitute.For<MonoTorrent.Trackers.ITracker>();
+        var trackerA = Substitute.For<ITracker>();
+        var trackerB = Substitute.For<ITracker>();
         trackerA.Uri.Returns(new Uri("http://a.example/announce"));
         trackerB.Uri.Returns(new Uri("http://b.example/announce"));
-        tier.Trackers.Returns(new[] { trackerA, trackerB });
-        tier.ActiveTracker.Returns(trackerA);
+        var trackers = new List<ITracker> { trackerA, trackerB };
 
         service.RecordAnnounceOutcome(7, 0, trackerA, false, utc);
         service.RecordAnnounceOutcome(7, 0, trackerA, false, utc.AddSeconds(20));
 
-        var selected = service.SelectTrackerForTier(7, 0, tier, utc.AddSeconds(20));
+        var selected = service.SelectTrackerForTier(7, 0, trackers, trackerA, utc.AddSeconds(20));
         selected.Uri.Should().Be(trackerB.Uri);
     }
 }

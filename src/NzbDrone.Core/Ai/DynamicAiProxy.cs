@@ -122,28 +122,42 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             return true;
         }
 
+        var health = await targetProvider.ProbeHealthAsync();
+        if (!health.IsHealthy)
+        {
+            this.logger.Warn("Cannot switch to AI provider '{0}': health check failed ({1}).", targetProvider.DisplayName, health.StatusMessage);
+            return false;
+        }
+
+        if (configSavedGeneration.HasValue && !this.IsConfigSavedSwitchCurrent(configSavedGeneration.Value, providerId))
+        {
+            this.logger.Debug(
+                "Skipping stale AI provider switch to '{0}' after health probe (superseded ConfigSavedEvent).",
+                providerId);
+            return true;
+        }
+
         AiProviderSwitchedEvent switchedEvent = null;
         var success = false;
 
         await this.switchLock.WaitAsync();
         try
         {
-            var health = await targetProvider.ProbeHealthAsync();
-            if (!health.IsHealthy)
+            current = Volatile.Read(ref this.activeProvider);
+            if (string.Equals(current.ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
             {
-                this.logger.Warn("Cannot switch to AI provider '{0}': health check failed ({1}).", targetProvider.DisplayName, health.StatusMessage);
-                return false;
+                return true;
             }
 
             if (configSavedGeneration.HasValue && !this.IsConfigSavedSwitchCurrent(configSavedGeneration.Value, providerId))
             {
                 this.logger.Debug(
-                    "Skipping stale AI provider switch to '{0}' after health probe (superseded ConfigSavedEvent).",
+                    "Skipping stale AI provider switch to '{0}' after acquiring switch lock (superseded ConfigSavedEvent).",
                     providerId);
                 return true;
             }
 
-            var previousProvider = Volatile.Read(ref this.activeProvider);
+            var previousProvider = current;
             Volatile.Write(ref this.activeProvider, targetProvider);
 
             this.configService.SaveConfigDictionary(new Dictionary<string, object>

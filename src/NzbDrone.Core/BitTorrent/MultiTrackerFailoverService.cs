@@ -13,6 +13,8 @@ public interface IMultiTrackerFailoverService
 
     ITracker SelectTrackerForTier(int torrentId, int tierIndex, TrackerTier tier, DateTime utcNow);
 
+    ITracker SelectTrackerForTier(int torrentId, int tierIndex, IList<ITracker> trackers, ITracker activeTracker, DateTime utcNow);
+
     void RecordAnnounceOutcome(int torrentId, int tierIndex, ITracker tracker, bool success, DateTime utcNow);
 
     void ClearTorrent(int torrentId);
@@ -44,25 +46,30 @@ public sealed class MultiTrackerFailoverService : IMultiTrackerFailoverService
 
     public ITracker SelectTrackerForTier(int torrentId, int tierIndex, TrackerTier tier, DateTime utcNow)
     {
-        if (tier?.Trackers == null || tier.Trackers.Count == 0)
+        return this.SelectTrackerForTier(torrentId, tierIndex, tier?.Trackers, tier?.ActiveTracker, utcNow);
+    }
+
+    public ITracker SelectTrackerForTier(int torrentId, int tierIndex, IList<ITracker> trackers, ITracker activeTracker, DateTime utcNow)
+    {
+        if (trackers == null || trackers.Count == 0)
         {
             return null;
         }
 
         if (!MultiTrackerAnnouncePolicy.IsFailoverEnabled(this.configService))
         {
-            return tier.ActiveTracker ?? tier.Trackers.FirstOrDefault();
+            return activeTracker ?? trackers[0];
         }
 
-        var trackers = tier.Trackers.ToList();
+        var trackerList = trackers;
         var state = this.GetTorrentState(torrentId);
         var tierState = state.GetTierState(tierIndex);
-        var startIndex = tierState.ActiveTrackerIndex % trackers.Count;
+        var startIndex = tierState.ActiveTrackerIndex % trackerList.Count;
 
-        for (var offset = 0; offset < trackers.Count; offset++)
+        for (var offset = 0; offset < trackerList.Count; offset++)
         {
-            var index = (startIndex + offset) % trackers.Count;
-            var candidate = trackers[index];
+            var index = (startIndex + offset) % trackerList.Count;
+            var candidate = trackerList[index];
             if (candidate?.Uri == null)
             {
                 continue;
@@ -75,7 +82,7 @@ public sealed class MultiTrackerFailoverService : IMultiTrackerFailoverService
             }
         }
 
-        return tier.ActiveTracker ?? trackers.FirstOrDefault();
+        return activeTracker ?? trackerList[0];
     }
 
     public void RecordAnnounceOutcome(int torrentId, int tierIndex, ITracker tracker, bool success, DateTime utcNow)

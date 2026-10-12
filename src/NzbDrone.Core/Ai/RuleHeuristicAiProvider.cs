@@ -225,13 +225,18 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 5. Quality
+        var teleSyncMatch = Regex.Match(working, @"(?i)\bTeleSync\b", RegexOptions.None, TimeSpan.FromSeconds(2));
         var qualityMatch = QualityRegex.Match(working);
         if (qualityMatch.Success && IsTrailingTsMediaExtensionMisparse(working, qualityMatch))
         {
             qualityMatch = Match.Empty;
         }
 
-        if (qualityMatch.Success)
+        if (teleSyncMatch.Success)
+        {
+            result.Quality = "TeleSync";
+        }
+        else if (qualityMatch.Success)
         {
             result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, result.IsRemux);
         }
