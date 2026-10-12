@@ -335,6 +335,7 @@ public class Startup
 
         app.UseMiddleware<HostHeaderValidationMiddleware>();
         app.UseMiddleware<CsrfProtectionMiddleware>();
+        app.UseMiddleware<Leecharr.Api.V1.Transmission.TransmissionRpcFormJsonMiddleware>();
 
         app.Use(async (context, next) =>
         {
