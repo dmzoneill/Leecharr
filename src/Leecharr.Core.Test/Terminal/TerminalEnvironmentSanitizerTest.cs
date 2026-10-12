@@ -2,8 +2,10 @@
 
 using System;
 using System.Diagnostics;
+using System.IO;
 using FluentAssertions;
 using Leecharr.Http.Terminal;
+using NzbDrone.Common.Disk;
 using NUnit.Framework;
 
 namespace Leecharr.Core.Test.Terminal;
@@ -116,5 +118,75 @@ public class TerminalEnvironmentSanitizerTest
         startInfo.EnvironmentVariables.ContainsKey("DB_PASSWORD").Should().BeFalse();
         startInfo.EnvironmentVariables.ContainsKey("SERVICE_TOKEN").Should().BeFalse();
         startInfo.EnvironmentVariables.ContainsKey("API_KEY_PUBLIC").Should().BeFalse();
+    }
+
+    [Test]
+    public void GetSafeTempDirectory_CreatesPrivateDirectory_OnUnix()
+    {
+        if (!UnixPrivatePermissions.IsUnixLike)
+        {
+            Assert.Ignore("Unix file mode checks only apply on Linux/macOS/BSD.");
+        }
+
+        var expectedPath = Path.Combine(Path.GetTempPath(), "leecharr-" + Environment.ProcessId);
+        try
+        {
+            if (Directory.Exists(expectedPath))
+            {
+                Directory.Delete(expectedPath, true);
+            }
+
+            var path = TerminalEnvironmentSanitizer.GetSafeTempDirectory();
+            path.Should().Be(expectedPath);
+            Directory.Exists(path).Should().BeTrue();
+            File.GetUnixFileMode(path).Should().Be(UnixPrivatePermissions.PrivateDirectoryMode);
+        }
+        finally
+        {
+            if (Directory.Exists(expectedPath))
+            {
+                Directory.Delete(expectedPath, true);
+            }
+        }
+    }
+
+    [Test]
+    public void GetSafeTempDirectory_RejectsPreExistingDirectory_NotWritableByCurrentUser()
+    {
+        if (!UnixPrivatePermissions.IsUnixLike)
+        {
+            Assert.Ignore("Unix ownership checks only apply on Linux/macOS/BSD.");
+        }
+
+        var expectedPath = Path.Combine(Path.GetTempPath(), "leecharr-" + Environment.ProcessId);
+        try
+        {
+            if (Directory.Exists(expectedPath))
+            {
+                Directory.Delete(expectedPath, true);
+            }
+
+            Directory.CreateDirectory(expectedPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+            var act = () => TerminalEnvironmentSanitizer.GetSafeTempDirectory();
+            act.Should().Throw<IOException>()
+                .WithMessage("*not writable by the current user*");
+        }
+        finally
+        {
+            if (Directory.Exists(expectedPath))
+            {
+                try
+                {
+                    File.SetUnixFileMode(expectedPath, UnixPrivatePermissions.PrivateDirectoryMode);
+                }
+                catch
+                {
+                    // Directory may still be unusable; best effort before delete.
+                }
+
+                Directory.Delete(expectedPath, true);
+            }
+        }
     }
 }
