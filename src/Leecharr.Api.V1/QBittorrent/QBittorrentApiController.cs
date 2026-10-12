@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Security.Claims;
 using Leecharr.Api.V1.Auth;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -41,6 +42,7 @@ namespace Leecharr.Api.V1.QBittorrent;
 public class QBittorrentApiController : ControllerBase, IActionFilter
 {
     private static readonly RpcSessionStore AuthenticatedSessions = new();
+    private static readonly ConcurrentDictionary<string, bool> SessionAdminFlags = new(StringComparer.Ordinal);
     private static readonly char[] NewlineSeparators = ['\r', '\n'];
     private static readonly char[] TrackerCreationSeparators = ['\r', '\n', ';'];
     private static readonly char[] CategoryRemovalSeparators = ['\r', '\n', '|'];
@@ -126,7 +128,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return;
         }
 
-        if (!this.IsAuthenticated())
+        if (!this.HasOperatorAccess())
         {
             context.Result = this.StatusCode(StatusCodes.Status403Forbidden, "Forbidden");
         }
@@ -137,7 +139,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
     }
 
-    private bool IsAuthenticated()
+    private bool HasOperatorAccess()
     {
         if (this.configFileProvider == null || !this.configFileProvider.AuthenticationEnabled)
         {
@@ -146,17 +148,47 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         if (this.User?.Identity?.IsAuthenticated == true)
         {
-            return true;
+            return this.User.IsInRole("Admin") || this.User.IsInRole("Operator");
         }
 
         if (this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
         {
-            if (AuthenticatedSessions.IsValid(sid))
+            if (AuthenticatedSessions.IsValid(sid) && SessionAdminFlags.ContainsKey(sid))
             {
                 return true;
             }
         }
 
+        return this.HasMasterApiKeyAccess();
+    }
+
+    private bool HasAdminAccess()
+    {
+        if (this.configFileProvider == null || !this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (this.User?.Identity?.IsAuthenticated == true)
+        {
+            return this.User.IsInRole("Admin");
+        }
+
+        if (this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
+        {
+            if (AuthenticatedSessions.IsValid(sid)
+                && SessionAdminFlags.TryGetValue(sid, out var isAdmin)
+                && isAdmin)
+            {
+                return true;
+            }
+        }
+
+        return this.HasMasterApiKeyAccess();
+    }
+
+    private bool HasMasterApiKeyAccess()
+    {
         var apiKey = this.Request.Headers["X-Api-Key"].FirstOrDefault();
         if (string.IsNullOrWhiteSpace(apiKey) && this.Request.Query.TryGetValue("apikey", out var qKey))
         {
@@ -174,6 +206,53 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return false;
     }
 
+    private static bool TryResolveQBitAccessFromUser(User user, out bool isAdmin)
+    {
+        isAdmin = false;
+        if (user == null)
+        {
+            return false;
+        }
+
+        List<string> roles;
+        try
+        {
+            roles = JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string> { "User" };
+        }
+        catch (JsonException)
+        {
+            roles = new List<string> { "User" };
+        }
+
+        var hasOperator = false;
+        foreach (var role in roles)
+        {
+            if (string.IsNullOrWhiteSpace(role))
+            {
+                continue;
+            }
+
+            if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                isAdmin = true;
+                return true;
+            }
+
+            if (role.Equals("Operator", StringComparison.OrdinalIgnoreCase))
+            {
+                hasOperator = true;
+            }
+        }
+
+        if (hasOperator)
+        {
+            isAdmin = false;
+            return true;
+        }
+
+        return false;
+    }
+
     [HttpPost("auth/login")]
     public ActionResult Login([FromForm] string username = null, [FromForm] string password = null)
     {
@@ -186,6 +265,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
 
             var authenticated = false;
+            var sessionIsAdmin = false;
             var masterApiKey = this.configFileProvider.ApiKey;
 
             if (!string.IsNullOrWhiteSpace(masterApiKey) &&
@@ -193,11 +273,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 (!string.IsNullOrWhiteSpace(username) && RpcAuthenticationHelper.FixedTimeEquals(username, masterApiKey))))
             {
                 authenticated = true;
+                sessionIsAdmin = true;
             }
             else if (this.userService != null && !string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
             {
                 var user = this.userService.Authenticate(username, password);
-                if (user != null)
+                if (user != null && TryResolveQBitAccessFromUser(user, out sessionIsAdmin))
                 {
                     authenticated = true;
                 }
@@ -214,6 +295,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         var sid = Guid.NewGuid().ToString("N");
         AuthenticatedSessions.SetSession(sid, DateTime.UtcNow.AddDays(7));
+        if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
+        {
+            SessionAdminFlags[sid] = sessionIsAdmin;
+        }
 
         this.Response.Cookies.Append("SID", sid, new CookieOptions // NOSONAR
         {
@@ -232,6 +317,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         if (this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
         {
             AuthenticatedSessions.RemoveSession(sid);
+            SessionAdminFlags.TryRemove(sid, out _);
             SessionSyncStates.TryRemove($"sid:{sid}", out _);
         }
 
@@ -311,6 +397,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("app/setPreferences")]
     public async Task<ActionResult> SetPreferencesAsync([FromForm] string json = null)
     {
+        if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled && !this.HasAdminAccess())
+        {
+            return this.StatusCode(StatusCodes.Status403Forbidden, "Forbidden");
+        }
+
         if (string.IsNullOrWhiteSpace(json))
         {
             try
@@ -2279,6 +2370,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     public static void ResetSyncState()
     {
         SessionSyncStates.Clear();
+        SessionAdminFlags.Clear();
     }
 
     private static void CleanupExpiredSessionSyncStates()

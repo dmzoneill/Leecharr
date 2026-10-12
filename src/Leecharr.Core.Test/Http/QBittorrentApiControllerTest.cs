@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Security.Claims;
 using FluentAssertions;
 using Leecharr.Api.V1.Auth;
 using Leecharr.Api.V1.QBittorrent;
@@ -1827,7 +1828,7 @@ public class QBittorrentApiControllerTest
         this.configFileProvider.ApiKey.Returns("master_key");
 
         var userService = Substitute.For<IUserService>();
-        userService.Authenticate("dbuser", "dbpass").Returns(new User { Id = 1, Username = "dbuser" });
+        userService.Authenticate("dbuser", "dbpass").Returns(new User { Id = 1, Username = "dbuser", Roles = "[\"Operator\"]" });
 
         var customController = new QBittorrentApiController(
             this.torrentService,
@@ -1847,6 +1848,60 @@ public class QBittorrentApiControllerTest
         result.Should().BeOfType<ContentResult>();
         var contentResult = (ContentResult)result;
         contentResult.Content.Should().Be("Ok.");
+    }
+
+    [Test]
+    public void Login_WhenAuthenticationEnabled_WithUserRoleOnly_ReturnsFails()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("master_key");
+
+        var userService = Substitute.For<IUserService>();
+        userService.Authenticate("basicuser", "basicpass").Returns(new User { Id = 2, Username = "basicuser", Roles = "[\"User\"]" });
+
+        var customController = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            userService: userService,
+            configFileProvider: this.configFileProvider);
+
+        var httpContext = new DefaultHttpContext();
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = customController.Login(username: "basicuser", password: "basicpass");
+
+        result.Should().BeOfType<ContentResult>();
+        ((ContentResult)result).Content.Should().Be("Fails.");
+    }
+
+    [Test]
+    public void OnActionExecuting_WhenAuthenticatedAsUserRole_Returns403Forbidden()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key_123");
+
+        var identity = new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.Name, "basicuser"),
+            new Claim(ClaimTypes.Role, "User"),
+        }, "test");
+
+        var httpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(identity),
+        };
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var execContext = CreateActionExecutingContext(this.controller, httpContext, nameof(QBittorrentApiController.GetTorrentsInfo));
+        this.controller.OnActionExecuting(execContext);
+
+        execContext.Result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)execContext.Result!;
+        objResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
     [Test]
