@@ -233,7 +233,14 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
 
         if (qualityMatch.Success)
         {
-            result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, result.IsRemux);
+            var qualityToken = qualityMatch.Groups["quality"].Value;
+            if (qualityToken.Equals("CAM", StringComparison.OrdinalIgnoreCase)
+                && Regex.IsMatch(working, @"(?i)\bTeleSync\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
+            {
+                qualityToken = "TeleSync";
+            }
+
+            result.Quality = NormalizeQuality(qualityToken, result.Resolution, result.IsRemux);
         }
         else if (result.IsRemux)
         {

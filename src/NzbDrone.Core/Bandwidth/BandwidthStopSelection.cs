@@ -43,6 +43,7 @@ public class BandwidthStopSelection : IBandwidthStopSelection
 
     public static HashSet<int> SelectStoppedIndices(IReadOnlyList<Torrent> torrents, double minPct, double maxPct, Func<double> randomRoll = null)
     {
+        var useInjectedRandom = randomRoll != null;
         randomRoll ??= () => Random.Shared.NextDouble();
         var torrentCount = torrents?.Count ?? 0;
         if (maxPct <= 0 || torrentCount == 0)
@@ -73,9 +74,10 @@ public class BandwidthStopSelection : IBandwidthStopSelection
             return new HashSet<int>();
         }
 
+        var shuffleRandom = useInjectedRandom ? new Random(0) : null;
         for (var j = eligibleIndices.Count - 1; j > 0; j--)
         {
-            var k = Random.Shared.Next(j + 1);
+            var k = shuffleRandom?.Next(j + 1) ?? Random.Shared.Next(j + 1);
             (eligibleIndices[j], eligibleIndices[k]) = (eligibleIndices[k], eligibleIndices[j]);
         }
 

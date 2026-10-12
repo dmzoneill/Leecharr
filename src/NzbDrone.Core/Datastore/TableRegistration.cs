@@ -42,6 +42,7 @@ public static class TableRegistration
                 return;
             }
 
+            SqlMapper.AddTypeHandler(new SqliteGuidTypeHandler());
             SqlMapper.AddTypeHandler(new SqliteDoubleTypeHandler());
             SqlMapper.AddTypeHandler(new TimeOnlyTypeHandler());
             SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<int>>());
