@@ -18,4 +18,6 @@ public interface IUserRepository : IBasicRepository<User>
     User FindByExternalId(string providerId, string externalSubjectId);
 
     int GetUserCount();
+
+    int? GetBootstrapUserId();
 }

@@ -111,6 +111,12 @@ public class UserRepository : BasicRepository<User>, IUserRepository
             connection.ExecuteScalar<int>($"SELECT COUNT(*) FROM \"{this.table}\""));
     }
 
+    public int? GetBootstrapUserId()
+    {
+        return this.ExecuteWithRetry(connection =>
+            connection.ExecuteScalar<int?>($"SELECT MIN(\"Id\") FROM \"{this.table}\""));
+    }
+
     private static void NormalizeUser(User model)
     {
         if (model?.Username != null)

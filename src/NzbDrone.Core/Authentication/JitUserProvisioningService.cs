@@ -43,7 +43,6 @@ public class JitUserProvisioningService : IJitUserProvisioningService
 
     public User ProvisionOrUpdateUser(ExternalUserProfile profile)
     {
-        var isFirstUser = this.userRepository.GetUserCount() == 0;
         var provider = this.identityProviderRepository.FindByProviderId(profile.ProviderId);
 
         // 1. Check if user already exists by external ID
@@ -134,7 +133,7 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             ? (!string.IsNullOrWhiteSpace(profile.Email) ? profile.Email.Split('@')[0].Trim() : "user")
             : profile.Username.Trim();
 
-        var assignedRoles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, isFirstUser);
+        var assignedRoles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
         var disambiguatedUsername = this.DisambiguateUsername(baseUsername, profile.ProviderId);
 
         var newUser = new User
@@ -153,8 +152,30 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         };
 
         var created = this.userRepository.Insert(newUser);
+        created = this.FinalizeBootstrapRoles(created, provider, profile.RawGroups);
         this.logger.Info("JIT provisioned new user {0} via {1}", created.Username, profile.ProviderId);
         return created;
+    }
+
+    private User FinalizeBootstrapRoles(User created, IdentityProviderDefinition provider, IReadOnlyList<string> rawGroups)
+    {
+        var bootstrapUserId = this.userRepository.GetBootstrapUserId();
+        if (!bootstrapUserId.HasValue)
+        {
+            return created;
+        }
+
+        var shouldBeBootstrapAdmin = created.Id == bootstrapUserId.Value;
+        var roles = this.roleMapper.ResolveRoles(provider, rawGroups, shouldBeBootstrapAdmin);
+        var rolesJson = JsonSerializer.Serialize(roles);
+        if (string.Equals(created.Roles, rolesJson, StringComparison.Ordinal))
+        {
+            return created;
+        }
+
+        created.Roles = rolesJson;
+        created.UpdatedAt = DateTime.UtcNow;
+        return this.userRepository.Update(created);
     }
 
     private static string SanitizeAvatarUrl(string avatarUrl)
