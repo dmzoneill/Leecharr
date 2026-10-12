@@ -565,33 +565,60 @@ public class FloodApiController : ControllerBase, IActionFilter
     [Route("api/torrents/add-urls")]
     public async Task<IActionResult> AddUrls([FromBody] FloodAddUrlsRequest request)
     {
-        if (request?.Urls != null)
+        if (request?.Urls == null || request.Urls.Count == 0)
         {
-            var category = request.Tags?.FirstOrDefault();
-            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 0;
-            if (maxTorrentBytes <= 0)
-            {
-                maxTorrentBytes = this.configFileProvider?.MaxTorrentFileSizeBytes ?? 0;
-            }
+            return this.BadRequest(new { success = false, message = "No torrent URLs specified." });
+        }
 
-            if (maxTorrentBytes <= 0)
-            {
-                maxTorrentBytes = 250L * 1024 * 1024;
-            }
+        var urls = request.Urls.Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+        if (urls.Count == 0)
+        {
+            return this.BadRequest(new { success = false, message = "No torrent URLs specified." });
+        }
 
-            foreach (var url in request.Urls)
+        var category = request.Tags?.FirstOrDefault();
+        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 0;
+        if (maxTorrentBytes <= 0)
+        {
+            maxTorrentBytes = this.configFileProvider?.MaxTorrentFileSizeBytes ?? 0;
+        }
+
+        if (maxTorrentBytes <= 0)
+        {
+            maxTorrentBytes = 250L * 1024 * 1024;
+        }
+
+        var addedCount = 0;
+        foreach (var url in urls)
+        {
+            try
             {
+                Torrent added;
                 if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
-                    await this.torrentService.AddFromMagnetAsync(url, category, request.Destination, !request.Start);
+                    added = await this.torrentService.AddFromMagnetAsync(url, category, request.Destination, !request.Start);
                 }
                 else
                 {
                     var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
                     var parsed = this.torrentFileParser.Parse(bytes);
-                    await this.torrentService.AddFromParsedTorrentAsync(parsed, category, request.Destination, !request.Start, bytes);
+                    added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, request.Destination, !request.Start, bytes);
+                }
+
+                if (added != null)
+                {
+                    addedCount++;
                 }
             }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Flood add-urls failed for URL: {0}", url);
+            }
+        }
+
+        if (addedCount == 0)
+        {
+            return this.BadRequest(new { success = false, message = "Failed to add torrent from URL." });
         }
 
         return this.Ok(new { success = true });
@@ -611,6 +638,8 @@ public class FloodApiController : ControllerBase, IActionFilter
         {
             maxTorrentBytes = 250L * 1024 * 1024;
         }
+
+        var addedCount = 0;
 
         if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
@@ -633,9 +662,20 @@ public class FloodApiController : ControllerBase, IActionFilter
                     return this.BadRequest(new { message = $"Torrent file '{file.FileName}' exceeds maximum allowed size of {maxTorrentBytes} bytes." });
                 }
 
-                var bytes = ms.ToArray();
-                var parsed = this.torrentFileParser.Parse(bytes);
-                await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, !start, bytes);
+                try
+                {
+                    var bytes = ms.ToArray();
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, !start, bytes);
+                    if (added != null)
+                    {
+                        addedCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Flood add-files failed for upload: {0}", file.FileName);
+                }
             }
         }
         else
@@ -653,31 +693,52 @@ public class FloodApiController : ControllerBase, IActionFilter
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to parse FloodAddFilesRequest JSON");
+                return this.BadRequest(new { success = false, message = "Invalid torrent add request body." });
             }
 
-            if (jsonRequest?.Files != null && jsonRequest.Files.Count > 0)
+            if (jsonRequest?.Files == null || jsonRequest.Files.Count == 0)
             {
-                var category = jsonRequest.Tags?.FirstOrDefault()?.Trim();
-                foreach (var b64 in jsonRequest.Files)
+                return this.BadRequest(new { success = false, message = "No torrent files specified." });
+            }
+
+            var category = jsonRequest.Tags?.FirstOrDefault()?.Trim();
+            foreach (var b64 in jsonRequest.Files)
+            {
+                if (string.IsNullOrWhiteSpace(b64))
                 {
-                    if (!string.IsNullOrWhiteSpace(b64))
+                    continue;
+                }
+
+                if ((long)b64.Length * 3 / 4 > maxTorrentBytes + 4)
+                {
+                    return this.BadRequest(new { message = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes." });
+                }
+
+                try
+                {
+                    var bytes = Convert.FromBase64String(b64);
+                    if (bytes.LongLength > maxTorrentBytes)
                     {
-                        if ((long)b64.Length * 3 / 4 > maxTorrentBytes + 4)
-                        {
-                            return this.BadRequest(new { message = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes." });
-                        }
+                        return this.BadRequest(new { message = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes." });
+                    }
 
-                        var bytes = Convert.FromBase64String(b64);
-                        if (bytes.LongLength > maxTorrentBytes)
-                        {
-                            return this.BadRequest(new { message = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes." });
-                        }
-
-                        var parsed = this.torrentFileParser.Parse(bytes);
-                        await this.torrentService.AddFromParsedTorrentAsync(parsed, category, jsonRequest.Destination, !jsonRequest.Start, bytes);
+                    var parsed = this.torrentFileParser.Parse(bytes);
+                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, jsonRequest.Destination, !jsonRequest.Start, bytes);
+                    if (added != null)
+                    {
+                        addedCount++;
                     }
                 }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Flood add-files failed for base64 payload");
+                }
             }
+        }
+
+        if (addedCount == 0)
+        {
+            return this.BadRequest(new { success = false, message = "Failed to add torrent file." });
         }
 
         return this.Ok(new { success = true });
