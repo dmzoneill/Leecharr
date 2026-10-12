@@ -424,6 +424,30 @@ sleep 300
         info!.Resolution.Should().Be("576p");
     }
 
+    [TestCase(2560, 1440)]
+    [TestCase(3440, 1440)]
+    public void ParseFFprobeJson_WhenQhdDimensions_Derives1440pResolution(int width, int height)
+    {
+        var json = $@"
+{{
+    ""format"": {{
+    ""format_name"": ""matroska,webm"",
+    ""duration"": ""3600.000000""
+    }},
+    ""streams"": [
+    {{
+        ""codec_type"": ""video"",
+        ""codec_name"": ""hevc"",
+        ""width"": {width},
+        ""height"": {height}
+    }}
+    ]
+}}";
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+        info.Should().NotBeNull();
+        info!.Resolution.Should().Be("1440p");
+    }
+
     [TestCase(720, 400)]
     [TestCase(720, 360)]
     [TestCase(640, 360)]

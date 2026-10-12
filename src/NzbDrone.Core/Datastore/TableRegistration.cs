@@ -44,6 +44,7 @@ public static class TableRegistration
 
             SqlMapper.AddTypeHandler(new SqliteGuidTypeHandler());
             SqlMapper.AddTypeHandler(new SqliteDoubleTypeHandler());
+            SqlMapper.AddTypeHandler(new SqliteGuidTypeHandler());
             SqlMapper.AddTypeHandler(new TimeOnlyTypeHandler());
             SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<int>>());
             SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<string>>());
