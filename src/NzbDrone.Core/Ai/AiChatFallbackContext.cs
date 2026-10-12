@@ -15,8 +15,6 @@ internal static class AiChatFallbackContext
 
     public static bool? CurrentFlowValue => LastChatUsedFallback.Value;
 
-    public static bool? CurrentFlowValue => LastChatUsedFallback.Value;
-
     public static void SetLastChatUsedFallback(bool value)
     {
         LastChatUsedFallback.Value = value;
