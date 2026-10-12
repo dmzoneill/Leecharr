@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Common.Extensions;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -222,9 +223,9 @@ public class HadoukenRpcController : ControllerBase
                             statusFlag = 64 | 128;
                         }
 
-                        var addedUnix = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
-                        var completedUnix = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0;
-                        var modifiedUnix = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedUnix;
+                        var addedUnix = t.DateAdded.ToUnixTimeSecondsAsUtc();
+                        var completedUnix = t.DateCompleted.HasValue ? t.DateCompleted.Value.ToUnixTimeSecondsAsUtc() : 0;
+                        var modifiedUnix = t.LastActive.HasValue ? t.LastActive.Value.ToUnixTimeSecondsAsUtc() : addedUnix;
 
                         var swarmLeechers = t.Leechers;
                         var swarmSeeders = t.Seeders;

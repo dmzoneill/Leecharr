@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
@@ -331,9 +332,39 @@ public class FreeboxDownloadControllerTest
         item.GetProperty("stop_ratio").GetInt32().Should().Be(200);
         item.GetProperty("eta").GetInt32().Should().Be(120);
         item.GetProperty("error").GetString().Should().Be("none");
+        item.GetProperty("created_ts").GetInt64().Should().Be(new DateTime(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc).ToUnixTimeSecondsAsUtc());
 
         var b64Path = item.GetProperty("download_dir").GetString();
         Encoding.UTF8.GetString(Convert.FromBase64String(b64Path!)).Should().Be("/downloads/isos");
+    }
+
+    [Test]
+    public void GetDownloads_UnspecifiedDateAdded_UsesUtcUnixTimestamp()
+    {
+        var stored = new DateTime(2026, 7, 15, 10, 0, 0, DateTimeKind.Unspecified);
+        var torrents = new List<Torrent>
+        {
+            new()
+            {
+                Id = 110,
+                Name = "Summer_ISO",
+                Status = TorrentStatus.Downloading,
+                Progress = 0.5,
+                TotalSize = 1_000,
+                Downloaded = 500,
+                DateAdded = stored,
+            },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = this.controller.GetDownloads();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var item = doc.RootElement.GetProperty("result")[0];
+
+        item.GetProperty("created_ts").GetInt64().Should().Be(stored.ToUnixTimeSecondsAsUtc());
+        item.GetProperty("created_ts").GetInt64().Should().Be(1784109600L);
     }
 
     [Test]
