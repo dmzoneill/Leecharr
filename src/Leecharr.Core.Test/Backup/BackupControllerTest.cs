@@ -644,6 +644,8 @@ public class BackupControllerTest
 
         public bool SimulatePsqlExecutableFound { get; set; } = true;
 
+        public bool SimulateDeleteBackupFailure { get; set; }
+
         public TestableBackupController(
             IAppFolderInfo appFolderInfo,
             IDiskProvider diskProvider = null,
@@ -672,6 +674,16 @@ public class BackupControllerTest
         protected override Task<bool> RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
         {
             return Task.FromResult(this.SimulatePsqlRestoreSuccess);
+        }
+
+        protected override void DeleteBackupArchive(string physicalPath)
+        {
+            if (this.SimulateDeleteBackupFailure)
+            {
+                throw new IOException("Simulated backup delete failure", new UnauthorizedAccessException());
+            }
+
+            base.DeleteBackupArchive(physicalPath);
         }
     }
 
@@ -846,6 +858,119 @@ public class BackupControllerTest
 
         var result = await pgController.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task Restore_WhenPostgreSqlConfiguredAndPsqlExecutableNotFound_Returns500AndPreservesLiveConfig()
+    {
+        var liveConfig = Path.Combine(this.testTempDir, "config.xml");
+        File.WriteAllText(liveConfig, "<live-config/>");
+
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        configProvider.PostgresHost.Returns("localhost");
+        configProvider.PostgresPort.Returns(5432);
+        configProvider.PostgresMainDb.Returns("leecharr_test");
+        configProvider.PostgresUser.Returns("postgres");
+
+        var connFactory = Substitute.For<IConnectionStringFactory>();
+        connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var pgController = new TestableBackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider)
+        {
+            SimulatePsqlExecutableFound = false,
+        };
+
+        var zipPath = this.CreatePostgresBackupZip("Leecharr_backup_pg_no_psql.zip", "<backup-config/>", "-- sql dump");
+
+        var result = await pgController.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<ObjectResult>();
+        ((ObjectResult)result).StatusCode.Should().Be(500);
+        File.ReadAllText(liveConfig).Should().Be("<live-config/>");
+        File.Exists(Path.Combine(this.testTempDir, "leecharr_postgres.sql")).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Restore_WhenPostgreSqlConfiguredAndPostgresMainDbMissing_Returns500AndPreservesLiveConfig()
+    {
+        var liveConfig = Path.Combine(this.testTempDir, "config.xml");
+        File.WriteAllText(liveConfig, "<live-config/>");
+
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        configProvider.PostgresHost.Returns("localhost");
+        configProvider.PostgresPort.Returns(5432);
+        configProvider.PostgresMainDb.Returns(string.Empty);
+        configProvider.PostgresUser.Returns("postgres");
+
+        var connFactory = Substitute.For<IConnectionStringFactory>();
+        connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var pgController = new TestableBackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider);
+        var zipPath = this.CreatePostgresBackupZip("Leecharr_backup_pg_no_dbname.zip", "<backup-config/>", "-- sql dump");
+
+        var result = await pgController.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<ObjectResult>();
+        ((ObjectResult)result).StatusCode.Should().Be(500);
+        File.ReadAllText(liveConfig).Should().Be("<live-config/>");
+    }
+
+    [Test]
+    public void Delete_WhenBackupIdNotFound_ReturnsNotFound()
+    {
+        var result = this.controller.Delete(999);
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public void Delete_WhenBackupExists_DeletesArchiveAndReturnsOk()
+    {
+        var fileName = "Leecharr_backup_delete_ok.zip";
+        var zipPath = this.CreateSampleBackup(fileName);
+        File.Exists(zipPath).Should().BeTrue();
+
+        var result = this.controller.Delete(1);
+        result.Should().BeOfType<OkResult>();
+        File.Exists(zipPath).Should().BeFalse();
+    }
+
+    [Test]
+    public void Delete_WhenArchiveDeleteFails_Returns500AndPreservesArchive()
+    {
+        var fileName = "Leecharr_backup_delete_fail.zip";
+        var zipPath = this.CreateSampleBackup(fileName);
+        var testController = new TestableBackupController(this.appFolderInfo)
+        {
+            SimulateDeleteBackupFailure = true,
+        };
+
+        var result = testController.Delete(1);
+
+        result.Should().BeOfType<ObjectResult>();
+        ((ObjectResult)result).StatusCode.Should().Be(500);
+        File.Exists(zipPath).Should().BeTrue();
+    }
+
+    private string CreatePostgresBackupZip(string fileName, string configContent, string sqlContent)
+    {
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, fileName);
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var configEntry = zip.CreateEntry("config.xml");
+            using (var writer = new StreamWriter(configEntry.Open()))
+            {
+                writer.Write(configContent);
+            }
+
+            var sqlEntry = zip.CreateEntry("leecharr_postgres.sql");
+            using (var writer = new StreamWriter(sqlEntry.Open()))
+            {
+                writer.Write(sqlContent);
+            }
+        }
+
+        return zipPath;
     }
 
     [Test]

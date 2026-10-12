@@ -338,24 +338,28 @@ public class BackupController : Controller
     {
         var backups = this.GetBackupsInternal();
         var match = backups.FirstOrDefault(b => b.Id == id);
-        if (match != null)
+        if (match == null)
         {
-            var physicalPath = this.ResolveBackupPhysicalPath(match.Name);
-            if (!string.IsNullOrEmpty(physicalPath) && global::System.IO.File.Exists(physicalPath))
-            {
-                try
-                {
-                    global::System.IO.File.Delete(physicalPath);
-                    this.logger.Info("Deleted backup archive: {0}", physicalPath);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to delete backup archive: {0}", physicalPath);
-                }
-            }
+            return this.NotFound();
         }
 
-        return this.Ok();
+        var physicalPath = this.ResolveBackupPhysicalPath(match.Name);
+        if (string.IsNullOrEmpty(physicalPath) || !global::System.IO.File.Exists(physicalPath))
+        {
+            return this.NotFound();
+        }
+
+        try
+        {
+            this.DeleteBackupArchive(physicalPath);
+            this.logger.Info("Deleted backup archive: {0}", physicalPath);
+            return this.Ok();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to delete backup archive: {0}", physicalPath);
+            return this.StatusCode(500, new { success = false, message = "Failed to delete backup archive." });
+        }
     }
 
     [HttpPost("restore")]
@@ -448,16 +452,16 @@ public class BackupController : Controller
                     }
                     else
                     {
-                        var appDataDump = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr_postgres.sql");
-                        global::System.IO.File.Copy(stagedPgSql, appDataDump, overwrite: true);
-                        if (global::System.IO.File.Exists(stagedConfig))
+                        if (string.IsNullOrEmpty(psqlExe))
                         {
-                            var destConfig = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
-                            global::System.IO.File.Copy(stagedConfig, destConfig, overwrite: true);
+                            this.logger.Error("psql executable not found on system PATH. Unable to restore PostgreSQL database from backup {0}", physicalPath);
+                        }
+                        else
+                        {
+                            this.logger.Error("PostgreSQL host or database name configuration is missing. Unable to restore PostgreSQL database from backup {0}", physicalPath);
                         }
 
-                        this.logger.Info("psql executable not found; PostgreSQL dump extracted to {0}", appDataDump);
-                        return this.Ok(new { success = true, message = "Config restored. PostgreSQL database dump 'leecharr_postgres.sql' extracted to application folder; please restore via psql. Please restart Leecharr." });
+                        return this.StatusCode(500, new { success = false, message = "PostgreSQL database restoration requires psql and valid PostgresHost/PostgresMainDb settings." });
                     }
                 }
 
@@ -711,6 +715,11 @@ public class BackupController : Controller
             this.logger.Warn(ex, "Failed to prune backup directory {0}", directory);
             return 0;
         }
+    }
+
+    protected virtual void DeleteBackupArchive(string physicalPath)
+    {
+        global::System.IO.File.Delete(physicalPath);
     }
 
     protected virtual string FindPgDumpExecutable() => CliProcessDiscovery.FindExecutable("pg_dump");
