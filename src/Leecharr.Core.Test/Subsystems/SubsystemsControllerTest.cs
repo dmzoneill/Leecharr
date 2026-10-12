@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -154,7 +155,7 @@ public class SubsystemsControllerTest
     }
 
     [Test]
-    public async Task UpdateBlocklistRules_WithService_ReturnsLoadedCount()
+    public async Task UpdateBlocklistRules_WithService_ReturnsSuccessWhenRulesLoad()
     {
         this.blocklistUpdateService.UpdateRulesAsync().Returns(Task.FromResult(2500));
         var mockProvider = Substitute.For<IBlocklistProvider>();
@@ -166,10 +167,63 @@ public class SubsystemsControllerTest
         var okResult = result as OkObjectResult;
 
         okResult.Should().NotBeNull();
+        okResult!.Value.Should().BeEquivalentTo(new
+        {
+            success = true,
+            rulesLoaded = 2500,
+            activeRules = 2500,
+            activeProvider = "ipfilter",
+        });
     }
 
     [Test]
-    public async Task UpdateBlocklistRules_WithoutService_ReturnsZeroLoaded()
+    public async Task UpdateBlocklistRules_WhenUpdateReturnsZeroRules_ReturnsFailureResponse()
+    {
+        this.blocklistUpdateService.UpdateRulesAsync().Returns(Task.FromResult(0));
+        var mockProvider = Substitute.For<IBlocklistProvider>();
+        mockProvider.RuleCount.Returns(350);
+        this.blocklistManager.ActiveProvider.Returns(mockProvider);
+        this.blocklistManager.ActiveProviderId.Returns("ipfilter");
+
+        var result = await this.controller.UpdateBlocklistRules();
+        var okResult = result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        okResult!.Value.Should().BeEquivalentTo(new
+        {
+            success = false,
+            rulesLoaded = 0,
+            activeRules = 350,
+            activeProvider = "ipfilter",
+        });
+    }
+
+    [Test]
+    public async Task UpdateBlocklistRules_WhenUpdateServiceThrows_ReturnsFailureResponseWithError()
+    {
+        this.blocklistUpdateService.UpdateRulesAsync()
+            .Returns(Task.FromException<int>(new InvalidOperationException("Connection refused by peer.")));
+        var mockProvider = Substitute.For<IBlocklistProvider>();
+        mockProvider.RuleCount.Returns(800);
+        this.blocklistManager.ActiveProvider.Returns(mockProvider);
+        this.blocklistManager.ActiveProviderId.Returns("ipfilter");
+
+        var result = await this.controller.UpdateBlocklistRules();
+        var okResult = result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        okResult!.Value.Should().BeEquivalentTo(new
+        {
+            success = false,
+            rulesLoaded = 0,
+            activeRules = 800,
+            activeProvider = "ipfilter",
+            error = "Connection refused by peer.",
+        });
+    }
+
+    [Test]
+    public async Task UpdateBlocklistRules_WithoutService_ReturnsZeroLoadedAndFailure()
     {
         var controllerWithoutBlocklistService = new SubsystemsController(
             this.torrentEngineManager,
@@ -189,6 +243,13 @@ public class SubsystemsControllerTest
         var okResult = result as OkObjectResult;
 
         okResult.Should().NotBeNull();
+        okResult!.Value.Should().BeEquivalentTo(new
+        {
+            success = false,
+            rulesLoaded = 0,
+            activeRules = 0,
+            activeProvider = (string)null,
+        });
     }
 
     [Test]

@@ -60,7 +60,8 @@ public class SubsystemsManagementComprehensiveIntegrationTests : IntegrationTest
         updateResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var updateJson = await updateResp.Content.ReadAsStringAsync();
         using var updateDoc = JsonDocument.Parse(updateJson);
-        updateDoc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
+        var rulesLoaded = updateDoc.RootElement.GetProperty("rulesLoaded").GetInt32();
+        updateDoc.RootElement.GetProperty("success").GetBoolean().Should().Be(rulesLoaded > 0);
     }
 
     [Test]
