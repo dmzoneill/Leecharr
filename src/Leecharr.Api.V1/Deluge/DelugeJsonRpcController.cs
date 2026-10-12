@@ -1115,9 +1115,9 @@ public class DelugeJsonRpcController : ControllerBase
                 if (cfgElem.TryGetProperty("max_active_limit", out var malProp) && malProp.ValueKind == JsonValueKind.Number && malProp.TryGetInt32(out var malVal))
                 {
                     cfgUpdates["MaxActiveTorrents"] = malVal;
-                    cfgUpdates["MaxActiveDownloads"] = malVal;
                 }
-                else if (cfgElem.TryGetProperty("max_active_downloading", out var madProp) && madProp.ValueKind == JsonValueKind.Number && madProp.TryGetInt32(out var madVal))
+
+                if (cfgElem.TryGetProperty("max_active_downloading", out var madProp) && madProp.ValueKind == JsonValueKind.Number && madProp.TryGetInt32(out var madVal))
                 {
                     cfgUpdates["MaxActiveDownloads"] = madVal;
                 }
