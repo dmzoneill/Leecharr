@@ -1203,6 +1203,89 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
+    public async Task HandleLidarr_WhenArtistIdMissing_DoesNotStoreAlbumIdAsArrMediaId()
+    {
+        var hash = "3333444455556666777788889999000011112222";
+        var torrent = new Torrent
+        {
+            Id = 4,
+            Name = "Discovery",
+            InfoHash = hash,
+            SavePath = "/music/Discovery",
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.mediaMetadataRepository.GetByTorrentId(4).Returns((TorrentMediaMetadata)null);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "TrackImport",
+            InstanceName = "Lidarr",
+            DownloadClientId = hash,
+            Album = new ArrWebhookAlbum
+            {
+                Id = 20,
+                Title = "Discovery",
+                ReleaseDate = "2001-03-12",
+            },
+        };
+
+        var result = await this.controller.HandleLidarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        this.mediaMetadataRepository.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m =>
+            m.TorrentId == 4 &&
+            m.ArrType == "Lidarr" &&
+            m.ArrMediaId == 0 &&
+            m.Title == "Discovery" &&
+            m.AlbumTitle == "Discovery" &&
+            m.Year == 2001));
+    }
+
+    [Test]
+    public async Task HandleReadarr_WhenAuthorIdMissing_DoesNotStoreBookIdAsArrMediaId()
+    {
+        var hash = "4444555566667777888899990000111122223333";
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "Project Hail Mary",
+            InfoHash = hash,
+            SavePath = "/books/Project Hail Mary",
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.mediaMetadataRepository.GetByTorrentId(5).Returns((TorrentMediaMetadata)null);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "BookImport",
+            InstanceName = "Readarr",
+            DownloadClientId = hash,
+            Book = new ArrWebhookBook
+            {
+                Id = 21,
+                Title = "Project Hail Mary",
+                ReleaseDate = "2021-05-04",
+            },
+        };
+
+        var result = await this.controller.HandleReadarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        this.mediaMetadataRepository.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m =>
+            m.TorrentId == 5 &&
+            m.ArrType == "Readarr" &&
+            m.ArrMediaId == 0 &&
+            m.Title == "Project Hail Mary" &&
+            m.Year == 2021));
+    }
+
+    [Test]
     public async Task FindMatchingTorrent_WhenMatchingByTrackFileOrBookFilePath_MatchesCorrectTorrent()
     {
         var torrentMusic = new Torrent
