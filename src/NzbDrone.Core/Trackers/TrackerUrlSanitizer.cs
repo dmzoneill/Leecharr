@@ -14,6 +14,8 @@ public static class TrackerUrlSanitizer
 {
     private const string Mask = "********";
 
+    private static readonly char[] QueryDelimiters = { '&', ';' };
+
     private static readonly HashSet<string> SensitiveQueryParams = new(StringComparer.OrdinalIgnoreCase)
     {
         "passkey",
@@ -24,6 +26,8 @@ public static class TrackerUrlSanitizer
         "token",
         "pass",
         "key",
+        "password",
+        "apikey",
     };
 
     private static readonly HashSet<string> SensitivePathMarkers = new(StringComparer.OrdinalIgnoreCase)
@@ -117,7 +121,7 @@ public static class TrackerUrlSanitizer
                 {
                     segments[i] = Mask;
                 }
-                else if (segClean.Length >= 16 && segClean.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-'))
+                else if (segClean.Length >= 12 && IsOpaqueSecretSegment(segClean))
                 {
                     segments[i] = Mask;
                 }
@@ -131,28 +135,7 @@ public static class TrackerUrlSanitizer
         var sanitizedQuery = string.Empty;
         if (!string.IsNullOrEmpty(rawQuery))
         {
-            var queryParams = rawQuery.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
-            var sanitizedParams = new List<string>();
-            foreach (var param in queryParams)
-            {
-                var parts = param.Split('=', 2);
-                var key = parts[0];
-                var val = parts.Length > 1 ? parts[1] : string.Empty;
-
-                if (SensitiveQueryParams.Contains(key))
-                {
-                    sanitizedParams.Add($"{key}={Mask}");
-                }
-                else if (val.Length >= 16 && val.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-'))
-                {
-                    sanitizedParams.Add($"{key}={Mask}");
-                }
-                else
-                {
-                    sanitizedParams.Add(param);
-                }
-            }
-
+            var sanitizedParams = SanitizeQueryParameters(rawQuery.TrimStart('?'), scheme);
             if (sanitizedParams.Count > 0)
             {
                 sanitizedQuery = "?" + string.Join('&', sanitizedParams);
@@ -172,7 +155,71 @@ public static class TrackerUrlSanitizer
         }
 
         var fragment = uri.Fragment;
+        if (!string.IsNullOrEmpty(fragment))
+        {
+            var sanitizedFragment = SanitizeQueryStringOnly(fragment.TrimStart('#'));
+            fragment = string.IsNullOrEmpty(sanitizedFragment) ? string.Empty : "#" + sanitizedFragment;
+        }
+
         return $"{scheme}://{authority}{sanitizedPath}{sanitizedQuery}{fragment}";
+    }
+
+    private static List<string> SanitizeQueryParameters(string query, string scheme)
+    {
+        var queryParams = query.Split(QueryDelimiters, StringSplitOptions.RemoveEmptyEntries);
+        var sanitizedParams = new List<string>();
+        var isMagnet = scheme.Equals("magnet", StringComparison.OrdinalIgnoreCase);
+
+        foreach (var param in queryParams)
+        {
+            var parts = param.Split('=', 2);
+            var rawKey = parts[0];
+            var key = Uri.UnescapeDataString(rawKey);
+            var val = parts.Length > 1 ? parts[1] : string.Empty;
+
+            if (SensitiveQueryParams.Contains(key))
+            {
+                sanitizedParams.Add($"{rawKey}={Mask}");
+                continue;
+            }
+
+            if (isMagnet && key.Equals("tr", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(val))
+            {
+                var decodedTr = WebUtility.UrlDecode(val);
+                sanitizedParams.Add($"{rawKey}={Sanitize(decodedTr)}");
+                continue;
+            }
+
+            var sanitizedVal = SanitizeQueryParameterValue(val);
+            sanitizedParams.Add(parts.Length > 1 ? $"{rawKey}={sanitizedVal}" : rawKey);
+        }
+
+        return sanitizedParams;
+    }
+
+    private static string SanitizeQueryParameterValue(string val)
+    {
+        if (string.IsNullOrEmpty(val))
+        {
+            return val;
+        }
+
+        var decoded = WebUtility.UrlDecode(val);
+        if (!string.Equals(decoded, val, StringComparison.Ordinal) || decoded.Contains('&') || decoded.Contains(';'))
+        {
+            var embeddedSanitized = SanitizeQueryStringOnly(decoded);
+            if (!string.Equals(embeddedSanitized, decoded, StringComparison.Ordinal))
+            {
+                return embeddedSanitized;
+            }
+        }
+
+        if (decoded.Length >= 16 && IsOpaqueSecretSegment(decoded))
+        {
+            return Mask;
+        }
+
+        return val;
     }
 
     private static string FormatHost(string host)
@@ -190,9 +237,14 @@ public static class TrackerUrlSanitizer
         return s.Length > 0 && s.All(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
     }
 
+    private static bool IsOpaqueSecretSegment(string s)
+    {
+        return s.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '-' || c == '+');
+    }
+
     private static string SanitizeQueryStringOnly(string url)
     {
-        var regex = new Regex(@"([?&](?:passkey|authkey|torrentpass|torrent_pass|auth|token|pass|key)=)[^&#]+", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
-        return regex.Replace(url, $"$1{Mask}");
+        var regex = new Regex(@"(^|[?&;])((?:passkey|authkey|torrentpass|torrent_pass|auth|token|pass|key|password|apikey)=)([^&#;]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+        return regex.Replace(url, m => m.Groups[1].Value + m.Groups[2].Value + Mask);
     }
 }

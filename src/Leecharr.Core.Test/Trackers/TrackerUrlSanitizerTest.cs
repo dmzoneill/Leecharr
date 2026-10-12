@@ -71,4 +71,19 @@ public class TrackerUrlSanitizerTest
     {
         TrackerUrlSanitizer.Sanitize("http://tracker.example/announce?x=1:80").Should().Be("http://tracker.example/announce?x=1:80");
     }
+
+    [Test]
+    [TestCase("http://private.tracker.org/announce?peer_id=foo;passkey=SECRET123", "http://private.tracker.org/announce?peer_id=foo&passkey=********")]
+    [TestCase("http://private.tracker.org/announce?password=s3cret", "http://private.tracker.org/announce?password=********")]
+    [TestCase("http://private.tracker.org/announce?apikey=abcd+efghijklmnop", "http://private.tracker.org/announce?apikey=********")]
+    [TestCase("https://tracker.site/announce/AbcdEfGh123456+", "https://tracker.site/announce/********")]
+    [TestCase("http://private.tracker.org/announce?foo=1%26passkey%3DSECRET", "http://private.tracker.org/announce?foo=1&passkey=********")]
+    [TestCase("http://private.tracker.org/announce#passkey=SECRET", "http://private.tracker.org/announce#passkey=********")]
+    [TestCase(
+        "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef&tr=http://tracker.site/announce?passkey=SECRET123",
+        "magnet://?xt=urn:btih:0123456789abcdef0123456789abcdef&tr=http://tracker.site/announce?passkey=********")]
+    public void Sanitize_WhenCredentialShapeIsNonStandard_RedactsSecrets(string input, string expected)
+    {
+        TrackerUrlSanitizer.Sanitize(input).Should().Be(expected);
+    }
 }
