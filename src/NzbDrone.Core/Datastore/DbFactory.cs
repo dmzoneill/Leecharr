@@ -19,6 +19,28 @@ public interface IDbFactory
     IDatabase Create(DatabaseType dbType, string connectionString);
 }
 
+public class SqliteGuidTypeHandler : SqlMapper.TypeHandler<Guid>
+{
+    public override void SetValue(IDbDataParameter parameter, Guid value)
+    {
+        if (parameter != null)
+        {
+            parameter.Value = value.ToString();
+        }
+    }
+
+    public override Guid Parse(object value)
+    {
+        return value switch
+        {
+            Guid guid => guid,
+            string text => Guid.Parse(text),
+            byte[] bytes when bytes.Length == 16 => new Guid(bytes),
+            _ => Guid.Parse(value?.ToString() ?? throw new InvalidCastException()),
+        };
+    }
+}
+
 public class SqliteDoubleTypeHandler : SqlMapper.TypeHandler<double>
 {
     public override void SetValue(IDbDataParameter parameter, double value)

@@ -13,6 +13,8 @@ internal static class AiChatFallbackContext
 
     public static bool LastChatUsedFallbackValue => LastChatUsedFallback.Value ?? false;
 
+    public static bool? CurrentFlowValue => LastChatUsedFallback.Value;
+
     public static void SetLastChatUsedFallback(bool value)
     {
         LastChatUsedFallback.Value = value;

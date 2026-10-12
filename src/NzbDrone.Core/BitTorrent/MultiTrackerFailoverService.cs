@@ -11,7 +11,7 @@ public interface IMultiTrackerFailoverService
 {
     bool ShouldSkipAnnounce(int torrentId, int tierIndex, Uri trackerUri, DateTime utcNow);
 
-    ITracker SelectTrackerForTier(int torrentId, int tierIndex, TrackerTier tier, DateTime utcNow);
+    ITracker SelectTrackerForTier(int torrentId, int tierIndex, IList<ITracker> trackers, ITracker activeTracker, DateTime utcNow);
 
     void RecordAnnounceOutcome(int torrentId, int tierIndex, ITracker tracker, bool success, DateTime utcNow);
 
@@ -42,19 +42,18 @@ public sealed class MultiTrackerFailoverService : IMultiTrackerFailoverService
         return trackerState.BackoffUntilUtc.HasValue && utcNow < trackerState.BackoffUntilUtc.Value;
     }
 
-    public ITracker SelectTrackerForTier(int torrentId, int tierIndex, TrackerTier tier, DateTime utcNow)
+    public ITracker SelectTrackerForTier(int torrentId, int tierIndex, IList<ITracker> trackers, ITracker activeTracker, DateTime utcNow)
     {
-        if (tier?.Trackers == null || tier.Trackers.Count == 0)
+        if (trackers == null || trackers.Count == 0)
         {
             return null;
         }
 
         if (!MultiTrackerAnnouncePolicy.IsFailoverEnabled(this.configService))
         {
-            return tier.ActiveTracker ?? tier.Trackers.FirstOrDefault();
+            return activeTracker ?? (trackers.Count > 0 ? trackers[0] : null);
         }
 
-        var trackers = tier.Trackers.ToList();
         var state = this.GetTorrentState(torrentId);
         var tierState = state.GetTierState(tierIndex);
         var startIndex = tierState.ActiveTrackerIndex % trackers.Count;
@@ -75,7 +74,7 @@ public sealed class MultiTrackerFailoverService : IMultiTrackerFailoverService
             }
         }
 
-        return tier.ActiveTracker ?? trackers.FirstOrDefault();
+        return activeTracker ?? (trackers.Count > 0 ? trackers[0] : null);
     }
 
     public void RecordAnnounceOutcome(int torrentId, int tierIndex, ITracker tracker, bool success, DateTime utcNow)

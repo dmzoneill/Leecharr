@@ -208,6 +208,24 @@ public class DynamicHttpTransportProxyTest
     }
 
     [Test]
+    public async Task SwitchProviderAsync_WhenConfigSaveFails_KeepsPreviousActiveProvider()
+    {
+        this.configService
+            .When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(_ => throw new InvalidOperationException("database locked"));
+
+        var result = await this.proxy.SwitchProviderAsync("CurlImpersonate");
+
+        result.Success.Should().BeFalse();
+        result.PreviousProvider.Should().Be("SocketsHttpHandler");
+        result.ActiveProvider.Should().Be("SocketsHttpHandler");
+        result.Error.Should().Contain("database locked");
+        this.proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.socketsProvider);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HttpTransportProviderSwitchedEvent>());
+    }
+
+    [Test]
     public async Task SwitchProviderAsync_WithUnknownOrEmptyProvider_ReturnsFailure()
     {
         var result1 = await this.proxy.SwitchProviderAsync("UnknownProvider");

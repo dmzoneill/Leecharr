@@ -50,7 +50,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
     private static readonly Regex EditionRegex = new(@"(?i)\b(?<edition>Extended(?:\s*Cut)?|Director'?s\s*Cut|Unrated|IMAX(?:\s*Enhanced)?|Theatrical|Remastered|Criterion)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly Regex LanguageRegex = new(@"(?i)\b(?<lang>Multi(?:-?Audio)?|Dual(?:-?Audio)?|VOSTFR|TRUEFRENCH|VFF|Castellano|Latino|ENG(?:LISH)?|FRENCH|FRA|FRE|GER(?:MAN)?|DEU|SPANISH|SPA|ESP|ITA(?:LIAN)?|JAP(?:ANESE)?|JPN|KOR(?:EAN)?|CHI(?:NESE)?|ZHO|HIN(?:DI)?|POR(?:TUGUESE)?|DUT(?:CH)?|NLD|POL(?:ISH)?|SWE(?:DISH)?|NOR(?:WEGIAN)?|UKR(?:AINIAN)?|TUR(?:KISH)?|ARA(?:BIC)?|RUS(?:SIAN)?)\b", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
 
-    private static readonly Regex ReleaseGroupRegex = new($@"(?:-(?<group>[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)|\[(?<group>[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)\]){ReleaseGroupOptionalMediaExtensionPattern}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex ReleaseGroupRegex = new($@"(?:-(?<group>[A-Za-z0-9.]+?)|\[(?<group>[A-Za-z0-9.]+?)\]){ReleaseGroupOptionalMediaExtensionPattern}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
 
     public string ProviderId => "RuleHeuristic";
 
@@ -233,7 +233,14 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
 
         if (qualityMatch.Success)
         {
-            result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, result.IsRemux);
+            var qualityToken = qualityMatch.Groups["quality"].Value;
+            if (qualityToken.Equals("CAM", StringComparison.OrdinalIgnoreCase)
+                && Regex.IsMatch(working, @"(?i)\bTeleSync\b", RegexOptions.None, TimeSpan.FromSeconds(2)))
+            {
+                qualityToken = "TeleSync";
+            }
+
+            result.Quality = NormalizeQuality(qualityToken, result.Resolution, result.IsRemux);
         }
         else if (result.IsRemux)
         {
