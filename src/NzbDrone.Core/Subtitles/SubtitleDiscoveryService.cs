@@ -151,7 +151,24 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
             // 4. Same directory match if single video or episode matches
             if (string.Equals(subDir, videoDir, StringComparison.OrdinalIgnoreCase))
             {
-                if (isSingleVideo && string.IsNullOrEmpty(subEp))
+                var subStemEp = ExtractEpisodeCode(subStem);
+                if (string.IsNullOrEmpty(subStemEp))
+                {
+                    if (isSingleVideo)
+                    {
+                        matched.Add(sub);
+                        continue;
+                    }
+
+                    // Generic subtitle names (e.g. English.srt) beside episode files in SxxExx folders
+                    if (!string.IsNullOrEmpty(ExtractEpisodeCode(videoDir)))
+                    {
+                        matched.Add(sub);
+                        continue;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(videoEp) &&
+                         string.Equals(subStemEp, videoEp, StringComparison.OrdinalIgnoreCase))
                 {
                     matched.Add(sub);
                     continue;
