@@ -9,6 +9,7 @@ using FluentAssertions;
 using Leecharr.Api.V1.UTorrent;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
@@ -272,6 +273,34 @@ public class UTorrentWebUiControllerTest
             await this.torrentService.MoveQueueAsync(20, "down");
             await this.torrentService.MoveQueueAsync(10, "down");
         });
+    }
+
+    [Test]
+    public async Task HandleWebUi_SetPrio_WithMultipleFileIndices_UpdatesEachFile()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        httpContext.Request.Query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            { "p", "2" },
+            { "f", new StringValues(new[] { "0", "1" }) },
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var torrent = new Torrent { Id = 42, InfoHash = "abc12345" };
+        this.torrentService.GetByInfoHash("abc12345").Returns(torrent);
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 100, TorrentId = 42, Path = "a.mkv" },
+            new() { Id = 101, TorrentId = 42, Path = "b.mkv" },
+        };
+        this.torrentFileService.GetFiles(42).Returns(files);
+
+        var result = await this.controller.HandleWebUi(null!, "setprio", "abc12345", null!, null!, null!, null!, null!, null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentFileService.Received(1).SetPriorityAsync(100, 3);
+        await this.torrentFileService.Received(1).SetPriorityAsync(101, 3);
     }
 
     [Test]
