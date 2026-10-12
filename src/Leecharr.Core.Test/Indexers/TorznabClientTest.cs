@@ -954,14 +954,14 @@ public class TorznabClientTest
     }
 
     [Test]
-    public void ParseTorznabFeedXml_WhenCloudflareChallengeHtml_ReturnsEmptyList()
+    public void ParseTorznabFeedXml_WhenCloudflareChallengeHtml_ThrowsTorznabException()
     {
         var challengeHtml = "<html><head><title>Just a moment...</title></head><body>Turnstile challenge</body></html>";
         var indexer = new IndexerDefinition { Name = "ProtectedTracker" };
-        var results = this.client.ParseTorznabFeedXml(challengeHtml, indexer);
+        Action act = () => this.client.ParseTorznabFeedXml(challengeHtml, indexer);
 
-        results.Should().NotBeNull();
-        results.Should().BeEmpty();
+        act.Should().Throw<TorznabException>()
+            .WithMessage("*Cloudflare / AntiBot challenge detected*");
     }
 
     [Test]

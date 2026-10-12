@@ -555,7 +555,7 @@ public class TorznabClient : ITorznabClient
         if (AntiBotChallengeDetector.IsChallenge(xml))
         {
             this.logger.Warn("Torznab XML response from indexer '{0}' is an AntiBot / Cloudflare challenge page.", indexer?.Name ?? "Unknown");
-            return results;
+            throw new TorznabException("Cloudflare / AntiBot challenge detected. FlareSolverr may be required.");
         }
 
         try

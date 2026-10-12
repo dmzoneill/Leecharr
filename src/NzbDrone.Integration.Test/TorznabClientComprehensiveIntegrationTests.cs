@@ -1504,7 +1504,7 @@ public class TorznabClientComprehensiveIntegrationTests : IntegrationTestBase
     }
 
     [Test]
-    public void ParseTorznabFeedXml_DetectsAntiBotChallenge_ReturnsEmptyList()
+    public void ParseTorznabFeedXml_DetectsAntiBotChallenge_ThrowsTorznabException()
     {
         const string challengeHtml = @"<!DOCTYPE html>
 <html>
@@ -1516,10 +1516,10 @@ public class TorznabClientComprehensiveIntegrationTests : IntegrationTestBase
 </html>";
 
         var client = new TorznabClient(this.configService);
-        var results = client.ParseTorznabFeedXml(challengeHtml);
+        Action act = () => client.ParseTorznabFeedXml(challengeHtml);
 
-        results.Should().NotBeNull();
-        results.Should().BeEmpty();
+        act.Should().Throw<TorznabException>()
+            .WithMessage("*Cloudflare / AntiBot challenge detected*");
     }
 
     [Test]
