@@ -32,6 +32,24 @@ public class DownloadClientRemoteImportHelperTest
     }
 
     [Test]
+    public void ResolveImportCategory_PrefersRequestThenRemoteThenClient()
+    {
+        DownloadClientRemoteImportHelper.ResolveImportCategory("req", "remote", "client").Should().Be("req");
+        DownloadClientRemoteImportHelper.ResolveImportCategory(null, "remote", "client").Should().Be("remote");
+        DownloadClientRemoteImportHelper.ResolveImportCategory("", "remote", "client").Should().Be("remote");
+        DownloadClientRemoteImportHelper.ResolveImportCategory(null, null, "client").Should().Be("client");
+    }
+
+    [Test]
+    public void ResolveImportSavePath_PrefersRequestThenRemote()
+    {
+        DownloadClientRemoteImportHelper.ResolveImportSavePath("/req", "/remote").Should().Be("/req");
+        DownloadClientRemoteImportHelper.ResolveImportSavePath(null, "/remote").Should().Be("/remote");
+        DownloadClientRemoteImportHelper.ResolveImportSavePath("", "/remote").Should().Be("/remote");
+        DownloadClientRemoteImportHelper.ResolveImportSavePath(null, null).Should().BeNull();
+    }
+
+    [Test]
     public void TryBuildMagnetUri_IncludesDisplayName()
     {
         var hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";

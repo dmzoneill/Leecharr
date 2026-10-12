@@ -435,8 +435,9 @@ public class DownloadClientController : Controller
 
             var remoteItem = remoteEntry.Item;
             var client = remoteEntry.Client;
-            var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
-            var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client?.Category;
+            var savePath = DownloadClientRemoteImportHelper.ResolveImportSavePath(request.SavePath, remoteItem?.SavePath);
+            var category = DownloadClientRemoteImportHelper.ResolveImportCategory(request.Category, remoteItem?.Category, client?.Category);
+            var startPaused = request.StartPaused;
             if (!TryBuildImportMagnetUri(hash, remoteItem?.Name, out var magnetUri, out var magnetError))
             {
                 this.logger.Warn("Failed to build magnet for torrent {0} during import: {1}", hash, magnetError);
@@ -446,7 +447,7 @@ public class DownloadClientController : Controller
 
             try
             {
-                await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
+                await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, startPaused);
                 importedCount++;
             }
             catch (Exception ex)
