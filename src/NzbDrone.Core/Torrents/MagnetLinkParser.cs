@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Web;
 
 namespace NzbDrone.Core.Torrents;
 
@@ -59,7 +58,7 @@ public static class MagnetLinkParser
             }
 
             var key = kv[0].Trim().ToLowerInvariant();
-            var value = HttpUtility.UrlDecode(kv[1]);
+            var value = Uri.UnescapeDataString(kv[1]);
 
             switch (key)
             {
