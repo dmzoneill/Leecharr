@@ -3,7 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -293,12 +296,26 @@ public class DynamicMediaMetadataProxyTest
     public async Task ConcreteProviders_ServarrSyncMetadataProvider_Tests()
     {
         var arrRepo = Substitute.For<IArrConnectionRepository>();
-        arrRepo.All().Returns(new List<ArrConnectionDefinition>
+        var connections = new List<ArrConnectionDefinition>
         {
-            new() { Id = 1, Name = "Sonarr 4K", ArrType = "Sonarr" },
-        });
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr 4K",
+                ArrType = "Sonarr",
+                Url = "http://127.0.0.1:8989",
+                ApiKey = "sonarr-key",
+                Enable = true,
+            },
+        };
+        arrRepo.GetEnabled().Returns(connections);
 
-        var provider = new ServarrSyncMetadataProvider(arrRepo);
+        var handler = new MockHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+        });
+        using var httpClient = new HttpClient(handler);
+        var provider = new ServarrSyncMetadataProvider(arrRepo, httpClient);
         provider.ProviderId.Should().Be("ServarrSync");
         provider.DisplayName.Should().NotBeNullOrEmpty();
         provider.IsAvailable.Should().BeTrue();
@@ -306,7 +323,7 @@ public class DynamicMediaMetadataProxyTest
 
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
-        health.StatusMessage.Should().Contain("1 Arr instances");
+        health.StatusMessage.Should().Contain("1/1");
 
         var movieMeta = await provider.FetchMetadataAsync("Dune 2", "movies", 2024);
         movieMeta.Should().NotBeNull();
@@ -330,7 +347,8 @@ public class DynamicMediaMetadataProxyTest
         provider.Capabilities.SupportsCast.Should().BeTrue();
 
         var health = await provider.ProbeHealthAsync();
-        health.IsHealthy.Should().BeTrue();
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("API key");
 
         var meta = await provider.FetchMetadataAsync("Interstellar.2014.1080p", "movies");
         meta.Should().NotBeNull();
@@ -353,7 +371,8 @@ public class DynamicMediaMetadataProxyTest
         provider.Capabilities.SupportsSeasonBanners.Should().BeTrue();
 
         var health = await provider.ProbeHealthAsync();
-        health.IsHealthy.Should().BeTrue();
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("API key");
 
         var meta = await provider.FetchMetadataAsync("The.Wire.S01.1080p", "tv", 2002);
         meta.Should().NotBeNull();
@@ -417,6 +436,21 @@ public class DynamicMediaMetadataProxyTest
             {
                 System.IO.Directory.Delete(tempDir, true);
             }
+        }
+    }
+
+    private sealed class MockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> responder;
+
+        public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder)
+        {
+            this.responder = responder;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(this.responder(request));
         }
     }
 }
