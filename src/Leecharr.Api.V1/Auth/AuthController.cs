@@ -480,7 +480,8 @@ public class AuthController : ControllerBase
             }
             catch (Exception ex)
             {
-                return this.Unauthorized($"Invalid SAML certificate in Identity Provider configuration: {ex.Message}");
+                this.logger.Warn(ex, "Invalid SAML certificate in Identity Provider configuration");
+                return this.Unauthorized("Invalid SAML certificate in Identity Provider configuration");
             }
 
             var signatureNodes = xmlDoc.GetElementsByTagName("Signature", "http://www.w3.org/2000/09/xmldsig#");
@@ -723,7 +724,8 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return this.BadRequest(new { error = "Failed to process SAML assertion", details = ex.Message });
+            this.logger.Warn(ex, "Failed to process SAML assertion");
+            return this.Unauthorized("Failed to process SAML assertion");
         }
     }
 
