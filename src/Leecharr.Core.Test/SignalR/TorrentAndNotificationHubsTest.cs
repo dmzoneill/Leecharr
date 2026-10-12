@@ -30,6 +30,8 @@ public class TorrentAndNotificationHubsTest
     private DefaultHttpContext httpContext;
     private FeatureCollection featureCollection;
     private IUserService userService;
+    private IHubContext<TorrentHub> torrentHubContext;
+    private IHubContext<NotificationHub> notificationHubContext;
 
     [SetUp]
     public void SetUp()
@@ -49,6 +51,10 @@ public class TorrentAndNotificationHubsTest
         this.clients.Caller.Returns(this.callerProxy);
         this.clients.Group(Arg.Any<string>()).Returns(this.groupProxy);
         this.clients.All.Returns(this.allProxy);
+        this.torrentHubContext = Substitute.For<IHubContext<TorrentHub>>();
+        this.torrentHubContext.Clients.Returns(this.clients);
+        this.notificationHubContext = Substitute.For<IHubContext<NotificationHub>>();
+        this.notificationHubContext.Clients.Returns(this.clients);
         this.hubCallerContext.ConnectionId.Returns("conn-torrent-123");
 
         this.httpContext = new DefaultHttpContext();
@@ -368,15 +374,9 @@ public class TorrentAndNotificationHubsTest
     [Test]
     public async Task TorrentHub_BroadcastTorrentProgress_SendsProgressToSpecificTorrentGroup()
     {
-        var hub = new TorrentHub(this.configFileProvider)
-        {
-            Context = this.hubCallerContext,
-            Clients = this.clients,
-            Groups = this.groupManager,
-        };
-
         var progressData = new { Progress = 85.5, DownloadSpeed = 1048576L, UploadSpeed = 524288L };
-        await hub.BroadcastTorrentProgress(99, progressData);
+        var broadcaster = new TorrentHubBroadcaster(this.torrentHubContext);
+        await broadcaster.BroadcastTorrentProgress(99, progressData);
 
         this.clients.Received(1).Group("torrent-99");
         await this.groupProxy.Received(1).SendCoreAsync(
@@ -388,15 +388,9 @@ public class TorrentAndNotificationHubsTest
     [Test]
     public async Task TorrentHub_BroadcastGlobalProgress_SendsProgressToAllTorrentsGroup()
     {
-        var hub = new TorrentHub(this.configFileProvider)
-        {
-            Context = this.hubCallerContext,
-            Clients = this.clients,
-            Groups = this.groupManager,
-        };
-
         var globalProgress = new { TotalDownloadSpeed = 5000000L, ActiveCount = 3 };
-        await hub.BroadcastGlobalProgress(globalProgress);
+        var broadcaster = new TorrentHubBroadcaster(this.torrentHubContext);
+        await broadcaster.BroadcastGlobalProgress(globalProgress);
 
         this.clients.Received(1).Group("torrents");
         await this.groupProxy.Received(1).SendCoreAsync(
@@ -408,15 +402,9 @@ public class TorrentAndNotificationHubsTest
     [Test]
     public async Task TorrentHub_PushSwarmTelemetry_SendsTelemetryToTorrentGroup()
     {
-        var hub = new TorrentHub(this.configFileProvider)
-        {
-            Context = this.hubCallerContext,
-            Clients = this.clients,
-            Groups = this.groupManager,
-        };
-
         var swarmData = new { ConnectedPeers = 25, Seeders = 10, Leechers = 15 };
-        await hub.PushSwarmTelemetry(7, swarmData);
+        var broadcaster = new TorrentHubBroadcaster(this.torrentHubContext);
+        await broadcaster.PushSwarmTelemetry(7, swarmData);
 
         this.clients.Received(1).Group("torrent-7");
         await this.groupProxy.Received(1).SendCoreAsync(
@@ -428,15 +416,9 @@ public class TorrentAndNotificationHubsTest
     [Test]
     public async Task TorrentHub_BroadcastSwarmTelemetry_SendsTelemetryToAllClients()
     {
-        var hub = new TorrentHub(this.configFileProvider)
-        {
-            Context = this.hubCallerContext,
-            Clients = this.clients,
-            Groups = this.groupManager,
-        };
-
         var swarmOverview = new { TotalPeers = 150, GlobalSwarmHealth = "Optimal" };
-        await hub.BroadcastSwarmTelemetry(swarmOverview);
+        var broadcaster = new TorrentHubBroadcaster(this.torrentHubContext);
+        await broadcaster.BroadcastSwarmTelemetry(swarmOverview);
 
         await this.allProxy.Received(1).SendCoreAsync(
             "swarmTelemetry",
@@ -754,15 +736,9 @@ public class TorrentAndNotificationHubsTest
     [Test]
     public async Task NotificationHub_DispatchNotification_BroadcastsToAllClients()
     {
-        var hub = new NotificationHub(this.configFileProvider)
-        {
-            Context = this.hubCallerContext,
-            Clients = this.clients,
-            Groups = this.groupManager,
-        };
-
         var notification = new { Title = "Download Finished", Body = "Ubuntu.iso completed." };
-        await hub.DispatchNotification(notification);
+        var broadcaster = new NotificationHubBroadcaster(this.notificationHubContext);
+        await broadcaster.DispatchNotification(notification);
 
         await this.allProxy.Received(1).SendCoreAsync(
             "notificationDispatched",
@@ -773,15 +749,9 @@ public class TorrentAndNotificationHubsTest
     [Test]
     public async Task NotificationHub_DispatchNotificationToTopic_SendsToSpecificTopicGroup()
     {
-        var hub = new NotificationHub(this.configFileProvider)
-        {
-            Context = this.hubCallerContext,
-            Clients = this.clients,
-            Groups = this.groupManager,
-        };
-
         var notification = new { Title = "Security Alert", Body = "Failed login detected." };
-        await hub.DispatchNotificationToTopic("Security", notification);
+        var broadcaster = new NotificationHubBroadcaster(this.notificationHubContext);
+        await broadcaster.DispatchNotificationToTopic("Security", notification);
 
         this.clients.Received(1).Group("topic-security");
         await this.groupProxy.Received(1).SendCoreAsync(
@@ -795,14 +765,8 @@ public class TorrentAndNotificationHubsTest
     [TestCase("   ")]
     public async Task NotificationHub_DispatchNotificationToTopic_WhenInvalidTopic_DoesNothing(string invalidTopic)
     {
-        var hub = new NotificationHub(this.configFileProvider)
-        {
-            Context = this.hubCallerContext,
-            Clients = this.clients,
-            Groups = this.groupManager,
-        };
-
-        await hub.DispatchNotificationToTopic(invalidTopic, new { Title = "Ignored" });
+        var broadcaster = new NotificationHubBroadcaster(this.notificationHubContext);
+        await broadcaster.DispatchNotificationToTopic(invalidTopic, new { Title = "Ignored" });
 
         this.clients.DidNotReceive().Group(Arg.Any<string>());
         await this.groupProxy.DidNotReceive().SendCoreAsync(
@@ -814,14 +778,8 @@ public class TorrentAndNotificationHubsTest
     [Test]
     public async Task NotificationHub_DispatchSystemAlert_BroadcastsFormattedAlertToAllClients()
     {
-        var hub = new NotificationHub(this.configFileProvider)
-        {
-            Context = this.hubCallerContext,
-            Clients = this.clients,
-            Groups = this.groupManager,
-        };
-
-        await hub.DispatchSystemAlert("DiskSpaceLow", "Available storage is below 5GB.", "Warning");
+        var broadcaster = new NotificationHubBroadcaster(this.notificationHubContext);
+        await broadcaster.DispatchSystemAlert("DiskSpaceLow", "Available storage is below 5GB.", "Warning");
 
         await this.allProxy.Received(1).SendCoreAsync(
             "systemAlert",

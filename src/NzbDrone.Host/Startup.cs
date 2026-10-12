@@ -81,6 +81,9 @@ public class Startup
                 options.PayloadSerializerOptions.Converters.Add(converter);
             }
         });
+
+        services.AddSingleton<INotificationHubBroadcaster, NotificationHubBroadcaster>();
+        services.AddSingleton<ITorrentHubBroadcaster, TorrentHubBroadcaster>();
         services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
         {
             options.MultipartBodyLengthLimit = 250 * 1024 * 1024;

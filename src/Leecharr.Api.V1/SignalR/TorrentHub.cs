@@ -131,23 +131,4 @@ public class TorrentHub : Hub
         await this.Groups.RemoveFromGroupAsync(this.Context.ConnectionId, "torrents");
     }
 
-    public Task BroadcastTorrentProgress(int torrentId, object progressPayload)
-    {
-        return this.Clients.Group($"torrent-{torrentId}").SendAsync("torrentProgress", progressPayload);
-    }
-
-    public Task BroadcastGlobalProgress(object progressPayload)
-    {
-        return this.Clients.Group("torrents").SendAsync("torrentProgress", progressPayload);
-    }
-
-    public Task PushSwarmTelemetry(int torrentId, object swarmData)
-    {
-        return this.Clients.Group($"torrent-{torrentId}").SendAsync("swarmTelemetry", swarmData);
-    }
-
-    public Task BroadcastSwarmTelemetry(object swarmData)
-    {
-        return this.Clients.All.SendAsync("swarmTelemetry", swarmData);
-    }
 }
