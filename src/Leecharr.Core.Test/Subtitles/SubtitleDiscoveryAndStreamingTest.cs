@@ -165,6 +165,18 @@ public class SubtitleDiscoveryAndStreamingTest
     }
 
     [Test]
+    public void SubtitleConversionService_ConvertsMicroDvdZeroFpsHeaderToWebVtt()
+    {
+        const string microDvd = "{0}{0}25.000\n{250}{255}Hello world!\n";
+        var vtt = this.conversionService.ConvertToWebVtt(microDvd, "sub");
+
+        vtt.Should().StartWith("WEBVTT");
+        vtt.Should().Contain("00:00:10.000 --> 00:00:10.200");
+        vtt.Should().Contain("Hello world!");
+        vtt.Should().NotContain("25.000");
+    }
+
+    [Test]
     public void SubtitleConversionService_ConvertsSrtToWebVtt()
     {
         const string srt = "1\n00:00:01,000 --> 00:00:04,000\nHello world!\n\n2\n00:00:05,500 --> 00:00:08,000\nSecond line.\n";
