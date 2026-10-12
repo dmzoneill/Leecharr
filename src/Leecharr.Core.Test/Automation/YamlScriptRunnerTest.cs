@@ -1328,6 +1328,116 @@ public class YamlScriptRunnerTest
         done.TagsToAdd.Should().Contain("Finished");
     }
 
+    [Test]
+    public async Task SendTelegramMessage_EscapesMarkdown_AndLogsSuccessOnHttpOk()
+    {
+        var port = GetFreePort();
+        var receivedBody = string.Empty;
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        var previousBase = YamlScriptRunner.TelegramApiBaseUrlForTests;
+        YamlScriptRunner.TelegramApiBaseUrlForTests = $"http://127.0.0.1:{port}";
+
+        try
+        {
+            var serverTask = Task.Run(async () =>
+            {
+                var context = await listener.GetContextAsync();
+                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                receivedBody = await reader.ReadToEndAsync();
+                var buffer = Encoding.UTF8.GetBytes("{\"ok\":true,\"result\":{}}");
+                context.Response.StatusCode = 200;
+                context.Response.ContentType = "application/json";
+                await context.Response.OutputStream.WriteAsync(buffer);
+                context.Response.OutputStream.Close();
+            });
+
+            var yaml = "name: 'Telegram'\n" +
+                       "steps:\n" +
+                       "  - name: 'Send'\n" +
+                       "    actions:\n" +
+                       "      - sendTelegramMessage:\n" +
+                       "          token: 'test-token'\n" +
+                       "          chatId: '12345'\n" +
+                       "          text: 'Release_name_with_underscore'\n";
+
+            var script = new AutomationScript
+            {
+                Name = "Telegram",
+                Code = yaml,
+                Language = AutomationLanguage.Yaml,
+            };
+
+            var result = _runner.Execute(script, new Torrent { Id = 1, Name = "test" });
+            await serverTask;
+
+            result.Success.Should().BeTrue();
+            result.OutputLog.Should().Contain("[ACTION] sendTelegramMessage to 12345");
+            result.OutputLog.Should().NotContain("sendTelegramMessage Error:");
+            receivedBody.Should().Contain("Release\\_name\\_with\\_underscore");
+        }
+        finally
+        {
+            YamlScriptRunner.TelegramApiBaseUrlForTests = previousBase;
+            listener.Stop();
+        }
+    }
+
+    [Test]
+    public async Task SendTelegramMessage_LogsErrorWhenTelegramReturnsFailure()
+    {
+        var port = GetFreePort();
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        var previousBase = YamlScriptRunner.TelegramApiBaseUrlForTests;
+        YamlScriptRunner.TelegramApiBaseUrlForTests = $"http://127.0.0.1:{port}";
+
+        try
+        {
+            var serverTask = Task.Run(async () =>
+            {
+                var context = await listener.GetContextAsync();
+                context.Response.StatusCode = 400;
+                context.Response.ContentType = "application/json";
+                var buffer = Encoding.UTF8.GetBytes("{\"ok\":false,\"description\":\"Bad Request: can't parse entities\"}");
+                await context.Response.OutputStream.WriteAsync(buffer);
+                context.Response.OutputStream.Close();
+            });
+
+            var yaml = "name: 'Telegram fail'\n" +
+                       "steps:\n" +
+                       "  - name: 'Send'\n" +
+                       "    actions:\n" +
+                       "      - sendTelegramMessage:\n" +
+                       "          token: 'test-token'\n" +
+                       "          chatId: '12345'\n" +
+                       "          text: 'plain message'\n";
+
+            var script = new AutomationScript
+            {
+                Name = "Telegram fail",
+                Code = yaml,
+                Language = AutomationLanguage.Yaml,
+            };
+
+            var result = _runner.Execute(script, new Torrent { Id = 2, Name = "test" });
+            await serverTask;
+
+            result.Success.Should().BeTrue();
+            result.OutputLog.Should().Contain("sendTelegramMessage Error: HTTP 400");
+            result.OutputLog.Should().NotContain("[ACTION] sendTelegramMessage to 12345");
+        }
+        finally
+        {
+            YamlScriptRunner.TelegramApiBaseUrlForTests = previousBase;
+            listener.Stop();
+        }
+    }
+
     private static int GetFreePort()
     {
         using var socket = new TcpListener(IPAddress.Loopback, 0);

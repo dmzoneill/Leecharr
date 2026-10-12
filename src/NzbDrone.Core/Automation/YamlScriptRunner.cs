@@ -5,12 +5,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using NLog;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Torrents;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -19,6 +22,10 @@ namespace NzbDrone.Core.Automation;
 
 public class YamlScriptRunner : IScriptRunner
 {
+    private const string DefaultTelegramApiBaseUrl = "https://api.telegram.org";
+
+    internal static string? TelegramApiBaseUrlForTests;
+
     private static readonly Regex VariableRegex = new(@"\$\{([^}]+)\}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private static readonly char[] ExtensionDelimiters = [',', ';', ' '];
     private static readonly string[] EqualsOperator = ["=="];
@@ -781,37 +788,33 @@ public class YamlScriptRunner : IScriptRunner
                             var recursive = sfpDict.TryGetValue("recursive", out var rVal) && (rVal is true || rVal?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true);
                             try
                             {
-                                if (!OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(perm) && (File.Exists(path) || Directory.Exists(path)))
+                                if (string.IsNullOrWhiteSpace(perm))
+                                {
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setFilePermissions Warning: permissions not specified for {path}");
+                                }
+                                else if (!File.Exists(path) && !Directory.Exists(path))
+                                {
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setFilePermissions Warning: path not found: {path}");
+                                }
+                                else
                                 {
                                     var mode = ParseUnixFileMode(perm);
                                     if (!dryRun)
                                     {
-                                        if (File.Exists(path))
+                                        if (OperatingSystem.IsWindows())
                                         {
-                                            File.SetUnixFileMode(path, mode);
+                                            ApplyWindowsFilePermissions(path, mode, recursive);
                                         }
-                                        else if (Directory.Exists(path))
+                                        else
                                         {
-                                            new DirectoryInfo(path).UnixFileMode = mode;
-                                            if (recursive)
-                                            {
-                                                foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
-                                                {
-                                                    File.SetUnixFileMode(file, mode);
-                                                }
-
-                                                foreach (var dir in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
-                                                {
-                                                    new DirectoryInfo(dir).UnixFileMode = mode;
-                                                }
-                                            }
+                                            ApplyUnixFilePermissions(path, mode, recursive);
                                         }
                                     }
-                                }
 
-                                var permPrefix = dryRun ? "[DRY-RUN] " : string.Empty;
-                                var permVerb = dryRun ? "would set" : "set";
-                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] {permPrefix}[ACTION] setFilePermissions: {permVerb} {perm} on {path} (recursive: {recursive})");
+                                    var permPrefix = dryRun ? "[DRY-RUN] " : string.Empty;
+                                    var permVerb = dryRun ? "would set" : "set";
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] {permPrefix}[ACTION] setFilePermissions: {permVerb} {perm} on {path} (recursive: {recursive})");
+                                }
                             }
                             catch (Exception ex)
                             {
@@ -836,12 +839,51 @@ public class YamlScriptRunner : IScriptRunner
                             var token = SubstituteVariables(tgDict.TryGetValue("token", out var tVal) ? tVal?.ToString() ?? string.Empty : string.Empty, variableContext);
                             var chatId = SubstituteVariables(tgDict.TryGetValue("chatId", out var cVal) ? cVal?.ToString() ?? string.Empty : string.Empty, variableContext);
                             var text = SubstituteVariables(tgDict.TryGetValue("text", out var txtVal) ? txtVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var parseMode = tgDict.TryGetValue("parseMode", out var pmVal)
+                                ? SubstituteVariables(pmVal?.ToString() ?? string.Empty, variableContext)
+                                : "Markdown";
                             if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(chatId))
                             {
-                                var url = $"https://api.telegram.org/bot{token}/sendMessage";
-                                var payload = new Dictionary<string, object> { { "chat_id", chatId }, { "text", text }, { "parse_mode", "Markdown" } };
-                                httpClient.post(url, payload, new Dictionary<string, object>());
-                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendTelegramMessage to {chatId}");
+                                var messageText = text;
+                                var payload = new Dictionary<string, object> { { "chat_id", chatId }, { "text", messageText } };
+                                if (!string.IsNullOrWhiteSpace(parseMode) && !parseMode.Equals("none", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (parseMode.Equals("Markdown", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        messageText = NotificationPayloadBuilder.EscapeTelegramMarkdown(text);
+                                        payload["text"] = messageText;
+                                    }
+
+                                    payload["parse_mode"] = parseMode;
+                                }
+
+                                var apiBase = (TelegramApiBaseUrlForTests ?? DefaultTelegramApiBaseUrl).TrimEnd('/');
+                                var url = $"{apiBase}/bot{token}/sendMessage";
+                                try
+                                {
+                                    var responseObj = httpClient.post(url, payload, new Dictionary<string, object> { { "json", true } });
+                                    if (responseObj is Dictionary<string, object?> response &&
+                                        response.TryGetValue("ok", out var okObj) &&
+                                        okObj is bool ok &&
+                                        ok)
+                                    {
+                                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendTelegramMessage to {chatId}");
+                                    }
+                                    else
+                                    {
+                                        var status = responseObj is Dictionary<string, object?> failedResponse && failedResponse.TryGetValue("status", out var statusObj)
+                                            ? statusObj?.ToString() ?? "unknown"
+                                            : "unknown";
+                                        var body = responseObj is Dictionary<string, object?> failedResponseWithBody && failedResponseWithBody.TryGetValue("body", out var bodyObj)
+                                            ? bodyObj?.ToString() ?? string.Empty
+                                            : string.Empty;
+                                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendTelegramMessage Error: HTTP {status} {body}");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendTelegramMessage Error: {ex.Message}");
+                                }
                             }
                         }
 
@@ -968,6 +1010,173 @@ public class YamlScriptRunner : IScriptRunner
                 throw new IOException($"Failed to create hardlink '{src}' -> '{dest}' (errno: {err})");
             }
         }
+    }
+
+    private static void ApplyUnixFilePermissions(string path, UnixFileMode mode, bool recursive)
+    {
+        if (File.Exists(path))
+        {
+            File.SetUnixFileMode(path, mode);
+            return;
+        }
+
+        if (!Directory.Exists(path))
+        {
+            return;
+        }
+
+        new DirectoryInfo(path).UnixFileMode = mode;
+        if (!recursive)
+        {
+            return;
+        }
+
+        foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
+        {
+            File.SetUnixFileMode(file, mode);
+        }
+
+        foreach (var dir in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+        {
+            new DirectoryInfo(dir).UnixFileMode = mode;
+        }
+    }
+
+    private static void ApplyWindowsFilePermissions(string path, UnixFileMode mode, bool recursive)
+    {
+        if (File.Exists(path))
+        {
+            ApplyWindowsFilePermissionsToPath(path, mode, isDirectory: false);
+            return;
+        }
+
+        if (!Directory.Exists(path))
+        {
+            return;
+        }
+
+        ApplyWindowsFilePermissionsToPath(path, mode, isDirectory: true);
+        if (!recursive)
+        {
+            return;
+        }
+
+        foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
+        {
+            ApplyWindowsFilePermissionsToPath(file, mode, isDirectory: false);
+        }
+
+        foreach (var dir in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+        {
+            ApplyWindowsFilePermissionsToPath(dir, mode, isDirectory: true);
+        }
+    }
+
+    private static void ApplyWindowsFilePermissionsToPath(string path, UnixFileMode mode, bool isDirectory)
+    {
+        var security = isDirectory
+            ? (FileSystemSecurity)Directory.GetAccessControl(path)
+            : File.GetAccessControl(path);
+
+        SetWindowsAccessRules(security, mode, isDirectory);
+
+        if (isDirectory)
+        {
+            Directory.SetAccessControl(path, (DirectorySecurity)security);
+        }
+        else
+        {
+            File.SetAccessControl(path, (FileSecurity)security);
+        }
+    }
+
+    private static void SetWindowsAccessRules(FileSystemSecurity security, UnixFileMode mode, bool isDirectory)
+    {
+        security.SetAccessRuleProtection(true, false);
+
+        var existingRules = security.GetAccessRules(true, true, typeof(SecurityIdentifier));
+        foreach (FileSystemAccessRule rule in existingRules)
+        {
+            security.RemoveAccessRule(rule);
+        }
+
+        var currentUser = WindowsIdentity.GetCurrent().User
+            ?? throw new InvalidOperationException("Unable to resolve the current Windows user for setFilePermissions.");
+
+        var userRights = MapUnixModeToWindowsRights(mode, UnixModeSubject.User, isDirectory);
+        if (userRights != FileSystemRights.None)
+        {
+            security.AddAccessRule(new FileSystemAccessRule(currentUser, userRights, AccessControlType.Allow));
+        }
+
+        var groupRights = MapUnixModeToWindowsRights(mode, UnixModeSubject.Group, isDirectory);
+        if (groupRights != FileSystemRights.None)
+        {
+            var authenticatedUsers = new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null);
+            security.AddAccessRule(new FileSystemAccessRule(authenticatedUsers, groupRights, AccessControlType.Allow));
+        }
+
+        var otherRights = MapUnixModeToWindowsRights(mode, UnixModeSubject.Other, isDirectory);
+        if (otherRights != FileSystemRights.None)
+        {
+            var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+            security.AddAccessRule(new FileSystemAccessRule(everyone, otherRights, AccessControlType.Allow));
+        }
+    }
+
+    private enum UnixModeSubject
+    {
+        User,
+        Group,
+        Other,
+    }
+
+    private static FileSystemRights MapUnixModeToWindowsRights(UnixFileMode mode, UnixModeSubject subject, bool isDirectory)
+    {
+        var (readFlag, writeFlag, executeFlag) = subject switch
+        {
+            UnixModeSubject.User => (UnixFileMode.UserRead, UnixFileMode.UserWrite, UnixFileMode.UserExecute),
+            UnixModeSubject.Group => (UnixFileMode.GroupRead, UnixFileMode.GroupWrite, UnixFileMode.GroupExecute),
+            _ => (UnixFileMode.OtherRead, UnixFileMode.OtherWrite, UnixFileMode.OtherExecute),
+        };
+
+        var hasRead = mode.HasFlag(readFlag);
+        var hasWrite = mode.HasFlag(writeFlag);
+        var hasExecute = mode.HasFlag(executeFlag);
+
+        if (!hasRead && !hasWrite && !hasExecute)
+        {
+            return FileSystemRights.None;
+        }
+
+        if (subject == UnixModeSubject.User && hasRead && hasWrite && hasExecute)
+        {
+            return FileSystemRights.FullControl;
+        }
+
+        FileSystemRights rights = FileSystemRights.None;
+        if (hasRead)
+        {
+            rights |= isDirectory
+                ? FileSystemRights.ListDirectory | FileSystemRights.Read
+                : FileSystemRights.ReadData | FileSystemRights.ReadAttributes | FileSystemRights.ReadExtendedAttributes;
+        }
+
+        if (hasWrite)
+        {
+            rights |= isDirectory
+                ? FileSystemRights.CreateDirectories | FileSystemRights.CreateFiles | FileSystemRights.Write | FileSystemRights.Delete
+                : FileSystemRights.WriteData | FileSystemRights.AppendData | FileSystemRights.WriteAttributes;
+        }
+
+        if (hasExecute)
+        {
+            rights |= isDirectory
+                ? FileSystemRights.Traverse
+                : FileSystemRights.ExecuteFile;
+        }
+
+        return rights;
     }
 
     private static UnixFileMode ParseUnixFileMode(string perm)
