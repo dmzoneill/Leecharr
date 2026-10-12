@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
@@ -13,6 +14,7 @@ using NzbDrone.Common.EnvironmentInfo;
 namespace Leecharr.Api.V1.System;
 
 [V1ApiController("logfile")]
+[Authorize(Policy = "RequireAdmin")]
 public class LogFileController : ControllerBase
 {
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
