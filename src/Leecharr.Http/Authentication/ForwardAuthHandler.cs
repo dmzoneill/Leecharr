@@ -21,6 +21,8 @@ public class ForwardAuthOptions : AuthenticationSchemeOptions
 
     public string UsernameHeaders { get; set; } = "Remote-User;X-Forwarded-User;X-authentik-username";
 
+    public string SubjectHeaders { get; set; } = "Remote-Uid;X-Forwarded-User-Id;X-authentik-uid";
+
     public string EmailHeaders { get; set; } = "Remote-Email;X-Forwarded-Email;X-authentik-email";
 
     public string DisplayNameHeaders { get; set; } = "Remote-Name;X-Forwarded-Preferred-Username;X-authentik-name";
@@ -77,9 +79,15 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
             ? rawGroupsStr.Split(GroupDelimiters, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : Array.Empty<string>();
 
+        var subject = this.GetHeaderValue(this.Options.SubjectHeaders);
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            subject = username;
+        }
+
         var profile = new ExternalUserProfile(
             "forward-auth",
-            username,
+            subject,
             username,
             email,
             displayName,

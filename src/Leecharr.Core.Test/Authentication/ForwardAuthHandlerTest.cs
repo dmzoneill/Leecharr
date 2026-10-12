@@ -140,4 +140,45 @@ public class ForwardAuthHandlerTest
         result.Succeeded.Should().BeTrue();
         this.jitProvisioningService.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p => p.Username == "proxy-user"));
     }
+
+    [Test]
+    public async Task HandleAuthenticateAsync_WhenSubjectHeaderPresent_UsesStableSubjectNotUsername()
+    {
+        this.configService.GetValue("ForwardAuthTrustedProxies", string.Empty).Returns("127.0.0.1");
+
+        var user = new User { Id = 4, Username = "alice", Roles = "[\"User\"]" };
+        this.jitProvisioningService.ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>()).Returns(user);
+
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Request.Headers["Remote-User"] = "alice";
+        context.Request.Headers["X-authentik-uid"] = "uid-stable-42";
+
+        var handler = this.CreateHandler(context);
+        var result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        this.jitProvisioningService.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p =>
+            p.Username == "alice" && p.SubjectId == "uid-stable-42"));
+    }
+
+    [Test]
+    public async Task HandleAuthenticateAsync_WhenSubjectHeaderMissing_FallsBackToUsernameForSubject()
+    {
+        this.configService.GetValue("ForwardAuthTrustedProxies", string.Empty).Returns("127.0.0.1");
+
+        var user = new User { Id = 5, Username = "bob", Roles = "[\"User\"]" };
+        this.jitProvisioningService.ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>()).Returns(user);
+
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Request.Headers["Remote-User"] = "bob";
+
+        var handler = this.CreateHandler(context);
+        var result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        this.jitProvisioningService.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p =>
+            p.Username == "bob" && p.SubjectId == "bob"));
+    }
 }
