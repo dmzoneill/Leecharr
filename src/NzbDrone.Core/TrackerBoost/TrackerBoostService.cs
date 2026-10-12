@@ -1245,12 +1245,23 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             .Take(maxToAdd)
             .ToList();
 
+        var candidateUrls = candidateDetections.Select(d => d.TrackerUrl).ToList();
+        var engineAdded = await this.AddTrackersToEngineAsync(torrentId, candidateUrls).ConfigureAwait(false);
+        var clientCount = candidateUrls.Count > 0
+            ? await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, candidateUrls).ConfigureAwait(false)
+            : 0;
+
         var addedList = new List<string>();
         var totalSeeders = 0;
         var totalLeechers = 0;
 
         foreach (var candidate in candidateDetections)
         {
+            if (!this.ShouldPersistInjectedTracker(candidate.TrackerUrl, engineAdded, clientCount))
+            {
+                continue;
+            }
+
             var tr = this.trackerRepository.Get(candidate.TrackerId);
             var tier = tr != null
                 ? CalculateDynamicTier(tr.Status, tr.LatencyMs)
@@ -1289,22 +1300,6 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             this.stateStore.IncrementTorrentsBoosted();
             this.stateStore.IncrementTrackersInjected(addedList.Count);
             this.stateStore.IncrementVerifiedMatches(addedList.Count);
-
-            // In-Engine Injection: Add to MonoTorrent / active download engine
-            if (this.downloadEngine != null)
-            {
-                try
-                {
-                    await this.downloadEngine.AddTrackersAsync(torrentId, addedList);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to inject trackers directly into download engine for torrent {0}", torrent.Id);
-                }
-            }
-
-            // Also inject into any configured external download clients
-            var clientCount = await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, addedList).ConfigureAwait(false);
 
             var existingHistory = this.stateStore.BoostHistory.GetOrAdd(torrent.InfoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
             foreach (var url in addedList)
@@ -1472,9 +1467,36 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             .Select(t => (t.Url ?? string.Empty).Trim().ToLowerInvariant())
             .ToHashSet();
 
-        if (!existingTrackers.Contains(trackerUrl.Trim().ToLowerInvariant()))
+        var trimmedUrl = trackerUrl.Trim();
+        var alreadyPersisted = existingTrackers.Contains(trimmedUrl.ToLowerInvariant());
+        var engineAdded = await this.AddTrackersToEngineAsync(torrentId, new[] { trimmedUrl }).ConfigureAwait(false);
+        var clientCount = await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, new[] { trimmedUrl }).ConfigureAwait(false);
+        var injectSucceeded = this.ShouldPersistInjectedTracker(trimmedUrl, engineAdded, clientCount);
+
+        if (!alreadyPersisted)
         {
-            var tr = this.trackerRepository.FindByUrl(trackerUrl.Trim());
+            if (!injectSucceeded)
+            {
+                this.LogActivity(
+                    "Warn",
+                    "Inject",
+                    $"Failed to inject tracker {trimmedUrl} into torrent '{torrent.Name}': engine and download clients rejected the URL",
+                    trimmedUrl,
+                    torrent.InfoHash);
+
+                return new SwarmBoostResult
+                {
+                    TorrentId = torrentId,
+                    TorrentName = torrent.Name,
+                    InfoHash = torrent.InfoHash,
+                    Boosted = false,
+                    AddedTrackersCount = 0,
+                    AddedTrackers = new List<string>(),
+                    Message = "Failed to inject tracker: download engine and external clients did not accept the URL.",
+                };
+            }
+
+            var tr = this.trackerRepository.FindByUrl(trimmedUrl);
             var tier = tr != null ? CalculateDynamicTier(tr.Status, tr.LatencyMs) : 1;
 
             var defaultAnnounceInterval = this.configService?.AnnounceIntervalSeconds > 0
@@ -1484,7 +1506,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             var entry = new TrackerEntry
             {
                 TorrentId = torrentId,
-                Url = trackerUrl.Trim(),
+                Url = trimmedUrl,
                 Tier = tier,
                 Status = 0,
                 Enabled = true,
@@ -1494,32 +1516,23 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             this.stateStore.IncrementTrackersInjected();
         }
 
-        if (this.downloadEngine != null)
+        if (injectSucceeded || alreadyPersisted)
         {
-            try
-            {
-                await this.downloadEngine.AddTrackersAsync(torrentId, new[] { trackerUrl.Trim() });
-            }
-            catch (Exception ex)
-            {
-                this.logger.Warn(ex, "Failed to inject tracker into engine for torrent {0}", torrentId);
-            }
+            this.LogActivity("Success", "Inject", $"Injected tracker {trimmedUrl} into torrent '{torrent.Name}'", trimmedUrl, torrent.InfoHash);
+            this.PublishTrackerBoostApplied(torrent, 1);
         }
-
-        await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, new[] { trackerUrl.Trim() }).ConfigureAwait(false);
-        this.LogActivity("Success", "Inject", $"Injected tracker {trackerUrl} into torrent '{torrent.Name}'", trackerUrl, torrent.InfoHash);
-
-        this.PublishTrackerBoostApplied(torrent, 1);
 
         return new SwarmBoostResult
         {
             TorrentId = torrentId,
             TorrentName = torrent.Name,
             InfoHash = torrent.InfoHash,
-            Boosted = true,
-            AddedTrackersCount = 1,
-            AddedTrackers = new List<string> { trackerUrl.Trim() },
-            Message = $"Injected {trackerUrl} and announced to download engine.",
+            Boosted = injectSucceeded || alreadyPersisted,
+            AddedTrackersCount = injectSucceeded && !alreadyPersisted ? 1 : 0,
+            AddedTrackers = injectSucceeded && !alreadyPersisted ? new List<string> { trimmedUrl } : new List<string>(),
+            Message = injectSucceeded || alreadyPersisted
+                ? $"Injected {trimmedUrl} and announced to download engine."
+                : "Failed to inject tracker: download engine and external clients did not accept the URL.",
         };
     }
 
@@ -1715,6 +1728,41 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         this.LogActivity("Info", "Discovery", $"Missing tracker recovery finished: {recoveredCount} torrent tracker swarm(s) recovered");
         return recoveredCount;
+    }
+
+    private async Task<IReadOnlyList<string>> AddTrackersToEngineAsync(int torrentId, IEnumerable<string> trackers)
+    {
+        if (this.downloadEngine == null)
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            var added = await this.downloadEngine.AddTrackersAsync(torrentId, trackers).ConfigureAwait(false);
+            return added ?? Array.Empty<string>();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to inject trackers directly into download engine for torrent {0}", torrentId);
+            return Array.Empty<string>();
+        }
+    }
+
+    private bool ShouldPersistInjectedTracker(string trackerUrl, IReadOnlyList<string> engineAdded, int successfulClientCount)
+    {
+        if (successfulClientCount > 0)
+        {
+            return true;
+        }
+
+        if (engineAdded == null || engineAdded.Count == 0)
+        {
+            return false;
+        }
+
+        var normalized = trackerUrl.Trim();
+        return engineAdded.Any(url => string.Equals(url.Trim(), normalized, StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task<int> InjectIntoDownloadClientsAsync(string infoHash, IEnumerable<string> trackers)

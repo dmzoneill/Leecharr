@@ -620,8 +620,15 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
     }
 
-    public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
+    public async Task<IReadOnlyList<string>> AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
     {
+        var trackerList = trackers?.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            ?? new List<string>();
+        if (trackerList.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
             try
@@ -632,8 +639,9 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                     await this.SendRpcRequestAsync("torrent-set", new Dictionary<string, object>
                     {
                         ["ids"] = rpcIds,
-                        ["trackerAdd"] = trackers.ToArray(),
+                        ["trackerAdd"] = trackerList.ToArray(),
                     });
+                    return trackerList;
                 }
             }
             catch (Exception ex)
@@ -641,6 +649,8 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                 this.logger.Warn(ex, "Error adding trackers in Transmission for {0}", torrentId);
             }
         }
+
+        return Array.Empty<string>();
     }
 
     public async Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers)

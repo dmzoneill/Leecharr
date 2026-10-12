@@ -44,7 +44,7 @@ public interface IDownloadEngine
 
     Task ForceAnnounceAsync(int torrentId);
 
-    Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers);
+    Task<IReadOnlyList<string>> AddTrackersAsync(int torrentId, IEnumerable<string> trackers);
 
     Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers);
 

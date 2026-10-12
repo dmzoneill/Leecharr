@@ -122,6 +122,14 @@ public class TrackerBoostServiceTest
         this.configService.GetValueInt(Arg.Any<string>(), Arg.Any<int>()).Returns(ci => ci.ArgAt<int>(1));
 
         this.downloadEngine = Substitute.For<IDownloadEngine>();
+        this.downloadEngine
+            .AddTrackersAsync(Arg.Any<int>(), Arg.Any<IEnumerable<string>>())
+            .Returns(call =>
+            {
+                var trackers = call.ArgAt<IEnumerable<string>>(1)?.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).ToList()
+                    ?? new List<string>();
+                return Task.FromResult<IReadOnlyList<string>>(trackers);
+            });
 
         this.storedDownloadClients = new List<DownloadClientDefinition>();
         this.downloadClientRepository = Substitute.For<IDownloadClientRepository>();
@@ -281,6 +289,28 @@ public class TrackerBoostServiceTest
         result.AddedTrackersCount.Should().BeGreaterThan(0);
         this.storedEntries.Should().NotBeEmpty();
         await this.downloadEngine.Received(1).AddTrackersAsync(2, Arg.Any<IEnumerable<string>>());
+    }
+
+    [Test]
+    public async Task BoostTorrent_DoesNotPersistTrackerEntry_WhenEngineRejectsInject()
+    {
+        this.downloadEngine
+            .AddTrackersAsync(Arg.Any<int>(), Arg.Any<IEnumerable<string>>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>()));
+
+        var publicTorrent = new Torrent
+        {
+            Id = 3,
+            Name = "Public Torrent Reject",
+            InfoHash = "2233445566778899001122334455667788990011",
+            IsPrivate = false,
+        };
+        this.storedTorrents.Add(publicTorrent);
+
+        var result = await this.service.BoostTorrentAsync(3, onlyVerified: false);
+
+        result.Boosted.Should().BeFalse();
+        this.storedEntries.Should().BeEmpty();
     }
 
     [Test]
