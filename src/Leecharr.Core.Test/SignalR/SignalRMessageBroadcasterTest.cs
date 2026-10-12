@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -246,5 +247,64 @@ public class SignalRMessageBroadcasterTest
         // The first message times out after 100ms, and the pump should unblock and process the second message
         var completedTask = await Task.WhenAny(secondMessageSentTcs.Task, Task.Delay(2000));
         completedTask.Should().Be(secondMessageSentTcs.Task, "The subsequent message should be processed after the slow client send times out.");
+    }
+
+    [Test]
+    public async Task BroadcastMessage_WhenGuaranteedChannelFull_PreservesDeliveryOrder()
+    {
+        MessageHub.AddConnectionForTesting();
+        var sendGate = new TaskCompletionSource();
+        var deliveryOrder = new List<string>();
+        var orderLock = new object();
+        var allDelivered = new TaskCompletionSource();
+
+        this.clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var args = callInfo.Arg<object[]>();
+                var msg = args[0] as SignalRMessage;
+                if (msg != null && callInfo.Arg<string>() == "receiveMessage")
+                {
+                    lock (orderLock)
+                    {
+                        deliveryOrder.Add(msg.Name);
+                        if (deliveryOrder.Count == 5)
+                        {
+                            allDelivered.TrySetResult();
+                        }
+                    }
+                }
+
+                return sendGate.Task;
+            });
+
+        using var broadcaster = new SignalRMessageBroadcaster(
+            this.hubContext,
+            telemetryCapacity: 10,
+            sendTimeout: TimeSpan.FromSeconds(3),
+            guaranteedCapacity: 2);
+
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "guaranteed-1" });
+        await Task.Delay(50);
+
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "guaranteed-2" });
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "guaranteed-3" });
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "guaranteed-4" });
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "guaranteed-5" });
+
+        sendGate.SetResult();
+
+        var completed = await Task.WhenAny(allDelivered.Task, Task.Delay(5000));
+        completed.Should().Be(allDelivered.Task, "all guaranteed messages should be delivered in order");
+
+        lock (orderLock)
+        {
+            deliveryOrder.Should().Equal(
+                "guaranteed-1",
+                "guaranteed-2",
+                "guaranteed-3",
+                "guaranteed-4",
+                "guaranteed-5");
+        }
     }
 }
