@@ -45,39 +45,7 @@ public class PackageExportService : IPackageExportService
         ArgumentNullException.ThrowIfNull(outputStream);
         ArgumentNullException.ThrowIfNull(torrentIds);
 
-        var idList = torrentIds.Distinct().ToList();
-        if (idList.Count == 0)
-        {
-            throw new ArgumentException("At least one torrent ID must be provided.", nameof(torrentIds));
-        }
-
-        var torrents = new List<Torrent>();
-        foreach (var id in idList)
-        {
-            Torrent torrent = null;
-            try
-            {
-                torrent = this.torrentService.Get(id);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Warn(ex, "Error retrieving torrent with ID {0} for export.", id);
-            }
-
-            if (torrent != null)
-            {
-                torrents.Add(torrent);
-            }
-            else
-            {
-                this.logger.Warn("Torrent with ID {0} not found for export.", id);
-            }
-        }
-
-        if (torrents.Count == 0)
-        {
-            throw new ArgumentException("None of the specified torrents were found.", nameof(torrentIds));
-        }
+        var torrents = PackageExportTorrentResolver.ResolveRequiredTorrents(this.torrentService, torrentIds);
 
         await using (var gzipStream = new GZipStream(outputStream, CompressionMode.Compress, leaveOpen: true))
         {

@@ -98,26 +98,17 @@ public class PackageController : Controller
             return this.StatusCode(StatusCodes.Status501NotImplemented, new { message = "Package export service is not available." });
         }
 
-        var existingTorrents = new List<Torrent>();
-        foreach (var id in idList)
+        List<Torrent> existingTorrents;
+        try
         {
-            try
-            {
-                var torrent = this.torrentService.Get(id);
-                if (torrent != null)
-                {
-                    existingTorrents.Add(torrent);
-                }
-            }
-            catch (Exception ex)
-            {
-                this.logger.Trace(ex, "Failed to retrieve torrent with ID {0} for package export", id);
-            }
+            existingTorrents = PackageExportTorrentResolver.ResolveRequiredTorrents(this.torrentService, idList);
         }
-
-        if (existingTorrents.Count == 0)
+        catch (PackageExportTorrentsNotFoundException ex)
         {
-            return this.NotFound(new { message = "None of the specified torrents were found." });
+            var message = ex.MissingTorrentIds.Count == idList.Count
+                ? "None of the specified torrents were found."
+                : ex.Message;
+            return this.NotFound(new { message, missingTorrentIds = ex.MissingTorrentIds });
         }
 
         var filename = DeterminePackageFileName(existingTorrents);
