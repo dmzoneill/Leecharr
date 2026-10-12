@@ -132,8 +132,7 @@ public class RTorrentAdvancedXmlRpcMatrixIntegrationTests : IntegrationTestBase
         }
         finally
         {
-            // 8. d.delete_tied to cleanly remove torrent
-            var delXml = $"<?xml version=\"1.0\"?><methodCall><methodName>d.delete_tied</methodName><params><param><value><string>{RTHash}</string></value></param></params></methodCall>";
+            var delXml = $"<?xml version=\"1.0\"?><methodCall><methodName>d.erase</methodName><params><param><value><string>{RTHash}</string></value></param><param><value><i4>0</i4></value></param></params></methodCall>";
             await this.PostXmlRpcAsync(delXml);
         }
     }

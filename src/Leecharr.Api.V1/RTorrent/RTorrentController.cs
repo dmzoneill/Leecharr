@@ -12,6 +12,7 @@ using System.Xml.Linq;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
@@ -36,6 +37,7 @@ public class RTorrentController : ControllerBase
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public RTorrentController(
@@ -46,7 +48,8 @@ public class RTorrentController : ControllerBase
         ITorrentFileService torrentFileService = null,
         IConfigFileProvider configFileProvider = null,
         ISafeHttpClientService safeHttpClientService = null,
-        ITrackerEntryRepository trackerEntryRepository = null)
+        ITrackerEntryRepository trackerEntryRepository = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.torrentService = torrentService;
         this.torrentFileParser = torrentFileParser;
@@ -56,6 +59,7 @@ public class RTorrentController : ControllerBase
         this.configFileProvider = configFileProvider;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.trackerEntryRepository = trackerEntryRepository;
+        this.appFolderInfo = appFolderInfo;
     }
 
     [HttpPost]
@@ -665,12 +669,7 @@ public class RTorrentController : ControllerBase
             case "d.delete_tied":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToDeleteTied)
                 {
-                    var t = this.torrentService.GetByInfoHash(hashToDeleteTied);
-                    if (t != null)
-                    {
-                        await this.torrentService.DeleteAsync(t.Id, true);
-                        RemoveCustomFieldsStoreEntry(hashToDeleteTied);
-                    }
+                    this.TryDeleteTiedTorrentMetafile(hashToDeleteTied);
                 }
 
                 return new XElement("i4", 0);
@@ -1525,6 +1524,45 @@ public class RTorrentController : ControllerBase
         CustomFieldsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
         ClosedTorrentsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
         TorrentViewsStore.TryRemove(infoHash.Trim().ToLowerInvariant(), out _);
+    }
+
+    private void TryDeleteTiedTorrentMetafile(string infoHash)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return;
+        }
+
+        var hash = infoHash.Trim().ToLowerInvariant();
+        var pathsToTry = new List<string>();
+
+        if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
+        {
+            pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Torrents", $"{hash}.torrent"));
+            pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Leecharr", "Torrents", $"{hash}.torrent"));
+        }
+
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(appData))
+        {
+            pathsToTry.Add(Path.Combine(appData, "Torrents", $"{hash}.torrent"));
+            pathsToTry.Add(Path.Combine(appData, "Leecharr", "Torrents", $"{hash}.torrent"));
+        }
+
+        foreach (var path in pathsToTry.Distinct(StringComparer.Ordinal))
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to delete tied torrent metafile at {0}", path);
+            }
+        }
     }
 
     private static bool IsTorrentClosed(string infoHash)
