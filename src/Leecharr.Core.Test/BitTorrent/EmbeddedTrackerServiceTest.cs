@@ -1002,6 +1002,42 @@ public class EmbeddedTrackerServiceTest
         peers.Should().ContainSingle(p => p.Ip.Equals(negativeLeftReq.RemoteIp) && p.Left == 0);
     }
 
+    [Test]
+    public void Announce_OmittedLeft_IsNotCountedAsSeeder()
+    {
+        var infoHash = new byte[20];
+        Array.Fill(infoHash, (byte)0xCD);
+
+        var seederReq = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.1"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Left = 0,
+        };
+        this.trackerService.Announce(seederReq).Success.Should().BeTrue();
+
+        var omittedLeftReq = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("10.0.0.3"),
+            Port = 6883,
+            PeerIdBytes = new byte[20],
+            Left = null,
+            Compact = true,
+        };
+        var result = this.trackerService.Announce(omittedLeftReq);
+
+        result.Success.Should().BeTrue();
+        result.Seeders.Should().Be(1);
+        result.Leechers.Should().Be(1);
+        result.Peers.Should().ContainSingle(p => p.Ip.Equals(seederReq.RemoteIp));
+
+        var peers = this.trackerService.GetPeersForSwarm(Convert.ToHexString(infoHash));
+        peers.Should().ContainSingle(p => p.Ip.Equals(omittedLeftReq.RemoteIp) && p.Left == null && !p.IsSeeder);
+    }
+
     [TestCase(0)]
     [TestCase(-1)]
     [TestCase(65536)]
