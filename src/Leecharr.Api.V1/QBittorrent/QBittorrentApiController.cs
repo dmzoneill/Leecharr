@@ -626,7 +626,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["save_path"] = resolvedSavePath,
                 ["content_path"] = resolvedContentPath,
                 ["added_on"] = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds(),
-                ["completion_on"] = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : (effectiveProgress >= 1.0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() : -1),
+                ["completion_on"] = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : (effectiveProgress >= 1.0 ? 0L : -1),
                 ["amount_left"] = effectiveProgress >= 1.0 ? 0L : (long)Math.Max(0, (1.0 - effectiveProgress) * effectiveTotalSize),
                 ["downloaded"] = effectiveDownloaded,
                 ["uploaded"] = t.Uploaded,
