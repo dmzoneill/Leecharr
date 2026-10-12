@@ -402,21 +402,22 @@ public class ArrWebhookControllerTest
     [Test]
     public async Task HandleReadarr_WhenImportEvent_UpdatesTorrentImportState()
     {
+        var hash = "1111222233334444555566667777888899990000";
         var torrent = new Torrent
         {
             Id = 4,
             Name = "Brandon Sanderson - The Way of Kings",
-            InfoHash = "1111222233334444555566667777888899990000",
+            InfoHash = hash,
             IsImported = false,
         };
 
-        this.torrentRepository.Get(4).Returns(torrent);
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
         this.torrentRepository.All().Returns(new List<Torrent> { torrent });
 
         var payload = new ArrWebhookPayload
         {
             EventType = "Import",
-            DownloadClientId = "4",
+            DownloadClientId = hash,
             BookFiles = new List<ArrWebhookBookFile>
             {
                 new() { Id = 1, Path = "/media/books/Brandon Sanderson/The Way of Kings.epub" },
@@ -442,6 +443,44 @@ public class ArrWebhookControllerTest
             t.IsImported == true &&
             t.ImportPath == "/media/books/Brandon Sanderson/The Way of Kings.epub" &&
             t.ImportedByArr == "Readarr"));
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenNumericDownloadIdMatchesTorrentPrimaryKey_DoesNotUpdateWrongTorrent()
+    {
+        var unrelatedTorrent = new Torrent
+        {
+            Id = 15,
+            Name = "Unrelated.Show.S01E01.720p",
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            IsImported = false,
+        };
+
+        this.torrentRepository.Get(15).Returns(unrelatedTorrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { unrelatedTorrent });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Import",
+            InstanceName = "Sonarr",
+            DownloadId = "15",
+            EpisodeFile = new ArrWebhookEpisodeFile
+            {
+                Path = "/media/tv/Other Show/Season 01/Other Show - S01E01.mkv",
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeFalse();
+        res.TorrentId.Should().BeNull();
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
     }
 
     [Test]
