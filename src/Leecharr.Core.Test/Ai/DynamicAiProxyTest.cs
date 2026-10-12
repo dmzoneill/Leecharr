@@ -190,6 +190,21 @@ public class DynamicAiProxyTest
     }
 
     [Test]
+    public async Task SwitchProviderAsync_WhenConfigSaveFails_KeepsPreviousActiveProvider()
+    {
+        this.configService
+            .When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(_ => throw new InvalidOperationException("database locked"));
+
+        var switched = await this.proxy.SwitchProviderAsync("OnnxLocal");
+
+        switched.Should().BeFalse();
+        this.proxy.ActiveProviderId.Should().Be("RuleHeuristic");
+        this.proxy.ActiveProvider.Should().BeSameAs(this.ruleProvider);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<AiProviderSwitchedEvent>());
+    }
+
+    [Test]
     public async Task SwitchProviderAsync_Fails_WhenTargetNotFound()
     {
         var switched = await this.proxy.SwitchProviderAsync("ImaginaryProvider");

@@ -25,14 +25,14 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
 
     private IAiEngineProvider activeProvider;
     private long configSavedSwitchGeneration;
+    private bool lastObservedChatUsedFallback;
     private bool disposed;
-    private bool lastChatUsedFallback;
 
     public string ActiveProviderId => Volatile.Read(ref this.activeProvider)?.ProviderId ?? "RuleHeuristic";
 
     public IAiEngineProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
 
-    public bool LastChatUsedFallback => this.lastChatUsedFallback;
+    public bool LastChatUsedFallback => AiChatFallbackContext.CurrentFlowValue ?? this.lastObservedChatUsedFallback;
 
     public DynamicAiProxy(
         IEnumerable<IAiEngineProvider> availableProviders,
@@ -129,16 +129,9 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             return false;
         }
 
-        if (configSavedGeneration.HasValue && !this.IsConfigSavedSwitchCurrent(configSavedGeneration.Value, providerId))
-        {
-            this.logger.Debug(
-                "Skipping stale AI provider switch to '{0}' after health probe (superseded ConfigSavedEvent).",
-                providerId);
-            return true;
-        }
-
         AiProviderSwitchedEvent switchedEvent = null;
         var success = false;
+        IAiEngineProvider previousProvider = null;
 
         await this.switchLock.WaitAsync();
         try
@@ -152,18 +145,19 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             if (configSavedGeneration.HasValue && !this.IsConfigSavedSwitchCurrent(configSavedGeneration.Value, providerId))
             {
                 this.logger.Debug(
-                    "Skipping stale AI provider switch to '{0}' after acquiring switch lock (superseded ConfigSavedEvent).",
+                    "Skipping stale AI provider switch to '{0}' after health probe (superseded ConfigSavedEvent).",
                     providerId);
                 return true;
             }
 
-            var previousProvider = current;
-            Volatile.Write(ref this.activeProvider, targetProvider);
+            previousProvider = Volatile.Read(ref this.activeProvider);
 
             this.configService.SaveConfigDictionary(new Dictionary<string, object>
             {
                 { "ActiveAiProvider", targetProvider.ProviderId },
             });
+
+            Volatile.Write(ref this.activeProvider, targetProvider);
 
             this.logger.Info("AI provider hot-swapped: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
             switchedEvent = new AiProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
@@ -172,6 +166,12 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to hot-swap AI provider to '{0}'", providerId);
+
+            if (previousProvider != null)
+            {
+                Volatile.Write(ref this.activeProvider, previousProvider);
+            }
+
             return false;
         }
         finally
@@ -288,9 +288,14 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             var result = await provider.GenerateChatResponseAsync(userMessage, systemContext);
             if (result != null)
             {
-                var usedFallback = (provider is IFallbackAwareAiProvider fallbackAware && fallbackAware.LastChatUsedFallback)
-                    || string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase);
-                this.MarkChatFallback(usedFallback);
+                if (provider is IFallbackAwareAiProvider fallbackAware && fallbackAware.LastChatUsedFallback)
+                {
+                    this.RecordChatUsedFallback(true);
+                }
+                else
+                {
+                    this.RecordChatUsedFallback(string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase));
+                }
 
                 return result;
             }
@@ -300,14 +305,14 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             this.logger.Debug(ex, "Active AI provider '{0}' failed to generate chat response, falling back to heuristic assistant.", provider.ProviderId);
         }
 
-        this.MarkChatFallback(true);
+        this.RecordChatUsedFallback(true);
         return await this.defaultFallback.GenerateChatResponseAsync(userMessage, systemContext);
     }
 
-    private void MarkChatFallback(bool usedFallback)
+    private void RecordChatUsedFallback(bool value)
     {
-        this.lastChatUsedFallback = usedFallback;
-        AiChatFallbackContext.SetLastChatUsedFallback(usedFallback);
+        AiChatFallbackContext.SetLastChatUsedFallback(value);
+        this.lastObservedChatUsedFallback = value;
     }
 
     public void Dispose()

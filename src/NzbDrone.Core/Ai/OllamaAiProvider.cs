@@ -25,8 +25,8 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
     private readonly HttpClient httpClient;
     private readonly bool ownsHttpClient;
     private readonly RuleHeuristicAiProvider fallbackProvider = new();
+    private bool lastObservedChatUsedFallback;
     private bool disposed;
-    private bool lastChatUsedFallback;
 
     public string ProviderId => "Ollama";
 
@@ -38,7 +38,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
     public bool IsAvailable => true;
 
-    public bool LastChatUsedFallback => this.lastChatUsedFallback;
+    public bool LastChatUsedFallback => AiChatFallbackContext.CurrentFlowValue ?? this.lastObservedChatUsedFallback;
 
     internal TimeSpan HttpClientTimeout => this.httpClient.Timeout;
 
@@ -99,12 +99,9 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
     private string GetModelName()
     {
-        if (!string.IsNullOrWhiteSpace(this.configService?.OllamaModel))
-        {
-            return this.configService.OllamaModel;
-        }
-
-        return this.configService?.GetValue("OllamaModel", "llama3.2") ?? "llama3.2";
+        return !string.IsNullOrWhiteSpace(this.configService?.OllamaModel)
+            ? this.configService.OllamaModel
+            : "llama3.2";
     }
 
     public async Task<AiHealthResult> ProbeHealthAsync()
@@ -671,7 +668,7 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                     var responseText = respProp.ValueKind == JsonValueKind.Null ? null : respProp.GetString();
                     if (!string.IsNullOrEmpty(responseText))
                     {
-                        this.MarkChatFallback(false);
+                        this.RecordChatUsedFallback(false);
                         return responseText;
                     }
                 }
@@ -682,14 +679,14 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
             Logger.Debug(ex, "Ollama chat generation failed, falling back to heuristic assistant.");
         }
 
-        this.MarkChatFallback(true);
+        this.RecordChatUsedFallback(true);
         return await this.fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
     }
 
-    private void MarkChatFallback(bool usedFallback)
+    private void RecordChatUsedFallback(bool value)
     {
-        this.lastChatUsedFallback = usedFallback;
-        AiChatFallbackContext.SetLastChatUsedFallback(usedFallback);
+        AiChatFallbackContext.SetLastChatUsedFallback(value);
+        this.lastObservedChatUsedFallback = value;
     }
 
     private static bool ShouldDeferReleaseParseToHeuristic(AiParsedRelease ollama, AiParsedRelease heuristic)
@@ -715,59 +712,6 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
         }
 
         return false;
-    }
-
-    private static void EnrichNaturalLanguageSearchFromHeuristic(AiSearchParameters ollama, AiSearchParameters heuristic)
-    {
-        if (ollama == null || heuristic == null)
-        {
-            return;
-        }
-
-        if (!ollama.Year.HasValue && heuristic.Year.HasValue)
-        {
-            ollama.Year = heuristic.Year;
-        }
-
-        if (!ollama.Season.HasValue && heuristic.Season.HasValue)
-        {
-            ollama.Season = heuristic.Season;
-        }
-
-        if (!ollama.Episode.HasValue && heuristic.Episode.HasValue)
-        {
-            ollama.Episode = heuristic.Episode;
-        }
-
-        if (string.IsNullOrWhiteSpace(ollama.Resolution) && !string.IsNullOrWhiteSpace(heuristic.Resolution))
-        {
-            ollama.Resolution = heuristic.Resolution;
-        }
-
-        if (string.IsNullOrWhiteSpace(ollama.Source) && !string.IsNullOrWhiteSpace(heuristic.Source))
-        {
-            ollama.Source = heuristic.Source;
-        }
-
-        if (string.IsNullOrWhiteSpace(ollama.Category) && !string.IsNullOrWhiteSpace(heuristic.Category))
-        {
-            ollama.Category = heuristic.Category;
-        }
-
-        if (ollama.MinSeeders == 0 && heuristic.MinSeeders > 0)
-        {
-            ollama.MinSeeders = heuristic.MinSeeders;
-        }
-
-        if (!ollama.FreeleechOnly && heuristic.FreeleechOnly)
-        {
-            ollama.FreeleechOnly = heuristic.FreeleechOnly;
-        }
-
-        if (!ollama.MaxAgeDays.HasValue && heuristic.MaxAgeDays.HasValue)
-        {
-            ollama.MaxAgeDays = heuristic.MaxAgeDays;
-        }
     }
 
     private static bool ShouldDeferNaturalLanguageSearchToHeuristic(AiSearchParameters ollama, AiSearchParameters heuristic)
@@ -802,6 +746,17 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
             return true;
         }
 
+        if (!string.IsNullOrWhiteSpace(heuristic.Category) && string.IsNullOrWhiteSpace(ollama.Category)
+            && (!ollama.Year.HasValue || string.IsNullOrWhiteSpace(ollama.Resolution)))
+        {
+            return true;
+        }
+
+        if (heuristic.MinSeeders > 0 && ollama.MinSeeders == 0)
+        {
+            return true;
+        }
+
         if (heuristic.FreeleechOnly && !ollama.FreeleechOnly)
         {
             return true;
@@ -813,6 +768,19 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
         }
 
         return false;
+    }
+
+    private static void EnrichNaturalLanguageSearchFromHeuristic(AiSearchParameters ollama, AiSearchParameters heuristic)
+    {
+        if (heuristic == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ollama.Category) && !string.IsNullOrWhiteSpace(heuristic.Category))
+        {
+            ollama.Category = heuristic.Category;
+        }
     }
 
     public void Dispose()
