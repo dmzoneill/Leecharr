@@ -326,11 +326,19 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
             {
                 try
                 {
-                    await this.SwitchProviderAsync(desiredProviderId);
+                    var latestDesiredProviderId = this.configService?.ActiveMediaInspector;
+                    if (string.IsNullOrWhiteSpace(latestDesiredProviderId) ||
+                        string.Equals(this.ActiveProviderId, latestDesiredProviderId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    await this.SwitchProviderAsync(latestDesiredProviderId);
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Error(ex, "Failed to switch active media inspector on ConfigSavedEvent to {0}", desiredProviderId);
+                    var failedTarget = this.configService?.ActiveMediaInspector ?? desiredProviderId;
+                    this.logger.Error(ex, "Failed to switch active media inspector on ConfigSavedEvent to {0}", failedTarget);
                 }
             });
         }

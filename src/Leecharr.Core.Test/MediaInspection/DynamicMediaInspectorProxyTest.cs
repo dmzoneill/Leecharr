@@ -235,6 +235,35 @@ public class DynamicMediaInspectorProxyTest
     }
 
     [Test]
+    public async Task Handle_ConfigSavedEvent_QueuedSwitchUsesLatestConfiguredProvider()
+    {
+        var configuredProvider = "TagLib";
+        this.configService.ActiveMediaInspector.Returns(_ => configuredProvider);
+
+        using var mediaInfoSwitchGate = new ManualResetEventSlim(false);
+        this.mediaInfoProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                mediaInfoSwitchGate.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue("MediaInfo health probe should not time out");
+                return Task.FromResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
+            });
+
+        configuredProvider = "MediaInfo";
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        configuredProvider = "FFprobe";
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        await Task.Delay(100);
+        this.proxy.ActiveProviderId.Should().Be("FFprobe");
+
+        mediaInfoSwitchGate.Set();
+        await Task.Delay(300);
+
+        this.proxy.ActiveProviderId.Should().Be("FFprobe");
+    }
+
+    [Test]
     public async Task SwitchProviderAsync_WhenConfigSaveFails_KeepsPreviousActiveProvider()
     {
         this.configService
