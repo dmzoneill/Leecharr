@@ -26,6 +26,20 @@ public class MagnetLinkParserTest
     }
 
     [Test]
+    public void Parse_WhenTrackerContainsPlusSign_PreservesPlusInDecodedValue()
+    {
+        var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567" +
+                     "&dn=Name+With+Plus" +
+                     "&tr=http%3A%2F%2Ftracker.example%2Fannounce%3Fpasskey%3Dab%2Bcd";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.DisplayName.Should().Be("Name+With+Plus");
+        parsed.Trackers.Should().ContainSingle()
+            .Which.Should().Be("http://tracker.example/announce?passkey=ab+cd");
+    }
+
+    [Test]
     public void Parse_WhenUriContainsFragment_StripsFragmentAndParsesSuccessfully()
     {
         var magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Ubuntu.iso#some-fragment-identifier";
