@@ -121,6 +121,7 @@ public class TagController : Controller
             return this.BadRequest($"A tag with label '{trimmedLabel}' already exists.");
         }
 
+        var previousLabel = existing.Label;
         existing.Label = trimmedLabel;
         existing.Color = resource.Color;
         existing.UploadLimitKbps = resource.UploadLimitKbps;
@@ -128,6 +129,33 @@ public class TagController : Controller
         existing.MinSeedRatio = resource.MinSeedRatio;
         existing.MinSeedTimeSeconds = resource.MinSeedTimeSeconds;
         this.tagRepository.Update(existing);
+
+        if (this.torrentRepository != null &&
+            !string.Equals(previousLabel, trimmedLabel, StringComparison.Ordinal))
+        {
+            var torrents = this.torrentRepository.All();
+            if (torrents != null)
+            {
+                foreach (var torrent in torrents)
+                {
+                    if (string.IsNullOrEmpty(torrent.Label))
+                    {
+                        continue;
+                    }
+
+                    var labels = torrent.Label.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(t => t.Trim())
+                        .Select(t => string.Equals(t, previousLabel, StringComparison.OrdinalIgnoreCase) ? trimmedLabel : t)
+                        .ToList();
+                    var newLabel = string.Join(", ", labels);
+                    if (newLabel != torrent.Label)
+                    {
+                        torrent.Label = newLabel;
+                        this.torrentRepository.Update(torrent);
+                    }
+                }
+            }
+        }
 
         return this.Ok(ToResource(existing));
     }

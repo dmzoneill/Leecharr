@@ -516,6 +516,39 @@ public class TagControllerTest
     }
 
     [Test]
+    public void Update_WhenLabelRenamed_RewritesTorrentLabel()
+    {
+        var existing = new Tag { Id = 42, Label = "Sonarr" };
+        this.tagRepository.Get(42).Returns(existing);
+        this.tagRepository.GetByLabel("Plex").Returns((Tag)null!);
+
+        var torrentWithLabel = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent 1",
+            TagIds = new List<int> { 42, 99 },
+            Label = "Sonarr, Radarr",
+        };
+        var torrentWithoutTag = new Torrent
+        {
+            Id = 2,
+            Name = "Torrent 2",
+            Label = "Radarr",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrentWithLabel, torrentWithoutTag });
+
+        var result = this.controller.Update(new TagResource { Id = 42, Label = "Plex" });
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 1 &&
+            t.Label == "Plex, Radarr"));
+        this.torrentRepository.DidNotReceive().Update(Arg.Is<Torrent>(t => t.Id == 2));
+    }
+
+    [Test]
     public void Delete_WhenTorrentHasLabel_RemovesTagFromLabelAndUpdatesTorrent()
     {
         var tag = new Tag { Id = 42, Label = "Sonarr" };
