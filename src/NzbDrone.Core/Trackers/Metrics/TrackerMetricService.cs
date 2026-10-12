@@ -84,6 +84,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
         {
             var trackerEntries = this.trackerEntryRepository?.All().ToList() ?? new List<TrackerEntry>();
             var torrents = this.torrentRepository?.All().ToList() ?? new List<Torrent>();
+            var torrentBytesById = torrents.ToDictionary(t => t.Id, t => (t.Uploaded, t.Downloaded));
 
             foreach (var t in torrents)
             {
@@ -122,7 +123,12 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                         this.ApplyTrackerEntrySeedCounters(entry);
 
                         var key = $"{entry.Url}_{entry.TorrentId}";
-                        this.lastSeenBytes.AddOrUpdate(key, (0, entry.Downloaded), (k, old) => (old.Uploaded, Math.Max(old.Downloaded, (long)entry.Downloaded)));
+                        if (!torrentBytesById.TryGetValue(entry.TorrentId, out var byteBaseline))
+                        {
+                            byteBaseline = (0, 0);
+                        }
+
+                        this.lastSeenBytes.TryAdd(key, byteBaseline);
                     }
                 }
                 catch (Exception ex)

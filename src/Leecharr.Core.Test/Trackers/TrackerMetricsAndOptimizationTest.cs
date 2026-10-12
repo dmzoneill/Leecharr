@@ -226,6 +226,47 @@ public class TrackerMetricsAndOptimizationTest
     }
 
     [Test]
+    public void SeedFromExistingTrackers_SeedsAlternateTrackerUrlsWithTorrentByteCounters()
+    {
+        const string primaryUrl = "http://primary.tracker.example/announce";
+        const string alternateUrl = "http://alternate.tracker.example/announce";
+        const int torrentId = 42;
+
+        this.storedTorrents.Add(new Torrent
+        {
+            Id = torrentId,
+            TrackerUrl = primaryUrl,
+            Uploaded = 50_000,
+            Downloaded = 10_000,
+        });
+        this.storedEntries.Add(new TrackerEntry
+        {
+            TorrentId = torrentId,
+            Url = alternateUrl,
+            Downloaded = 500,
+            TotalAnnounces = 3,
+            SuccessfulAnnounces = 3,
+        });
+
+        this.metricService.SeedFromExistingTrackers();
+
+        var metric = this.metricService.RecordAnnounce(
+            alternateUrl,
+            torrentId,
+            uploaded: 52_000,
+            downloaded: 12_000,
+            left: 0,
+            responseTimeMs: 90,
+            success: true,
+            seeders: 10,
+            leechers: 2,
+            peersCount: 12);
+
+        metric.TotalUploaded.Should().Be(2_000);
+        metric.TotalDownloaded.Should().Be(2_000);
+    }
+
+    [Test]
     public void RecordAnnounce_Failure_TransitionsThroughDegradedAndOfflineStatuses()
     {
         var trackerUrl = "udp://failing.tracker.org:1337/announce";
