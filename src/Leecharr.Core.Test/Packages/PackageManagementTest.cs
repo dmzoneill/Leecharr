@@ -314,6 +314,74 @@ public class PackageManagementTest
     }
 
     [Test]
+    public async Task ImportPackageAsync_MissingMetainfo_RecordsFailureAndSetsSuccessFalse()
+    {
+        var infoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        using var memoryStream = new MemoryStream();
+        await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
+        await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var manifest = new PackageManifest
+            {
+                Torrents = new List<PackageTorrentItem>
+                {
+                    new() { Name = "Missing Metainfo", InfoHash = infoHash },
+                },
+            };
+            var jsonBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(manifest));
+            using var manifestMs = new MemoryStream(jsonBytes);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, "manifest.json") { DataStream = manifestMs });
+        }
+
+        memoryStream.Position = 0;
+        this.torrentService.GetByInfoHash(infoHash).Returns((Torrent)null!);
+
+        var result = await this.packageImportService.ImportPackageAsync(memoryStream);
+
+        result.Success.Should().BeFalse();
+        result.FailedTorrentsCount.Should().Be(1);
+        result.FailedTorrents.Should().ContainSingle(f => f.InfoHash == infoHash && f.Error.Contains("Metainfo"));
+        result.Message.Should().Contain("Failed 1 torrent");
+    }
+
+    [Test]
+    public async Task ImportPackageAsync_AddTorrentThrows_RecordsFailureAndSetsSuccessFalse()
+    {
+        var infoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        var torrentBytes = Encoding.UTF8.GetBytes("d8:announce");
+        using var memoryStream = new MemoryStream();
+        await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
+        await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var manifest = new PackageManifest
+            {
+                Torrents = new List<PackageTorrentItem>
+                {
+                    new() { Name = "Broken Torrent", InfoHash = infoHash },
+                },
+            };
+            var manifestBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(manifest));
+            using var manifestMs = new MemoryStream(manifestBytes);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, "manifest.json") { DataStream = manifestMs });
+
+            using var metainfoMs = new MemoryStream(torrentBytes);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, $"metainfo/{infoHash}.torrent") { DataStream = metainfoMs });
+        }
+
+        memoryStream.Position = 0;
+        this.torrentService.GetByInfoHash(infoHash).Returns((Torrent)null!);
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(new ParsedTorrent { Name = "Broken Torrent", InfoHash = infoHash });
+        this.torrentService
+            .AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), false, Arg.Any<byte[]>(), null, null, Arg.Any<List<int>>(), null, null)
+            .ThrowsAsync(new InvalidOperationException("add failed"));
+
+        var result = await this.packageImportService.ImportPackageAsync(memoryStream);
+
+        result.Success.Should().BeFalse();
+        result.FailedTorrents.Should().ContainSingle(f => f.InfoHash == infoHash && f.Error == "add failed");
+    }
+
+    [Test]
     public async Task ImportPackageAsync_ZipSlipAttack_ThrowsSecurityException()
     {
         using var memoryStream = new MemoryStream();
