@@ -940,9 +940,9 @@ public class AiAssistantAndPromptServiceTest
         HttpRequestMessage capturedRequest = null!;
         var handler = new MockHttpMessageHandler((req, ct) =>
         {
-            capturedRequest = req;
             if (req.RequestUri?.AbsolutePath == "/api/version")
             {
+                capturedRequest = req;
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent("{\"version\": \"0.5.1\"}"),
