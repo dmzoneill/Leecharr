@@ -110,7 +110,12 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             };
         }
 
-        return await engine.ProbeHealthAsync();
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return await engine.ProbeHealthAsync();
+        }
+
+        return await engine.ProbeVersionHealthAsync(version);
     }
 
     public Task<EngineSwitchResult> SwitchEngineAsync(string targetEngineId, bool preserveTransfers = true)

@@ -220,6 +220,27 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
     }
 
+    public Task<EngineHealthCheckResult> ProbeVersionHealthAsync(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return this.ProbeHealthAsync();
+        }
+
+        var trimmed = version.Trim();
+        if (!this.SupportedVersions.Any(v => string.Equals(v, trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Task.FromResult(new EngineHealthCheckResult
+            {
+                IsHealthy = false,
+                StatusMessage = $"Transmission version '{version}' is not supported.",
+                Warnings = new List<string> { $"Supported versions: {string.Join(", ", this.SupportedVersions)}" },
+            });
+        }
+
+        return this.ProbeHealthAsync();
+    }
+
     public async Task StartAsync()
     {
         if (this.isRunning)
