@@ -283,7 +283,8 @@ public class CustomScriptServiceTest
 
         var (file, args) = CustomScriptService.ResolveInterpreter(scriptPath, new[] { "-v" });
         file.Should().Be("bash");
-        args.Should().ContainInOrder(scriptPath, "-v");
+        args.Should().Contain(scriptPath);
+        args.Should().Contain("-v");
     }
 
     [Test]

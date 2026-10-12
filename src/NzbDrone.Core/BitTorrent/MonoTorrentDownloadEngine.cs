@@ -7816,8 +7816,6 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public TorrentResourceMetrics Metrics => this.GetResourceMetrics();
 
-    public double? SwarmAvailability => ((IDownloadTask)this).SwarmAvailability;
-
     public TorrentResourceMetrics GetResourceMetrics()
     {
         if (this.Manager == null)
