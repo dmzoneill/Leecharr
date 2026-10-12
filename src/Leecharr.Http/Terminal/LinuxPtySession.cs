@@ -140,7 +140,7 @@ public sealed class LinuxPtySession : ITerminalSession
         return await Task.Run(
             () =>
             {
-                var bytesRead = NativePty.Read(this.masterFd, temp, (nuint)temp.Length);
+                var bytesRead = NativePty.ReadRespectingEintr(this.masterFd, temp);
                 if (bytesRead <= 0)
                 {
                     return 0;
@@ -206,11 +206,12 @@ public sealed class LinuxPtySession : ITerminalSession
         {
             try
             {
-                _ = NativePty.Kill(this.pid, 15); // SIGTERM
+                _ = NativePty.KillProcessGroup(this.pid, 15); // SIGTERM to shell process group
+                _ = NativePty.Kill(this.pid, 15);
             }
             catch (Exception ex)
             {
-                Logger.Trace(ex, "Failed to send SIGTERM to process {0}", this.pid);
+                Logger.Trace(ex, "Failed to send SIGTERM to process group {0}", this.pid);
             }
 
             var sw = Stopwatch.StartNew();
@@ -218,7 +219,7 @@ public sealed class LinuxPtySession : ITerminalSession
 
             while (sw.ElapsedMilliseconds < 1500)
             {
-                var res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
+                var res = NativePty.Waitpid(-this.pid, out _, 1); // WNOHANG, any child in group
                 if (res > 0 || res < 0)
                 {
                     reaped = true;
@@ -232,17 +233,18 @@ public sealed class LinuxPtySession : ITerminalSession
             {
                 try
                 {
-                    _ = NativePty.Kill(this.pid, 9); // SIGKILL
+                    _ = NativePty.KillProcessGroup(this.pid, 9); // SIGKILL to shell process group
+                    _ = NativePty.Kill(this.pid, 9);
                 }
                 catch (Exception ex)
                 {
-                    Logger.Trace(ex, "Failed to send SIGKILL to process {0}", this.pid);
+                    Logger.Trace(ex, "Failed to send SIGKILL to process group {0}", this.pid);
                 }
 
                 var killSw = Stopwatch.StartNew();
                 while (killSw.ElapsedMilliseconds < 2000)
                 {
-                    var res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
+                    var res = NativePty.Waitpid(-this.pid, out _, 1); // WNOHANG
                     if (res > 0 || res < 0)
                     {
                         break;

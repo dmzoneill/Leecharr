@@ -44,6 +44,37 @@ public static class NativePty
 
     private const int ErrnoEintr = 4;
 
+    public static int KillProcessGroup(int leaderPid, int sig)
+    {
+        if (leaderPid <= 0)
+        {
+            return -1;
+        }
+
+        return Kill(-leaderPid, sig);
+    }
+
+    /// <summary>
+    /// Reads from a PTY master fd, retrying when interrupted by a signal.
+    /// Returns bytes read, 0 for EOF, or a negative value for a non-EINTR read error.
+    /// </summary>
+    public static nint ReadRespectingEintr(int fd, byte[] buf)
+    {
+        while (true)
+        {
+            var bytesRead = Read(fd, buf, (nuint)buf.Length);
+            if (bytesRead > 0 || bytesRead == 0)
+            {
+                return bytesRead;
+            }
+
+            if (Marshal.GetLastWin32Error() != ErrnoEintr)
+            {
+                return bytesRead;
+            }
+        }
+    }
+
     [DllImport("libc", EntryPoint = "write", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern nint WriteRaw(int fd, IntPtr buf, nuint count);
