@@ -80,6 +80,8 @@ public class MonoTorrentDownloadEngineTest
         this.configService.AutoStart.Returns(true);
         this.configService.MultiTrackerEnabled.Returns(true);
         this.configService.MultiTrackerFailoverEnabled.Returns(false);
+        this.configService.DhtAutoBootstrap.Returns(true);
+        this.configService.DhtRateLimitEnabled.Returns(true);
 
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
