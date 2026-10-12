@@ -85,7 +85,7 @@ public class IdentityProviderServiceTest
     }
 
     [Test]
-    public async Task TestConnectionAsync_WhenTargetUrlIsEmpty_ReturnsTrue()
+    public async Task TestConnectionAsync_WhenOidcIssuerUrlIsEmpty_ReturnsFalse()
     {
         var provider = new IdentityProviderDefinition
         {
@@ -96,7 +96,23 @@ public class IdentityProviderServiceTest
 
         var result = await this.service.TestConnectionAsync(provider);
 
-        result.Should().BeTrue();
+        result.Should().BeFalse();
+        this.safeHttpClientService.DidNotReceive().ValidateUrl(Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task TestConnectionAsync_WhenSamlMetadataUrlIsEmpty_ReturnsFalse()
+    {
+        var provider = new IdentityProviderDefinition
+        {
+            Name = "SAML Provider",
+            ProviderType = IdentityProviderType.Saml,
+            MetadataUrl = null,
+        };
+
+        var result = await this.service.TestConnectionAsync(provider);
+
+        result.Should().BeFalse();
         this.safeHttpClientService.DidNotReceive().ValidateUrl(Arg.Any<string>());
     }
 
