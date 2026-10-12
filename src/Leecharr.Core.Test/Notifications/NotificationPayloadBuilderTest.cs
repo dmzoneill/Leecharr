@@ -254,6 +254,27 @@ public class NotificationPayloadBuilderTest
     }
 
     [Test]
+    public void BuildProviderPayload_Slack_EscapesTorrentNameMrkdwn()
+    {
+        var torrent = new Torrent
+        {
+            Id = 99,
+            Name = "<!channel> Evil & <https://evil.example|open>",
+            Category = "Movies & TV",
+            Status = TorrentStatus.Downloading,
+            TotalSize = 1024 * 1024,
+        };
+
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Slack", "OnGrab", torrent, null, null, null);
+        var json = JsonSerializer.Serialize(result);
+
+        json.Should().NotContain("<!channel>");
+        json.Should().Contain("&lt;!channel&gt;");
+        json.Should().Contain("&amp;");
+        json.Should().Contain("&lt;https://evil.example|open&gt;");
+    }
+
+    [Test]
     public void BuildProviderPayload_Telegram_DoesNotEscapeParenthesesInLegacyMarkdown()
     {
         var torrent = new Torrent
