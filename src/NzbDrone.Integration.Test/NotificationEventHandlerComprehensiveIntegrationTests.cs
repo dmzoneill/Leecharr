@@ -404,6 +404,31 @@ public class NotificationEventHandlerComprehensiveIntegrationTests : Integration
         json.Should().Contain("\"eventType\":\"OnHealthRestored\"");
     }
 
+    [TestCase(TorrentStatus.Paused)]
+    [TestCase(TorrentStatus.Stopped)]
+    [TestCase(TorrentStatus.Queued)]
+    [TestCase(TorrentStatus.Checking)]
+    [TestCase(TorrentStatus.QueuedForChecking)]
+    public async Task Handle_TorrentStatusChangedEvent_WhenLeavingStalledForNonRecovery_DoesNotDispatchHealthRestored(TorrentStatus newStatus)
+    {
+        this.AddNotification(n =>
+        {
+            n.OnHealthRestored = true;
+            n.Settings = "https://webhook.internal.lan/recovery";
+        });
+
+        var torrent = CreateSampleTorrent(108, "Fedora.Workstation.iso", newStatus);
+        this.handler.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = torrent,
+            OldStatus = TorrentStatus.Stalled,
+            NewStatus = newStatus,
+        });
+
+        var dispatch = await this.WaitForDispatchAsync(200);
+        dispatch.Should().BeNull();
+    }
+
     [Test]
     public async Task Handle_TorrentStatusChangedEvent_WhenStatusChangeIsBenign_DoesNotDispatchHealthEvents()
     {
