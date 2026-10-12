@@ -620,4 +620,76 @@ public class TorrentCreationServiceTest
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().NotBeNullOrWhiteSpace();
     }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenSourcePathEscapesViaSymlink_ReturnsFailure()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        var outsideDir = Path.Combine(this.testDir, "outside");
+        Directory.CreateDirectory(allowedDir);
+        Directory.CreateDirectory(outsideDir);
+
+        var secretFile = Path.Combine(outsideDir, "secret.bin");
+        await File.WriteAllBytesAsync(secretFile, new byte[1024]);
+
+        var symlinkDir = Path.Combine(allowedDir, "link");
+        try
+        {
+            Directory.CreateSymbolicLink(symlinkDir, outsideDir);
+        }
+        catch (Exception)
+        {
+            Assert.Pass("Symlink creation not permitted in this environment.");
+        }
+
+        var escapedSource = Path.Combine(symlinkDir, "secret.bin");
+        var service = new TorrentCreationService(new[] { allowedDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = escapedSource,
+            OutputPath = Path.Combine(allowedDir, "out.torrent"),
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("allowed storage directories");
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenOutputPathEscapesViaSymlink_ReturnsFailure()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        var outsideDir = Path.Combine(this.testDir, "outside");
+        Directory.CreateDirectory(allowedDir);
+        Directory.CreateDirectory(outsideDir);
+
+        var sourceFile = Path.Combine(allowedDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var outsideTarget = Path.Combine(outsideDir, "overwrite.torrent");
+        var symlinkOutput = Path.Combine(allowedDir, "output_link.torrent");
+        try
+        {
+            File.CreateSymbolicLink(symlinkOutput, outsideTarget);
+        }
+        catch (Exception)
+        {
+            Assert.Pass("Symlink creation not permitted in this environment.");
+        }
+
+        var service = new TorrentCreationService(new[] { allowedDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = symlinkOutput,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Match(m => m.Contains("allowed storage directories") || m.Contains("restricted system directory"));
+    }
 }
