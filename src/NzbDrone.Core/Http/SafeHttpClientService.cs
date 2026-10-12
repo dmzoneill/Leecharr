@@ -775,7 +775,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
                 _ => "http",
             };
 
-            var proxy = new WebProxy($"{scheme}://{proxyHost}:{proxyPort}");
+            var proxy = new WebProxy(ProxyUriHelper.BuildProxyUri(scheme, proxyHost, proxyPort));
             if (this.configService.ProxyAuthEnabled && !string.IsNullOrEmpty(this.configService.ProxyUsername))
             {
                 proxy.Credentials = new NetworkCredential(this.configService.ProxyUsername, this.configService.ProxyPassword ?? string.Empty);
