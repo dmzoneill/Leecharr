@@ -400,6 +400,33 @@ public class EmbeddedTransmissionEngineTest
     }
 
     [Test]
+    public void ResolveConnectedPeerCountsFromTransmissionPoll_CountsPeersByProgress_NotActiveTransfers()
+    {
+        using var torrentDoc = JsonDocument.Parse("{\"peersConnected\":2,\"peersSendingToUs\":1,\"peersGettingFromUs\":0}");
+        var peers = new List<PeerInfo>
+        {
+            new() { Progress = 1.0 },
+            new() { Progress = 0.5 },
+        };
+
+        var counts = EmbeddedTransmissionEngine.ResolveConnectedPeerCountsFromTransmissionPoll(torrentDoc.RootElement, peers);
+
+        counts.Seeders.Should().Be(1);
+        counts.Leechers.Should().Be(1);
+    }
+
+    [Test]
+    public void ResolveConnectedPeerCountsFromTransmissionPoll_WhenPeerListEmpty_UsesPeersConnectedTotal()
+    {
+        using var torrentDoc = JsonDocument.Parse("{\"peersConnected\":4,\"peersSendingToUs\":0,\"peersGettingFromUs\":0}");
+
+        var counts = EmbeddedTransmissionEngine.ResolveConnectedPeerCountsFromTransmissionPoll(torrentDoc.RootElement, null);
+
+        counts.Seeders.Should().Be(0);
+        counts.Leechers.Should().Be(4);
+    }
+
+    [Test]
     public void TransmissionTorrentFilePathsMatch_RequiresExactPath_NotSuffix()
     {
         EmbeddedTransmissionEngine.TransmissionTorrentFilePathsMatch("movie.mkv", "extras/movie.mkv").Should().BeFalse();
