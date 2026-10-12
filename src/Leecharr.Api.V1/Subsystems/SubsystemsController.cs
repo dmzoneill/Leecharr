@@ -69,17 +69,31 @@ public class SubsystemsController : Controller
     [HttpPost("blocklist/update")]
     public async Task<IActionResult> UpdateBlocklistRules()
     {
-        var loaded = this.blocklistUpdateService != null
-            ? await this.blocklistUpdateService.UpdateRulesAsync()
-            : 0;
-
-        return this.Ok(new
+        try
         {
-            success = true,
-            rulesLoaded = loaded,
-            activeRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0,
-            activeProvider = this.blocklistManager.ActiveProviderId,
-        });
+            var loaded = this.blocklistUpdateService != null
+                ? await this.blocklistUpdateService.UpdateRulesAsync()
+                : 0;
+
+            return this.Ok(new
+            {
+                success = loaded > 0,
+                rulesLoaded = loaded,
+                activeRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0,
+                activeProvider = this.blocklistManager.ActiveProviderId,
+            });
+        }
+        catch (Exception ex)
+        {
+            return this.Ok(new
+            {
+                success = false,
+                rulesLoaded = 0,
+                activeRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0,
+                activeProvider = this.blocklistManager.ActiveProviderId,
+                error = ex.Message,
+            });
+        }
     }
 
     [HttpGet("metrics")]
