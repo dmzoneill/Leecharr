@@ -1010,6 +1010,22 @@ public class EmbeddedTransmissionEngineTest
         rpcOrder.Should().Equal("torrent-stop", "torrent-start");
     }
 
+    [Test]
+    public async Task SwitchVersionAsync_SupportedVersion_ReturnsTrue()
+    {
+        using var engine = this.CreateEngine();
+
+        (await engine.SwitchVersionAsync("4.0.5")).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SwitchVersionAsync_UnsupportedVersionPrefix_ReturnsFalse()
+    {
+        using var engine = this.CreateEngine();
+
+        (await engine.SwitchVersionAsync("4.9.9")).Should().BeFalse();
+    }
+
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)
     {
         return new EmbeddedTransmissionEngine(

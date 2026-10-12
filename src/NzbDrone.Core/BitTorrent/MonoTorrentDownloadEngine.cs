@@ -188,7 +188,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public Task<bool> SwitchVersionAsync(string targetVersion, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(string.IsNullOrWhiteSpace(targetVersion) || targetVersion.StartsWith("3."));
+        if (string.IsNullOrWhiteSpace(targetVersion))
+        {
+            return Task.FromResult(false);
+        }
+
+        var trimmed = targetVersion.Trim();
+        return Task.FromResult(this.SupportedVersions.Any(v => string.Equals(v, trimmed, StringComparison.OrdinalIgnoreCase)));
     }
 
     public async Task RecheckNetworkInterfacesAsync(bool forceRebind, CancellationToken cancellationToken = default)

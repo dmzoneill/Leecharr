@@ -1004,4 +1004,23 @@ public class DynamicDownloadEngineProxyTest
             d.ContainsKey("ActiveTorrentEngine") && (string)d["ActiveTorrentEngine"] == "LibTorrent" &&
             d.ContainsKey("ActiveTorrentEngineVersion") && (string)d["ActiveTorrentEngineVersion"] == "1.2.20"));
     }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenVersionSwitchFails_RollsBackAndReturnsError()
+    {
+        await this.proxy.StartAsync();
+        this.monoTorrentEngine.SwitchVersionAsync("9.9.9").Returns(Task.FromResult(false));
+
+        var result = await this.proxy.SwitchVersionAsync("9.9.9");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("not supported");
+        result.ActiveEngine.Should().Be("MonoTorrent");
+        result.ActiveVersion.Should().Be("3.0.2");
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+
+        await this.monoTorrentEngine.Received(1).SwitchVersionAsync("9.9.9");
+        await this.monoTorrentEngine.Received(1).StartAsync();
+        this.configService.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+    }
 }
