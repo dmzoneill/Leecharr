@@ -182,24 +182,18 @@ public class DynamicMediaInspectorProxyTest
     {
         await this.proxy.SwitchProviderAsync("MediaInfo");
 
-        using var healthProbeGate = new ManualResetEventSlim(false);
-        this.ffprobeProvider.ProbeHealthAsync(Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                healthProbeGate.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue("FFprobe health probe should not time out");
-                return Task.FromResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
-            });
+        var ffprobeProbe = new TaskCompletionSource<MediaInspectorHealthCheckResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.ffprobeProvider.ProbeHealthAsync(Arg.Any<CancellationToken>()).Returns(ffprobeProbe.Task);
 
         var switchToFfprobe = this.proxy.SwitchProviderAsync("FFprobe");
         await Task.Delay(50);
+        switchToFfprobe.IsCompleted.Should().BeFalse("FFprobe switch should block on health probe");
 
         var alreadyActiveTask = this.proxy.SwitchProviderAsync("MediaInfo");
         await Task.Delay(50);
-
-        healthProbeGate.IsSet.Should().BeFalse("concurrent switch should still be waiting on health probe");
         alreadyActiveTask.IsCompleted.Should().BeFalse("already-active switch must wait for switchLock");
 
-        healthProbeGate.Set();
+        ffprobeProbe.TrySetResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
         var ffprobeResult = await switchToFfprobe;
         var alreadyActiveResult = await alreadyActiveTask;
 
