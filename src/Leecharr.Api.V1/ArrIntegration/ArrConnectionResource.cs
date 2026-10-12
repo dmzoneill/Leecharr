@@ -23,9 +23,15 @@ public class ArrConnectionResource : RestResource
     [StringLength(2048)]
     public string ExternalUrl { get; set; }
 
+    private string publicUrl;
+
     [JsonPropertyName("publicUrl")]
     [StringLength(2048)]
-    public string PublicUrl { get; set; }
+    public string PublicUrl
+    {
+        get => string.IsNullOrWhiteSpace(this.publicUrl) ? this.ExternalUrl : this.publicUrl;
+        set => this.publicUrl = value;
+    }
 
     public string Implementation { get; set; }
 

@@ -143,7 +143,8 @@ public class SystemDatabaseControllerTest
     [Test]
     public void ExecuteQuery_WhenReadOnlySelect_DoesNotMutateDatabase()
     {
-        using var connection = new SqliteConnection("Data Source=:memory:");
+        const string connectionString = "Data Source=ExecuteQueryReadOnlyTest;Mode=Memory;Cache=Shared";
+        using var connection = new SqliteConnection(connectionString);
         connection.Open();
         using (var createCmd = connection.CreateCommand())
         {
@@ -163,7 +164,9 @@ public class SystemDatabaseControllerTest
 
         result.Result.Should().BeOfType<OkObjectResult>();
 
-        using var countCmd = connection.CreateCommand();
+        using var verifyConnection = new SqliteConnection(connectionString);
+        verifyConnection.Open();
+        using var countCmd = verifyConnection.CreateCommand();
         countCmd.CommandText = "SELECT COUNT(*) FROM TestTable;";
         Convert.ToInt32(countCmd.ExecuteScalar()).Should().Be(0);
     }
