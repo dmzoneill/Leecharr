@@ -250,7 +250,7 @@ public class TorrentCreationService : ITorrentCreationService
             if (!string.IsNullOrWhiteSpace(request.OutputPath))
             {
                 outputPath = request.OutputPath;
-                if (outputPath.EndsWith(Path.DirectorySeparatorChar) || outputPath.EndsWith('/') || !Path.HasExtension(outputPath))
+                if (ShouldTreatOutputPathAsDirectory(outputPath))
                 {
                     var fileName = $"{parsed.Name}.torrent";
                     outputPath = Path.Combine(outputPath, fileName);
@@ -306,6 +306,32 @@ public class TorrentCreationService : ITorrentCreationService
                 ErrorMessage = errorMsg,
             };
         }
+    }
+
+    private static bool ShouldTreatOutputPathAsDirectory(string outputPath)
+    {
+        if (string.IsNullOrWhiteSpace(outputPath))
+        {
+            return false;
+        }
+
+        if (outputPath.EndsWith(Path.DirectorySeparatorChar) || outputPath.EndsWith(Path.AltDirectorySeparatorChar))
+        {
+            return true;
+        }
+
+        if (Directory.Exists(outputPath))
+        {
+            return true;
+        }
+
+        if (File.Exists(outputPath))
+        {
+            return false;
+        }
+
+        // Non-existent paths are treated as explicit file destinations unless a trailing separator was given.
+        return false;
     }
 
     private static string[] GetWindowsSensitiveDirectories()

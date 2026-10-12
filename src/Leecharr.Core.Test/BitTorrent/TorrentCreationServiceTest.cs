@@ -549,6 +549,56 @@ public class TorrentCreationServiceTest
         parsed.Name.Should().Be("AC_DC - Back in Black");
     }
 
+    [Test]
+    public async Task CreateTorrentAsync_WhenOutputPathIsExistingDottedDirectory_WritesTorrentInsideDirectory()
+    {
+        var dottedDir = Path.Combine(this.testDir, "Show.Name");
+        Directory.CreateDirectory(dottedDir);
+
+        var sourceFile = Path.Combine(this.testDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[32768]);
+
+        var service = new TorrentCreationService(new[] { this.testDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            Name = "custom_video",
+            OutputPath = dottedDir,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.OutputPath.Should().Be(Path.Combine(dottedDir, "custom_video.torrent"));
+        File.Exists(result.OutputPath).Should().BeTrue();
+        Directory.Exists(dottedDir).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenOutputPathIsExtensionlessFile_WritesToExactPath()
+    {
+        var sourceFile = Path.Combine(this.testDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[32768]);
+
+        var outputFile = Path.Combine(this.testDir, "torrentfile");
+        var service = new TorrentCreationService(new[] { this.testDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            Name = "custom_video",
+            OutputPath = outputFile,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.OutputPath.Should().Be(outputFile);
+        File.Exists(outputFile).Should().BeTrue();
+        Directory.Exists(outputFile).Should().BeFalse();
+    }
+
     [TestCase("../../etc/cron.d/x")]
     [TestCase("..")]
     [TestCase("/etc/cron.d/payload")]
