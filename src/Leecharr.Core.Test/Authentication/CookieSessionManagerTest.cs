@@ -463,6 +463,134 @@ public class CookieSessionManagerTest
     }
 
     [Test]
+    public async Task ValidatePrincipal_WhenUserRolesInvalidJson_RejectsPrincipal()
+    {
+        const string token = "invalid-roles-json-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 20,
+            UserId = 300,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(300).Returns(new User
+        {
+            Id = 300,
+            Username = "corruptroles",
+            Roles = "Admin",
+        });
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache, userRepo);
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+        var context = CreateContext(principal);
+
+        await manager.ValidatePrincipal(context);
+
+        context.Principal.Should().BeNull();
+        this.testCache.ContainsKey(token).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ValidatePrincipal_WhenUserRolesEmptyButPrincipalHasAdmin_RejectsPrincipal()
+    {
+        const string token = "cleared-roles-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 21,
+            UserId = 301,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(301).Returns(new User
+        {
+            Id = 301,
+            Username = "noroles",
+            Roles = "   ",
+        });
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache, userRepo);
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+        var context = CreateContext(principal);
+
+        await manager.ValidatePrincipal(context);
+
+        context.Principal.Should().BeNull();
+        this.testCache.ContainsKey(token).Should().BeFalse();
+    }
+
+    [Test]
+    public void ValidateSession_WhenUserRolesInvalidJson_ReturnsFalse()
+    {
+        const string token = "invalid-roles-val-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 22,
+            UserId = 302,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(302).Returns(new User
+        {
+            Id = 302,
+            Username = "badjson",
+            Roles = "\"Admin\"",
+        });
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache, userRepo);
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+
+        manager.ValidateSession(principal).Should().BeFalse();
+    }
+
+    [Test]
+    public void ValidateSession_WhenUserRolesEmptyButPrincipalHasAdmin_ReturnsFalse()
+    {
+        const string token = "cleared-roles-val-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 23,
+            UserId = 303,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(303).Returns(new User
+        {
+            Id = 303,
+            Username = "emptyroles",
+            Roles = string.Empty,
+        });
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache, userRepo);
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+
+        manager.ValidateSession(principal).Should().BeFalse();
+    }
+
+    [Test]
     public void ClearCache_WhenInvoked_RemovesAllCachedEntries()
     {
         this.testCache["token1"] = (new UserSession(), DateTime.UtcNow);

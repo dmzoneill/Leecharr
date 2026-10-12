@@ -131,26 +131,13 @@ public class CookieSessionManager : ICookieSessionManager
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(user.Roles))
+            if (!this.ArePrincipalRolesAllowed(user, userPrincipal))
             {
-                try
-                {
-                    var userRoles = System.Text.Json.JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string>();
-                    var principalRoles = userPrincipal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-
-                    if (principalRoles.Any(r => !userRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
-                    {
-                        this.sessionCache.TryRemove(token, out _);
-                        this.logger.Warn("Rejecting session '{0}' for user {1} due to role mismatch or demotion.", token, session.UserId);
-                        context.RejectPrincipal();
-                        await this.SignOutSafelyAsync(context);
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to parse roles for user {0}", session.UserId);
-                }
+                this.sessionCache.TryRemove(token, out _);
+                this.logger.Warn("Rejecting session '{0}' for user {1} due to role mismatch, demotion, or invalid stored roles.", token, session.UserId);
+                context.RejectPrincipal();
+                await this.SignOutSafelyAsync(context);
+                return;
             }
         }
 
@@ -234,23 +221,10 @@ public class CookieSessionManager : ICookieSessionManager
                     return false;
                 }
 
-                if (!string.IsNullOrWhiteSpace(cachedUser.Roles))
+                if (!this.ArePrincipalRolesAllowed(cachedUser, principal))
                 {
-                    try
-                    {
-                        var userRoles = System.Text.Json.JsonSerializer.Deserialize<List<string>>(cachedUser.Roles) ?? new List<string>();
-                        var principalRoles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-
-                        if (principalRoles.Any(r => !userRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
-                        {
-                            this.sessionCache.TryRemove(token, out _);
-                            return false;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Trace(ex, "Failed to parse user roles JSON in session validation");
-                    }
+                    this.sessionCache.TryRemove(token, out _);
+                    return false;
                 }
             }
 
@@ -277,23 +251,10 @@ public class CookieSessionManager : ICookieSessionManager
                 return false;
             }
 
-            if (!string.IsNullOrWhiteSpace(user.Roles))
+            if (!this.ArePrincipalRolesAllowed(user, principal))
             {
-                try
-                {
-                    var userRoles = System.Text.Json.JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string>();
-                    var principalRoles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-
-                    if (principalRoles.Any(r => !userRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
-                    {
-                        this.sessionCache.TryRemove(token, out _);
-                        return false;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Trace(ex, "Failed to parse user roles JSON in cached session validation");
-                }
+                this.sessionCache.TryRemove(token, out _);
+                return false;
             }
         }
 
@@ -359,6 +320,29 @@ public class CookieSessionManager : ICookieSessionManager
         }
 
         this.sessionCache[token] = (session, now);
+    }
+
+    private bool ArePrincipalRolesAllowed(User user, ClaimsPrincipal principal)
+    {
+        if (user == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var userRoles = string.IsNullOrWhiteSpace(user.Roles)
+                ? new List<string>()
+                : System.Text.Json.JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string>();
+
+            var principalRoles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+            return !principalRoles.Any(r => !userRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to parse roles for user {0}", user.Id);
+            return false;
+        }
     }
 
     private async Task SignOutSafelyAsync(CookieValidatePrincipalContext context)
