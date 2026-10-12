@@ -24,6 +24,8 @@ public class HealthCheckService : IHealthCheckService, IDisposable
     private readonly TimeSpan perCheckTimeout;
     private readonly TimeSpan periodicInterval;
     private readonly ConcurrentDictionary<string, HealthCheckResultType> previousStates = new();
+    private readonly SemaphoreSlim performChecksLock = new(1, 1);
+    private readonly object stateTransitionLock = new();
     private readonly Logger logger;
     private readonly Timer periodicTimer;
     private bool disposed;
@@ -60,9 +62,15 @@ public class HealthCheckService : IHealthCheckService, IDisposable
             return new List<HealthCheckResult>();
         }
 
-        var tasks = this.healthChecks.Select(check => this.ExecuteCheckWithTimeoutAsync(check, cancellationToken));
-        var resultsArray = await Task.WhenAll(tasks).ConfigureAwait(false);
-        return new List<HealthCheckResult>(resultsArray);
+        await this.performChecksLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await this.ExecuteChecksCoreAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            this.performChecksLock.Release();
+        }
     }
 
     public void Dispose()
@@ -78,6 +86,7 @@ public class HealthCheckService : IHealthCheckService, IDisposable
             if (disposing)
             {
                 this.periodicTimer?.Dispose();
+                this.performChecksLock.Dispose();
             }
 
             this.disposed = true;
@@ -90,13 +99,43 @@ public class HealthCheckService : IHealthCheckService, IDisposable
         {
             try
             {
-                await this.PerformChecksAsync().ConfigureAwait(false);
+                await this.TryPerformPeriodicChecksAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 this.logger.Error(ex, "Error occurred during periodic health check execution");
             }
         });
+    }
+
+    private async Task TryPerformPeriodicChecksAsync()
+    {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        if (!await this.performChecksLock.WaitAsync(0).ConfigureAwait(false))
+        {
+            this.logger.Debug("Health check pass already in progress. Skipping overlapping periodic execution.");
+            return;
+        }
+
+        try
+        {
+            await this.ExecuteChecksCoreAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            this.performChecksLock.Release();
+        }
+    }
+
+    private async Task<List<HealthCheckResult>> ExecuteChecksCoreAsync(CancellationToken cancellationToken = default)
+    {
+        var tasks = this.healthChecks.Select(check => this.ExecuteCheckWithTimeoutAsync(check, cancellationToken));
+        var resultsArray = await Task.WhenAll(tasks).ConfigureAwait(false);
+        return new List<HealthCheckResult>(resultsArray);
     }
 
     private async Task<HealthCheckResult> ExecuteCheckWithTimeoutAsync(IHealthCheck check, CancellationToken cancellationToken)
@@ -163,28 +202,31 @@ public class HealthCheckService : IHealthCheckService, IDisposable
         var source = !string.IsNullOrWhiteSpace(result.Source) ? result.Source : "System";
         var isCurrentDegraded = result.Type == HealthCheckResultType.Warning || result.Type == HealthCheckResultType.Error;
 
-        var hasPrevious = this.previousStates.TryGetValue(source, out var previousType);
-        this.previousStates[source] = result.Type;
-
-        if (!hasPrevious)
+        lock (this.stateTransitionLock)
         {
-            if (isCurrentDegraded)
+            var hasPrevious = this.previousStates.TryGetValue(source, out var previousType);
+            this.previousStates[source] = result.Type;
+
+            if (!hasPrevious)
+            {
+                if (isCurrentDegraded)
+                {
+                    this.eventAggregator?.PublishEvent(new HealthIssueEvent(torrent: null, source, result.Message ?? $"{source} health issue detected", isResolved: false));
+                }
+
+                return;
+            }
+
+            var isPreviousDegraded = previousType == HealthCheckResultType.Warning || previousType == HealthCheckResultType.Error;
+
+            if (!isPreviousDegraded && isCurrentDegraded)
             {
                 this.eventAggregator?.PublishEvent(new HealthIssueEvent(torrent: null, source, result.Message ?? $"{source} health issue detected", isResolved: false));
             }
-
-            return;
-        }
-
-        var isPreviousDegraded = previousType == HealthCheckResultType.Warning || previousType == HealthCheckResultType.Error;
-
-        if (!isPreviousDegraded && isCurrentDegraded)
-        {
-            this.eventAggregator?.PublishEvent(new HealthIssueEvent(torrent: null, source, result.Message ?? $"{source} health issue detected", isResolved: false));
-        }
-        else if (isPreviousDegraded && !isCurrentDegraded)
-        {
-            this.eventAggregator?.PublishEvent(new HealthIssueEvent(torrent: null, source, $"{source} health restored", isResolved: true));
+            else if (isPreviousDegraded && !isCurrentDegraded)
+            {
+                this.eventAggregator?.PublishEvent(new HealthIssueEvent(torrent: null, source, $"{source} health restored", isResolved: true));
+            }
         }
     }
 }

@@ -515,4 +515,34 @@ public class HealthCheckTest
 
         await mockCheck.Received().CheckAsync(Arg.Any<CancellationToken>());
     }
+
+    [Test]
+    public async Task HealthCheckService_WhenOverlappingRuns_PublishesDegradedEventOnce()
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var mockCheck = Substitute.For<IHealthCheck>();
+        mockCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            await gate.Task.ConfigureAwait(false);
+            return HealthCheckResult.Warning("TestCheck", "Degraded warning");
+        });
+
+        using var service = new HealthCheckService(
+            new[] { mockCheck },
+            eventAggregator,
+            TimeSpan.FromSeconds(5),
+            Timeout.InfiniteTimeSpan);
+
+        var firstRun = service.PerformChecksAsync();
+        await Task.Delay(50);
+        var secondRun = service.PerformChecksAsync();
+
+        gate.SetResult(true);
+        await Task.WhenAll(firstRun, secondRun);
+
+        eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.Source == "TestCheck" && !e.IsResolved && e.Message == "Degraded warning"));
+    }
 }
