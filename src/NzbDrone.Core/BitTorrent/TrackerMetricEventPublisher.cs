@@ -165,14 +165,9 @@ internal static class TrackerMetricEventPublisher
         }
 
         var infoHash = manager?.Torrent?.InfoHashes?.V1OrV2;
-        if (infoHash == null || !tier.ScrapeInfo.TryGetValue(infoHash, out var scrapeInfo) || scrapeInfo == null)
+        if (infoHash == null || !tier.ScrapeInfo.TryGetValue(infoHash, out var scrapeInfo))
         {
             scrapeInfo = tier.ScrapeInfo.Values.FirstOrDefault();
-        }
-
-        if (scrapeInfo == null)
-        {
-            return (0, 0, 0);
         }
 
         return (scrapeInfo.Complete, scrapeInfo.Incomplete, scrapeInfo.Downloaded);

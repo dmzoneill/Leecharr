@@ -256,6 +256,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("auth/login")]
     public ActionResult Login([FromForm] string username = null, [FromForm] string password = null)
     {
+        var sessionIsAdmin = false;
         if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
         {
             var clientIp = ClientIpResolver.ResolveClientIp(this.HttpContext, trustedNetworkService: null, this.configService);
@@ -265,7 +266,6 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
 
             var authenticated = false;
-            var sessionIsAdmin = false;
             var masterApiKey = this.configFileProvider.ApiKey;
 
             if (!string.IsNullOrWhiteSpace(masterApiKey) &&

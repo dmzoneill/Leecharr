@@ -3374,21 +3374,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         var manager = task.Manager;
-        if (manager.Torrent?.Pieces != null)
-        {
-            var fromTorrent = PieceHashesFromMonoTorrent(manager.Torrent.Pieces);
-            if (fromTorrent != null)
-            {
-                return fromTorrent;
-            }
-        }
-
         try
         {
-            if (!string.IsNullOrWhiteSpace(manager.MetadataPath) && File.Exists(manager.MetadataPath) &&
-                Torrent.TryLoad(manager.MetadataPath, out var metadataTorrent))
+            if (!string.IsNullOrWhiteSpace(manager.MetadataPath) && File.Exists(manager.MetadataPath))
             {
-                return PieceHashesFromMonoTorrent(metadataTorrent.Pieces);
+                return PieceHashesFromTorrentBytes(File.ReadAllBytes(manager.MetadataPath));
             }
         }
         catch (Exception ex)
@@ -3408,10 +3398,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         try
         {
-            if (Torrent.TryLoad(torrentBytes, out var torrent))
-            {
-                return PieceHashesFromMonoTorrent(torrent.Pieces);
-            }
+            return PieceHashesFromTorrentBytes(torrentBytes);
         }
         catch (Exception ex)
         {
@@ -3421,23 +3408,30 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return null;
     }
 
-    private static IReadOnlyList<string> PieceHashesFromMonoTorrent(Hashes pieces)
+    private static IReadOnlyList<string> PieceHashesFromTorrentBytes(byte[] torrentBytes)
     {
-        if (pieces == null || pieces.Count == 0)
+        if (torrentBytes == null || torrentBytes.Length == 0)
         {
             return null;
         }
 
-        var list = new List<string>(pieces.Count);
-        for (var i = 0; i < pieces.Count; i++)
-        {
-            var hash = pieces.ReadHash(i);
-            if (hash == null || hash.Length == 0)
-            {
-                continue;
-            }
+        var parser = new TorrentFileParser();
+        var parsed = parser.Parse(torrentBytes);
+        return PieceHashesFromBytes(parsed?.PieceHashes);
+    }
 
-            list.Add(Convert.ToHexString(hash).ToLowerInvariant());
+    private static IReadOnlyList<string> PieceHashesFromBytes(byte[] pieceHashes)
+    {
+        if (pieceHashes == null || pieceHashes.Length == 0 || pieceHashes.Length % 20 != 0)
+        {
+            return null;
+        }
+
+        var pieceCount = pieceHashes.Length / 20;
+        var list = new List<string>(pieceCount);
+        for (var i = 0; i < pieceCount; i++)
+        {
+            list.Add(Convert.ToHexString(pieceHashes.AsSpan(i * 20, 20)).ToLowerInvariant());
         }
 
         return list.Count > 0 ? list : null;
