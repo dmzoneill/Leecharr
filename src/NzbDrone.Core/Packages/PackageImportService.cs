@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Formats.Tar;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -12,6 +13,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Packages;
@@ -25,6 +27,7 @@ public class PackageImportService : IPackageImportService
 
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
+    private readonly ITagRepository tagRepository;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly IConfigService configService;
     private readonly Logger logger;
@@ -32,11 +35,13 @@ public class PackageImportService : IPackageImportService
     public PackageImportService(
         ITorrentService torrentService,
         ITorrentFileParser torrentFileParser = null,
+        ITagRepository tagRepository = null,
         IAppFolderInfo appFolderInfo = null,
         IConfigService configService = null)
     {
         this.torrentService = torrentService ?? throw new ArgumentNullException(nameof(torrentService));
         this.torrentFileParser = torrentFileParser ?? new TorrentFileParser();
+        this.tagRepository = tagRepository;
         this.appFolderInfo = appFolderInfo;
         this.configService = configService;
         this.logger = LogManager.GetCurrentClassLogger();
@@ -64,7 +69,7 @@ public class PackageImportService : IPackageImportService
 
         var canonicalTargetRoot = Path.GetFullPath(targetRootDir);
         var canonicalAppData = Path.GetFullPath(appData);
-        if (isTemporarySandbox && !canonicalTargetRoot.StartsWith(canonicalAppData, StringComparison.Ordinal))
+        if (isTemporarySandbox && !PackagePathTranslator.IsPathUnderDirectory(canonicalTargetRoot, canonicalAppData))
         {
             throw new InvalidOperationException("Invalid sandbox destination directory.");
         }
@@ -180,11 +185,18 @@ public class PackageImportService : IPackageImportService
 
                         var canonicalDestDir = Path.GetFullPath(destinationDir);
                         var fullDestPath = Path.GetFullPath(Path.Combine(canonicalDestDir, translatedPath));
-                        if (!fullDestPath.StartsWith(canonicalDestDir, StringComparison.Ordinal))
+                        if (!PackagePathTranslator.IsPathUnderDirectory(fullDestPath, canonicalDestDir))
                         {
                             throw new InvalidOperationException($"Attempted path traversal extraction outside target directory: {fullDestPath}");
                         }
                         PackagePathTranslator.ValidateZipSlip(fullDestPath);
+
+                        if (File.Exists(fullDestPath))
+                        {
+                            this.logger.Debug("Skipping payload extraction because file already exists: {0}", fullDestPath);
+                            await entry.DataStream.CopyToAsync(Stream.Null, cancellationToken);
+                            continue;
+                        }
 
                         var dir = Path.GetDirectoryName(fullDestPath);
                         if (!string.IsNullOrWhiteSpace(dir))
@@ -192,7 +204,7 @@ public class PackageImportService : IPackageImportService
                             Directory.CreateDirectory(dir);
                         }
 
-                        await using (var outFs = new FileStream(fullDestPath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true))
+                        await using (var outFs = new FileStream(fullDestPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, BufferSize, useAsync: true))
                         {
                             var buffer = new byte[BufferSize];
                             int read;
@@ -291,12 +303,16 @@ public class PackageImportService : IPackageImportService
                                 ? options.DestinationRoot
                                 : this.configService?.DownloadDir);
 
+                        var tagIds = this.ResolveTagIds(item.Tags);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(
                             parsed,
                             item.Category,
                             savePath,
                             startPaused: false,
-                            rawBytes: rawBytes);
+                            rawBytes: rawBytes,
+                            sequentialDownload: null,
+                            firstLastPiecePriority: null,
+                            tags: tagIds);
 
                         if (added != null)
                         {
@@ -338,5 +354,33 @@ public class PackageImportService : IPackageImportService
                 }
             }
         }
+    }
+
+    private List<int> ResolveTagIds(List<string> tagLabels)
+    {
+        if (tagLabels == null || tagLabels.Count == 0 || this.tagRepository == null)
+        {
+            return new List<int>();
+        }
+
+        var tagIds = new List<int>();
+        var tagLookup = this.tagRepository.All().ToDictionary(t => t.Label, t => t.Id, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var label in tagLabels.Where(l => !string.IsNullOrWhiteSpace(l)))
+        {
+            if (!tagLookup.TryGetValue(label, out var tagId))
+            {
+                var created = this.tagRepository.Insert(new Tag { Label = label });
+                tagId = created.Id;
+                tagLookup[label] = tagId;
+            }
+
+            if (!tagIds.Contains(tagId))
+            {
+                tagIds.Add(tagId);
+            }
+        }
+
+        return tagIds;
     }
 }
