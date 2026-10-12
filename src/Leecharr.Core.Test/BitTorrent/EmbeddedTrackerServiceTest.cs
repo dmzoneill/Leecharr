@@ -98,6 +98,44 @@ public class EmbeddedTrackerServiceTest
     }
 
     [Test]
+    public void ProcessAnnounce_OmittedCompact_ReturnsDictionaryPeerList()
+    {
+        var infoHash = new byte[20];
+        for (var i = 0; i < 20; i++)
+        {
+            infoHash[i] = (byte)(i + 10);
+        }
+
+        var seeder = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.3.100"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Left = 0,
+        };
+
+        this.trackerService.ProcessAnnounce(seeder).Should().NotBeNull();
+
+        var leecher = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.3.101"),
+            Port = 6882,
+            PeerIdBytes = new byte[20],
+            Left = 1000,
+        };
+
+        var resp = this.trackerService.ProcessAnnounce(leecher);
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        var peerList = (BEncodedList)dict["peers"];
+        peerList.Should().HaveCount(1);
+        var peerDict = (BEncodedDictionary)peerList[0];
+        ((BEncodedString)peerDict["ip"]).Text.Should().Be("192.168.3.100");
+        ((BEncodedNumber)peerDict["port"]).Number.Should().Be(6881);
+    }
+
+    [Test]
     public void ProcessAnnounce_V2InfoHashBytes_AcceptsThirtyTwoByteHash()
     {
         var infoHash = new byte[32];

@@ -28,7 +28,7 @@ public class TrackerAnnounceRequest
 
     public string Event { get; set; }
 
-    public bool Compact { get; set; } = true;
+    public bool Compact { get; set; }
 
     public bool NoPeerId { get; set; }
 
