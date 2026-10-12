@@ -362,24 +362,75 @@ public class FloodApiController : ControllerBase, IActionFilter
 
         try
         {
-            var dict = this.BuildTorrentDictionary();
-            var json = JsonSerializer.Serialize(dict);
+            var previousSnapshot = this.BuildTorrentDictionary();
+            var json = JsonSerializer.Serialize(previousSnapshot);
             await this.Response.WriteAsync($"event: TORRENT_LIST_FULL_UPDATE\ndata: {json}\n\n", CancellationToken.None);
             await this.Response.Body.FlushAsync(CancellationToken.None);
 
             while (!cancellationToken.IsCancellationRequested)
             {
                 await Task.Delay(2000, cancellationToken);
-                var updateDict = this.BuildTorrentDictionary();
-                var updateJson = JsonSerializer.Serialize(updateDict);
-                await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF\ndata: {updateJson}\n\n", cancellationToken);
-                await this.Response.Body.FlushAsync(cancellationToken);
+                var currentSnapshot = this.BuildTorrentDictionary();
+                var diffPatch = BuildTorrentListDiffChange(previousSnapshot, currentSnapshot);
+                if (diffPatch.Count > 0)
+                {
+                    var updateJson = JsonSerializer.Serialize(diffPatch);
+                    await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF_CHANGE\ndata: {updateJson}\n\n", cancellationToken);
+                    await this.Response.Body.FlushAsync(cancellationToken);
+                }
+
+                previousSnapshot = currentSnapshot;
             }
         }
         catch (OperationCanceledException)
         {
             // Client disconnected or test completed
         }
+    }
+
+    public static List<Dictionary<string, object>> BuildTorrentListDiffChange(
+        Dictionary<string, object> previousSnapshot,
+        Dictionary<string, object> currentSnapshot)
+    {
+        var patch = new List<Dictionary<string, object>>();
+
+        foreach (var hash in previousSnapshot.Keys)
+        {
+            if (!currentSnapshot.ContainsKey(hash))
+            {
+                patch.Add(new Dictionary<string, object>
+                {
+                    ["op"] = "remove",
+                    ["path"] = "/" + hash,
+                });
+            }
+        }
+
+        foreach (var (hash, torrent) in currentSnapshot)
+        {
+            if (!previousSnapshot.TryGetValue(hash, out var previousTorrent))
+            {
+                patch.Add(new Dictionary<string, object>
+                {
+                    ["op"] = "add",
+                    ["path"] = "/" + hash,
+                    ["value"] = torrent,
+                });
+                continue;
+            }
+
+            if (!JsonSerializer.Serialize(previousTorrent).Equals(JsonSerializer.Serialize(torrent), StringComparison.Ordinal))
+            {
+                patch.Add(new Dictionary<string, object>
+                {
+                    ["op"] = "replace",
+                    ["path"] = "/" + hash,
+                    ["value"] = torrent,
+                });
+            }
+        }
+
+        return patch;
     }
 
     private Dictionary<string, object> BuildTorrentDictionary()
