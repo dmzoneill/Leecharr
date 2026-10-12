@@ -66,6 +66,11 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             return fallback;
         }
 
+        if (string.Equals(desired.ProviderId, "ManagedSocket", StringComparison.OrdinalIgnoreCase))
+        {
+            return desired;
+        }
+
         var desiredHealth = desired.ProbeHealthAsync().GetAwaiter().GetResult();
         if (desiredHealth.IsHealthy)
         {
