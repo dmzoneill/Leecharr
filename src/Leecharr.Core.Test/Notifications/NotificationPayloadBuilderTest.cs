@@ -193,6 +193,36 @@ public class NotificationPayloadBuilderTest
     }
 
     [Test]
+    public void BuildProviderPayload_Gotify_UsesConfiguredPriorityWhenPresent()
+    {
+        var settings = "{\"url\":\"http://gotify\",\"token\":\"tok\",\"priority\":10}";
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Gotify", "OnDownloadComplete", null, null, "Done", settings);
+        var json = JsonSerializer.Serialize(result);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("priority").GetInt32().Should().Be(10);
+    }
+
+    [Test]
+    public void BuildProviderPayload_Gotify_UsesEventPriorityWhenSettingsOmitPriority()
+    {
+        var settings = "{\"url\":\"http://gotify\",\"token\":\"tok\"}";
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Gotify", "OnHealthIssue", null, null, "Health", settings);
+        var json = JsonSerializer.Serialize(result);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("priority").GetInt32().Should().Be(8);
+    }
+
+    [Test]
+    public void BuildProviderPayload_Gotify_HonorsZeroPriority()
+    {
+        var settings = "{\"url\":\"http://gotify\",\"token\":\"tok\",\"priority\":0}";
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Gotify", "OnHealthIssue", null, null, "Health", settings);
+        var json = JsonSerializer.Serialize(result);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("priority").GetInt32().Should().Be(0);
+    }
+
+    [Test]
     public void BuildProviderPayload_Pushover_UsesEventPriorityWhenSettingsOmitPriority()
     {
         var settings = "{\"token\":\"app\",\"user\":\"usr\",\"device\":\"tablet\"}";
