@@ -125,8 +125,28 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
                     Message = $"Media inspector provider '{targetProvider.DisplayName}' is already active.",
                 };
             }
+        }
+        finally
+        {
+            this.switchLock.Release();
+        }
 
-            var health = await targetProvider.ProbeHealthAsync(cancellationToken);
+        var health = await targetProvider.ProbeHealthAsync(cancellationToken);
+
+        await this.switchLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return new MediaInspectorSwitchResult
+                {
+                    Success = true,
+                    PreviousProvider = Volatile.Read(ref this.activeProvider).ProviderId,
+                    ActiveProvider = targetProvider.ProviderId,
+                    Message = $"Media inspector provider '{targetProvider.DisplayName}' is already active.",
+                };
+            }
+
             if (!health.IsHealthy)
             {
                 return new MediaInspectorSwitchResult

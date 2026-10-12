@@ -191,15 +191,17 @@ public class DynamicMediaInspectorProxyTest
 
         var alreadyActiveTask = this.proxy.SwitchProviderAsync("MediaInfo");
         await Task.Delay(50);
-        alreadyActiveTask.IsCompleted.Should().BeFalse("already-active switch must wait for switchLock");
+        alreadyActiveTask.IsCompleted.Should().BeTrue("already-active switch should not block on another provider's health probe");
+
+        var alreadyActiveResult = await alreadyActiveTask;
+        alreadyActiveResult.Success.Should().BeTrue();
+        alreadyActiveResult.ActiveProvider.Should().Be("MediaInfo");
 
         ffprobeProbe.TrySetResult(new MediaInspectorHealthCheckResult { IsHealthy = true, StatusMessage = "OK" });
         var ffprobeResult = await switchToFfprobe;
-        var alreadyActiveResult = await alreadyActiveTask;
 
         ffprobeResult.ActiveProvider.Should().Be("FFprobe");
-        alreadyActiveResult.Success.Should().BeTrue();
-        alreadyActiveResult.ActiveProvider.Should().Be(this.proxy.ActiveProviderId);
+        this.proxy.ActiveProviderId.Should().Be("FFprobe");
     }
 
     [Test]
