@@ -582,6 +582,24 @@ public class WatchFolderServiceTest
     }
 
     [Test]
+    public void MatchCategoryFromReleaseName_WhenSynonymWouldSubstringMatchEarlierCategory_ResolvesExactSynonymCategory()
+    {
+        this.categoryService.GetAll().Returns(new[]
+        {
+            new Category { Name = "HDTV" },
+            new Category { Name = "TV Shows" },
+            new Category { Name = "Movie Extras" },
+            new Category { Name = "Films" },
+        });
+
+        var tv = this.service.MatchCategoryFromReleaseName("Breaking.Bad.S01E01.1080p");
+        tv.Should().Be("TV Shows");
+
+        var movie = this.service.MatchCategoryFromReleaseName("Dune.Part.Two.2024.2160p.UHD.BluRay.x265-FLUX");
+        movie.Should().Be("Films");
+    }
+
+    [Test]
     public async Task OnFileSystemWatcherCreated_WhenFileThrowsUnexpectedException_CatchesAndDoesNotCrashProcess()
     {
         var testFile = Path.Combine(this.tempDirectory, "throwing.torrent");

@@ -718,8 +718,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             foreach (var synonym in synonyms)
             {
                 var match = categories.FirstOrDefault(c =>
-                    string.Equals(c.Name, synonym, StringComparison.OrdinalIgnoreCase) ||
-                    c.Name.Contains(synonym, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(c.Name, synonym, StringComparison.OrdinalIgnoreCase));
                 if (match != null)
                 {
                     return match.Name;
