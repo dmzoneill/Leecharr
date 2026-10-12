@@ -1844,6 +1844,32 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void Inspect_AviWithSevenChannelAudio_Detects6Point1Layout()
+    {
+        var aviData = CreateAviHeader("XVID", 1920, 1080, audioFormatTag: 0x2000, audioChannels: 7, audioSampleRate: 48000);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "dts-es.avi");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("AC3 / Dolby Digital");
+        result.AudioChannels.Should().Be("6.1");
+    }
+
+    [Test]
+    public void Inspect_AviWithZeroChannelCount_DoesNotDefaultToStereo()
+    {
+        var aviData = CreateAviHeader("XVID", 1280, 720, audioFormatTag: 0x2000, audioChannels: 0, audioSampleRate: 48000);
+        using var ms = new MemoryStream(aviData);
+
+        var result = this.provider.Inspect(ms, "unknown-channels.avi");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("AC3 / Dolby Digital");
+        result.AudioChannels.Should().BeNull();
+    }
+
+    [Test]
     public void Inspect_SilentAviWithoutAudioStream_LeavesAudioCodecAndChannelsNull()
     {
         var aviData = CreateAviHeader("XVID", 1280, 720, audioFormatTag: null);
