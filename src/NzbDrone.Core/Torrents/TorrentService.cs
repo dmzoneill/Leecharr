@@ -2348,11 +2348,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 return defaultDownloadDir;
             }
 
-            if (!CategoryService.IsRootOrSystemDirectory(normalizedPath))
-            {
-                return normalizedPath;
-            }
-
             this.logger.Warn("Save path '{0}' is outside allowed media directories. Falling back to '{1}'", savePath, defaultDownloadDir);
             return defaultDownloadDir;
         }
