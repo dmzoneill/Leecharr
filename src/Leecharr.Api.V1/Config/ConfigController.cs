@@ -418,67 +418,70 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
 
         var result = await base.SaveConfig(resource);
 
-        if (this.udpTrackerService != null)
+        if (result.Result is AcceptedResult)
         {
-            if (resource != null && resource.TrackerServerEnabled && resource.TrackerUdpEnabled)
+            if (this.udpTrackerService != null)
             {
-                _ = Task.Run(async () =>
+                if (resource.TrackerServerEnabled && resource.TrackerUdpEnabled)
                 {
-                    try
+                    _ = Task.Run(async () =>
                     {
-                        await this.udpTrackerService.RestartAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Failed to restart UDP tracker service");
-                    }
-                }, CancellationToken.None);
-            }
-            else
-            {
-                _ = Task.Run(async () =>
+                        try
+                        {
+                            await this.udpTrackerService.RestartAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Error(ex, "Failed to restart UDP tracker service");
+                        }
+                    }, CancellationToken.None);
+                }
+                else
                 {
-                    try
+                    _ = Task.Run(async () =>
                     {
-                        await this.udpTrackerService.StopAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Failed to stop UDP tracker service");
-                    }
-                }, CancellationToken.None);
+                        try
+                        {
+                            await this.udpTrackerService.StopAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Error(ex, "Failed to stop UDP tracker service");
+                        }
+                    }, CancellationToken.None);
+                }
             }
-        }
 
-        if (this.httpTrackerService != null)
-        {
-            if (resource != null && resource.TrackerServerEnabled && resource.TrackerHttpEnabled)
+            if (this.httpTrackerService != null)
             {
-                _ = Task.Run(async () =>
+                if (resource.TrackerServerEnabled && resource.TrackerHttpEnabled)
                 {
-                    try
+                    _ = Task.Run(async () =>
                     {
-                        await this.httpTrackerService.RestartAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Failed to restart HTTP tracker service");
-                    }
-                }, CancellationToken.None);
-            }
-            else
-            {
-                _ = Task.Run(async () =>
+                        try
+                        {
+                            await this.httpTrackerService.RestartAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Error(ex, "Failed to restart HTTP tracker service");
+                        }
+                    }, CancellationToken.None);
+                }
+                else
                 {
-                    try
+                    _ = Task.Run(async () =>
                     {
-                        await this.httpTrackerService.StopAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Failed to stop HTTP tracker service");
-                    }
-                }, CancellationToken.None);
+                        try
+                        {
+                            await this.httpTrackerService.StopAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Error(ex, "Failed to stop HTTP tracker service");
+                        }
+                    }, CancellationToken.None);
+                }
             }
         }
 
