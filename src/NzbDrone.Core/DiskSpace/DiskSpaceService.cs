@@ -96,43 +96,6 @@ public class DiskSpaceService : IDiskSpaceService
             }
         }
 
-        try
-        {
-            var drives = DriveInfo.GetDrives();
-            foreach (var drive in drives)
-            {
-                try
-                {
-                    if (drive.IsReady && (drive.DriveType == DriveType.Fixed || drive.DriveType == DriveType.Network))
-                    {
-                        var total = drive.TotalSize;
-                        var volumeKey = $"{drive.DriveFormat}_{total}_{drive.VolumeLabel}_{drive.RootDirectory.FullName}";
-                        if (total > 0 && seen.Add(drive.RootDirectory.FullName) && seenVolumes.Add(volumeKey))
-                        {
-                            var info = new DiskSpaceInfo
-                            {
-                                Path = drive.RootDirectory.FullName,
-                                Label = !string.IsNullOrWhiteSpace(drive.VolumeLabel) ? drive.VolumeLabel : drive.RootDirectory.FullName,
-                                FreeSpace = drive.AvailableFreeSpace,
-                                TotalSpace = total,
-                                FileSystemType = drive.DriveFormat ?? string.Empty,
-                                IsReadOnly = total > 0 && drive.AvailableFreeSpace == 0,
-                            };
-                            result.Add(info);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Trace(ex, "Failed to read drive properties for '{0}'", drive.Name);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            this.logger.Warn(ex, "Failed to enumerate fixed drives");
-        }
-
         return result;
     }
 

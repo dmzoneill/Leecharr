@@ -55,7 +55,7 @@ public class DiskSpaceServiceTest
     }
 
     [Test]
-    public void GetDiskSpace_WhenAppFoldersAreNullOrEmpty_DoesNotThrowAndReturnsFixedDrives()
+    public void GetDiskSpace_WhenAppFoldersAreNullOrEmpty_DoesNotThrow()
     {
         this.appFolderInfo.AppDataFolder.Returns((string)null!);
         this.appFolderInfo.StartUpFolder.Returns(string.Empty);
@@ -63,6 +63,22 @@ public class DiskSpaceServiceTest
         var result = this.service.GetDiskSpace();
 
         result.Should().NotBeNull();
+    }
+
+    [Test]
+    public void GetDiskSpace_DoesNotIncludeUnrelatedSystemOrNetworkMounts()
+    {
+        this.configService.DownloadDir.Returns("/downloads");
+        this.appFolderInfo.AppDataFolder.Returns((string)null!);
+        this.appFolderInfo.StartUpFolder.Returns(string.Empty);
+
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(50_000_000_000L);
+        this.diskProvider.GetTotalSize("/downloads").Returns(100_000_000_000L);
+
+        var result = this.service.GetDiskSpace();
+
+        result.Should().ContainSingle(d => d.Path == "/downloads" && d.Label == "Downloads");
+        result.Should().NotContain(d => d.Path == "/" || d.Path == "/boot");
     }
 
     [Test]
