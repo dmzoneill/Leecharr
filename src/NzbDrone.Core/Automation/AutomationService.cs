@@ -633,7 +633,27 @@ public class AutomationService : IAutomationService
 
         if (changed)
         {
-            _torrentRepository.Update(torrent);
+            if (_torrentService != null)
+            {
+                await _torrentService.UpdateAsync(torrent).ConfigureAwait(false);
+
+                if (result.NewSuperSeeding.HasValue)
+                {
+                    try
+                    {
+                        await _torrentService.SetSuperSeedingAsync(torrent.Id, torrent.InitialSeeding).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warn(ex, "Failed to apply super seeding to torrent {0} via automation", torrent.Id);
+                    }
+                }
+            }
+            else
+            {
+                _torrentRepository.Update(torrent);
+            }
+
             _eventAggregator.PublishEvent(new ModelEvent<Torrent>(torrent, ModelAction.Updated));
         }
 

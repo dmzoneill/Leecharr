@@ -65,6 +65,7 @@ public class AutomationServiceTest
         _trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
 
         _tagRepository.All().Returns(new List<Tag>());
+        _torrentService.UpdateAsync(Arg.Any<Torrent>()).Returns(ci => ci.Arg<Torrent>());
         _tagRepository.Insert(Arg.Any<Tag>()).Returns(ci =>
         {
             var tag = ci.Arg<Tag>();
@@ -2152,7 +2153,7 @@ public class AutomationServiceTest
         await service.ApplyExecutionResultAsync(torrent, result);
 
         torrent.TrackerUrl.Should().Be("http://tracker.new.com/announce");
-        _torrentRepository.Received(1).Update(torrent);
+        await _torrentService.Received(1).UpdateAsync(torrent);
         trackerEntry.Url.Should().Be("http://tracker.new.com/announce");
         _trackerEntryRepository.Received(1).Update(trackerEntry);
         await _downloadEngine.Received(1).RemoveTrackersAsync(104, Arg.Is<IEnumerable<string>>(t => t.Contains("http://tracker.old.com/announce")));
@@ -2264,5 +2265,99 @@ public class AutomationServiceTest
         torrent.TrackerUrl.Should().Be("http://new-source.org/announce");
         trackerEntry.Url.Should().Be("http://new-source.org/announce");
         _trackerEntryRepository.Received(1).Update(trackerEntry);
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldUpdateTorrentViaTorrentService_WhenLimitsChange()
+    {
+        var torrent = new Torrent
+        {
+            Id = 201,
+            Name = "LimitTorrent",
+            UploadLimit = 0,
+            DownloadLimit = 0,
+        };
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            NewUploadLimitKbps = 500,
+            NewDownloadLimitKbps = 250,
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        torrent.UploadLimit.Should().Be(500);
+        torrent.DownloadLimit.Should().Be(250);
+        await _torrentService.Received(1).UpdateAsync(torrent);
+        _torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldUpdateTorrentViaTorrentService_WhenCategoryOrSequentialChange()
+    {
+        var torrent = new Torrent
+        {
+            Id = 202,
+            Name = "CategoryTorrent",
+            Category = "old",
+            SequentialDownload = false,
+        };
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            NewCategory = "movies",
+            NewSequentialDownload = true,
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        torrent.Category.Should().Be("movies");
+        torrent.SequentialDownload.Should().BeTrue();
+        await _torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldCallSetSuperSeeding_WhenSuperSeedingChanges()
+    {
+        var torrent = new Torrent
+        {
+            Id = 203,
+            Name = "SuperSeedTorrent",
+            InitialSeeding = false,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+        };
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            NewSuperSeeding = true,
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        torrent.InitialSeeding.Should().BeTrue();
+        await _torrentService.Received(1).UpdateAsync(torrent);
+        await _torrentService.Received(1).SetSuperSeedingAsync(203, true);
     }
 }
