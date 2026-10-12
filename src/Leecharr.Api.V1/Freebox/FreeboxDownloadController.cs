@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -29,11 +30,23 @@ public class FreeboxUpdateRequest
     public double? StopRatio { get; set; }
 }
 
+public class FreeboxLoginSessionRequest
+{
+    [JsonPropertyName("app_id")]
+    public string AppId { get; set; }
+
+    [JsonPropertyName("password")]
+    public string Password { get; set; }
+}
+
 [ApiController]
 public class FreeboxDownloadController : ControllerBase
 {
     private static readonly RpcSessionStore AuthenticatedSessions = new();
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly object LoginChallengeLock = new();
+    private static string pendingLoginChallenge;
+    private static DateTime pendingLoginChallengeExpiryUtc;
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly IConfigService configService;
@@ -134,13 +147,40 @@ public class FreeboxDownloadController : ControllerBase
     [Route("api/v4/login/authorize")]
     public IActionResult LoginAuthorize()
     {
+        if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
+        {
+            if (this.HasFreeboxLoginCredentials())
+            {
+                return this.Ok(new
+                {
+                    success = true,
+                    result = new
+                    {
+                        logged_in = true,
+                    },
+                });
+            }
+
+            var challenge = this.IssueLoginChallenge();
+            return this.Ok(new
+            {
+                success = true,
+                result = new
+                {
+                    logged_in = false,
+                    challenge,
+                },
+            });
+        }
+
+        var openChallenge = this.IssueLoginChallenge();
         return this.Ok(new
         {
             success = true,
             result = new
             {
                 logged_in = true,
-                challenge = "freebox-challenge-token",
+                challenge = openChallenge,
             },
         });
     }
@@ -150,7 +190,7 @@ public class FreeboxDownloadController : ControllerBase
     [HttpPost]
     [Route("api/v4/login/session")]
     [Route("api/v4/login")]
-    public IActionResult LoginSession()
+    public async Task<IActionResult> LoginSession()
     {
         if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
         {
@@ -190,6 +230,10 @@ public class FreeboxDownloadController : ControllerBase
                     {
                         isAuth = true;
                     }
+                }
+                else if (this.Request.ContentType?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    isAuth = await this.TryAuthenticateJsonLoginAsync(masterKey);
                 }
             }
 
@@ -454,5 +498,101 @@ public class FreeboxDownloadController : ControllerBase
         }
 
         return queuePos;
+    }
+
+    private bool HasFreeboxLoginCredentials()
+    {
+        if (RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))
+        {
+            return true;
+        }
+
+        var token = this.Request.Headers["X-Fbx-App-Auth"].ToString();
+        if (!string.IsNullOrEmpty(token) &&
+            (AuthenticatedSessions.IsValid(token) ||
+             (this.configFileProvider != null &&
+              !string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
+              RpcAuthenticationHelper.FixedTimeEquals(token, this.configFileProvider.ApiKey))))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private string IssueLoginChallenge()
+    {
+        var challenge = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        lock (LoginChallengeLock)
+        {
+            pendingLoginChallenge = challenge;
+            pendingLoginChallengeExpiryUtc = DateTime.UtcNow.AddMinutes(10);
+        }
+
+        return challenge;
+    }
+
+    private static bool TryGetActiveLoginChallenge(out string challenge)
+    {
+        lock (LoginChallengeLock)
+        {
+            if (!string.IsNullOrWhiteSpace(pendingLoginChallenge) && pendingLoginChallengeExpiryUtc > DateTime.UtcNow)
+            {
+                challenge = pendingLoginChallenge;
+                return true;
+            }
+        }
+
+        challenge = null;
+        return false;
+    }
+
+    private static void ClearLoginChallenge()
+    {
+        lock (LoginChallengeLock)
+        {
+            pendingLoginChallenge = null;
+            pendingLoginChallengeExpiryUtc = default;
+        }
+    }
+
+    private async Task<bool> TryAuthenticateJsonLoginAsync(string appToken)
+    {
+        try
+        {
+            using var reader = new StreamReader(this.Request.Body, leaveOpen: true);
+            var bodyStr = await reader.ReadToEndAsync();
+            if (string.IsNullOrWhiteSpace(bodyStr))
+            {
+                return false;
+            }
+
+            var loginRequest = JsonSerializer.Deserialize<FreeboxLoginSessionRequest>(bodyStr, CaseInsensitiveJsonOptions);
+            if (loginRequest == null ||
+                string.IsNullOrWhiteSpace(loginRequest.AppId) ||
+                string.IsNullOrWhiteSpace(loginRequest.Password))
+            {
+                return false;
+            }
+
+            if (!TryGetActiveLoginChallenge(out var challenge))
+            {
+                return false;
+            }
+
+            var expectedPassword = FreeboxAuthHelper.ComputeSessionPassword(appToken, challenge);
+            if (!RpcAuthenticationHelper.FixedTimeEquals(loginRequest.Password, expectedPassword))
+            {
+                return false;
+            }
+
+            ClearLoginChallenge();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Trace(ex, "Failed to parse Freebox JSON login request");
+            return false;
+        }
     }
 }

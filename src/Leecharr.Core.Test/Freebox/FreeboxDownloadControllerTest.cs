@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Freebox;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
@@ -66,15 +67,32 @@ public class FreeboxDownloadControllerTest
 
         doc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
         doc.RootElement.GetProperty("result").GetProperty("logged_in").GetBoolean().Should().BeTrue();
-        doc.RootElement.GetProperty("result").GetProperty("challenge").GetString().Should().Be("freebox-challenge-token");
+        doc.RootElement.GetProperty("result").GetProperty("challenge").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     [Test]
-    public void LoginSession_WhenAuthenticationDisabled_ReturnsSessionToken()
+    public void LoginAuthorize_WhenAuthenticationEnabled_ReturnsChallengeAndLoggedOut()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+
+        var result = this.controller.LoginAuthorize();
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        doc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("result").GetProperty("logged_in").GetBoolean().Should().BeFalse();
+        doc.RootElement.GetProperty("result").GetProperty("challenge").GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Test]
+    public async Task LoginSession_WhenAuthenticationDisabled_ReturnsSessionToken()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(false);
 
-        var result = this.controller.LoginSession();
+        var result = await this.controller.LoginSession();
 
         result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result;
@@ -88,11 +106,11 @@ public class FreeboxDownloadControllerTest
     }
 
     [Test]
-    public void LoginSession_WhenAuthenticationEnabledAndNoCredentials_ReturnsAuthRequired()
+    public async Task LoginSession_WhenAuthenticationEnabledAndNoCredentials_ReturnsAuthRequired()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
 
-        var result = this.controller.LoginSession();
+        var result = await this.controller.LoginSession();
 
         result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result;
@@ -104,12 +122,12 @@ public class FreeboxDownloadControllerTest
     }
 
     [Test]
-    public void LoginSession_WhenAuthenticationEnabledAndValidApiKeyInHeader_ReturnsSessionToken()
+    public async Task LoginSession_WhenAuthenticationEnabledAndValidApiKeyInHeader_ReturnsSessionToken()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.httpContext.Request.Headers["X-Fbx-App-Auth"] = "master-api-key";
 
-        var result = this.controller.LoginSession();
+        var result = await this.controller.LoginSession();
 
         result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result;
@@ -123,12 +141,12 @@ public class FreeboxDownloadControllerTest
 
     [TestCase("password", "master-api-key")]
     [TestCase("app_token", "master-api-key")]
-    public void LoginSession_WhenAuthenticationEnabledAndValidQueryParam_ReturnsSessionToken(string paramKey, string paramValue)
+    public async Task LoginSession_WhenAuthenticationEnabledAndValidQueryParam_ReturnsSessionToken(string paramKey, string paramValue)
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.httpContext.Request.QueryString = new QueryString($"?{paramKey}={paramValue}");
 
-        var result = this.controller.LoginSession();
+        var result = await this.controller.LoginSession();
 
         result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result;
@@ -142,7 +160,7 @@ public class FreeboxDownloadControllerTest
     [TestCase("password", "master-api-key")]
     [TestCase("app_token", "master-api-key")]
     [TestCase("api_key", "master-api-key")]
-    public void LoginSession_WhenAuthenticationEnabledAndValidFormParam_ReturnsSessionToken(string formKey, string formValue)
+    public async Task LoginSession_WhenAuthenticationEnabledAndValidFormParam_ReturnsSessionToken(string formKey, string formValue)
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.httpContext.Request.ContentType = "application/x-www-form-urlencoded";
@@ -151,7 +169,7 @@ public class FreeboxDownloadControllerTest
             { formKey, formValue },
         });
 
-        var result = this.controller.LoginSession();
+        var result = await this.controller.LoginSession();
 
         result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result;
@@ -160,6 +178,35 @@ public class FreeboxDownloadControllerTest
 
         doc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
         doc.RootElement.GetProperty("result").GetProperty("logged_in").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task LoginSession_WhenAuthenticationEnabledAndValidJsonChallengePassword_ReturnsSessionToken()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("master-api-key");
+
+        var authorizeResult = this.controller.LoginAuthorize();
+        authorizeResult.Should().BeOfType<OkObjectResult>();
+        var authorizeJson = JsonSerializer.Serialize(((OkObjectResult)authorizeResult).Value);
+        using var authorizeDoc = JsonDocument.Parse(authorizeJson);
+        var challenge = authorizeDoc.RootElement.GetProperty("result").GetProperty("challenge").GetString();
+        var password = FreeboxAuthHelper.ComputeSessionPassword("master-api-key", challenge!);
+
+        var jsonBody = JsonSerializer.Serialize(new { app_id = "leecharr.test", password });
+        var bodyBytes = Encoding.UTF8.GetBytes(jsonBody);
+        this.httpContext.Request.Body = new MemoryStream(bodyBytes);
+        this.httpContext.Request.ContentType = "application/json";
+
+        var result = await this.controller.LoginSession();
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        doc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("result").GetProperty("session_token").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     [Test]
