@@ -130,10 +130,15 @@ public class UpdateCheckService : IUpdateCheckService
 
             var result = new List<UpdatePackage>();
             var currentVer = BuildInfo.Version?.ToString() ?? "1.0.0";
-            var isFirst = true;
+            Version latestStableVersion = null;
 
             foreach (var elem in root.EnumerateArray())
             {
+                if (elem.TryGetProperty("draft", out var draftProp) && draftProp.GetBoolean())
+                {
+                    continue;
+                }
+
                 var tagName = elem.TryGetProperty("tag_name", out var tagProp) ? tagProp.GetString() : null;
                 if (string.IsNullOrWhiteSpace(tagName))
                 {
@@ -141,6 +146,15 @@ public class UpdateCheckService : IUpdateCheckService
                 }
 
                 var cleanVersion = tagName.TrimStart('v', 'V');
+                var isPrerelease = elem.TryGetProperty("prerelease", out var prereleaseProp) && prereleaseProp.GetBoolean();
+
+                if (!isPrerelease && Version.TryParse(cleanVersion, out var parsedVersion))
+                {
+                    if (latestStableVersion == null || parsedVersion > latestStableVersion)
+                    {
+                        latestStableVersion = parsedVersion;
+                    }
+                }
                 var publishedAt = elem.TryGetProperty("published_at", out var pubProp) && pubProp.TryGetDateTime(out var dt)
                     ? dt
                     : (elem.TryGetProperty("created_at", out var createProp) && createProp.TryGetDateTime(out var cdt) ? cdt : DateTime.UtcNow);
@@ -200,11 +214,21 @@ public class UpdateCheckService : IUpdateCheckService
                     FileName = fileName,
                     Url = htmlUrl ?? "https://github.com/dmzoneill/Leecharr/releases",
                     Installed = isInstalled,
-                    Latest = isFirst,
+                    Latest = false,
                     Changes = ParseChanges(body),
                 });
+            }
 
-                isFirst = false;
+            if (latestStableVersion != null)
+            {
+                foreach (var package in result)
+                {
+                    if (Version.TryParse(package.Version, out var packageVersion) && packageVersion == latestStableVersion)
+                    {
+                        package.Latest = true;
+                        break;
+                    }
+                }
             }
 
             return result;

@@ -101,6 +101,55 @@ public class UpdateCheckServiceTest
     }
 
     [Test]
+    public async Task GetAvailableUpdatesAsync_WhenNewestReleaseIsPrerelease_MarksHighestStableAsLatest()
+    {
+        var jsonResponse = @"[
+    {
+    ""tag_name"": ""v2.0.0-beta.1"",
+    ""prerelease"": true,
+    ""published_at"": ""2026-10-10T12:00:00Z"",
+    ""html_url"": ""https://github.com/dmzoneill/Leecharr/releases/tag/v2.0.0-beta.1"",
+    ""body"": ""* Beta channel"",
+    ""assets"": []
+    },
+    {
+    ""tag_name"": ""v1.4.3"",
+    ""prerelease"": false,
+    ""published_at"": ""2026-09-10T22:35:18Z"",
+    ""html_url"": ""https://github.com/dmzoneill/Leecharr/releases/tag/v1.4.3"",
+    ""body"": ""* Stable release"",
+    ""assets"": []
+    },
+    {
+    ""tag_name"": ""v1.4.2"",
+    ""prerelease"": false,
+    ""published_at"": ""2026-09-08T10:00:00Z"",
+    ""html_url"": ""https://github.com/dmzoneill/Leecharr/releases/tag/v1.4.2"",
+    ""body"": ""* Older stable"",
+    ""assets"": []
+    }
+]";
+
+        var handler = new MockHttpMessageHandler
+        {
+            ResponseHandler = _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(jsonResponse, Encoding.UTF8, "application/json"),
+            },
+        };
+        var httpClient = new HttpClient(handler);
+        var service = new UpdateCheckService(httpClient);
+
+        var updates = await service.GetAvailableUpdatesAsync();
+
+        updates.Should().HaveCount(3);
+        updates[0].Version.Should().Be("2.0.0-beta.1");
+        updates[0].Latest.Should().BeFalse();
+        updates.Single(u => u.Version == "1.4.3").Latest.Should().BeTrue();
+        updates.Single(u => u.Version == "1.4.2").Latest.Should().BeFalse();
+    }
+
+    [Test]
     public async Task GetAvailableUpdatesAsync_WhenGitHubFailsOrReturnsError_FallsBackToDefaultList()
     {
         var handler = new MockHttpMessageHandler
