@@ -1026,6 +1026,84 @@ public class EmbeddedTransmissionEngineTest
         (await engine.SwitchVersionAsync("4.9.9")).Should().BeFalse();
     }
 
+    [Test]
+    public async Task StartAsync_WhenRpcUnreachable_DoesNotMarkEngineRunning()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var act = async () => await engine.StartAsync();
+        await act.Should().ThrowAsync<HttpRequestException>();
+
+        engine.GetEngineMetrics().IsRunning.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenTorrentAddRpcFails_DoesNotKeepLocalTask()
+    {
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"duplicate torrent\",\"arguments\":{}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        var act = async () => await engine.AddTorrentAsync(torrent);
+        await act.Should().ThrowAsync<InvalidOperationException>();
+
+        engine.GetTask(42).Should().BeNull();
+        engine.GetEngineMetrics().ActiveTorrents.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenTorrentAddSucceedsWithoutId_DoesNotKeepLocalTask()
+    {
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "torrent-add")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 43, InfoHash = "0123456789abcdef0123456789abcdef01234568", Name = "Test" };
+        var act = async () => await engine.AddTorrentAsync(torrent);
+        await act.Should().ThrowAsync<InvalidOperationException>();
+
+        engine.GetTask(43).Should().BeNull();
+    }
+
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)
     {
         return new EmbeddedTransmissionEngine(
