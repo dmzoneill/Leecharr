@@ -582,6 +582,36 @@ public class ArchiveExtractorEventHandlerTest
     }
 
     [Test]
+    public async Task Handle_WhenGlobalReceiptContainsOnlySubstringOfFileName_StillExtracts()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var torrent = new Torrent { Id = 52, Name = "Substring.Receipt.Torrent", SavePath = "/downloads/Substring.Receipt.Torrent" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 52, Path = "s01e01.rar", Size = 50000000 },
+        };
+
+        this.torrentFileService.GetFiles(52).Returns(files);
+        this.extractorService.IsArchiveFile("s01e01.rar").Returns(true);
+
+        this.diskProvider.FileExists(Arg.Is<string>(p => p.EndsWith("s01e01.rar"))).Returns(true);
+        this.diskProvider.FileExists(Arg.Is<string>(p => p.EndsWith(".leecharr_extracted_s01e01.rar"))).Returns(false);
+        this.diskProvider.FileExists(Arg.Is<string>(p => p.EndsWith(".leecharr_extracted"))).Returns(true);
+        this.diskProvider.ReadAllText(Arg.Is<string>(p => p.EndsWith(".leecharr_extracted"))).Returns("show.s01e01.rar\n");
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+
+        await this.handler.HandleAsync(new TorrentDownloadCompletedEvent(torrent));
+
+        await this.extractorService.Received(1).ExtractArchiveAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public void Constructor_SetsConcurrencyLimit_FromConfigServiceOrParameter()
     {
         this.configService.MaxConcurrentExtractions.Returns(4);

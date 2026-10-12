@@ -363,6 +363,31 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         return Path.GetFileNameWithoutExtension(fileName);
     }
 
+    private static bool GlobalReceiptContainsFileName(string receiptText, string fileName)
+    {
+        if (string.IsNullOrEmpty(receiptText))
+        {
+            return false;
+        }
+
+        using var reader = new StringReader(receiptText);
+        while (true)
+        {
+            var line = reader.ReadLine();
+            if (line == null)
+            {
+                break;
+            }
+
+            if (string.Equals(line.Trim(), fileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private bool IsArchiveAlreadyExtracted(string destinationDirectory, string archiveFilePath)
     {
         try
@@ -378,7 +403,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             if (this.diskProvider.FileExists(globalReceipt))
             {
                 var text = this.diskProvider.ReadAllText(globalReceipt);
-                if (!string.IsNullOrEmpty(text) && text.Contains(fileName, StringComparison.OrdinalIgnoreCase))
+                if (GlobalReceiptContainsFileName(text, fileName))
                 {
                     return true;
                 }
@@ -412,7 +437,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             if (this.diskProvider.FileExists(globalReceipt))
             {
                 var existing = this.diskProvider.ReadAllText(globalReceipt);
-                if (!existing.Contains(fileName, StringComparison.OrdinalIgnoreCase))
+                if (!GlobalReceiptContainsFileName(existing, fileName))
                 {
                     this.diskProvider.WriteAllText(globalReceipt, existing + fileName + Environment.NewLine);
                 }
