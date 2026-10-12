@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Leecharr.Api.V1.DownloadClients;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -243,15 +244,13 @@ public class HadoukenRpcController : ControllerBase
                         var swarmSeeders = t.Seeders;
                         var connectedLeechers = 0;
                         var connectedSeeders = 0;
+                        var downloadTask = this.torrentService.GetDownloadTask(t.Id);
+                        var availabilityUnits = UtWebUiAvailabilityHelper.EncodeAvailabilityUnits(downloadTask);
                         var isInactive = t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
-                        if (!isInactive)
+                        if (!isInactive && downloadTask != null)
                         {
-                            var downloadTask = this.torrentService.GetDownloadTask(t.Id);
-                            if (downloadTask != null)
-                            {
-                                connectedLeechers = downloadTask.ConnectedLeechers;
-                                connectedSeeders = downloadTask.ConnectedSeeders;
-                            }
+                            connectedLeechers = downloadTask.ConnectedLeechers;
+                            connectedSeeders = downloadTask.ConnectedSeeders;
                         }
 
                         torrentRows.Add(new object[]
@@ -272,7 +271,7 @@ public class HadoukenRpcController : ControllerBase
                             swarmLeechers,
                             connectedSeeders,
                             swarmSeeders,
-                            65536,
+                            availabilityUnits,
                             t.QueuePosition,
                             Math.Max(0, t.TotalSize - t.Downloaded),
                             string.Empty,

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Leecharr.Api.V1.DownloadClients;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -634,6 +635,8 @@ public class UTorrentWebUiController : ControllerBase
             var addedUnix = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
             var completedUnix = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0;
             var modifiedUnix = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedUnix;
+            var downloadTask = this.torrentService.GetDownloadTask(t.Id);
+            var availabilityUnits = UtWebUiAvailabilityHelper.EncodeAvailabilityUnits(downloadTask);
 
             rows.Add(new object[]
             {
@@ -653,7 +656,7 @@ public class UTorrentWebUiController : ControllerBase
                 t.Leechers,
                 t.Seeders,
                 t.Seeders,
-                65536,
+                availabilityUnits,
                 t.QueuePosition,
                 Math.Max(0, t.TotalSize - t.Downloaded),
                 string.Empty,
