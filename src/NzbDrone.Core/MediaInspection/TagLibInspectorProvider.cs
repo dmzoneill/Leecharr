@@ -3097,7 +3097,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         {
             info.Resolution = "4K UHD (2160p)";
         }
-        else if (height >= 1400)
+        else if (height >= 1400 && width >= 2500)
         {
             info.Resolution = "1440p";
         }

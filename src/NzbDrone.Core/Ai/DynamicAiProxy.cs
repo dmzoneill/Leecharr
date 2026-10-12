@@ -115,11 +115,20 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
             return false;
         }
 
-        var current = Volatile.Read(ref this.activeProvider);
-        if (string.Equals(current.ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+        await this.switchLock.WaitAsync();
+        try
         {
-            return true;
+            if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
         }
+        finally
+        {
+            this.switchLock.Release();
+        }
+
+        var health = await targetProvider.ProbeHealthAsync();
 
         AiProviderSwitchedEvent switchedEvent = null;
         var success = false;
@@ -127,7 +136,11 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
         await this.switchLock.WaitAsync();
         try
         {
-            var health = await targetProvider.ProbeHealthAsync();
+            if (string.Equals(Volatile.Read(ref this.activeProvider).ProviderId, targetProvider.ProviderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             if (!health.IsHealthy)
             {
                 this.logger.Warn("Cannot switch to AI provider '{0}': health check failed ({1}).", targetProvider.DisplayName, health.StatusMessage);

@@ -1029,6 +1029,11 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             return 0;
         }
 
+        if (codec.StartsWith("pcm_", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
         if (codec.Contains("TrueHD", StringComparison.OrdinalIgnoreCase) || codec.Contains("Atmos", StringComparison.OrdinalIgnoreCase))
         {
             return 50;
