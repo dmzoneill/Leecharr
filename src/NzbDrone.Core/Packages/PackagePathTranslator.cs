@@ -54,6 +54,30 @@ public static class PackagePathTranslator
         }
     }
 
+    public static bool IsPathUnderDirectory(string path, string directory)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        var fullPath = Path.GetFullPath(path);
+        var fullDirectory = Path.GetFullPath(directory);
+
+        if (!fullPath.StartsWith(fullDirectory, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (fullPath.Length == fullDirectory.Length)
+        {
+            return true;
+        }
+
+        var next = fullPath[fullDirectory.Length];
+        return next == Path.DirectorySeparatorChar || next == Path.AltDirectorySeparatorChar;
+    }
+
     public static string TranslatePath(
         string path,
         string sourcePrefix = null,
