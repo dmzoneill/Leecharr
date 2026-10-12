@@ -1152,10 +1152,6 @@ public class ArrWebhookController : Controller
                 {
                     meta.ArrMediaId = payload.Artist.Id;
                 }
-                else if (payload.Album != null && payload.Album.Id > 0 && meta.ArrMediaId == 0)
-                {
-                    meta.ArrMediaId = payload.Album.Id;
-                }
 
                 if (!string.IsNullOrWhiteSpace(payload.Artist?.Name))
                 {
@@ -1190,10 +1186,6 @@ public class ArrWebhookController : Controller
                 if (payload.Author != null && payload.Author.Id > 0)
                 {
                     meta.ArrMediaId = payload.Author.Id;
-                }
-                else if (payload.Book != null && payload.Book.Id > 0 && meta.ArrMediaId == 0)
-                {
-                    meta.ArrMediaId = payload.Book.Id;
                 }
 
                 if (!string.IsNullOrWhiteSpace(payload.Author?.Name))
