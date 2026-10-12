@@ -44,18 +44,16 @@ public class MultiTrackerFailoverServiceTest
         var utc = new DateTime(2026, 10, 11, 12, 0, 0, DateTimeKind.Utc);
         var service = new MultiTrackerFailoverService(config, () => utc);
 
-        var tier = Substitute.For<MonoTorrent.Trackers.TrackerTier>();
         var trackerA = Substitute.For<MonoTorrent.Trackers.ITracker>();
         var trackerB = Substitute.For<MonoTorrent.Trackers.ITracker>();
         trackerA.Uri.Returns(new Uri("http://a.example/announce"));
         trackerB.Uri.Returns(new Uri("http://b.example/announce"));
-        tier.Trackers.Returns(new[] { trackerA, trackerB });
-        tier.ActiveTracker.Returns(trackerA);
+        var trackers = new[] { trackerA, trackerB };
 
         service.RecordAnnounceOutcome(7, 0, trackerA, false, utc);
         service.RecordAnnounceOutcome(7, 0, trackerA, false, utc.AddSeconds(20));
 
-        var selected = service.SelectTrackerForTier(7, 0, tier, utc.AddSeconds(20));
+        var selected = service.SelectTrackerForTier(7, 0, trackers, trackerA, utc.AddSeconds(20));
         selected.Uri.Should().Be(trackerB.Uri);
     }
 }
