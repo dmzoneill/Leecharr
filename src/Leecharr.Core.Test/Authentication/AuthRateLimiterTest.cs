@@ -86,6 +86,29 @@ public class AuthRateLimiterTest
     }
 
     [Test]
+    public void RecordFailure_WhenExceedingCapacity_PreservesActiveLockout()
+    {
+        using var limiter = new AuthRateLimiter(
+            maxFailedAttempts: 2,
+            attemptWindow: TimeSpan.FromHours(1),
+            lockoutDuration: TimeSpan.FromHours(1),
+            maxCapacity: 3);
+
+        var lockedIp = "10.0.0.1";
+        limiter.RecordFailure(lockedIp);
+        limiter.RecordFailure(lockedIp);
+        limiter.IsThrottled(lockedIp).Should().BeTrue();
+
+        for (var i = 2; i <= 10; i++)
+        {
+            limiter.RecordFailure($"10.0.0.{i}");
+        }
+
+        limiter.IsThrottled(lockedIp).Should().BeTrue();
+        limiter.TrackedIpCount.Should().BeLessThanOrEqualTo(3);
+    }
+
+    [Test]
     public void Dispose_SafelyDisposesCleanupTimer()
     {
         var limiter = new AuthRateLimiter(maxFailedAttempts: 3, cleanupInterval: TimeSpan.FromMilliseconds(50));
