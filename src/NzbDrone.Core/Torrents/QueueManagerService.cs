@@ -166,8 +166,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                 var state = this.torrentStates.GetOrAdd(torrent.Id, _ => new TorrentQueueState());
                 var task = this.downloadEngine?.GetTask(torrent.Id);
                 var isComplete = torrent.Status == TorrentStatus.Seeding ||
-                    torrent.Progress >= 1.0 ||
-                    torrent.DateCompleted.HasValue;
+                    torrent.Progress >= 1.0;
 
                 if (!isComplete)
                 {
