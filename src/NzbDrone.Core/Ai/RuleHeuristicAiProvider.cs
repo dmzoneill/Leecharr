@@ -629,31 +629,31 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             }
             else
             {
-            var seasonMatch = SeasonOnlyRegex.Match(working);
-            if (seasonMatch.Success)
-            {
-                result.Season = int.Parse(seasonMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
-                result.Category = "tv";
-                working = working.Remove(seasonMatch.Index, seasonMatch.Length);
-            }
-            else
-            {
-                var seasonPackMatch = SeasonPackRegex.Match(working);
-                if (seasonPackMatch.Success)
+                var seasonMatch = SeasonOnlyRegex.Match(working);
+                if (seasonMatch.Success)
                 {
-                    result.Season = int.Parse(seasonPackMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
+                    result.Season = int.Parse(seasonMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
                     result.Category = "tv";
-                    working = working.Remove(seasonPackMatch.Index, seasonPackMatch.Length);
+                    working = working.Remove(seasonMatch.Index, seasonMatch.Length);
                 }
-            }
+                else
+                {
+                    var seasonPackMatch = SeasonPackRegex.Match(working);
+                    if (seasonPackMatch.Success)
+                    {
+                        result.Season = int.Parse(seasonPackMatch.Groups["season"].Value, CultureInfo.InvariantCulture);
+                        result.Category = "tv";
+                        working = working.Remove(seasonPackMatch.Index, seasonPackMatch.Length);
+                    }
+                }
 
-            var epMatch = EpisodeOnlyRegex.Match(working);
-            if (epMatch.Success)
-            {
-                result.Episode = int.Parse(epMatch.Groups["episode"].Value, CultureInfo.InvariantCulture);
-                result.Category = "tv";
-                working = working.Remove(epMatch.Index, epMatch.Length);
-            }
+                var epMatch = EpisodeOnlyRegex.Match(working);
+                if (epMatch.Success)
+                {
+                    result.Episode = int.Parse(epMatch.Groups["episode"].Value, CultureInfo.InvariantCulture);
+                    result.Category = "tv";
+                    working = working.Remove(epMatch.Index, epMatch.Length);
+                }
             }
         }
 
