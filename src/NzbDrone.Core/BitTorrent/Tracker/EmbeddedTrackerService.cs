@@ -400,7 +400,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
                     if (isStopped)
                     {
-                        swarm.Peers.TryRemove(peerKey, out _);
+                        this.RemoveAnnouncePeers(swarm, request, peerKey);
 
                         if (swarm.Peers.IsEmpty)
                         {
@@ -414,24 +414,14 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                     {
                         var peerExists = swarm.Peers.TryGetValue(peerKey, out var peer);
                         var wasSeeder = peerExists && (peer.IsSeeder || peer.Completed);
-                        if (!peerExists)
-                        {
-                            peer = new TrackerPeerState();
-                            swarm.Peers[peerKey] = peer;
-                        }
+                        this.UpsertAnnouncePeer(swarm, peerKey, request, request.RemoteIp, request.Port, isCompleted, wasSeeder, incrementDownloadedOnComplete: true);
 
-                        peer.PeerId = request.PeerIdBytes;
-                        peer.Ip = request.RemoteIp;
-                        peer.Port = request.Port;
-                        peer.Uploaded = request.Uploaded;
-                        peer.Downloaded = request.Downloaded;
-                        peer.Left = request.Left;
-                        peer.LastAnnounceUtc = this.UtcNow;
-
-                        if (isCompleted && !wasSeeder)
+                        foreach (var (secondaryIp, secondaryPort) in GetSecondaryPeerEndpoints(request))
                         {
-                            peer.Completed = true;
-                            swarm.DownloadedCount++;
+                            var secondaryKey = BuildPeerKey(secondaryIp, secondaryPort);
+                            var secondaryExists = swarm.Peers.TryGetValue(secondaryKey, out var secondaryPeer);
+                            var secondaryWasSeeder = secondaryExists && (secondaryPeer.IsSeeder || secondaryPeer.Completed);
+                            this.UpsertAnnouncePeer(swarm, secondaryKey, request, secondaryIp, secondaryPort, isCompleted, secondaryWasSeeder, incrementDownloadedOnComplete: false);
                         }
                     }
 
@@ -1003,6 +993,87 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         }
 
         return Convert.FromHexString(hex);
+    }
+
+    private void RemoveAnnouncePeers(SwarmState swarm, TrackerAnnounceRequest request, string primaryPeerKey)
+    {
+        swarm.Peers.TryRemove(primaryPeerKey, out _);
+        foreach (var (secondaryIp, secondaryPort) in GetSecondaryPeerEndpoints(request))
+        {
+            swarm.Peers.TryRemove(BuildPeerKey(secondaryIp, secondaryPort), out _);
+        }
+    }
+
+    private void UpsertAnnouncePeer(
+        SwarmState swarm,
+        string peerKey,
+        TrackerAnnounceRequest request,
+        IPAddress ip,
+        int port,
+        bool isCompleted,
+        bool wasSeeder,
+        bool incrementDownloadedOnComplete)
+    {
+        var peerExists = swarm.Peers.TryGetValue(peerKey, out var peer);
+        if (!peerExists)
+        {
+            peer = new TrackerPeerState();
+            swarm.Peers[peerKey] = peer;
+        }
+
+        peer.PeerId = request.PeerIdBytes;
+        peer.Ip = ip;
+        peer.Port = port;
+        peer.Uploaded = request.Uploaded;
+        peer.Downloaded = request.Downloaded;
+        peer.Left = request.Left;
+        peer.LastAnnounceUtc = this.UtcNow;
+
+        if (isCompleted && !wasSeeder)
+        {
+            peer.Completed = true;
+            if (incrementDownloadedOnComplete)
+            {
+                swarm.DownloadedCount++;
+            }
+        }
+    }
+
+    private static string BuildPeerKey(IPAddress ip, int port) => $"{ip}:{port}";
+
+    private static IEnumerable<(IPAddress Ip, int Port)> GetSecondaryPeerEndpoints(TrackerAnnounceRequest request)
+    {
+        if (request.Ipv6 != null)
+        {
+            var ipv6 = request.Ipv6;
+            if (ipv6.IsIPv4MappedToIPv6)
+            {
+                ipv6 = ipv6.MapToIPv4();
+            }
+
+            if (ipv6.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                var port = request.Ipv6Port ?? request.Port;
+                if (port > 0 && port <= 65535 && (!AreIpAddressesEqual(ipv6, request.RemoteIp) || port != request.Port))
+                {
+                    yield return (ipv6, port);
+                }
+            }
+        }
+
+        if (request.QueryIpv4 != null)
+        {
+            var ipv4 = request.QueryIpv4;
+            if (ipv4.IsIPv4MappedToIPv6)
+            {
+                ipv4 = ipv4.MapToIPv4();
+            }
+
+            if (ipv4.AddressFamily == AddressFamily.InterNetwork && !AreIpAddressesEqual(ipv4, request.RemoteIp))
+            {
+                yield return (ipv4, request.Port);
+            }
+        }
     }
 
     private static bool AreIpAddressesEqual(IPAddress ip1, IPAddress ip2)

@@ -389,7 +389,6 @@ public class EmbeddedTrackerController : ControllerBase
                 }
             }
             else if ((string.Equals(key, "ip", StringComparison.OrdinalIgnoreCase) || string.Equals(key, "ipv4", StringComparison.OrdinalIgnoreCase)) &&
-                (request.RemoteIp == null || IPAddress.IsLoopback(request.RemoteIp) || IsPrivateNetwork(request.RemoteIp)) &&
                 IPAddress.TryParse(val, out var queryIp))
             {
                 if (queryIp.IsIPv4MappedToIPv6)
@@ -397,7 +396,13 @@ public class EmbeddedTrackerController : ControllerBase
                     queryIp = queryIp.MapToIPv4();
                 }
 
-                if (IPAddress.IsLoopback(request.RemoteIp) || !IsLoopbackOrLinkLocal(queryIp))
+                if (queryIp.AddressFamily == global::System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    request.QueryIpv4 = queryIp;
+                }
+
+                if ((request.RemoteIp == null || IPAddress.IsLoopback(request.RemoteIp) || IsPrivateNetwork(request.RemoteIp)) &&
+                    (IPAddress.IsLoopback(request.RemoteIp) || !IsLoopbackOrLinkLocal(queryIp)))
                 {
                     request.RemoteIp = queryIp;
                 }

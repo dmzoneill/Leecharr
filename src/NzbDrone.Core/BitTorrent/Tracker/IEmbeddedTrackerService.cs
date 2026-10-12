@@ -39,6 +39,11 @@ public class TrackerAnnounceRequest
     public IPAddress Ipv6 { get; set; }
 
     public int? Ipv6Port { get; set; }
+
+    /// <summary>
+    /// IPv4 from the BEP 7 <c>ip</c>/<c>ipv4</c> query parameter when it is not applied to <see cref="RemoteIp"/>.
+    /// </summary>
+    public IPAddress QueryIpv4 { get; set; }
 }
 
 public class TrackerAnnounceResult
