@@ -18,6 +18,17 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 {
     private record ExistingWebhookInfo(int Id, string Url, string ApiKey);
 
+    private record ExistingDelugeClient(
+        int Id,
+        string Host,
+        string Port,
+        string UseSsl,
+        string UrlBase,
+        string Password,
+        bool HasPassword,
+        string CategoryValue,
+        bool HasCategory);
+
     private static readonly HttpClient SharedClient = new(new SocketsHttpHandler
     {
         AllowAutoRedirect = false,
@@ -236,25 +247,28 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             var apiVersion = string.Equals(connection.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
 
-            var existingId = this.FindExistingDownloadClientId(connection, apiVersion);
-            if (existingId.HasValue)
-            {
-                this.logger.Debug("Leecharr download client already registered in {0} (client id {1})", connection.ArrType, existingId.Value);
-                return true;
-            }
-
             var host = this.ResolveDownloadClientHost(connection);
             var port = this.ResolveDownloadClientPort(connection);
-
+            var useSsl = this.ResolveDownloadClientUseSsl(connection);
+            var urlBase = NormalizeUrlBase(this.configFileProvider?.UrlBase);
+            var password = this.configFileProvider?.ApiKey ?? string.Empty;
             var (catField, catVal) = GetCategoryFieldAndValue(connection);
+
+            var existing = this.FindExistingDelugeDownloadClient(connection, apiVersion, catField);
+            if (existing != null &&
+                DownloadClientMatches(existing, host, port, useSsl, urlBase, password, catField, catVal))
+            {
+                this.logger.Debug("Leecharr download client already registered in {0} (client id {1})", connection.ArrType, existing.Id);
+                return true;
+            }
 
             var fields = new List<object>
             {
                 new { name = "host", value = (object)host },
                 new { name = "port", value = (object)port },
-                new { name = "useSsl", value = (object)false },
-                new { name = "urlBase", value = (object)string.Empty },
-                new { name = "password", value = (object)string.Empty },
+                new { name = "useSsl", value = (object)useSsl },
+                new { name = "urlBase", value = (object)urlBase },
+                new { name = "password", value = (object)password },
             };
 
             if (!string.IsNullOrWhiteSpace(catField))
@@ -264,6 +278,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
             var body = new
             {
+                id = existing == null ? 0 : existing.Id,
                 name = "Leecharr",
                 implementation = "Deluge",
                 configContract = "DelugeSettings",
@@ -273,7 +288,10 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             };
 
             var json = JsonSerializer.Serialize(body);
-            var path = $"api/{apiVersion}/downloadclient";
+            var isUpdate = existing != null;
+            var path = isUpdate
+                ? $"api/{apiVersion}/downloadclient/{existing.Id}"
+                : $"api/{apiVersion}/downloadclient";
             if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
                 this.logger.Warn("Invalid Arr connection URL for {0}: {1}", connection.ArrType, connection.Url);
@@ -281,16 +299,25 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             }
 
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var request = CreateArrRequest(HttpMethod.Post, requestUri, connection.ApiKey, content);
+            var method = isUpdate ? HttpMethod.Put : HttpMethod.Post;
+            using var request = CreateArrRequest(method, requestUri, connection.ApiKey, content);
 
             using var response = this.client.Send(request);
             if (response.IsSuccessStatusCode)
             {
-                this.logger.Info("Registered Leecharr download client in {0} at {1}", connection.ArrType, connection.Url);
+                this.logger.Info(
+                    "{0} Leecharr download client in {1} at {2}",
+                    isUpdate ? "Updated" : "Registered",
+                    connection.ArrType,
+                    connection.Url);
                 return true;
             }
 
-            this.logger.Warn("Failed to register download client in {0}: {1}", connection.ArrType, response.StatusCode);
+            this.logger.Warn(
+                "Failed to {0} download client in {1}: {2}",
+                isUpdate ? "update" : "register",
+                connection.ArrType,
+                response.StatusCode);
             return false;
         }
         catch (Exception ex)
@@ -311,13 +338,13 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         {
             var apiVersion = string.Equals(connection.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
-            var existingId = this.FindExistingDownloadClientId(connection, apiVersion);
-            if (!existingId.HasValue)
+            var existing = this.FindExistingDelugeDownloadClient(connection, apiVersion, null);
+            if (existing == null)
             {
                 return true;
             }
 
-            var path = $"api/{apiVersion}/downloadclient/{existingId.Value}";
+            var path = $"api/{apiVersion}/downloadclient/{existing.Id}";
             if (!TryBuildArrUri(connection.Url, path, out var requestUri))
             {
                 return false;
@@ -433,7 +460,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             || url.Contains("/api/v1/webhooks/arr", StringComparison.OrdinalIgnoreCase);
     }
 
-    private int? FindExistingDownloadClientId(ArrConnectionDefinition connection, string apiVersion)
+    private ExistingDelugeClient FindExistingDelugeDownloadClient(ArrConnectionDefinition connection, string apiVersion, string categoryField)
     {
         try
         {
@@ -456,14 +483,24 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
             foreach (var dc in doc.RootElement.EnumerateArray())
             {
-                var name = dc.TryGetProperty("name", out var n) ? n.GetString() : null;
-                if (string.Equals(name, "Leecharr", StringComparison.OrdinalIgnoreCase))
+                var name = dc.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
+                if (!string.Equals(name, "Leecharr", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (dc.TryGetProperty("id", out var idProp))
-                    {
-                        return idProp.GetInt32();
-                    }
+                    continue;
                 }
+
+                var implementation = dc.TryGetProperty("implementation", out var implProp) ? implProp.GetString() : null;
+                if (!string.Equals(implementation, "Deluge", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!dc.TryGetProperty("id", out var idProp) || !idProp.TryGetInt32(out var id))
+                {
+                    continue;
+                }
+
+                return ReadExistingDelugeClient(id, dc, categoryField);
             }
 
             return null;
@@ -473,6 +510,150 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             this.logger.Debug(ex, "Failed to check existing download clients in {0}", connection.ArrType);
             return null;
         }
+    }
+
+    private static ExistingDelugeClient ReadExistingDelugeClient(int id, JsonElement client, string categoryField)
+    {
+        string host = null;
+        string port = null;
+        string useSsl = null;
+        string urlBase = null;
+        string password = null;
+        var hasPassword = false;
+        string categoryValue = null;
+        var hasCategory = false;
+
+        if (client.TryGetProperty("fields", out var fieldArray) && fieldArray.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var field in fieldArray.EnumerateArray())
+            {
+                var fieldName = field.TryGetProperty("name", out var fieldNameProp) ? fieldNameProp.GetString() : null;
+                if (string.IsNullOrWhiteSpace(fieldName))
+                {
+                    continue;
+                }
+
+                var fieldValue = ReadJsonFieldValue(field);
+                if (string.Equals(fieldName, "host", StringComparison.OrdinalIgnoreCase))
+                {
+                    host = fieldValue;
+                }
+                else if (string.Equals(fieldName, "port", StringComparison.OrdinalIgnoreCase))
+                {
+                    port = fieldValue;
+                }
+                else if (string.Equals(fieldName, "useSsl", StringComparison.OrdinalIgnoreCase))
+                {
+                    useSsl = fieldValue;
+                }
+                else if (string.Equals(fieldName, "urlBase", StringComparison.OrdinalIgnoreCase))
+                {
+                    urlBase = fieldValue;
+                }
+                else if (string.Equals(fieldName, "password", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasPassword = true;
+                    password = fieldValue;
+                }
+                else if (!string.IsNullOrWhiteSpace(categoryField) &&
+                    string.Equals(fieldName, categoryField, StringComparison.OrdinalIgnoreCase))
+                {
+                    hasCategory = true;
+                    categoryValue = fieldValue;
+                }
+            }
+        }
+
+        return new ExistingDelugeClient(id, host, port, useSsl, urlBase, password, hasPassword, categoryValue, hasCategory);
+    }
+
+    private static string ReadJsonFieldValue(JsonElement field)
+    {
+        if (!field.TryGetProperty("value", out var value) ||
+            value.ValueKind == JsonValueKind.Null ||
+            value.ValueKind == JsonValueKind.Undefined)
+        {
+            return string.Empty;
+        }
+
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            return value.GetString() ?? string.Empty;
+        }
+
+        return value.ToString();
+    }
+
+    private static bool DownloadClientMatches(
+        ExistingDelugeClient existing,
+        string host,
+        int port,
+        bool useSsl,
+        string urlBase,
+        string password,
+        string categoryField,
+        string categoryValue)
+    {
+        return HostFieldEquals(existing.Host, host) &&
+            PortFieldEquals(existing.Port, port) &&
+            BoolFieldEquals(existing.UseSsl, useSsl) &&
+            UrlBaseFieldEquals(existing.UrlBase, urlBase) &&
+            PasswordFieldEquals(existing.Password, existing.HasPassword, password) &&
+            CategoryFieldEquals(existing, categoryField, categoryValue);
+    }
+
+    private static bool HostFieldEquals(string existing, string desired)
+    {
+        if (string.IsNullOrWhiteSpace(existing) || string.IsNullOrWhiteSpace(desired))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            FormatHostAuthority(existing.Trim()),
+            FormatHostAuthority(desired.Trim()),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool PortFieldEquals(string existing, int desired)
+    {
+        return int.TryParse(existing, out var parsed) && parsed == desired;
+    }
+
+    private static bool BoolFieldEquals(string existing, bool desired)
+    {
+        return bool.TryParse(existing, out var parsed) && parsed == desired;
+    }
+
+    private static bool UrlBaseFieldEquals(string existing, string desired)
+    {
+        return string.Equals(NormalizeUrlBase(existing), NormalizeUrlBase(desired), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool PasswordFieldEquals(string existing, bool hasPassword, string desired)
+    {
+        var wanted = desired ?? string.Empty;
+        if (!hasPassword)
+        {
+            return wanted.Length == 0;
+        }
+
+        return string.Equals(existing ?? string.Empty, wanted, StringComparison.Ordinal);
+    }
+
+    private static bool CategoryFieldEquals(ExistingDelugeClient existing, string fieldName, string desired)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+        {
+            return true;
+        }
+
+        if (!existing.HasCategory)
+        {
+            return false;
+        }
+
+        return string.Equals(existing.CategoryValue ?? string.Empty, desired ?? string.Empty, StringComparison.Ordinal);
     }
 
     private static (string Field, string Value) GetCategoryFieldAndValue(ArrConnectionDefinition connection)
@@ -551,20 +732,47 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
     private int ResolveDownloadClientPort(ArrConnectionDefinition connection)
     {
-        if (!string.IsNullOrWhiteSpace(connection.WebhookHost))
+        if (TryParseAbsoluteWebhookHost(connection, out var uri) && uri.Port > 0)
         {
-            var trimmed = connection.WebhookHost.Trim();
-            if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && uri.Port > 0)
-                {
-                    return uri.Port;
-                }
-            }
+            return uri.Port;
+        }
+
+        if (this.configFileProvider?.EnableSsl == true)
+        {
+            var sslPort = this.configFileProvider.SslPort;
+            return sslPort > 0 ? sslPort : 7890;
         }
 
         return this.configFileProvider?.Port > 0 ? this.configFileProvider.Port : 7889;
+    }
+
+    private bool ResolveDownloadClientUseSsl(ArrConnectionDefinition connection)
+    {
+        if (TryParseAbsoluteWebhookHost(connection, out var uri))
+        {
+            return uri.Scheme == Uri.UriSchemeHttps;
+        }
+
+        return this.configFileProvider?.EnableSsl == true;
+    }
+
+    private static bool TryParseAbsoluteWebhookHost(ArrConnectionDefinition connection, out Uri uri)
+    {
+        uri = null;
+        if (connection == null || string.IsNullOrWhiteSpace(connection.WebhookHost))
+        {
+            return false;
+        }
+
+        var trimmed = connection.WebhookHost.Trim();
+        if (!trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return Uri.TryCreate(trimmed, UriKind.Absolute, out uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
     }
 
     private string GetLeecharrBaseUrl(ArrConnectionDefinition connection)

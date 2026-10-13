@@ -509,6 +509,309 @@ public class ArrWebhookRegistrationTest
         var fields = doc.RootElement.GetProperty("fields");
         GetFieldValue(fields, "host").Should().Be("leecharr.example");
         GetFieldValue(fields, "port").Should().Be("8443");
+        GetFieldValue(fields, "useSsl").Should().Be("true");
+        GetFieldValue(fields, "urlBase").Should().BeEmpty();
+        GetFieldValue(fields, "password").Should().Be("leecharr-key-12345");
+    }
+
+    [Test]
+    public void RegisterDownloadClient_WhenSslAndUrlBaseConfigured_PostsApiKeySslPortAndUrlBase()
+    {
+        this.configFileProvider.EnableSsl.Returns(true);
+        this.configFileProvider.SslPort.Returns(6969);
+        this.configFileProvider.UrlBase.Returns("leecharr");
+
+        string postBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                postBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 100}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+            EnableAutomaticAdd = true,
+            WebhookHost = "leecharr.local",
+            Category = "custom-tv",
+        };
+
+        registration.RegisterDownloadClient(conn).Should().BeTrue();
+        postBody.Should().NotBeNullOrEmpty();
+
+        using var doc = JsonDocument.Parse(postBody!);
+        doc.RootElement.GetProperty("implementation").GetString().Should().Be("Deluge");
+        var fields = doc.RootElement.GetProperty("fields");
+        GetFieldValue(fields, "host").Should().Be("leecharr.local");
+        GetFieldValue(fields, "port").Should().Be("6969");
+        GetFieldValue(fields, "useSsl").Should().Be("true");
+        GetFieldValue(fields, "urlBase").Should().Be("/leecharr");
+        GetFieldValue(fields, "password").Should().Be("leecharr-key-12345");
+        GetFieldValue(fields, "tvCategory").Should().Be("custom-tv");
+    }
+
+    [Test]
+    public void RegisterDownloadClient_WhenWebhookHostIsHttpUrl_UsesUrlPortAndDoesNotForceSsl()
+    {
+        this.configFileProvider.EnableSsl.Returns(true);
+        this.configFileProvider.SslPort.Returns(6969);
+
+        string postBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]"),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                postBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 100}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+            EnableAutomaticAdd = true,
+            WebhookHost = "http://leecharr.example:7889",
+        };
+
+        registration.RegisterDownloadClient(conn).Should().BeTrue();
+        using var doc = JsonDocument.Parse(postBody!);
+        var fields = doc.RootElement.GetProperty("fields");
+        GetFieldValue(fields, "host").Should().Be("leecharr.example");
+        GetFieldValue(fields, "port").Should().Be("7889");
+        GetFieldValue(fields, "useSsl").Should().Be("false");
+        GetFieldValue(fields, "password").Should().Be("leecharr-key-12345");
+    }
+
+    [Test]
+    public void RegisterDownloadClient_WhenExistingDelugeClientDiffers_UpdatesViaPut()
+    {
+        this.configFileProvider.EnableSsl.Returns(true);
+        this.configFileProvider.SslPort.Returns(6969);
+        this.configFileProvider.UrlBase.Returns("arr");
+
+        var requests = new List<HttpRequestMessage>();
+        string putBody = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            if (req.Method == HttpMethod.Get)
+            {
+                var existingJson = @"[
+                    {
+                        ""id"": 3,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""QBittorrent""
+                    },
+                    {
+                        ""id"": 9,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""Deluge"",
+                        ""fields"": [
+                            { ""name"": ""host"", ""value"": ""stale.example"" },
+                            { ""name"": ""port"", ""value"": 7889 },
+                            { ""name"": ""useSsl"", ""value"": false },
+                            { ""name"": ""urlBase"", ""value"": """" },
+                            { ""name"": ""password"", ""value"": """" },
+                            { ""name"": ""tvCategory"", ""value"": ""tv-sonarr"" }
+                        ]
+                    }
+                ]";
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(existingJson),
+                };
+            }
+
+            if (req.Method == HttpMethod.Put)
+            {
+                putBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return new HttpResponseMessage(HttpStatusCode.Accepted);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+            EnableAutomaticAdd = true,
+            WebhookHost = "leecharr.local",
+            Category = "custom-tv",
+        };
+
+        registration.RegisterDownloadClient(conn).Should().BeTrue();
+        requests.Should().HaveCount(2);
+        requests[1].Method.Should().Be(HttpMethod.Put);
+        requests[1].RequestUri!.ToString().Should().Be("http://sonarr:8989/api/v3/downloadclient/9");
+        requests.Should().NotContain(r => r.Method == HttpMethod.Post || r.Method == HttpMethod.Delete);
+
+        using var doc = JsonDocument.Parse(putBody!);
+        doc.RootElement.GetProperty("id").GetInt32().Should().Be(9);
+        var fields = doc.RootElement.GetProperty("fields");
+        GetFieldValue(fields, "host").Should().Be("leecharr.local");
+        GetFieldValue(fields, "port").Should().Be("6969");
+        GetFieldValue(fields, "useSsl").Should().Be("true");
+        GetFieldValue(fields, "urlBase").Should().Be("/arr");
+        GetFieldValue(fields, "password").Should().Be("leecharr-key-12345");
+        GetFieldValue(fields, "tvCategory").Should().Be("custom-tv");
+    }
+
+    [Test]
+    public void RegisterDownloadClient_WhenExistingDelugeClientMatches_DoesNotUpdate()
+    {
+        this.configFileProvider.EnableSsl.Returns(true);
+        this.configFileProvider.SslPort.Returns(6969);
+        this.configFileProvider.UrlBase.Returns("/leecharr");
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                var existingJson = @"[
+                    {
+                        ""id"": 4,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""Transmission""
+                    },
+                    {
+                        ""id"": 12,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""Deluge"",
+                        ""fields"": [
+                            { ""name"": ""host"", ""value"": ""leecharr.local"" },
+                            { ""name"": ""port"", ""value"": ""6969"" },
+                            { ""name"": ""useSsl"", ""value"": true },
+                            { ""name"": ""urlBase"", ""value"": ""leecharr"" },
+                            { ""name"": ""password"", ""value"": ""leecharr-key-12345"" },
+                            { ""name"": ""tvCategory"", ""value"": ""custom-tv"" }
+                        ]
+                    }
+                ]";
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(existingJson),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+            EnableAutomaticAdd = true,
+            WebhookHost = "leecharr.local",
+            Category = "custom-tv",
+        };
+
+        registration.RegisterDownloadClient(conn).Should().BeTrue();
+        handler.CallCount.Should().Be(1);
+    }
+
+    [Test]
+    public void RegisterDownloadClient_WhenOnlyNonDelugeClientNamedLeecharr_PostsNewDelugeClient()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requests.Add(req);
+            if (req.Method == HttpMethod.Get)
+            {
+                var existingJson = @"[
+                    {
+                        ""id"": 8,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""QBittorrent""
+                    }
+                ]";
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(existingJson),
+                };
+            }
+
+            if (req.Method == HttpMethod.Post)
+            {
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\": 99}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+            EnableAutomaticAdd = true,
+            WebhookHost = "leecharr.local",
+        };
+
+        registration.RegisterDownloadClient(conn).Should().BeTrue();
+        requests.Should().HaveCount(2);
+        requests[1].Method.Should().Be(HttpMethod.Post);
+        requests[1].RequestUri!.ToString().Should().Be("http://sonarr:8989/api/v3/downloadclient");
+        requests.Should().NotContain(r => r.Method == HttpMethod.Put || r.Method == HttpMethod.Delete);
     }
 
     [Test]
@@ -620,8 +923,19 @@ public class ArrWebhookRegistrationTest
             {
                 var existingJson = @"[
                     {
+                        ""id"": 4,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""QBittorrent""
+                    },
+                    {
+                        ""id"": 5,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""Transmission""
+                    },
+                    {
                         ""id"": 77,
-                        ""name"": ""Leecharr""
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""Deluge""
                     }
                 ]";
                 return new HttpResponseMessage(HttpStatusCode.OK)
@@ -654,6 +968,52 @@ public class ArrWebhookRegistrationTest
         requests.Should().HaveCount(2);
         requests[1].Method.Should().Be(HttpMethod.Delete);
         requests[1].RequestUri!.ToString().Should().Be("http://sonarr:8989/api/v3/downloadclient/77");
+    }
+
+    [Test]
+    public void UnregisterDownloadClient_WhenOnlyNonDelugeClientsShareName_DoesNotDelete()
+    {
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get)
+            {
+                var existingJson = @"[
+                    {
+                        ""id"": 20,
+                        ""name"": ""Leecharr""
+                    },
+                    {
+                        ""id"": 21,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""QBittorrent""
+                    },
+                    {
+                        ""id"": 22,
+                        ""name"": ""Leecharr"",
+                        ""implementation"": ""Transmission""
+                    }
+                ]";
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(existingJson),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var client = new HttpClient(handler);
+        var registration = new ArrWebhookRegistration(this.configFileProvider, client);
+
+        var conn = new ArrConnectionDefinition
+        {
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "sonarr-key",
+        };
+
+        registration.UnregisterDownloadClient(conn).Should().BeTrue();
+        handler.CallCount.Should().Be(1);
     }
 
     [Test]
