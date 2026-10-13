@@ -432,6 +432,156 @@ public class ExtractorProviderTest
     }
 
     [Test]
+    public async Task SharpCompressExtractorProvider_ExtractAsync_ReturnsFalseWhenArchiveHasNoFileEntries()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_empty_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+        var zipPath = Path.Combine(tempDir, "empty.zip");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                archive.Comment = "empty";
+            }
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(zipPath, outputDir);
+            success.Should().BeFalse();
+            Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Should().BeEmpty();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SharpCompressExtractorProvider_ExtractAsync_ReturnsFalseWhenArchiveContainsOnlyDirectories()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_dirs_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+        var zipPath = Path.Combine(tempDir, "directories.zip");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                archive.CreateEntry("onlydir/");
+            }
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(zipPath, outputDir);
+            success.Should().BeFalse();
+            Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Should().BeEmpty();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SharpCompressExtractorProvider_ExtractAsync_ReturnsFalseWhenEveryEntryIsRejected()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_zipslip_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+        var zipPath = Path.Combine(tempDir, "zipslip.zip");
+        var escapedFile = Path.Combine(tempDir, "evil.txt");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("../evil.txt");
+                using var entryStream = entry.Open();
+                using var writer = new StreamWriter(entryStream);
+                await writer.WriteAsync("should not land");
+            }
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(zipPath, outputDir);
+            success.Should().BeFalse();
+            File.Exists(escapedFile).Should().BeFalse();
+            Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Should().BeEmpty();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SharpCompressExtractorProvider_ExtractAsync_WritesValidEntriesWhenOthersAreRejected()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_mixed_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+        var zipPath = Path.Combine(tempDir, "mixed.zip");
+        var escapedFile = Path.Combine(tempDir, "evil.txt");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var kept = archive.CreateEntry("content.txt");
+                using (var entryStream = kept.Open())
+                using (var writer = new StreamWriter(entryStream))
+                {
+                    await writer.WriteAsync("kept");
+                }
+
+                var rejected = archive.CreateEntry("../evil.txt");
+                using (var entryStream = rejected.Open())
+                using (var writer = new StreamWriter(entryStream))
+                {
+                    await writer.WriteAsync("should not land");
+                }
+            }
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(zipPath, outputDir);
+            success.Should().BeTrue();
+
+            var keptFile = Path.Combine(outputDir, "content.txt");
+            File.Exists(keptFile).Should().BeTrue();
+            (await File.ReadAllTextAsync(keptFile)).Should().Be("kept");
+            File.Exists(escapedFile).Should().BeFalse();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task SevenZipExtractorProvider_ExtractAsync_WhenProcessFails_RollsBackPartialFiles()
     {
         if (OperatingSystem.IsWindows())

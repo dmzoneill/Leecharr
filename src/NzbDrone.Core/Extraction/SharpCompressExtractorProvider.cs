@@ -169,6 +169,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                     }
 
                     using var archive = ArchiveFactory.OpenArchive(archivePath, readerOptions);
+                    var extractedFileCount = 0;
 
                     foreach (var entry in archive.Entries.Where(entry => !entry.IsDirectory))
                     {
@@ -224,6 +225,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                         }
 
                         this.diskProvider.MoveFile(tempFilePath, targetFilePath, overwrite: true);
+                        extractedFileCount++;
 
                         if (entry.LastModifiedTime.HasValue)
                         {
@@ -236,6 +238,12 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                                 this.logger.Trace(ex, "Failed to update extracted file timestamp for '{0}'", targetFilePath);
                             }
                         }
+                    }
+
+                    if (extractedFileCount == 0)
+                    {
+                        this.logger.Warn("SharpCompress wrote no files from archive '{0}'.", archivePath);
+                        return false;
                     }
 
                     this.DeleteBackupFiles(backedUpOriginals.Values);
