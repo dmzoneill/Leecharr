@@ -57,12 +57,14 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
         var previousAuthEnabled = this.configFileProvider.AuthenticationEnabled;
         var previousAuthRequired = this.configFileProvider.AuthenticationRequired;
 
-        if (resource.ApiKey != null && resource.ApiKey.Contains('*'))
+        if (resource.ApiKey != null &&
+            GeneralConfigResourceMapper.IsMaskedApiKey(resource.ApiKey, this.configFileProvider.ApiKey))
         {
             resource.ApiKey = this.configFileProvider.ApiKey;
         }
 
-        if (resource.SslCertPassword != null && resource.SslCertPassword.Contains('*'))
+        if (resource.SslCertPassword != null &&
+            resource.SslCertPassword == GeneralConfigResourceMapper.MaskedSslCertPasswordPlaceholder)
         {
             resource.SslCertPassword = this.configFileProvider.SslCertPassword;
         }
@@ -161,7 +163,8 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
         }
 
         var password = request.SslCertPassword;
-        if (password != null && password.Contains('*'))
+        if (password != null &&
+            password == GeneralConfigResourceMapper.MaskedSslCertPasswordPlaceholder)
         {
             password = this.configFileProvider.SslCertPassword;
         }

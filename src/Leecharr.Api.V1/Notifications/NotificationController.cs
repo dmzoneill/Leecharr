@@ -18,6 +18,8 @@ namespace Leecharr.Api.V1.Notifications;
 [Authorize(Policy = "RequireAdmin")]
 public class NotificationController : Controller
 {
+    private const string MaskedSecretPlaceholder = "********";
+
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly INotificationRepository notificationRepository;
     private readonly IWebhookDispatcher webhookDispatcher;
@@ -456,7 +458,10 @@ public class NotificationController : Controller
     {
         foreach (var property in newObj.ToList())
         {
-            if (property.Value is JsonValue val && val.TryGetValue<string>(out var strVal) && (strVal == "********" || strVal.Contains('*')))
+            if (IsSensitiveKey(property.Key) &&
+                property.Value is JsonValue val &&
+                val.TryGetValue<string>(out var strVal) &&
+                strVal == MaskedSecretPlaceholder)
             {
                 if (existingObj.TryGetPropertyValue(property.Key, out var existingVal) && existingVal != null)
                 {

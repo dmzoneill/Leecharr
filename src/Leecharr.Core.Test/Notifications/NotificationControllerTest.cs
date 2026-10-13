@@ -545,4 +545,60 @@ public class NotificationControllerTest
             n.Settings.Contains("12345:telegram-secret") &&
             n.Settings.Contains("chat-999")));
     }
+
+    [Test]
+    public void Update_PreservesNonSecretValuesContainingAsterisk()
+    {
+        var existing = new NotificationDefinition
+        {
+            Id = 50,
+            Name = "Custom Script",
+            Implementation = "CustomScript",
+            Settings = "{\"path\":\"/opt/old*path/notify.sh\",\"token\":\"secret-token\"}",
+        };
+
+        this.notificationRepository.Get(50).Returns(existing);
+
+        var updateResource = new NotificationResource
+        {
+            Id = 50,
+            Name = "Custom Script",
+            Implementation = "CustomScript",
+            Settings = "{\"path\":\"/opt/new*path/notify.sh\",\"token\":\"********\"}",
+        };
+
+        this.controller.Update(50, updateResource);
+
+        this.notificationRepository.Received(1).Update(Arg.Is<NotificationDefinition>(n =>
+            n.Settings.Contains("/opt/new*path/notify.sh") &&
+            n.Settings.Contains("secret-token")));
+    }
+
+    [Test]
+    public void Update_SavesNewSecretContainingAsterisk_WhenNotMaskedPlaceholder()
+    {
+        var existing = new NotificationDefinition
+        {
+            Id = 51,
+            Name = "Webhook",
+            Implementation = "Webhook",
+            Settings = "{\"url\":\"https://example.com\",\"password\":\"old-pass\"}",
+        };
+
+        this.notificationRepository.Get(51).Returns(existing);
+
+        var updateResource = new NotificationResource
+        {
+            Id = 51,
+            Name = "Webhook",
+            Implementation = "Webhook",
+            Settings = "{\"url\":\"https://example.com\",\"password\":\"p*ss\"}",
+        };
+
+        this.controller.Update(51, updateResource);
+
+        this.notificationRepository.Received(1).Update(Arg.Is<NotificationDefinition>(n =>
+            n.Settings.Contains("p*ss") &&
+            !n.Settings.Contains("old-pass")));
+    }
 }

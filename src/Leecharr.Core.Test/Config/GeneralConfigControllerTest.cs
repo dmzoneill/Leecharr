@@ -457,4 +457,46 @@ public class GeneralConfigControllerTest
         response!.SslCertPassword.Should().Be("********");
         response.SslCertPassword.Should().NotBe(storedPassword);
     }
+
+    [Test]
+    public async Task SaveConfig_WhenNewApiKeyContainsAsterisk_PersistsNewValue()
+    {
+        Dictionary<string, object> savedDict = null!;
+        this.configFileProvider.ApiKey.Returns("old-key");
+        this.configFileProvider.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(call => savedDict = call.Arg<Dictionary<string, object>>());
+
+        const string newKey = "my*api*key";
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            ApiKey = newKey,
+        };
+
+        await this.controller.SaveConfig(resource);
+
+        savedDict.Should().NotBeNull();
+        savedDict["ApiKey"].Should().Be(newKey);
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenNewSslCertPasswordContainsAsterisk_PersistsNewValue()
+    {
+        Dictionary<string, object> savedDict = null!;
+        this.configFileProvider.SslCertPassword.Returns("old-password");
+        this.configFileProvider.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(call => savedDict = call.Arg<Dictionary<string, object>>());
+
+        const string newPassword = "cert*p*ss";
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            SslCertPassword = newPassword,
+        };
+
+        await this.controller.SaveConfig(resource);
+
+        savedDict.Should().NotBeNull();
+        savedDict["SslCertPassword"].Should().Be(newPassword);
+    }
 }

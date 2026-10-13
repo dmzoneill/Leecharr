@@ -79,4 +79,16 @@ public class GeneralConfigResourceMapperTest
 
         resource.AllowPrivateNetworkRequests.Should().BeTrue();
     }
+
+    [Test]
+    public void IsMaskedApiKey_WhenSubmittedMatchesUiMask_ReturnsTrue()
+    {
+        GeneralConfigResourceMapper.IsMaskedApiKey("************cdef", "1234567890abcdef").Should().BeTrue();
+    }
+
+    [Test]
+    public void IsMaskedApiKey_WhenSubmittedContainsAsteriskButIsNewValue_ReturnsFalse()
+    {
+        GeneralConfigResourceMapper.IsMaskedApiKey("my*key", "old-key").Should().BeFalse();
+    }
 }

@@ -71,6 +71,27 @@ public class GeneralConfigResource : RestResource
 
 public static class GeneralConfigResourceMapper
 {
+    public const string MaskedSslCertPasswordPlaceholder = "********";
+
+    public static bool IsMaskedApiKey(string submitted, string storedApiKey)
+    {
+        if (string.IsNullOrEmpty(submitted) || string.IsNullOrEmpty(storedApiKey))
+        {
+            return false;
+        }
+
+        if (submitted == storedApiKey)
+        {
+            return true;
+        }
+
+        var masked = storedApiKey.Length > 4
+            ? new string('*', storedApiKey.Length - 4) + storedApiKey[^4..]
+            : new string('*', storedApiKey.Length);
+
+        return submitted == masked;
+    }
+
     public static GeneralConfigResource ToResource(IConfigService config, IConfigFileProvider fileProvider)
     {
         var apiKey = fileProvider?.ApiKey;
