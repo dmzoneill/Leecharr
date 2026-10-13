@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -600,5 +601,155 @@ public class NotificationControllerTest
         this.notificationRepository.Received(1).Update(Arg.Is<NotificationDefinition>(n =>
             n.Settings.Contains("p*ss") &&
             !n.Settings.Contains("old-pass")));
+    }
+
+    [Test]
+    public void GetAll_MasksPushoverUserKeyStoredAsUser()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 7,
+            Name = "Pushover",
+            Implementation = "Pushover",
+            Settings = "{\"token\":\"app-token-abc\",\"user\":\"pushover-user-key-xyz\",\"device\":\"phone\"}",
+        };
+
+        this.notificationRepository.All().Returns(new List<NotificationDefinition> { notif });
+
+        var actionResult = this.controller.GetAll();
+        var okResult = actionResult.Result as OkObjectResult;
+        var resources = okResult!.Value as List<NotificationResource>;
+
+        resources.Should().NotBeNull();
+        resources.Should().ContainSingle();
+        resources![0].Settings.Should().Contain("\"token\":\"********\"");
+        resources[0].Settings.Should().Contain("\"user\":\"********\"");
+        resources[0].Settings.Should().Contain("\"device\":\"phone\"");
+        resources[0].Settings.Should().NotContain("app-token-abc");
+        resources[0].Settings.Should().NotContain("pushover-user-key-xyz");
+    }
+
+    [Test]
+    public void Update_PreservesPushoverUserKey_WhenMaskedUserSubmitted()
+    {
+        var existing = new NotificationDefinition
+        {
+            Id = 7,
+            Name = "Pushover",
+            Implementation = "Pushover",
+            Settings = "{\"token\":\"app-token-abc\",\"user\":\"pushover-user-key-xyz\"}",
+        };
+
+        this.notificationRepository.Get(7).Returns(existing);
+
+        var updateResource = new NotificationResource
+        {
+            Id = 7,
+            Name = "Pushover",
+            Implementation = "Pushover",
+            Settings = "{\"token\":\"********\",\"user\":\"********\"}",
+        };
+
+        this.controller.Update(7, updateResource);
+
+        this.notificationRepository.Received(1).Update(Arg.Is<NotificationDefinition>(n =>
+            n.Settings.Contains("app-token-abc") &&
+            n.Settings.Contains("pushover-user-key-xyz")));
+    }
+
+    [Test]
+    public void GetById_DoesNotMaskEmailSmtpUsernameStoredAsUser()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 8,
+            Name = "Email",
+            Implementation = "Email",
+            Settings = "{\"server\":\"smtp.example.com\",\"user\":\"smtp-user\",\"password\":\"smtp-pass\"}",
+        };
+
+        this.notificationRepository.Get(8).Returns(notif);
+
+        var actionResult = this.controller.GetById(8);
+        var okResult = actionResult.Result as OkObjectResult;
+        var resource = okResult!.Value as NotificationResource;
+
+        resource.Should().NotBeNull();
+        resource!.Settings.Should().Contain("\"user\":\"smtp-user\"");
+        resource.Settings.Should().Contain("\"password\":\"********\"");
+        resource.Settings.Should().NotContain("smtp-pass");
+    }
+
+    [Test]
+    public void GetById_MasksDiscordWebhookUrl()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 9,
+            Name = "Discord",
+            Implementation = "Discord",
+            Settings = "{\"url\":\"https://discord.com/api/webhooks/123/super-secret-token\",\"username\":\"Leecharr\"}",
+        };
+
+        this.notificationRepository.Get(9).Returns(notif);
+
+        var actionResult = this.controller.GetById(9);
+        var okResult = actionResult.Result as OkObjectResult;
+        var resource = okResult!.Value as NotificationResource;
+
+        resource.Should().NotBeNull();
+        resource!.Settings.Should().Contain("\"url\":\"********\"");
+        resource.Settings.Should().Contain("\"username\":\"Leecharr\"");
+        resource.Settings.Should().NotContain("super-secret-token");
+    }
+
+    [Test]
+    public void Update_PreservesDiscordWebhookUrl_WhenMaskedUrlSubmitted()
+    {
+        var existing = new NotificationDefinition
+        {
+            Id = 9,
+            Name = "Discord",
+            Implementation = "Discord",
+            Settings = "{\"url\":\"https://discord.com/api/webhooks/123/super-secret-token\",\"username\":\"Leecharr\"}",
+        };
+
+        this.notificationRepository.Get(9).Returns(existing);
+
+        var updateResource = new NotificationResource
+        {
+            Id = 9,
+            Name = "Discord",
+            Implementation = "Discord",
+            Settings = "{\"url\":\"********\",\"username\":\"Leecharr\"}",
+        };
+
+        this.controller.Update(9, updateResource);
+
+        this.notificationRepository.Received(1).Update(Arg.Is<NotificationDefinition>(n =>
+            n.Settings.Contains("super-secret-token") &&
+            n.Settings.Contains("Leecharr")));
+    }
+
+    [Test]
+    public void GetById_MasksSlackWebhookUrl()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 10,
+            Name = "Slack",
+            Implementation = "Slack",
+            Settings = "{\"url\":\"https://hooks.slack.com/services/T00/B00/slack-secret\",\"username\":\"Leecharr\"}",
+        };
+
+        this.notificationRepository.Get(10).Returns(notif);
+
+        var actionResult = this.controller.GetById(10);
+        var okResult = actionResult.Result as OkObjectResult;
+        var resource = okResult!.Value as NotificationResource;
+
+        resource.Should().NotBeNull();
+        resource!.Settings.Should().Contain("\"url\":\"********\"");
+        resource.Settings.Should().NotContain("slack-secret");
     }
 }

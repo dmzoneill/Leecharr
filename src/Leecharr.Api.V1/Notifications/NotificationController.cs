@@ -110,7 +110,7 @@ public class NotificationController : Controller
 
         var model = ToModel(resource);
         model.Id = id;
-        model.Settings = UnmaskSettings(model.Settings, existing.Settings);
+        model.Settings = UnmaskSettings(model.Settings, existing.Settings, model.Implementation);
         this.notificationRepository.Update(model);
         return this.Ok(ToResource(model));
     }
@@ -148,7 +148,7 @@ public class NotificationController : Controller
             var existing = this.notificationRepository.Get(resource.Id);
             if (existing != null)
             {
-                model.Settings = UnmaskSettings(model.Settings, existing.Settings);
+                model.Settings = UnmaskSettings(model.Settings, existing.Settings, model.Implementation);
             }
         }
 
@@ -316,7 +316,7 @@ public class NotificationController : Controller
             Name = n.Name,
             Implementation = n.Implementation,
             ConfigContract = n.ConfigContract,
-            Settings = MaskSettings(n.Settings),
+            Settings = MaskSettings(n.Settings, n.Implementation),
             Enable = n.Enable,
             OnGrab = n.OnGrab,
             OnDownloadComplete = n.OnDownloadComplete,
@@ -363,15 +363,55 @@ public class NotificationController : Controller
         "clientSecret", "client_secret", "smtpPassword", "webhookSecret",
     };
 
-    private static bool IsSensitiveKey(string key)
+    private static bool IsSensitiveKey(string key, string implementation)
     {
-        return SensitiveSettingKeys.Contains(key) ||
+        if (SensitiveSettingKeys.Contains(key) ||
             key.EndsWith("password", StringComparison.OrdinalIgnoreCase) ||
             key.EndsWith("secret", StringComparison.OrdinalIgnoreCase) ||
-            key.EndsWith("token", StringComparison.OrdinalIgnoreCase);
+            key.EndsWith("token", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Pushover stores its user key as "user". Email uses the same key for the SMTP username.
+        return string.Equals(key, "user", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(implementation, "Pushover", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string MaskSettings(string settings)
+    private static bool IsEmbeddedWebhookSecret(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        return value.Contains("/api/webhooks/", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("hooks.slack.com/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldMaskStoredValue(string key, string value, string implementation)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        return IsSensitiveKey(key, implementation) || IsEmbeddedWebhookSecret(value);
+    }
+
+    private static bool ShouldRestoreMaskedValue(string key, JsonNode existingVal, string implementation)
+    {
+        if (IsSensitiveKey(key, implementation))
+        {
+            return true;
+        }
+
+        return existingVal is JsonValue existingJson &&
+            existingJson.TryGetValue<string>(out var existingStr) &&
+            IsEmbeddedWebhookSecret(existingStr);
+    }
+
+    private static string MaskSettings(string settings, string implementation)
     {
         if (string.IsNullOrWhiteSpace(settings))
         {
@@ -386,7 +426,7 @@ public class NotificationController : Controller
                 var node = JsonNode.Parse(settings);
                 if (node is JsonObject obj)
                 {
-                    MaskJsonObject(obj);
+                    MaskJsonObject(obj, implementation);
                     return obj.ToJsonString();
                 }
             }
@@ -399,25 +439,24 @@ public class NotificationController : Controller
         return settings;
     }
 
-    private static void MaskJsonObject(JsonObject obj)
+    private static void MaskJsonObject(JsonObject obj, string implementation)
     {
         foreach (var property in obj.ToList())
         {
-            if (IsSensitiveKey(property.Key))
+            if (property.Value is JsonValue val &&
+                val.TryGetValue<string>(out var strVal) &&
+                ShouldMaskStoredValue(property.Key, strVal, implementation))
             {
-                if (property.Value is JsonValue val && val.TryGetValue<string>(out var strVal) && !string.IsNullOrEmpty(strVal))
-                {
-                    obj[property.Key] = "********";
-                }
+                obj[property.Key] = MaskedSecretPlaceholder;
             }
             else if (property.Value is JsonObject childObj)
             {
-                MaskJsonObject(childObj);
+                MaskJsonObject(childObj, implementation);
             }
         }
     }
 
-    private static string UnmaskSettings(string newSettings, string existingSettings)
+    private static string UnmaskSettings(string newSettings, string existingSettings, string implementation)
     {
         if (string.IsNullOrWhiteSpace(newSettings))
         {
@@ -441,7 +480,7 @@ public class NotificationController : Controller
 
                 if (newNode is JsonObject newObj && existingNode is JsonObject existingObj)
                 {
-                    UnmaskJsonObject(newObj, existingObj);
+                    UnmaskJsonObject(newObj, existingObj, implementation);
                     return newObj.ToJsonString();
                 }
             }
@@ -454,23 +493,22 @@ public class NotificationController : Controller
         return newSettings;
     }
 
-    private static void UnmaskJsonObject(JsonObject newObj, JsonObject existingObj)
+    private static void UnmaskJsonObject(JsonObject newObj, JsonObject existingObj, string implementation)
     {
         foreach (var property in newObj.ToList())
         {
-            if (IsSensitiveKey(property.Key) &&
-                property.Value is JsonValue val &&
+            if (property.Value is JsonValue val &&
                 val.TryGetValue<string>(out var strVal) &&
-                strVal == MaskedSecretPlaceholder)
+                strVal == MaskedSecretPlaceholder &&
+                existingObj.TryGetPropertyValue(property.Key, out var existingVal) &&
+                existingVal != null &&
+                ShouldRestoreMaskedValue(property.Key, existingVal, implementation))
             {
-                if (existingObj.TryGetPropertyValue(property.Key, out var existingVal) && existingVal != null)
-                {
-                    newObj[property.Key] = existingVal.DeepClone();
-                }
+                newObj[property.Key] = existingVal.DeepClone();
             }
             else if (property.Value is JsonObject childNewObj && existingObj.TryGetPropertyValue(property.Key, out var childExisting) && childExisting is JsonObject childExistingObj)
             {
-                UnmaskJsonObject(childNewObj, childExistingObj);
+                UnmaskJsonObject(childNewObj, childExistingObj, implementation);
             }
         }
     }
