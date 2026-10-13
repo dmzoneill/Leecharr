@@ -12,6 +12,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
@@ -21,6 +22,7 @@ using MonoTorrent;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
 using MonoTorrent.Dht;
+using MonoTorrent.PiecePicking;
 using MonoTorrent.PieceWriter;
 using MonoTorrent.PortForwarding;
 using NLog;
@@ -299,7 +301,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         SupportsV2Torrents = true,
         SupportsSequentialDownload = true,
         SupportsFastResume = true,
-        SupportsCustomPiecePickers = false,
+        SupportsCustomPiecePickers = true,
         SupportsDynamicRateLimits = true,
         SupportsSparseAllocation = true,
         SupportsMemoryMappedIo = false,
@@ -1477,13 +1479,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 eventAggregator: this.eventAggregator);
             downloadTask.SavePath = completedDir;
             downloadTask.IsFilesMovedToCompleted = isCompleteOrSeeding;
-            downloadTask.SequentialDownload = torrent.SequentialDownload;
+            var useSequentialPicker = torrent.SequentialDownload || string.Equals(this.configService?.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase);
+            downloadTask.SequentialDownload = useSequentialPicker;
             downloadTask.FirstLastPiecePriority = torrent.FirstLastPiecePriority;
             downloadTask.IsSuperSeeding = torrent.InitialSeeding;
             if (downloadTask.Picker != null)
             {
-                downloadTask.Picker.SequentialMode = torrent.SequentialDownload;
+                downloadTask.Picker.SequentialMode = useSequentialPicker;
             }
+
+            await downloadTask.InstallLeecharrPieceRequesterAsync().ConfigureAwait(false);
 
             if (cts.Token.IsCancellationRequested)
             {
@@ -3252,49 +3257,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 try
                 {
-                    var requester = enabled
-                        ? Factories.Default.CreateStreamingPieceRequester()
-                        : Factories.Default.CreatePieceRequester();
-
-                    if (task.Manager.State == TorrentState.Stopped)
-                    {
-                        try
-                        {
-                            await task.Manager.ChangePickerAsync(requester).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            this.logger.Trace(ex, "Failed to update picker on stopped TorrentManager");
-                        }
-                    }
-
-                    var requesterProp = task.Manager.PieceManager.GetType().GetProperty("Requester", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    requesterProp?.SetValue(task.Manager.PieceManager, requester);
-
-                    var initProp = task.Manager.PieceManager.GetType().GetProperty("Initialised", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    initProp?.SetValue(task.Manager.PieceManager, false);
-
-                    var streamProviderProp = typeof(TorrentManager).GetProperty("StreamProvider", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (streamProviderProp != null)
-                    {
-                        if (enabled)
-                        {
-                            var streamProviderType = typeof(TorrentManager).Assembly.GetType("MonoTorrent.Streaming.StreamProvider");
-                            if (streamProviderType != null)
-                            {
-                                var streamProvider = Activator.CreateInstance(streamProviderType, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public, null, new object[] { task.Manager, requester }, null);
-                                streamProviderProp.SetValue(task.Manager, streamProvider);
-                            }
-                        }
-                        else
-                        {
-                            streamProviderProp.SetValue(task.Manager, null);
-                        }
-                    }
+                    await task.InstallLeecharrPieceRequesterAsync().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Warn(ex, "Failed to dynamically change piece picker for torrent {0}", torrentId);
+                    this.logger.Warn(ex, "Failed to keep the Leecharr piece picker installed for torrent {0}", torrentId);
                 }
             }
 
@@ -6828,6 +6795,550 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     }
 }
 
+public sealed class LeecharrPieceRequester : IPieceRequester
+{
+    private readonly MonoTorrentDownloadTask task;
+    private readonly object gate = new();
+    private readonly Dictionary<string, IRequester> peers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<PieceSegment>> outstanding = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> lastProgressUtc = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, long> lastBytes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private IMessageEnqueuer enqueuer;
+    private IPieceRequesterData torrentData;
+    private ReadOnlyBitField[] ignorable = Array.Empty<ReadOnlyBitField>();
+    private PiecePicker subscribedPicker;
+
+    public LeecharrPieceRequester(MonoTorrentDownloadTask task)
+    {
+        this.task = task ?? throw new ArgumentNullException(nameof(task));
+    }
+
+    public bool InEndgameMode => this.task.Picker?.IsEndgameMode() ?? false;
+
+    public static string GetPeerKey(IRequester peer)
+    {
+        if (peer == null)
+        {
+            return string.Empty;
+        }
+
+        if (peer is PeerId peerId)
+        {
+            var wireId = peerId.PeerID?.Text;
+            var uri = peerId.Uri?.ToString();
+            if (!string.IsNullOrEmpty(wireId) && !string.IsNullOrEmpty(uri))
+            {
+                return wireId + "@" + uri;
+            }
+
+            if (!string.IsNullOrEmpty(uri))
+            {
+                return uri;
+            }
+
+            if (!string.IsNullOrEmpty(wireId))
+            {
+                return wireId;
+            }
+        }
+
+        return "req:" + RuntimeHelpers.GetHashCode(peer);
+    }
+
+    public void Bind()
+    {
+        this.EnsureSubscribed();
+    }
+
+    public void Unbind()
+    {
+        if (this.subscribedPicker != null)
+        {
+            this.subscribedPicker.BlockCancelled -= this.OnBlockCancelled;
+            this.subscribedPicker = null;
+        }
+    }
+
+    public void NotePeerIdleSince(IRequester peer, DateTime lastProgressUtc)
+    {
+        if (peer == null)
+        {
+            return;
+        }
+
+        var key = GetPeerKey(peer);
+        lock (this.gate)
+        {
+            this.peers[key] = peer;
+            this.lastProgressUtc[key] = lastProgressUtc;
+            this.lastBytes[key] = 0;
+        }
+    }
+
+    public void Initialise(IPieceRequesterData torrentData, IMessageEnqueuer enqueuer, ReadOnlySpan<ReadOnlyBitField> ignoringBitfields)
+    {
+        this.torrentData = torrentData;
+        this.enqueuer = enqueuer;
+        this.ignorable = ignoringBitfields.ToArray();
+        this.EnsureSubscribed();
+    }
+
+    public void AddRequests(ReadOnlySpan<(IRequester Peer, ReadOnlyBitField Available)> peers)
+    {
+        if (peers.Length == 0)
+        {
+            return;
+        }
+
+        var others = new ReadOnlyBitField[peers.Length];
+        for (var i = 0; i < peers.Length; i++)
+        {
+            others[i] = peers[i].Available;
+        }
+
+        var otherSpan = others.AsSpan();
+        for (var i = 0; i < peers.Length; i++)
+        {
+            var peer = peers[i].Peer;
+            if (peer == null)
+            {
+                continue;
+            }
+
+            if ((peer.SuggestedPieces?.Count ?? 0) > 0 || !peer.IsChoking)
+            {
+                this.AddRequests(peer, peers[i].Available, otherSpan);
+            }
+        }
+    }
+
+    public void AddRequests(IRequester peer, ReadOnlyBitField available, ReadOnlySpan<ReadOnlyBitField> otherPeers)
+    {
+        this.EnsureSubscribed();
+        var picker = this.task.Picker;
+        if (peer == null || picker == null || this.enqueuer == null || available.Length == 0 || !peer.CanRequestMorePieces)
+        {
+            return;
+        }
+
+        if (peer.IsChoking && (peer.IsAllowedFastPieces == null || peer.IsAllowedFastPieces.Count == 0))
+        {
+            return;
+        }
+
+        this.UpdateAvailability(otherPeers);
+        var requestable = this.ToRequestablePieces(available, peer);
+        var peerKey = GetPeerKey(peer);
+        lock (this.gate)
+        {
+            this.peers[peerKey] = peer;
+        }
+
+        var snubbed = this.IsSnubbed(peer, peerKey);
+        while (peer.CanRequestMorePieces)
+        {
+            if (snubbed && peer.AmRequestingPiecesCount >= 1)
+            {
+                break;
+            }
+
+            var pendingCap = peer.MaxPendingRequests > 0 ? peer.MaxPendingRequests : 1;
+            var room = pendingCap - peer.AmRequestingPiecesCount;
+            if (room <= 0)
+            {
+                break;
+            }
+
+            var want = snubbed ? 1 : Math.Max(1, peer.PreferredRequestAmount(picker.PieceLength));
+            want = Math.Min(want, room);
+            var picked = picker.PickBlocks(requestable, want, picker.SequentialMode, peerKey, snubbed);
+            if (picked.Count == 0)
+            {
+                break;
+            }
+
+            var segments = new PieceSegment[picked.Count];
+            for (var i = 0; i < picked.Count; i++)
+            {
+                var blockIndex = picked[i].BlockOffset / PiecePicker.DefaultBlockSize;
+                segments[i] = new PieceSegment(picked[i].PieceIndex, blockIndex);
+            }
+
+            lock (this.gate)
+            {
+                for (var i = 0; i < segments.Length; i++)
+                {
+                    this.Remember(peerKey, segments[i]);
+                }
+            }
+
+            this.enqueuer.EnqueueRequests(peer, segments);
+            peer.AmRequestingPiecesCount += picked.Count;
+            if (snubbed || picked.Count < want)
+            {
+                break;
+            }
+        }
+    }
+
+    public bool ValidatePiece(IRequester peer, PieceSegment request, out bool pieceComplete, HashSet<IRequester> peersInvolved)
+    {
+        pieceComplete = false;
+        peersInvolved?.Clear();
+        this.EnsureSubscribed();
+        var picker = this.task.Picker;
+        if (picker == null || peer == null || request.PieceIndex < 0)
+        {
+            return false;
+        }
+
+        var peerKey = GetPeerKey(peer);
+        var known = false;
+        lock (this.gate)
+        {
+            known = this.Forget(peerKey, request);
+        }
+
+        if (!known)
+        {
+            return false;
+        }
+
+        if (peer.AmRequestingPiecesCount > 0)
+        {
+            peer.AmRequestingPiecesCount--;
+        }
+
+        var offset = request.BlockIndex * PiecePicker.DefaultBlockSize;
+        var length = this.BlockLength(request.PieceIndex, request.BlockIndex);
+        if (length <= 0)
+        {
+            return false;
+        }
+
+        pieceComplete = picker.MarkBlockReceived(request.PieceIndex, offset, length, peerKey, out var cancelledPeers);
+        if (pieceComplete && peersInvolved != null)
+        {
+            peersInvolved.Add(peer);
+            lock (this.gate)
+            {
+                foreach (var cancelledId in cancelledPeers)
+                {
+                    if (this.peers.TryGetValue(cancelledId, out var other) && other != null)
+                    {
+                        peersInvolved.Add(other);
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public bool IsInteresting(IRequester peer, ReadOnlyBitField bitfield)
+    {
+        var picker = this.task.Picker;
+        if (picker == null || bitfield.Length == 0)
+        {
+            return false;
+        }
+
+        var have = picker.GetBitfield();
+        var limit = Math.Min(bitfield.Length, picker.PieceCount);
+        for (var i = 0; i < limit; i++)
+        {
+            if (!bitfield[i] || this.IsIgnored(i))
+            {
+                continue;
+            }
+
+            if (i < have.Length && have[i])
+            {
+                continue;
+            }
+
+            if (picker.GetPiecePriority(i) > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void CancelRequests(IRequester peer, int startIndex, int endIndex)
+    {
+        if (peer == null || this.task.Picker == null)
+        {
+            return;
+        }
+
+        var key = GetPeerKey(peer);
+        List<PieceSegment> snapshot;
+        lock (this.gate)
+        {
+            if (!this.outstanding.TryGetValue(key, out var list) || list.Count == 0)
+            {
+                return;
+            }
+
+            snapshot = list.Where(segment => segment.PieceIndex >= startIndex && segment.PieceIndex <= endIndex).ToList();
+        }
+
+        foreach (var segment in snapshot)
+        {
+            var offset = segment.BlockIndex * PiecePicker.DefaultBlockSize;
+            var length = this.BlockLength(segment.PieceIndex, segment.BlockIndex);
+            this.task.Picker.CancelRequest(segment.PieceIndex, offset, length, key);
+        }
+    }
+
+    public void RequestRejected(IRequester peer, PieceSegment request)
+    {
+        if (peer == null)
+        {
+            return;
+        }
+
+        var key = GetPeerKey(peer);
+        var known = false;
+        lock (this.gate)
+        {
+            known = this.Forget(key, request);
+        }
+
+        if (known && peer.AmRequestingPiecesCount > 0)
+        {
+            peer.AmRequestingPiecesCount--;
+        }
+
+        var offset = request.BlockIndex * PiecePicker.DefaultBlockSize;
+        var length = this.BlockLength(request.PieceIndex, request.BlockIndex);
+        this.task.Picker?.RejectRequest(request.PieceIndex, offset, length, key);
+    }
+
+    public int CurrentRequestCount()
+    {
+        return this.task.Picker?.InFlightBlockCount ?? 0;
+    }
+
+    private void OnBlockCancelled(BlockCancelledEventArgs args)
+    {
+        if (args == null || this.enqueuer == null || args.CancelledPeerIds == null || args.CancelledPeerIds.Count == 0)
+        {
+            return;
+        }
+
+        var blockIndex = args.BlockOffset / PiecePicker.DefaultBlockSize;
+        var segment = new PieceSegment(args.PieceIndex, blockIndex);
+        foreach (var peerId in args.CancelledPeerIds)
+        {
+            IRequester peer = null;
+            var tracked = false;
+            lock (this.gate)
+            {
+                this.peers.TryGetValue(peerId, out peer);
+                tracked = this.Forget(peerId, segment);
+            }
+
+            if (peer == null)
+            {
+                continue;
+            }
+
+            if (tracked && peer.AmRequestingPiecesCount > 0)
+            {
+                peer.AmRequestingPiecesCount--;
+            }
+
+            try
+            {
+                this.enqueuer.EnqueueCancellation(peer, segment);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to enqueue CANCEL for piece {0} block {1}", args.PieceIndex, blockIndex);
+            }
+        }
+    }
+
+    private void EnsureSubscribed()
+    {
+        var picker = this.task.Picker;
+        if (picker == null || ReferenceEquals(picker, this.subscribedPicker))
+        {
+            return;
+        }
+
+        if (this.subscribedPicker != null)
+        {
+            this.subscribedPicker.BlockCancelled -= this.OnBlockCancelled;
+        }
+
+        picker.BlockCancelled += this.OnBlockCancelled;
+        this.subscribedPicker = picker;
+    }
+
+    private void Remember(string peerKey, PieceSegment segment)
+    {
+        if (!this.outstanding.TryGetValue(peerKey, out var list))
+        {
+            list = new List<PieceSegment>();
+            this.outstanding[peerKey] = list;
+        }
+
+        list.Add(segment);
+    }
+
+    private bool Forget(string peerKey, PieceSegment segment)
+    {
+        if (!this.outstanding.TryGetValue(peerKey, out var list))
+        {
+            return false;
+        }
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (list[i].PieceIndex == segment.PieceIndex && list[i].BlockIndex == segment.BlockIndex)
+            {
+                list.RemoveAt(i);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsSnubbed(IRequester peer, string peerKey)
+    {
+        var now = DateTime.UtcNow;
+        var bytes = peer is PeerId peerId ? peerId.Monitor?.DataBytesReceived ?? 0 : peer.DownloadSpeed;
+        lock (this.gate)
+        {
+            if (!this.lastProgressUtc.TryGetValue(peerKey, out var last))
+            {
+                this.lastProgressUtc[peerKey] = now;
+                this.lastBytes[peerKey] = bytes;
+                return false;
+            }
+
+            var previousBytes = this.lastBytes.GetValueOrDefault(peerKey);
+            if (bytes > previousBytes || peer.DownloadSpeed > 0)
+            {
+                this.lastBytes[peerKey] = Math.Max(bytes, previousBytes);
+                this.lastProgressUtc[peerKey] = now;
+                return false;
+            }
+
+            return now - last >= TimeSpan.FromSeconds(60);
+        }
+    }
+
+    private void UpdateAvailability(ReadOnlySpan<ReadOnlyBitField> otherPeers)
+    {
+        var picker = this.task.Picker;
+        if (picker == null || otherPeers.Length == 0)
+        {
+            return;
+        }
+
+        var counts = new int[picker.PieceCount];
+        foreach (var bitfield in otherPeers)
+        {
+            if (bitfield.Length == 0)
+            {
+                continue;
+            }
+
+            var limit = Math.Min(counts.Length, bitfield.Length);
+            for (var i = 0; i < limit; i++)
+            {
+                if (bitfield[i])
+                {
+                    counts[i]++;
+                }
+            }
+        }
+
+        picker.SetAvailability(counts);
+    }
+
+    private bool[] ToRequestablePieces(ReadOnlyBitField available, IRequester peer)
+    {
+        var picker = this.task.Picker;
+        var count = picker?.PieceCount ?? 0;
+        var result = new bool[count];
+        if (peer.IsChoking)
+        {
+            if (peer.IsAllowedFastPieces == null)
+            {
+                return result;
+            }
+
+            foreach (var pieceIndex in peer.IsAllowedFastPieces)
+            {
+                if (pieceIndex >= 0 && pieceIndex < count && pieceIndex < available.Length && available[pieceIndex] && !this.IsIgnored(pieceIndex))
+                {
+                    result[pieceIndex] = true;
+                }
+            }
+
+            return result;
+        }
+
+        var limit = Math.Min(count, available.Length);
+        for (var i = 0; i < limit; i++)
+        {
+            result[i] = available[i] && !this.IsIgnored(i);
+        }
+
+        return result;
+    }
+
+    private bool IsIgnored(int pieceIndex)
+    {
+        foreach (var field in this.ignorable)
+        {
+            if (field.Length > pieceIndex && field[pieceIndex])
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int BlockLength(int pieceIndex, int blockIndex)
+    {
+        var picker = this.task.Picker;
+        if (picker == null || pieceIndex < 0 || pieceIndex >= picker.PieceCount || blockIndex < 0)
+        {
+            return 0;
+        }
+
+        var pieceLength = pieceIndex == picker.PieceCount - 1
+            ? (int)(picker.TotalSize - ((long)pieceIndex * picker.PieceLength))
+            : picker.PieceLength;
+        if (this.torrentData != null)
+        {
+            var fromTorrent = this.torrentData.BytesPerPiece(pieceIndex);
+            if (fromTorrent > 0)
+            {
+                pieceLength = fromTorrent;
+            }
+        }
+
+        var offset = blockIndex * PiecePicker.DefaultBlockSize;
+        if (offset < 0 || offset >= pieceLength)
+        {
+            return 0;
+        }
+
+        return Math.Min(PiecePicker.DefaultBlockSize, pieceLength - offset);
+    }
+}
+
 public class MonoTorrentDownloadTask : IDownloadTask
 {
     public int TorrentId { get; }
@@ -6875,6 +7386,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
     private readonly Dictionary<string, PeerActivityState> peerActivity = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
+    private LeecharrPieceRequester pieceRequester;
     private bool isTrackerStalled;
     private bool isStorageFull;
     private bool wasAutoPausedByDiskSpace;
@@ -6986,6 +7498,125 @@ public class MonoTorrentDownloadTask : IDownloadTask
             this.Manager.PeerDisconnected -= this.OnPeerDisconnected;
             this.Manager.PieceHashed -= this.OnPieceHashed;
         }
+
+        this.pieceRequester?.Unbind();
+    }
+
+    internal async Task InstallLeecharrPieceRequesterAsync()
+    {
+        if (this.Picker == null || this.Manager == null)
+        {
+            return;
+        }
+
+        this.pieceRequester ??= new LeecharrPieceRequester(this);
+        this.pieceRequester.Bind();
+
+        if (this.Manager.State == TorrentState.Stopped)
+        {
+            try
+            {
+                await this.Manager.ChangePickerAsync(this.pieceRequester).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "ChangePickerAsync failed for torrent {0}", this.TorrentId);
+            }
+        }
+
+        this.AttachPieceRequester();
+    }
+
+    internal void AttachPieceRequester()
+    {
+        if (this.Picker == null || this.Manager?.PieceManager == null)
+        {
+            return;
+        }
+
+        this.pieceRequester ??= new LeecharrPieceRequester(this);
+        this.pieceRequester.Bind();
+
+        try
+        {
+            var pieceManager = this.Manager.PieceManager;
+            var requesterProp = pieceManager.GetType().GetProperty("Requester", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var previous = requesterProp?.GetValue(pieceManager) as IPieceRequester;
+            var ignorables = this.CaptureIgnorables(previous);
+            requesterProp?.SetValue(pieceManager, this.pieceRequester);
+
+            var initProp = pieceManager.GetType().GetProperty("Initialised", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var alreadyInitialised = initProp?.GetValue(pieceManager) is bool initialised && initialised;
+            if (alreadyInitialised && this.Manager.HasMetadata && !ReferenceEquals(previous, this.pieceRequester))
+            {
+                this.pieceRequester.Initialise(this.Manager, this.Manager, ignorables);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to attach Leecharr piece requester for torrent {0}", this.TorrentId);
+        }
+    }
+
+    private ReadOnlyBitField[] CaptureIgnorables(IPieceRequester previous)
+    {
+        var copied = ReadIgnorableList(previous);
+        if (copied.Length > 0)
+        {
+            return copied;
+        }
+
+        var fromManager = new List<ReadOnlyBitField>();
+        AddBitFieldProperty(this.Manager, "Bitfield", fromManager);
+        AddBitFieldProperty(this.Manager, "UnhashedPieces", fromManager);
+        AddBitFieldProperty(this.Manager, "PendingV2PieceHashes", fromManager);
+        AddBitFieldProperty(this.Manager?.PieceManager, "PendingHashCheckPieces", fromManager);
+        return fromManager.ToArray();
+    }
+
+    private static ReadOnlyBitField[] ReadIgnorableList(IPieceRequester previous)
+    {
+        if (previous == null || previous is LeecharrPieceRequester)
+        {
+            return Array.Empty<ReadOnlyBitField>();
+        }
+
+        var prop = previous.GetType().GetProperty("IgnorableBitfields", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            ?? previous.GetType().GetProperty("IgnoringBitfields", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        if (prop?.GetValue(previous) is not System.Collections.IEnumerable enumerable)
+        {
+            return Array.Empty<ReadOnlyBitField>();
+        }
+
+        var list = new List<ReadOnlyBitField>();
+        foreach (var item in enumerable)
+        {
+            if (item is ReadOnlyBitField field && field.Length > 0)
+            {
+                list.Add(field);
+            }
+        }
+
+        return list.ToArray();
+    }
+
+    private static void AddBitFieldProperty(object source, string name, List<ReadOnlyBitField> list)
+    {
+        if (source == null || list == null || string.IsNullOrEmpty(name))
+        {
+            return;
+        }
+
+        var prop = source.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        var value = prop?.GetValue(source);
+        if (value is ReadOnlyBitField field && field.Length > 0)
+        {
+            list.Add(field);
+        }
+        else if (value is BitField bitField && bitField.Length > 0)
+        {
+            list.Add(new ReadOnlyBitField(bitField));
+        }
     }
 
     private void OnTorrentStateChanged(object sender, TorrentStateChangedEventArgs e)
@@ -7014,6 +7645,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 }
 
                 this.onPickerCreated?.Invoke(this);
+                this.AttachPieceRequester();
             }
         }
         catch (Exception ex)

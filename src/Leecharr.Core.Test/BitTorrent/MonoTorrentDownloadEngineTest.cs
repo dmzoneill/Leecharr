@@ -83,6 +83,7 @@ public class MonoTorrentDownloadEngineTest
         this.configService.DhtAutoBootstrap.Returns(true);
         this.configService.DhtRateLimitEnabled.Returns(true);
         this.configService.LowDiskSpaceThresholdMb.Returns(500);
+        this.configService.EndGamePickerEnabled.Returns(true);
 
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
@@ -664,7 +665,7 @@ public class MonoTorrentDownloadEngineTest
         this.engine.Capabilities.SupportsLpd.Should().BeTrue();
         this.engine.Capabilities.SupportsSequentialDownload.Should().BeTrue();
         this.engine.Capabilities.SupportsFastResume.Should().BeTrue();
-        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeFalse();
+        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeTrue();
         this.engine.Capabilities.SupportsDynamicRateLimits.Should().BeTrue();
         this.engine.Capabilities.SupportsSparseAllocation.Should().BeTrue();
     }
@@ -2566,7 +2567,7 @@ public class MonoTorrentDownloadEngineTest
     {
         this.engine.Capabilities.SupportsV2Torrents.Should().BeTrue();
         this.engine.Capabilities.SupportsSequentialDownload.Should().BeTrue();
-        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeFalse();
+        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeTrue();
         this.engine.Capabilities.SupportsDht.Should().BeTrue();
         this.engine.Capabilities.SupportsPex.Should().BeTrue();
         this.engine.Capabilities.SupportsUtp.Should().BeTrue();
@@ -6652,13 +6653,13 @@ public class MonoTorrentDownloadEngineTest
 
         var requesterProp = task.Manager!.PieceManager.GetType().GetProperty("Requester", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         var requester = requesterProp?.GetValue(task.Manager.PieceManager);
-        requester.Should().BeOfType<StreamingPieceRequester>();
+        requester.Should().BeOfType<LeecharrPieceRequester>();
 
         await this.engine.SetSequentialDownloadAsync(794, false);
         task.SequentialDownload.Should().BeFalse();
         task.Picker.SequentialMode.Should().BeFalse();
         requester = requesterProp?.GetValue(task.Manager.PieceManager);
-        requester.Should().BeOfType<StandardPieceRequester>();
+        requester.Should().BeOfType<LeecharrPieceRequester>();
     }
 
     [Test]
@@ -6947,5 +6948,215 @@ public class MonoTorrentDownloadEngineTest
         this.engine.LastAppliedUserAgent.Should().Be("Deluge/2.1.1");
 
         await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task InstalledPieceRequester_PickBlocksThroughEnginePath_RecordsInFlightBlocks()
+    {
+        var task = await this.AddStoppedTorrentAsync(8551, "picker_live.bin", 16384 * 4);
+        var requester = GetInstalledRequester(task);
+        requester.Should().BeOfType<LeecharrPieceRequester>();
+
+        var enqueuer = new RecordingEnqueuer();
+        requester.Initialise(task.Manager, enqueuer, ReadOnlySpan<ReadOnlyBitField>.Empty);
+        var peer = new ScriptedRequester(preferredRequests: 4, maxPending: 4);
+        requester.AddRequests(peer, AllPieces(task), ReadOnlySpan<ReadOnlyBitField>.Empty);
+
+        task.Picker.InFlightBlockCount.Should().BeGreaterThan(0);
+        enqueuer.RequestCount.Should().BeGreaterThan(0);
+        task.Picker.GetContributingPeers(0).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task InstalledPieceRequester_SequentialMode_RequestsHeadThenTail()
+    {
+        var task = await this.AddStoppedTorrentAsync(8552, "head_tail.bin", 16384 * 50, sequential: true);
+        task.Picker.SequentialMode.Should().BeTrue();
+        var requester = (LeecharrPieceRequester)GetInstalledRequester(task);
+        var enqueuer = new RecordingEnqueuer();
+        requester.Initialise(task.Manager, enqueuer, ReadOnlySpan<ReadOnlyBitField>.Empty);
+
+        var peer = new ScriptedRequester(preferredRequests: 6, maxPending: 6);
+        requester.AddRequests(peer, AllPieces(task), ReadOnlySpan<ReadOnlyBitField>.Empty);
+
+        enqueuer.RequestedPieces.Should().Equal(0, 1, 2, 3, 48, 49);
+        task.Picker.InFlightBlockCount.Should().Be(6);
+    }
+
+    [Test]
+    public async Task InstalledPieceRequester_SnubbedPeer_RequestsOnlyOneBlock()
+    {
+        var task = await this.AddStoppedTorrentAsync(8553, "snub.bin", 16384 * 8);
+        var requester = (LeecharrPieceRequester)GetInstalledRequester(task);
+        var enqueuer = new RecordingEnqueuer();
+        requester.Initialise(task.Manager, enqueuer, ReadOnlySpan<ReadOnlyBitField>.Empty);
+
+        var peer = new ScriptedRequester(preferredRequests: 1, maxPending: 8);
+        requester.NotePeerIdleSince(peer, DateTime.UtcNow.AddSeconds(-120));
+        requester.AddRequests(peer, AllPieces(task), ReadOnlySpan<ReadOnlyBitField>.Empty);
+
+        enqueuer.RequestCount.Should().Be(1);
+        task.Picker.InFlightBlockCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task InstalledPieceRequester_EndgameReceipt_SendsCancelToDuplicatePeer()
+    {
+        var task = await this.AddStoppedTorrentAsync(8554, "endgame.bin", 16384 * 2);
+        var requester = (LeecharrPieceRequester)GetInstalledRequester(task);
+        var enqueuer = new RecordingEnqueuer();
+        requester.Initialise(task.Manager, enqueuer, ReadOnlySpan<ReadOnlyBitField>.Empty);
+        var bitfield = AllPieces(task);
+
+        var peerA = new ScriptedRequester(preferredRequests: 2, maxPending: 2);
+        var peerB = new ScriptedRequester(preferredRequests: 2, maxPending: 2);
+        requester.AddRequests(peerA, bitfield, ReadOnlySpan<ReadOnlyBitField>.Empty);
+        requester.AddRequests(peerB, bitfield, ReadOnlySpan<ReadOnlyBitField>.Empty);
+        task.Picker.InFlightBlockCount.Should().Be(2);
+
+        var accepted = requester.ValidatePiece(peerA, new PieceSegment(0, 0), out var pieceComplete, new HashSet<IRequester>());
+        accepted.Should().BeTrue();
+        pieceComplete.Should().BeTrue();
+        enqueuer.Cancellations.Should().ContainSingle();
+        enqueuer.Cancellations[0].Peer.Should().BeSameAs(peerB);
+        enqueuer.Cancellations[0].Segment.PieceIndex.Should().Be(0);
+        task.Picker.GetContributingPeers(0).Should().Contain(LeecharrPieceRequester.GetPeerKey(peerA));
+    }
+
+    [Test]
+    public async Task InstalledPieceRequester_FirstLastPriority_RequestsHighPriorityBoundaryFirst()
+    {
+        var task = await this.AddStoppedTorrentAsync(8555, "boundary.bin", 16384 * 50);
+        await this.engine.SetFirstLastPiecePriorityAsync(8555, true);
+        var requester = (LeecharrPieceRequester)GetInstalledRequester(task);
+        var enqueuer = new RecordingEnqueuer();
+        requester.Initialise(task.Manager, enqueuer, ReadOnlySpan<ReadOnlyBitField>.Empty);
+
+        var peer = new ScriptedRequester(preferredRequests: 1, maxPending: 4);
+        requester.AddRequests(peer, AllPieces(task), ReadOnlySpan<ReadOnlyBitField>.Empty);
+
+        enqueuer.RequestedPieces.Should().HaveCount(4);
+        enqueuer.RequestedPieces.Should().OnlyContain(index => task.Picker.GetPiecePriority(index) == 3);
+    }
+
+    private async Task<MonoTorrentDownloadTask> AddStoppedTorrentAsync(int id, string name, int length, bool sequential = false)
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes(name, length);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = id,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = name,
+            Status = TorrentStatus.Stopped,
+            SequentialDownload = sequential,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+        task.Picker.Should().NotBeNull();
+        DetachPieceHashed(task.Manager);
+        await Task.Delay(50);
+        return task;
+    }
+
+    private static void DetachPieceHashed(TorrentManager manager)
+    {
+        if (manager == null)
+        {
+            return;
+        }
+
+        var eventField = typeof(TorrentManager).GetField("PieceHashed", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        eventField.Should().NotBeNull();
+        eventField!.SetValue(manager, null);
+    }
+
+    private static IPieceRequester GetInstalledRequester(MonoTorrentDownloadTask task)
+    {
+        var requesterProp = task.Manager.PieceManager.GetType().GetProperty("Requester", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        var requester = requesterProp?.GetValue(task.Manager.PieceManager) as IPieceRequester;
+        requester.Should().NotBeNull();
+        return requester;
+    }
+
+    private static ReadOnlyBitField AllPieces(MonoTorrentDownloadTask task)
+    {
+        return new ReadOnlyBitField(new BitField(task.Picker.PieceCount).SetAll(true));
+    }
+
+    private sealed class ScriptedRequester : IRequester
+    {
+        private readonly int preferredRequests;
+
+        public ScriptedRequester(int preferredRequests, int maxPending)
+        {
+            this.preferredRequests = preferredRequests;
+            this.MaxPendingRequests = maxPending;
+            this.IsAllowedFastPieces = new List<int>();
+            this.SuggestedPieces = new List<int>();
+        }
+
+        public int AmRequestingPiecesCount { get; set; }
+
+        public bool CanRequestMorePieces => this.AmRequestingPiecesCount < this.MaxPendingRequests;
+
+        public long DownloadSpeed { get; set; }
+
+        public List<int> IsAllowedFastPieces { get; }
+
+        public bool IsChoking { get; set; }
+
+        public int MaxPendingRequests { get; }
+
+        public int RepeatedHashFails { get; set; }
+
+        public List<int> SuggestedPieces { get; }
+
+        public bool SupportsFastPeer { get; set; } = true;
+
+        public bool CanCancelRequests => true;
+
+        public int PreferredRequestAmount(int pieceLength)
+        {
+            return this.preferredRequests;
+        }
+    }
+
+    private sealed class RecordingEnqueuer : IMessageEnqueuer
+    {
+        public List<PieceSegment> Requested { get; } = new();
+
+        public List<(IRequester Peer, PieceSegment Segment)> Cancellations { get; } = new();
+
+        public int RequestCount => this.Requested.Count;
+
+        public IReadOnlyList<int> RequestedPieces => this.Requested.Select(segment => segment.PieceIndex).ToList();
+
+        public void EnqueueRequest(IRequester peer, PieceSegment request)
+        {
+            this.Requested.Add(request);
+        }
+
+        public void EnqueueRequests(IRequester peer, Span<PieceSegment> requests)
+        {
+            for (var i = 0; i < requests.Length; i++)
+            {
+                this.Requested.Add(requests[i]);
+            }
+        }
+
+        public void EnqueueCancellation(IRequester peer, PieceSegment request)
+        {
+            this.Cancellations.Add((peer, request));
+        }
+
+        public void EnqueueCancellations(IRequester peer, Span<PieceSegment> requests)
+        {
+            for (var i = 0; i < requests.Length; i++)
+            {
+                this.Cancellations.Add((peer, requests[i]));
+            }
+        }
     }
 }
