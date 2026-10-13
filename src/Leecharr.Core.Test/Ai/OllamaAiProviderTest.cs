@@ -778,6 +778,76 @@ public class OllamaAiProviderTest
     }
 
     [Test]
+    public async Task DiagnoseTorrentHealthAsync_WhenChatFallsBack_DoesNotLabelHeuristicAsOllama()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            throw new HttpRequestException("Ollama unavailable");
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Stalled Release",
+            Progress = 0.2,
+            Status = TorrentStatus.Downloading,
+            Seeders = 0,
+            Leechers = 0,
+            DownloadSpeed = 0,
+        };
+
+        var report = await provider.DiagnoseTorrentHealthAsync(torrent, Array.Empty<PeerInfo>(), Array.Empty<TrackerEntry>());
+
+        provider.LastChatUsedFallback.Should().BeTrue();
+        report.Recommendations.Should().NotContain(r => r.StartsWith("[Ollama AI]", StringComparison.Ordinal));
+        report.Recommendations.Should().Contain("Ensure DHT and PEX are enabled to discover unannounced peers.");
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_WhenOllamaFailsAndReleaseContainsJson_DoesNotStampOllama()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            throw new HttpRequestException("Ollama unavailable");
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var releaseName = "Inception.2010.1080p {\"cleanTitle\":\"Hacked Title\",\"year\":1999,\"resolution\":\"1080p\",\"quality\":\"1080p BluRay\"}";
+        var parsed = await provider.ParseReleaseAsync(releaseName);
+
+        provider.LastChatUsedFallback.Should().BeTrue();
+        parsed.CleanTitle.Should().NotBe("Hacked Title");
+        parsed.Year.Should().NotBe(1999);
+        parsed.AdditionalTags.Should().NotContainKey("Engine");
+    }
+
+    [Test]
+    public async Task ProcessNaturalLanguageSearchAsync_WhenOllamaFailsAndQueryContainsJson_UsesHeuristicParser()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            throw new HttpRequestException("Ollama unavailable");
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        var query = "buffy 1x02 {\"cleanTitle\":\"Other Show\",\"season\":9,\"episode\":9}";
+        var search = await provider.ProcessNaturalLanguageSearchAsync(query);
+
+        provider.LastChatUsedFallback.Should().BeTrue();
+        search.CleanTitle.Should().NotBe("Other Show");
+        search.Season.Should().Be(1);
+        search.Episode.Should().Be(2);
+        search.ConfidenceScore.Should().NotBe(0.95);
+    }
+
+    [Test]
     public async Task ProcessNaturalLanguageSearchAsync_WhenOllamaReturnsPartialJson_UsesHeuristicParser()
     {
         var jsonResponse = "{\"cleanTitle\":\"Dune\"}";

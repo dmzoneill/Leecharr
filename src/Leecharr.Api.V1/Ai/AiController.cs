@@ -45,24 +45,46 @@ public class AiController : Controller
     [HttpGet("status")]
     public async Task<ActionResult<object>> GetStatus()
     {
-        var active = this.aiManager.ActiveProvider;
-        var health = await this.aiManager.ProbeProviderAsync(this.aiManager.ActiveProviderId);
+        var configured = this.aiManager.ActiveProvider;
+        var configuredId = this.aiManager.ActiveProviderId;
+        var configuredHealth = await this.aiManager.ProbeProviderAsync(configuredId);
+
+        var executing = configured;
+        var health = configuredHealth;
+        if (configured != null && !configured.IsAvailable)
+        {
+            var heuristic = this.aiManager.GetProvider("RuleHeuristic");
+            if (heuristic != null && heuristic.IsAvailable)
+            {
+                executing = heuristic;
+                var heuristicHealth = await heuristic.ProbeHealthAsync();
+                health = new AiHealthResult
+                {
+                    IsHealthy = heuristicHealth.IsHealthy,
+                    StatusMessage = $"Configured provider '{configured.ProviderId}' does not execute AI. {configuredHealth.StatusMessage} Results are produced by {heuristic.ProviderId}.",
+                    Warnings = configuredHealth.Warnings ?? new List<string>(),
+                    LatencyMs = heuristicHealth.LatencyMs,
+                    ModelName = heuristicHealth.ModelName,
+                    Version = heuristicHealth.Version,
+                };
+            }
+        }
 
         return this.Ok(new
         {
-            activeProviderId = this.aiManager.ActiveProviderId,
-            displayName = active?.DisplayName ?? "None",
-            version = active?.Version ?? "1.0",
-            description = active?.Description ?? string.Empty,
+            activeProviderId = executing?.ProviderId ?? configuredId,
+            displayName = executing?.DisplayName ?? "None",
+            version = executing?.Version ?? "1.0",
+            description = executing?.Description ?? string.Empty,
             capabilities = new
             {
-                supportsNaturalLanguageSearch = active?.Capabilities.HasFlag(AiCapabilities.SupportsNaturalLanguageSearch) ?? false,
-                supportsReleaseNameParsing = active?.Capabilities.HasFlag(AiCapabilities.SupportsReleaseNameParsing) ?? false,
-                supportsDiagnosticCopilot = active?.Capabilities.HasFlag(AiCapabilities.SupportsDiagnosticCopilot) ?? false,
-                supportsMalwareAnomalyDetection = active?.Capabilities.HasFlag(AiCapabilities.SupportsMalwareAnomalyDetection) ?? false,
-                supportsSwarmOptimization = active?.Capabilities.HasFlag(AiCapabilities.SupportsSwarmOptimization) ?? false,
-                supportsLocalOfflineInference = active?.Capabilities.HasFlag(AiCapabilities.SupportsLocalOfflineInference) ?? false,
-                supportsCloudLlm = active?.Capabilities.HasFlag(AiCapabilities.SupportsCloudLlm) ?? false,
+                supportsNaturalLanguageSearch = executing?.Capabilities.HasFlag(AiCapabilities.SupportsNaturalLanguageSearch) ?? false,
+                supportsReleaseNameParsing = executing?.Capabilities.HasFlag(AiCapabilities.SupportsReleaseNameParsing) ?? false,
+                supportsDiagnosticCopilot = executing?.Capabilities.HasFlag(AiCapabilities.SupportsDiagnosticCopilot) ?? false,
+                supportsMalwareAnomalyDetection = executing?.Capabilities.HasFlag(AiCapabilities.SupportsMalwareAnomalyDetection) ?? false,
+                supportsSwarmOptimization = executing?.Capabilities.HasFlag(AiCapabilities.SupportsSwarmOptimization) ?? false,
+                supportsLocalOfflineInference = executing?.Capabilities.HasFlag(AiCapabilities.SupportsLocalOfflineInference) ?? false,
+                supportsCloudLlm = executing?.Capabilities.HasFlag(AiCapabilities.SupportsCloudLlm) ?? false,
             },
             health,
         });

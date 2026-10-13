@@ -10,8 +10,10 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Ai;
 
-public class OnnxLocalAiProvider : IAiEngineProvider
+public class OnnxLocalAiProvider : IAiEngineProvider, IFallbackAwareAiProvider
 {
+    private const string HeuristicEngineId = "RuleHeuristic";
+
     private readonly IConfigService configService;
     private readonly RuleHeuristicAiProvider fallbackProvider = new();
 
@@ -21,16 +23,13 @@ public class OnnxLocalAiProvider : IAiEngineProvider
 
     public string Version => "1.0";
 
-    public string Description => "Local machine learning inference powered by embedded ONNX models for release classification and anomaly detection.";
+    public string Description => "Placeholder for local ONNX inference. No ONNX Runtime pipeline is implemented, so release parsing, natural language search, diagnostics, and malware scoring are not executed by this provider.";
 
-    public bool IsAvailable => true;
+    public bool IsAvailable => false;
 
-    public AiCapabilities Capabilities =>
-        AiCapabilities.SupportsNaturalLanguageSearch |
-        AiCapabilities.SupportsReleaseNameParsing |
-        AiCapabilities.SupportsDiagnosticCopilot |
-        AiCapabilities.SupportsMalwareAnomalyDetection |
-        AiCapabilities.SupportsLocalOfflineInference;
+    public bool LastChatUsedFallback => true;
+
+    public AiCapabilities Capabilities => AiCapabilities.None;
 
     public OnnxLocalAiProvider()
         : this(null)
@@ -46,26 +45,27 @@ public class OnnxLocalAiProvider : IAiEngineProvider
     {
         var modelPath = this.configService?.GetValue("OnnxModelPath", "/config/models/leecharr-ai.onnx") ?? "/config/models/leecharr-ai.onnx";
         var modelExists = File.Exists(modelPath);
+        var warnings = new List<string>
+        {
+            "ONNX Runtime inference is not implemented.",
+        };
 
         if (modelExists)
         {
-            return Task.FromResult(new AiHealthResult
-            {
-                IsHealthy = true,
-                StatusMessage = $"ONNX model loaded successfully from '{modelPath}'.",
-                LatencyMs = 2,
-                ModelName = "Leecharr-ONNX-v1",
-                Version = this.Version,
-            });
+            warnings.Add($"A file exists at '{modelPath}', but it is not loaded or executed.");
+        }
+        else
+        {
+            warnings.Add($"Model file not found at '{modelPath}'.");
         }
 
         return Task.FromResult(new AiHealthResult
         {
-            IsHealthy = true,
-            StatusMessage = "ONNX provider active (running in embedded heuristic fallback mode; model weights not found).",
-            Warnings = new List<string> { $"Model file not found at '{modelPath}'; using embedded rule heuristics." },
-            LatencyMs = 1,
-            ModelName = "ONNX-Heuristic-Fallback",
+            IsHealthy = false,
+            StatusMessage = "ONNX local inference is unavailable because no ONNX Runtime pipeline is implemented.",
+            Warnings = warnings,
+            LatencyMs = 0,
+            ModelName = "ONNX-Not-Implemented",
             Version = this.Version,
         });
     }
@@ -73,7 +73,11 @@ public class OnnxLocalAiProvider : IAiEngineProvider
     public async Task<AiParsedRelease> ParseReleaseAsync(string releaseName)
     {
         var result = await this.fallbackProvider.ParseReleaseAsync(releaseName);
-        result.AdditionalTags["Engine"] = "OnnxLocal";
+        if (result != null)
+        {
+            result.AdditionalTags["Engine"] = HeuristicEngineId;
+        }
+
         return result;
     }
 

@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Ai;
@@ -194,5 +195,71 @@ public class AiControllerTest
         await this.aiService.Received().AnalyzeMalwareRiskAsync(
             "Movie.2024.1080p",
             Arg.Is<List<TorrentFile>>(files => files.Single().Size == 0));
+    }
+
+    [Test]
+    public async Task GetStatus_WhenProviderIsAvailable_ReportsThatProvidersCapabilities()
+    {
+        var provider = Substitute.For<IAiEngineProvider>();
+        provider.ProviderId.Returns("Gemini");
+        provider.DisplayName.Returns("Google Gemini Cloud LLM");
+        provider.Version.Returns("1.0");
+        provider.Description.Returns("Cloud model");
+        provider.IsAvailable.Returns(true);
+        provider.Capabilities.Returns(AiCapabilities.SupportsCloudLlm | AiCapabilities.SupportsNaturalLanguageSearch | AiCapabilities.SupportsMalwareAnomalyDetection);
+
+        this.aiManager.ActiveProvider.Returns(provider);
+        this.aiManager.ActiveProviderId.Returns("Gemini");
+        this.aiManager.ProbeProviderAsync("Gemini").Returns(Task.FromResult(new AiHealthResult
+        {
+            IsHealthy = true,
+            StatusMessage = "Gemini healthy",
+            ModelName = "gemini-2.0-flash",
+        }));
+
+        var result = await this.controller.GetStatus();
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        Property(ok.Value, "activeProviderId").Should().Be("Gemini");
+        var capabilities = Property(ok.Value, "capabilities");
+        Property(capabilities, "supportsCloudLlm").Should().Be(true);
+        Property(capabilities, "supportsNaturalLanguageSearch").Should().Be(true);
+        Property(capabilities, "supportsMalwareAnomalyDetection").Should().Be(true);
+        Property(capabilities, "supportsReleaseNameParsing").Should().Be(false);
+    }
+
+    [Test]
+    public async Task GetStatus_WhenActiveProviderIsUnavailable_DoesNotStampItAsTheExecutingEngine()
+    {
+        var config = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        config.GetValue("OnnxModelPath", Arg.Any<string>()).Returns("/nonexistent/model.onnx");
+        var onnx = new OnnxLocalAiProvider(config);
+        var heuristic = new RuleHeuristicAiProvider();
+
+        this.aiManager.ActiveProvider.Returns(onnx);
+        this.aiManager.ActiveProviderId.Returns("OnnxLocal");
+        this.aiManager.GetProvider("RuleHeuristic").Returns(heuristic);
+        this.aiManager.ProbeProviderAsync("OnnxLocal").Returns(_ => onnx.ProbeHealthAsync());
+
+        var result = await this.controller.GetStatus();
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        Property(ok.Value, "activeProviderId").Should().Be("RuleHeuristic");
+        Property(ok.Value, "activeProviderId").Should().NotBe("OnnxLocal");
+
+        var capabilities = Property(ok.Value, "capabilities");
+        Property(capabilities, "supportsCloudLlm").Should().Be(false);
+        Property(capabilities, "supportsNaturalLanguageSearch").Should().Be(true);
+        Property(capabilities, "supportsMalwareAnomalyDetection").Should().Be(true);
+
+        var health = Property(ok.Value, "health");
+        health.Should().BeOfType<AiHealthResult>();
+        var healthResult = (AiHealthResult)health;
+        healthResult.StatusMessage.Should().Contain("OnnxLocal");
+        healthResult.StatusMessage.Should().Contain("does not execute AI");
+        healthResult.ModelName.Should().NotContain("loaded successfully");
+    }
+
+    private static object Property(object instance, string name)
+    {
+        return instance.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.Public)!.GetValue(instance)!;
     }
 }
