@@ -303,14 +303,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                     if (track.TryGetProperty("Channels", out var chanProp) &&
                         TryGetInt(chanProp, out var channels))
                     {
-                        channelsStr = channels switch
-                        {
-                            1 => "1.0",
-                            2 => "2.0",
-                            6 => "5.1",
-                            8 => "7.1",
-                            _ => $"{channels}.0",
-                        };
+                        channelsStr = TagLibInspectorProvider.FormatAudioChannels(channels);
                     }
 
                     var incomingScore = GetAudioCodecScore(audioFmt);

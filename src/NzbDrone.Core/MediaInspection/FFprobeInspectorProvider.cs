@@ -477,14 +477,7 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                             if (channels > 0)
                             {
                                 channelCount = channels;
-                                channelsStr = channels switch
-                                {
-                                    1 => "1.0",
-                                    2 => "2.0",
-                                    6 => "5.1",
-                                    8 => "7.1",
-                                    _ => $"{channels}.0",
-                                };
+                                channelsStr = TagLibInspectorProvider.FormatAudioChannels(channels);
                             }
                         }
 
@@ -1026,20 +1019,17 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
             return 0;
         }
 
-        if (channelsLabel == "5.1")
-        {
-            return 6;
-        }
-
-        if (channelsLabel == "7.1")
-        {
-            return 8;
-        }
-
         if (channelsLabel.EndsWith(".0", StringComparison.Ordinal) &&
-            int.TryParse(channelsLabel[..^2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var count))
+            int.TryParse(channelsLabel[..^2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var whole))
         {
-            return count;
+            return whole;
+        }
+
+        // X.1 layouts store the discrete count as surround channels plus LFE (5.1 => 6, 6.1 => 7, 2.1 => 3).
+        if (channelsLabel.EndsWith(".1", StringComparison.Ordinal) &&
+            int.TryParse(channelsLabel[..^2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var surround))
+        {
+            return surround + 1;
         }
 
         return 0;

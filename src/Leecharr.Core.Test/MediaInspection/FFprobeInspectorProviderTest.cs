@@ -950,4 +950,62 @@ exit 0
         health.StatusMessage.Should().Contain("failed to start");
         health.Warnings.Should().NotBeEmpty();
     }
+
+    [TestCase(1, "1.0")]
+    [TestCase(2, "2.0")]
+    [TestCase(3, "2.1")]
+    [TestCase(4, "4.0")]
+    [TestCase(5, "5.0")]
+    [TestCase(6, "5.1")]
+    [TestCase(7, "6.1")]
+    [TestCase(8, "7.1")]
+    public void ParseFFprobeJson_MapsChannelCountToTagLibLayout(int channels, string expected)
+    {
+        var json = $$"""
+            {
+                "format": {
+                    "format_name": "matroska,webm"
+                },
+                "streams": [
+                    {
+                        "codec_type": "audio",
+                        "codec_name": "dts",
+                        "channels": {{channels}}
+                    }
+                ]
+            }
+            """;
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioChannels.Should().Be(expected);
+    }
+
+    [Test]
+    public void ParseFFprobeJson_WhenEqualCodecScore_KeepsSixPointOneOverLaterStereo()
+    {
+        var json = """
+        {
+            "format": {
+                "format_name": "matroska,webm"
+            },
+            "streams": [
+                {
+                    "codec_type": "audio",
+                    "codec_name": "dts",
+                    "channels": 7
+                },
+                {
+                    "codec_type": "audio",
+                    "codec_name": "dts",
+                    "channels": 2
+                }
+            ]
+        }
+        """;
+        var info = FFprobeInspectorProvider.ParseFFprobeJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioChannels.Should().Be("6.1");
+    }
 }

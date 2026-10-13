@@ -599,4 +599,71 @@ sleep 300
         info!.AudioCodec.Should().Be("DTS XLL");
         info.AudioChannels.Should().Be("5.1");
     }
+
+    [TestCase(1, "1.0")]
+    [TestCase(2, "2.0")]
+    [TestCase(3, "2.1")]
+    [TestCase(4, "4.0")]
+    [TestCase(5, "5.0")]
+    [TestCase(6, "5.1")]
+    [TestCase(7, "6.1")]
+    [TestCase(8, "7.1")]
+    public void ParseMediaInfoJson_MapsChannelCountToTagLibLayout(int channels, string expected)
+    {
+        var json = $$"""
+            {
+                "media": {
+                    "track": [
+                        {
+                            "@type": "General",
+                            "Format": "Matroska"
+                        },
+                        {
+                            "@type": "Audio",
+                            "Format": "DTS",
+                            "Channels": {{channels}}
+                        }
+                    ]
+                }
+            }
+            """;
+        var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
+
+        info.Should().NotBeNull();
+        info!.AudioChannels.Should().Be(expected);
+    }
+
+    [Test]
+    public void ParseMediaInfoJson_WhenChannelsAreStrings_MapsSixPointOneAndTwoPointOne()
+    {
+        var sixPointOne = """
+        {
+            "media": {
+                "track": [
+                    {
+                        "@type": "Audio",
+                        "Format": "DTS",
+                        "Channels": "7"
+                    }
+                ]
+            }
+        }
+        """;
+        var twoPointOne = """
+        {
+            "media": {
+                "track": [
+                    {
+                        "@type": "Audio",
+                        "Format": "AAC",
+                        "Channels": "3"
+                    }
+                ]
+            }
+        }
+        """;
+
+        MediaInfoInspectorProvider.ParseMediaInfoJson(sixPointOne, "sample.mkv")!.AudioChannels.Should().Be("6.1");
+        MediaInfoInspectorProvider.ParseMediaInfoJson(twoPointOne, "sample.mkv")!.AudioChannels.Should().Be("2.1");
+    }
 }
