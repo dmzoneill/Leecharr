@@ -4,7 +4,9 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.MediaEnrichment.Providers;
 
 namespace Leecharr.Core.Test.MediaEnrichment;
@@ -220,6 +222,45 @@ public class LocalNfoMetadataProviderTest
     }
 
     [Test]
+    public async Task FetchMetadataAsync_WithCompletedMediaPath_FindsTvshowNfoInParentShowFolder()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_local_nfo_test_" + Guid.NewGuid().ToString("N"));
+        var showDir = Path.Combine(tempDir, "Severance");
+        var seasonDir = Path.Combine(showDir, "Season 1");
+        Directory.CreateDirectory(seasonDir);
+        try
+        {
+            var nfoPath = Path.Combine(showDir, "tvshow.nfo");
+            await File.WriteAllTextAsync(nfoPath, @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
+<tvshow>
+    <title>Severance</title>
+    <year>2022</year>
+    <plot>Office workers with divided memories.</plot>
+</tvshow>");
+
+            var mediaFile = Path.Combine(seasonDir, "Severance.S01E01.mkv");
+            await File.WriteAllBytesAsync(mediaFile, new byte[] { 0x00 });
+
+            var metadata = await this.provider.FetchMetadataAsync(
+                "Severance.S01E01.1080p.WEB-DL.x265",
+                "tv",
+                mediaFilePath: mediaFile);
+
+            metadata.Should().NotBeNull();
+            metadata!.Title.Should().Be("Severance");
+            metadata.Year.Should().Be(2022);
+            metadata.Overview.Should().Contain("divided memories");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task FetchMetadataAsync_WithoutNfo_StillLoadsLocalArtwork()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_local_nfo_test_" + Guid.NewGuid().ToString("N"));
@@ -243,6 +284,116 @@ public class LocalNfoMetadataProviderTest
             if (Directory.Exists(tempDir))
             {
                 Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WithConfiguredDownloadDir_RejectsPathTraversalTitles()
+    {
+        var downloadRoot = Path.Combine(Path.GetTempPath(), "leecharr_nfo_download_root_" + Guid.NewGuid().ToString("N"));
+        var outsideDir = Path.Combine(Path.GetTempPath(), "leecharr_nfo_outside_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(downloadRoot);
+        Directory.CreateDirectory(outsideDir);
+
+        var secretNfo = Path.Combine(outsideDir, "movie.nfo");
+        await File.WriteAllTextAsync(secretNfo, "<movie><title>Leaked Secret</title></movie>");
+
+        var config = Substitute.For<IConfigService>();
+        config.DownloadDir.Returns(downloadRoot);
+        config.IncompleteDownloadDir.Returns(string.Empty);
+
+        var securedProvider = new LocalNfoMetadataProvider(config);
+
+        try
+        {
+            var traversalTitle = ".." + Path.DirectorySeparatorChar + Path.GetFileName(outsideDir);
+            var metadata = await securedProvider.FetchMetadataAsync(traversalTitle);
+
+            metadata.Should().NotBeNull();
+            metadata!.Title.Should().NotBe("Leaked Secret");
+            metadata.Overview.Should().BeEmpty();
+        }
+        finally
+        {
+            if (Directory.Exists(downloadRoot))
+            {
+                Directory.Delete(downloadRoot, true);
+            }
+
+            if (Directory.Exists(outsideDir))
+            {
+                Directory.Delete(outsideDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WithConfiguredDownloadDir_ReadsNfoFromSubfolder()
+    {
+        var downloadRoot = Path.Combine(Path.GetTempPath(), "leecharr_nfo_download_root_" + Guid.NewGuid().ToString("N"));
+        var releaseDir = Path.Combine(downloadRoot, "My.Movie.2020");
+        Directory.CreateDirectory(releaseDir);
+
+        var nfoPath = Path.Combine(releaseDir, "movie.nfo");
+        await File.WriteAllTextAsync(nfoPath, "<movie><title>Inside Download</title></movie>");
+
+        var config = Substitute.For<IConfigService>();
+        config.DownloadDir.Returns(downloadRoot);
+        config.IncompleteDownloadDir.Returns(string.Empty);
+
+        var securedProvider = new LocalNfoMetadataProvider(config);
+
+        try
+        {
+            var metadata = await securedProvider.FetchMetadataAsync("My.Movie.2020");
+
+            metadata.Should().NotBeNull();
+            metadata!.Title.Should().Be("Inside Download");
+        }
+        finally
+        {
+            if (Directory.Exists(downloadRoot))
+            {
+                Directory.Delete(downloadRoot, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WithConfiguredDownloadDir_IgnoresAbsolutePathsOutsideRoot()
+    {
+        var downloadRoot = Path.Combine(Path.GetTempPath(), "leecharr_nfo_download_root_" + Guid.NewGuid().ToString("N"));
+        var outsideDir = Path.Combine(Path.GetTempPath(), "leecharr_nfo_outside_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(downloadRoot);
+        Directory.CreateDirectory(outsideDir);
+
+        var secretNfo = Path.Combine(outsideDir, "movie.nfo");
+        await File.WriteAllTextAsync(secretNfo, "<movie><title>Absolute Leak</title></movie>");
+
+        var config = Substitute.For<IConfigService>();
+        config.DownloadDir.Returns(downloadRoot);
+        config.IncompleteDownloadDir.Returns(string.Empty);
+
+        var securedProvider = new LocalNfoMetadataProvider(config);
+
+        try
+        {
+            var metadata = await securedProvider.FetchMetadataAsync(outsideDir);
+
+            metadata.Should().NotBeNull();
+            metadata!.Title.Should().NotBe("Absolute Leak");
+        }
+        finally
+        {
+            if (Directory.Exists(downloadRoot))
+            {
+                Directory.Delete(downloadRoot, true);
+            }
+
+            if (Directory.Exists(outsideDir))
+            {
+                Directory.Delete(outsideDir, true);
             }
         }
     }

@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Packages;
 
 namespace NzbDrone.Core.MediaEnrichment.Providers;
 
@@ -111,48 +113,51 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
 
     private string LocateNfoFile(string inputPath)
     {
-        if (File.Exists(inputPath))
+        if (string.IsNullOrWhiteSpace(inputPath))
         {
-            if (inputPath.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase))
+            return null;
+        }
+
+        if (this.TryResolveExistingPath(inputPath, out var existingPath))
+        {
+            if (File.Exists(existingPath))
             {
-                return inputPath;
+                if (existingPath.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase))
+                {
+                    return existingPath;
+                }
+
+                var parentDir = Path.GetDirectoryName(existingPath);
+                if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir) && this.IsPathAllowed(parentDir))
+                {
+                    return FindNfoInDirectory(parentDir);
+                }
             }
 
-            var parentDir = Path.GetDirectoryName(inputPath);
-            if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+            if (Directory.Exists(existingPath) && this.IsPathAllowed(existingPath))
             {
-                return FindNfoInDirectory(parentDir);
+                return FindNfoInDirectory(existingPath);
             }
         }
 
-        if (Directory.Exists(inputPath))
+        foreach (var dir in this.GetDownloadSearchRoots())
         {
-            return FindNfoInDirectory(inputPath);
-        }
-
-        if (this.configService != null)
-        {
-            var searchDirs = new[] { this.configService.DownloadDir, this.configService.IncompleteDownloadDir }
-                .Where(d => !string.IsNullOrWhiteSpace(d) && Directory.Exists(d));
-
-            foreach (var dir in searchDirs)
+            if (!TryResolvePathUnderRoot(dir, inputPath, out var candidate))
             {
-                var candidate = Path.Combine(dir, inputPath);
-                if (Directory.Exists(candidate))
+                continue;
+            }
+
+            if (Directory.Exists(candidate))
+            {
+                var found = FindNfoInDirectory(candidate);
+                if (found != null)
                 {
-                    var found = FindNfoInDirectory(candidate);
-                    if (found != null)
-                    {
-                        return found;
-                    }
+                    return found;
                 }
-                else if (File.Exists(candidate))
-                {
-                    if (candidate.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return candidate;
-                    }
-                }
+            }
+            else if (File.Exists(candidate) && candidate.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
             }
         }
 
@@ -166,50 +171,136 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             return null;
         }
 
-        if (File.Exists(inputPath))
+        if (this.TryResolveExistingPath(inputPath, out var existingPath))
         {
-            if (inputPath.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase))
+            if (File.Exists(existingPath))
             {
-                return Path.GetDirectoryName(inputPath);
-            }
-
-            var parentDir = Path.GetDirectoryName(inputPath);
-            if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
-            {
-                return parentDir;
-            }
-        }
-
-        if (Directory.Exists(inputPath))
-        {
-            return inputPath;
-        }
-
-        if (this.configService != null)
-        {
-            var searchDirs = new[] { this.configService.DownloadDir, this.configService.IncompleteDownloadDir }
-                .Where(d => !string.IsNullOrWhiteSpace(d) && Directory.Exists(d));
-
-            foreach (var dir in searchDirs)
-            {
-                var candidate = Path.Combine(dir, inputPath);
-                if (Directory.Exists(candidate))
+                if (existingPath.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase))
                 {
-                    return candidate;
+                    var nfoDir = Path.GetDirectoryName(existingPath);
+                    return !string.IsNullOrEmpty(nfoDir) && this.IsPathAllowed(nfoDir) ? nfoDir : null;
                 }
 
-                if (File.Exists(candidate))
+                var parentDir = Path.GetDirectoryName(existingPath);
+                if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir) && this.IsPathAllowed(parentDir))
                 {
-                    var parent = Path.GetDirectoryName(candidate);
-                    if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
-                    {
-                        return parent;
-                    }
+                    return parentDir;
+                }
+            }
+
+            if (Directory.Exists(existingPath) && this.IsPathAllowed(existingPath))
+            {
+                return existingPath;
+            }
+        }
+
+        foreach (var dir in this.GetDownloadSearchRoots())
+        {
+            if (!TryResolvePathUnderRoot(dir, inputPath, out var candidate))
+            {
+                continue;
+            }
+
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            if (File.Exists(candidate))
+            {
+                var parent = Path.GetDirectoryName(candidate);
+                if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent) && this.IsPathAllowed(parent))
+                {
+                    return parent;
                 }
             }
         }
 
         return null;
+    }
+
+    private IEnumerable<string> GetDownloadSearchRoots()
+    {
+        if (this.configService == null)
+        {
+            return Array.Empty<string>();
+        }
+
+        return new[] { this.configService.DownloadDir, this.configService.IncompleteDownloadDir }
+            .Where(d => !string.IsNullOrWhiteSpace(d) && Directory.Exists(d));
+    }
+
+    private bool TryResolveExistingPath(string inputPath, out string resolvedPath)
+    {
+        resolvedPath = null;
+        if (string.IsNullOrWhiteSpace(inputPath))
+        {
+            return false;
+        }
+
+        if (!File.Exists(inputPath) && !Directory.Exists(inputPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            resolvedPath = Path.GetFullPath(inputPath);
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (this.configService != null && !this.IsPathAllowed(resolvedPath))
+        {
+            resolvedPath = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryResolvePathUnderRoot(string rootDirectory, string relativePath, out string resolvedPath)
+    {
+        resolvedPath = null;
+        if (string.IsNullOrWhiteSpace(rootDirectory) || string.IsNullOrWhiteSpace(relativePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            PackagePathTranslator.ValidateZipSlip(relativePath);
+            var combined = Path.Combine(rootDirectory, relativePath);
+            var fullPath = Path.GetFullPath(combined);
+            if (!PackagePathTranslator.IsPathUnderDirectory(fullPath, rootDirectory))
+            {
+                return false;
+            }
+
+            resolvedPath = fullPath;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool IsPathAllowed(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (this.configService == null)
+        {
+            return true;
+        }
+
+        return this.GetDownloadSearchRoots().Any(root => PackagePathTranslator.IsPathUnderDirectory(path, root));
     }
 
     private static string FindNfoInDirectory(string directory)
