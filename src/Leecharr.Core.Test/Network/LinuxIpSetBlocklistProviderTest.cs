@@ -147,6 +147,29 @@ public class LinuxIpSetBlocklistProviderTest
         capturedScript.Should().Contain("swap leecharr_tmp_v4 leecharr_blocklist_v4");
     }
 
+    [Test]
+    public async Task LoadRulesAsync_IPv4MappedPrefixOf32_Stays32InRestoreScript()
+    {
+        string capturedScript = null;
+        var mockProvider = new InterceptedLinuxIpSetBlocklistProvider(
+            this.diskProvider,
+            (args, stdIn, cancellationToken) =>
+            {
+                if (args == "restore")
+                {
+                    capturedScript = stdIn;
+                }
+
+                return Task.FromResult((0, string.Empty, string.Empty));
+            });
+
+        var loaded = await mockProvider.LoadRulesAsync(new[] { "::ffff:1.2.3.4/32" });
+
+        loaded.Should().Be(1);
+        capturedScript.Should().Contain("add leecharr_tmp_v4 1.2.3.4/32 -exist");
+        capturedScript.Should().NotContain("1.2.3.4/0");
+    }
+
     private class ExecutableHarnessProvider : LinuxIpSetBlocklistProvider
     {
         private readonly string binaryPath;

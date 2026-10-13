@@ -351,7 +351,10 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
                 if (ip.IsIPv4MappedToIPv6)
                 {
                     ip = ip.MapToIPv4();
-                    prefix = Math.Clamp(prefix - 96, 0, 32);
+                    if (prefix > 32)
+                    {
+                        prefix = Math.Clamp(prefix - 96, 0, 32);
+                    }
                 }
 
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
