@@ -82,6 +82,7 @@ public class MonoTorrentDownloadEngineTest
         this.configService.MultiTrackerFailoverEnabled.Returns(false);
         this.configService.DhtAutoBootstrap.Returns(true);
         this.configService.DhtRateLimitEnabled.Returns(true);
+        this.configService.LowDiskSpaceThresholdMb.Returns(500);
 
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
@@ -4363,6 +4364,83 @@ public class MonoTorrentDownloadEngineTest
 
         task.IsStorageFull.Should().BeTrue();
         task.Status.Should().Be(TorrentStatus.Paused);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenLowDiskSpaceThresholdMbIsZero_DoesNotPauseForDiskSpace()
+    {
+        this.configService.LowDiskSpaceThresholdMb.Returns(0);
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("threshold_disabled.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 509,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "threshold_disabled.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.IsStorageFull.Should().BeFalse();
+        task.WasAutoPausedByDiskSpace.Should().BeFalse();
+        (task.ErrorMessage ?? string.Empty).Should().NotContain("StorageFull");
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Is<HealthIssueEvent>(e => e.Source == "DiskSpace"));
+    }
+
+    [TestCase(0)]
+    [TestCase(-5)]
+    public async Task CheckDiskSpaceHealth_WhenLowDiskSpaceThresholdMbIsZeroOrNegative_DoesNotPause(int thresholdMb)
+    {
+        this.configService.LowDiskSpaceThresholdMb.Returns(thresholdMb);
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("threshold_disabled_health.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 510,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "threshold_disabled_health.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.IsStorageFull.Should().BeFalse();
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+        this.engine.CheckDiskSpaceHealth();
+
+        task.IsStorageFull.Should().BeFalse();
+        task.WasAutoPausedByDiskSpace.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ResumeTorrentAsync_WhenLowDiskSpaceThresholdMbIsZero_DoesNotBlockResume()
+    {
+        this.configService.LowDiskSpaceThresholdMb.Returns(0);
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("resume_threshold_disabled.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 511,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "resume_threshold_disabled.iso",
+            Status = TorrentStatus.Paused,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(200_000_000L);
+        await this.engine.ResumeTorrentAsync(511);
+
+        task.IsStorageFull.Should().BeFalse();
+        (task.ErrorMessage ?? string.Empty).Should().NotContain("StorageFull");
     }
 
     [Test]

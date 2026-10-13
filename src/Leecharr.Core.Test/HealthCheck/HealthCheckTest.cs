@@ -386,6 +386,66 @@ public class HealthCheckTest
         result.Message.Should().Contain("Low disk space");
     }
 
+    [TestCase(0)]
+    [TestCase(-1)]
+    public async Task DiskSpaceHealthCheck_WhenLowDiskSpaceThresholdMbIsZeroOrNegative_ReturnsOkAndDoesNotPublishAlerts(int thresholdMb)
+    {
+        var diskService = Substitute.For<IDiskSpaceService>();
+        diskService.GetDiskSpace().Returns(new List<DiskSpaceInfo>
+        {
+            new DiskSpaceInfo { Path = "/downloads", FreeSpace = 500L * 1024 * 1024, TotalSpace = 100L * 1024 * 1024 * 1024 },
+        });
+
+        var configService = Substitute.For<IConfigService>();
+        configService.LowDiskSpaceThresholdMb.Returns(thresholdMb);
+
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        var check = new DiskSpaceHealthCheck(diskService, configService, eventAggregator);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        result.Source.Should().Be("DiskSpace");
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<DiskSpaceCriticalEvent>());
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<DiskSpaceLowEvent>());
+    }
+
+    [Test]
+    public async Task DiskSpaceHealthCheck_WhenThresholdDisabled_IgnoresFreePercentBelowFivePercent()
+    {
+        var diskService = Substitute.For<IDiskSpaceService>();
+        diskService.GetDiskSpace().Returns(new List<DiskSpaceInfo>
+        {
+            new DiskSpaceInfo { Path = "/downloads", FreeSpace = 6L * 1024 * 1024 * 1024, TotalSpace = 200L * 1024 * 1024 * 1024 },
+        });
+
+        var configService = Substitute.For<IConfigService>();
+        configService.LowDiskSpaceThresholdMb.Returns(0);
+
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        var check = new DiskSpaceHealthCheck(diskService, configService, eventAggregator);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Ok);
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<DiskSpaceLowEvent>());
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<DiskSpaceCriticalEvent>());
+    }
+
+    [Test]
+    public async Task DiskSpaceHealthCheck_WhenThresholdDisabled_StillErrorsWhenNoDisksReturned()
+    {
+        var diskService = Substitute.For<IDiskSpaceService>();
+        diskService.GetDiskSpace().Returns(new List<DiskSpaceInfo>());
+
+        var configService = Substitute.For<IConfigService>();
+        configService.LowDiskSpaceThresholdMb.Returns(0);
+
+        var check = new DiskSpaceHealthCheck(diskService, configService);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Message.Should().Contain("no disks were returned");
+    }
+
     [Test]
     public async Task MemoryHealthCheck_ReturnsOk_WhenMemoryNormal()
     {

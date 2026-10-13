@@ -1452,10 +1452,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 return null;
             }
 
-            var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
-            var thresholdBytes = thresholdMb * 1024L * 1024L;
-            var availableSpace = this.diskProvider.GetAvailableSpace(workingPath);
-            var isLowDiskSpace = availableSpace.HasValue && availableSpace.Value < thresholdBytes;
+            var thresholdCheckEnabled = this.TryGetLowDiskSpaceThresholdBytes(out var thresholdMb, out var thresholdBytes);
+            long? availableSpace = null;
+            var isLowDiskSpace = false;
+            if (thresholdCheckEnabled)
+            {
+                availableSpace = this.diskProvider.GetAvailableSpace(workingPath);
+                isLowDiskSpace = availableSpace.HasValue && availableSpace.Value < thresholdBytes;
+            }
 
             var downloadTask = new MonoTorrentDownloadTask(
                 torrent.Id,
@@ -1931,17 +1935,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
-            var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
-            var thresholdBytes = thresholdMb * 1024L * 1024L;
-            var targetPath = task.WorkingPath ?? task.SavePath ?? task.Manager?.SavePath;
-            if (!string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
+            if (this.TryGetLowDiskSpaceThresholdBytes(out var thresholdMb, out var thresholdBytes))
             {
-                var availableSpace = this.diskProvider.GetAvailableSpace(targetPath);
-                if (availableSpace.HasValue && availableSpace.Value < thresholdBytes)
+                var targetPath = task.WorkingPath ?? task.SavePath ?? task.Manager?.SavePath;
+                if (!string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
                 {
-                    task.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
-                    this.logger.Warn("Cannot resume torrent id {0}: Insufficient free disk space ({1} MB available, {2} MB threshold).", torrentId, availableSpace.Value / (1024 * 1024), thresholdMb);
-                    return;
+                    var availableSpace = this.diskProvider.GetAvailableSpace(targetPath);
+                    if (availableSpace.HasValue && availableSpace.Value < thresholdBytes)
+                    {
+                        task.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
+                        this.logger.Warn("Cannot resume torrent id {0}: Insufficient free disk space ({1} MB available, {2} MB threshold).", torrentId, availableSpace.Value / (1024 * 1024), thresholdMb);
+                        return;
+                    }
                 }
             }
         }
@@ -2014,8 +2019,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return;
         }
 
-        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
-        var thresholdBytes = thresholdMb * 1024L * 1024L;
+        var diskSpaceCheckEnabled = this.TryGetLowDiskSpaceThresholdBytes(out var thresholdMb, out var thresholdBytes);
 
         var toResume = this.schedulerPausedTorrentIds.Keys.ToList();
         this.schedulerPausedTorrentIds.Clear();
@@ -2031,7 +2035,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
 
                 var targetPath = task.WorkingPath ?? task.SavePath ?? task.Manager.SavePath;
-                if (!string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
+                if (diskSpaceCheckEnabled && !string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
                 {
                     var availableSpace = this.diskProvider.GetAvailableSpace(targetPath);
                     if (availableSpace.HasValue && availableSpace.Value < thresholdBytes)
@@ -2078,15 +2082,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return;
         }
 
-        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
-        var thresholdBytes = thresholdMb * 1024L * 1024L;
+        var diskSpaceCheckEnabled = this.TryGetLowDiskSpaceThresholdBytes(out var thresholdMb, out var thresholdBytes);
 
         foreach (var task in this.tasks.Values)
         {
             if (task.Manager != null)
             {
                 var targetPath = task.WorkingPath ?? task.SavePath ?? task.Manager.SavePath;
-                if (!string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
+                if (diskSpaceCheckEnabled && !string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
                 {
                     var availableSpace = this.diskProvider.GetAvailableSpace(targetPath);
                     if (availableSpace.HasValue && availableSpace.Value < thresholdBytes)
@@ -3027,10 +3030,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             if (task.IsStorageFull)
             {
-                var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
-                var thresholdBytes = thresholdMb * 1024L * 1024L;
-                var availableSpace = this.diskProvider.GetAvailableSpace(newSavePath);
-                if (!availableSpace.HasValue || availableSpace.Value >= thresholdBytes)
+                var diskSpaceCheckEnabled = this.TryGetLowDiskSpaceThresholdBytes(out _, out var thresholdBytes);
+                var availableSpace = diskSpaceCheckEnabled ? this.diskProvider.GetAvailableSpace(newSavePath) : null;
+                if (!diskSpaceCheckEnabled || !availableSpace.HasValue || availableSpace.Value >= thresholdBytes)
                 {
                     task.ClearStorageFull(this.eventAggregator);
                 }
@@ -4382,9 +4384,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 if (this.tasks.TryGetValue(torrentId, out var task))
                 {
-                    var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
-                    var thresholdBytes = thresholdMb * 1024L * 1024L;
-                    task.CheckDiskSpace(this.diskProvider, thresholdBytes, this.eventAggregator);
+                    if (this.TryGetLowDiskSpaceThresholdBytes(out _, out var thresholdBytes))
+                    {
+                        task.CheckDiskSpace(this.diskProvider, thresholdBytes, this.eventAggregator);
+                    }
                 }
 
                 if (e.HashPassed)
@@ -5214,10 +5217,34 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.engineStateLock.Dispose();
     }
 
+    private bool TryGetLowDiskSpaceThresholdBytes(out int thresholdMb, out long thresholdBytes)
+    {
+        var configuredThresholdMb = this.configService?.LowDiskSpaceThresholdMb;
+        if (!configuredThresholdMb.HasValue)
+        {
+            thresholdMb = 500;
+            thresholdBytes = 500L * 1024L * 1024L;
+            return true;
+        }
+
+        if (configuredThresholdMb.Value <= 0)
+        {
+            thresholdMb = configuredThresholdMb.Value;
+            thresholdBytes = 0;
+            return false;
+        }
+
+        thresholdMb = configuredThresholdMb.Value;
+        thresholdBytes = (long)thresholdMb * 1024L * 1024L;
+        return true;
+    }
+
     public void CheckDiskSpaceHealth()
     {
-        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
-        var thresholdBytes = thresholdMb * 1024L * 1024L;
+        if (!this.TryGetLowDiskSpaceThresholdBytes(out _, out var thresholdBytes))
+        {
+            return;
+        }
 
         foreach (var task in this.tasks.Values)
         {

@@ -85,6 +85,7 @@ public class DiskSpaceHealthCheck : IHealthCheck
             var usableDiskCount = 0;
 
             var configThresholdMb = this.configService?.LowDiskSpaceThresholdMb;
+            var thresholdDisabled = configThresholdMb.HasValue && configThresholdMb.Value <= 0;
             var warningThresholdBytes = configThresholdMb.HasValue && configThresholdMb.Value > 0
                 ? (long)configThresholdMb.Value * 1024 * 1024
                 : DefaultWarningThresholdBytes;
@@ -101,6 +102,11 @@ public class DiskSpaceHealthCheck : IHealthCheck
                 }
 
                 usableDiskCount++;
+                if (thresholdDisabled)
+                {
+                    continue;
+                }
+
                 var freePercent = (double)disk.FreeSpace / disk.TotalSpace;
                 var freeGb = disk.FreeSpace / (1024.0 * 1024 * 1024);
 
