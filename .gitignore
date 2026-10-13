@@ -70,3 +70,5 @@ scratch/
 # Code review tracker
 .code-review-tracker*
 
+
+.jcode/
