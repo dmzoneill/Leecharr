@@ -618,6 +618,18 @@ public class FileBrowserService : IFileBrowserService
                 testPath.StartsWith(clean + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
         }
 
+        static bool IsStrictlyInsideDirectory(string testPath, string directory)
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                return false;
+            }
+
+            var clean = Path.TrimEndingDirectorySeparator(directory);
+            return testPath.StartsWith(clean + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                testPath.StartsWith(clean + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+
         // Protect AppDataFolder and its contents
         if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
         {
@@ -676,23 +688,28 @@ public class FileBrowserService : IFileBrowserService
 
         foreach (var sysDir in systemDirs)
         {
-            if (MatchesOrIsDescendant(normalized, sysDir))
+            if (!MatchesOrIsDescendant(normalized, sysDir))
+            {
+                continue;
+            }
+
+            // Service layouts keep downloads under these roots. Protect the root and
+            // every path outside the configured download directory. Contents strictly
+            // inside DownloadDir stay manageable. Other system roots stay frozen.
+            var allowsDownloadContents = (sysDir is "/usr" or "/var" or "/opt" or "/srv")
+                && IsStrictlyInsideDirectory(normalized, downloadDir);
+            if (!allowsDownloadContents)
             {
                 return true;
             }
+
+            break;
         }
 
         // For /home: protect /home and its descendants unless strictly inside configured DownloadDir
-        if (MatchesOrIsDescendant(normalized, "/home"))
+        if (MatchesOrIsDescendant(normalized, "/home") && !IsStrictlyInsideDirectory(normalized, downloadDir))
         {
-            var isInsideDownloadDir = downloadDir != null &&
-                (normalized.StartsWith(downloadDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                    normalized.StartsWith(downloadDir + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-
-            if (!isInsideDownloadDir)
-            {
-                return true;
-            }
+            return true;
         }
 
         if (OperatingSystem.IsWindows())
@@ -729,11 +746,7 @@ public class FileBrowserService : IFileBrowserService
                     return true;
                 }
 
-                var isInsideDownloadDir = downloadDir != null &&
-                    (normalized.StartsWith(downloadDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                        normalized.StartsWith(downloadDir + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-
-                if (!isInsideDownloadDir && MatchesOrIsDescendant(normalized, userProfile))
+                if (!IsStrictlyInsideDirectory(normalized, downloadDir) && MatchesOrIsDescendant(normalized, userProfile))
                 {
                     return true;
                 }

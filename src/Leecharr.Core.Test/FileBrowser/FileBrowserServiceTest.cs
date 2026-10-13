@@ -465,6 +465,77 @@ public class FileBrowserServiceTest
         svc.IsRootOrSystemDirectory("/home/user/downloads/movie.mkv").Should().BeFalse();
     }
 
+    [TestCase("/var/lib/leecharr/downloads")]
+    [TestCase("/opt/leecharr/downloads")]
+    [TestCase("/usr/local/leecharr/downloads")]
+    [TestCase("/srv/downloads")]
+    public void IsRootOrSystemDirectory_WhenPathIsInsideDownloadDirUnderServiceRoot_ReturnsFalse(string downloadDir)
+    {
+        this.configService.DownloadDir.Returns(downloadDir);
+        var svc = new FileBrowserService(this.diskProvider, this.configService);
+        var file = downloadDir + "/movie.mkv";
+        var folder = downloadDir + "/season";
+        var sibling = downloadDir + "-other/movie.mkv";
+
+        svc.IsRootOrSystemDirectory(downloadDir).Should().BeTrue();
+        svc.IsRootOrSystemDirectory(file).Should().BeFalse();
+        svc.IsRootOrSystemDirectory(folder).Should().BeFalse();
+        svc.IsRootOrSystemDirectory(sibling).Should().BeTrue();
+        svc.IsRootOrSystemDirectory("/var/log/syslog").Should().BeTrue();
+        svc.IsRootOrSystemDirectory("/etc/shadow").Should().BeTrue();
+    }
+
+    [Test]
+    public void IsRootOrSystemDirectory_WhenDownloadDirIsUnderFrozenSystemRoot_StaysProtected()
+    {
+        this.configService.DownloadDir.Returns("/etc/leecharr/downloads");
+        var svc = new FileBrowserService(this.diskProvider, this.configService);
+
+        svc.IsRootOrSystemDirectory("/etc/leecharr/downloads/movie.mkv").Should().BeTrue();
+        svc.IsRootOrSystemDirectory("/root/downloads/movie.mkv").Should().BeTrue();
+    }
+
+    [Test]
+    public void Delete_WhenPathIsInsideDownloadDirUnderVar_DeletesFile()
+    {
+        this.configService.DownloadDir.Returns("/var/lib/leecharr/downloads");
+        var svc = new FileBrowserService(this.diskProvider, this.configService);
+        var file = "/var/lib/leecharr/downloads/movie.mkv";
+        this.diskProvider.FolderExists(file).Returns(false);
+
+        svc.Delete(file);
+
+        this.diskProvider.Received(1).DeleteFile(file);
+    }
+
+    [Test]
+    public void CreateDirectory_WhenPathIsInsideDownloadDirUnderOpt_CreatesFolder()
+    {
+        this.configService.DownloadDir.Returns("/opt/leecharr/downloads");
+        var svc = new FileBrowserService(this.diskProvider, this.configService);
+        var folder = "/opt/leecharr/downloads/season";
+
+        svc.CreateDirectory(folder);
+
+        this.diskProvider.Received(1).CreateFolder(folder);
+    }
+
+    [Test]
+    public void Rename_WhenPathIsInsideDownloadDirUnderSrv_RenamesFile()
+    {
+        this.configService.DownloadDir.Returns("/srv/downloads");
+        var svc = new FileBrowserService(this.diskProvider, this.configService);
+        var source = "/srv/downloads/movie.mkv";
+        var dest = "/srv/downloads/renamed.mkv";
+        this.diskProvider.FileExists(dest).Returns(false);
+        this.diskProvider.FolderExists(dest).Returns(false);
+        this.diskProvider.FolderExists(source).Returns(false);
+
+        svc.Rename(source, "renamed.mkv");
+
+        this.diskProvider.Received(1).MoveFile(source, dest, false);
+    }
+
     [Test]
     public void CreateDirectory_WhenPathIsSystemDirectory_ThrowsInvalidOperationException()
     {
