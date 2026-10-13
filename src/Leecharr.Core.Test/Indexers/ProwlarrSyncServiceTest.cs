@@ -188,7 +188,7 @@ public class ProwlarrSyncServiceTest
     }
 
     [Test]
-    public async Task SyncFromProwlarrAsync_WhenSyncCategoriesIsTrue_UpdatesExistingCategories()
+    public async Task SyncFromProwlarrAsync_WhenSyncCategoriesIsTrue_PreservesExistingCategoryFilters()
     {
         var json = @"[
             {
@@ -237,8 +237,8 @@ public class ProwlarrSyncServiceTest
             i.MinSeeders == 15 &&
             i.DownloadClientId == 2 &&
             i.Categories.Count == 2 &&
-            i.Categories.Contains(2000) &&
-            i.Categories.Contains(5000) &&
+            i.Categories.Contains(8000) &&
+            i.Categories.Contains(8010) &&
             i.Tags.Contains(1)));
     }
 
@@ -300,6 +300,114 @@ public class ProwlarrSyncServiceTest
     }
 
     [Test]
+    public async Task SyncFromProwlarrAsync_WhenProwlarrReturnsNoIndexers_PrunesManagedIndexersAndKeepsManualFeeds()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]"),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var removed = new IndexerDefinition
+        {
+            Id = 20,
+            Name = "Removed Tracker",
+            Url = "http://prowlarr.local:9696/99/api",
+            ProwlarrIndexerId = 99,
+            IsProwlarrManaged = true,
+            ConfigContract = "ProwlarrSettings",
+        };
+        var manual = new IndexerDefinition
+        {
+            Id = 30,
+            Name = "Manual Custom Indexer",
+            Url = "http://manual-indexer.local/api",
+            IsProwlarrManaged = false,
+        };
+        var otherInstance = new IndexerDefinition
+        {
+            Id = 40,
+            Name = "Other Prowlarr Tracker",
+            Url = "http://prowlarr-b:9696/1/api",
+            ProwlarrIndexerId = 1,
+            IsProwlarrManaged = true,
+        };
+
+        this.repository.All().Returns(new List<IndexerDefinition> { removed, manual, otherInstance });
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(0);
+        this.repository.Received(1).Delete(20);
+        this.repository.DidNotReceive().Delete(30);
+        this.repository.DidNotReceive().Delete(40);
+        this.repository.DidNotReceive().Insert(Arg.Any<IndexerDefinition>());
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_PrunesDisabledProwlarrIndexers_AndKeepsManualFeeds()
+    {
+        var json = @"[
+            {
+            ""id"": 1,
+            ""name"": ""Active Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+            },
+            {
+            ""id"": 2,
+            ""name"": ""Disabled Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": false,
+            ""priority"": 1,
+            ""protocol"": ""torrent""
+            }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var disabled = new IndexerDefinition
+        {
+            Id = 21,
+            Name = "Disabled Tracker",
+            Url = "http://prowlarr.local:9696/2/api",
+            ProwlarrIndexerId = 2,
+            IsProwlarrManaged = true,
+            Priority = 4,
+            FreeleechOnly = true,
+            MinSeeders = 9,
+        };
+        var manual = new IndexerDefinition
+        {
+            Id = 30,
+            Name = "Manual Custom Indexer",
+            Url = "http://manual-indexer.local/api",
+            IsProwlarrManaged = false,
+        };
+
+        this.repository.All().Returns(new List<IndexerDefinition> { disabled, manual });
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(1);
+        this.repository.Received(1).Delete(21);
+        this.repository.DidNotReceive().Delete(30);
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i => i.ProwlarrIndexerId == 1 && i.Enable));
+        this.repository.DidNotReceive().Insert(Arg.Is<IndexerDefinition>(i => i.ProwlarrIndexerId == 2));
+        this.repository.DidNotReceive().Update(Arg.Is<IndexerDefinition>(i => i.Id == 21));
+    }
+
+    [Test]
     public async Task SyncFromProwlarrAsync_ConcurrentCapabilityProbing_UsesTorznabClient()
     {
         var json = @"[
@@ -346,6 +454,78 @@ public class ProwlarrSyncServiceTest
         synced.Should().Be(2);
         this.repository.Received(2).Insert(Arg.Is<IndexerDefinition>(i => i.Categories.Contains(2000)));
         await torznabClient.Received(2).FetchCapabilitiesAsync(Arg.Any<IndexerDefinition>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenCategoriesAbsent_ProbesCapabilitiesConcurrently()
+    {
+        const int indexerCount = 9;
+        var bodies = Enumerable.Range(1, indexerCount).Select(id => $@"
+            {{
+            ""id"": {id},
+            ""name"": ""Probe Tracker {id}"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 5,
+            ""protocol"": ""torrent""
+            }}");
+        var json = "[" + string.Join(",", bodies) + "]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        var inFlight = 0;
+        var maxInFlight = 0;
+        var entered = 0;
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var torznabClient = Substitute.For<ITorznabClient>();
+        torznabClient.FetchCapabilitiesAsync(Arg.Any<IndexerDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(_ => ProbeAsync());
+
+        async Task<TorznabCapabilities> ProbeAsync()
+        {
+            var now = Interlocked.Increment(ref inFlight);
+            int observed;
+            do
+            {
+                observed = Volatile.Read(ref maxInFlight);
+            }
+            while (now > observed && Interlocked.CompareExchange(ref maxInFlight, now, observed) != observed);
+
+            if (Interlocked.Increment(ref entered) >= 8)
+            {
+                await Task.Delay(80);
+                release.TrySetResult();
+            }
+
+            var finished = await Task.WhenAny(release.Task, Task.Delay(TimeSpan.FromSeconds(3)));
+            Interlocked.Decrement(ref inFlight);
+            if (finished != release.Task)
+            {
+                throw new TimeoutException("Capability probes did not overlap within the bounded semaphore.");
+            }
+
+            return new TorznabCapabilities
+            {
+                Categories = new List<TorznabCategory>
+                {
+                    new() { Id = 2000, Name = "Movies", SubCategories = new List<TorznabCategory>() },
+                },
+            };
+        }
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, null, httpClient, torznabClient);
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        synced.Should().Be(indexerCount);
+        maxInFlight.Should().BeGreaterThan(1);
+        maxInFlight.Should().BeLessThanOrEqualTo(8);
+        await torznabClient.Received(indexerCount).FetchCapabilitiesAsync(Arg.Any<IndexerDefinition>(), Arg.Any<CancellationToken>());
     }
 
     [Test]

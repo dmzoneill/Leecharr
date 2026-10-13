@@ -75,6 +75,8 @@ public interface IProwlarrSyncService
 
 public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCommand>, IExecuteAsync<ProwlarrSyncCommand>
 {
+    private const int CapabilityProbeConcurrency = 8;
+
     private static readonly JsonSerializerOptions CaseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly IIndexerRepository repository;
@@ -275,7 +277,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
             using var request = CreateProwlarrRequest(HttpMethod.Get, requestUri, apiKey);
 
-            HttpClient requestClient = this.httpClient;
+            var requestClient = this.httpClient;
             var disposeRequestClient = false;
             if (this.safeHttpClientService != null)
             {
@@ -319,15 +321,9 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 }
             }
 
-            var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexerDto>>(json, CaseInsensitiveJsonOptions);
-
-            if (indexers == null || indexers.Count == 0)
-            {
-                return 0;
-            }
-
-            var supportedIndexers = indexers.Where(i =>
-                string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)).ToList();
+            // An empty payload means every indexer was removed. Prune instead of returning early.
+            var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexerDto>>(json, CaseInsensitiveJsonOptions)
+                ?? new List<ProwlarrIndexerDto>();
 
             var skippedUsenetCount = indexers.Count(i => string.Equals(i.Protocol, "usenet", StringComparison.OrdinalIgnoreCase));
             if (skippedUsenetCount > 0)
@@ -335,25 +331,18 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 this.logger.Info("Skipped {0} Usenet indexers from Prowlarr: Leecharr operates as a BitTorrent-only engine.", skippedUsenetCount);
             }
 
+            // Disabled feeds are omitted so the prune step deletes their local rows.
+            var supportedIndexers = indexers.Where(i =>
+                i.Enable &&
+                string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)).ToList();
+
             if (supportedIndexers.Count == 0)
             {
-                var allExisting = this.repository.All().ToList();
-                var prowlarrToDelete = allExisting
-                    .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase))
-                                && !string.IsNullOrWhiteSpace(e.Url)
-                                && UrlBelongsToProwlarrInstance(e.Url, baseUri))
-                    .ToList();
-                foreach (var indexerToPrune in prowlarrToDelete)
-                {
-                    this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
-                    TorznabClient.InvalidateCapabilities(indexerToPrune.Url, indexerToPrune.ApiKey);
-                    this.repository.Delete(indexerToPrune.Id);
-                }
-
+                this.PruneProwlarrIndexers(baseUri, this.repository.All()?.ToList() ?? new List<IndexerDefinition>(), syncedProwlarrIds: null);
                 return 0;
             }
 
-            using var semaphore = new SemaphoreSlim(8);
+            using var semaphore = new SemaphoreSlim(CapabilityProbeConcurrency);
             var tasks = supportedIndexers.Select(async pIndexer =>
             {
                 await semaphore.WaitAsync();
@@ -387,9 +376,13 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                     ? pIndexer.Implementation
                     : "Torznab";
 
-                var existing = existingIndexers.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e.Url) && string.Equals(e.Url.TrimEnd('/'), feedUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
-                                ?? existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id && !string.IsNullOrWhiteSpace(e.Url) && UrlBelongsToProwlarrInstance(e.Url, baseUri))
-                                ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(e.Url) && UrlBelongsToProwlarrInstance(e.Url, baseUri));
+                var existing = existingIndexers.FirstOrDefault(e =>
+                                    e.ProwlarrIndexerId == pIndexer.Id
+                                    && !string.IsNullOrWhiteSpace(e.Url)
+                                    && UrlBelongsToProwlarrInstance(e.Url, baseUri))
+                                ?? existingIndexers.FirstOrDefault(e =>
+                                    !string.IsNullOrWhiteSpace(e.Url)
+                                    && string.Equals(e.Url.TrimEnd('/'), feedUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
 
                 if (existing == null)
                 {
@@ -443,14 +436,11 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                         existing.ConfigContract = "ProwlarrSettings";
                     }
 
-                    // Respect SyncCategories setting
-                    if (doSyncCategories)
+                    // Local overrides stay put: FreeleechOnly, MinSeeders, Priority, and category filters.
+                    // Prowlarr categories fill a row only when it does not already have a category list.
+                    if (existing.Categories == null)
                     {
-                        existing.Categories = categories;
-                    }
-                    else if (existing.Categories == null)
-                    {
-                        existing.Categories = new List<int>();
+                        existing.Categories = doSyncCategories ? categories : new List<int>();
                     }
 
                     this.repository.Update(existing);
@@ -459,19 +449,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 syncedCount++;
             }
 
-            var toPrune = existingIndexers
-                .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase))
-                            && !string.IsNullOrWhiteSpace(e.Url)
-                            && UrlBelongsToProwlarrInstance(e.Url, baseUri)
-                            && (!e.ProwlarrIndexerId.HasValue || !syncedProwlarrIds.Contains(e.ProwlarrIndexerId.Value)))
-                .ToList();
-
-            foreach (var indexerToPrune in toPrune)
-            {
-                this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
-                TorznabClient.InvalidateCapabilities(indexerToPrune.Url, indexerToPrune.ApiKey);
-                this.repository.Delete(indexerToPrune.Id);
-            }
+            this.PruneProwlarrIndexers(baseUri, existingIndexers, syncedProwlarrIds);
 
             this.logger.Info("Successfully synchronized {0} indexers from Prowlarr.", syncedCount);
             return syncedCount;
@@ -595,6 +573,42 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         }
 
         return categories.OrderBy(c => c).ToList();
+    }
+
+    private void PruneProwlarrIndexers(string baseUri, List<IndexerDefinition> existingIndexers, HashSet<int> syncedProwlarrIds)
+    {
+        if (existingIndexers == null || existingIndexers.Count == 0)
+        {
+            return;
+        }
+
+        var toPrune = existingIndexers
+            .Where(e => IsProwlarrManagedOnInstance(e, baseUri)
+                        && (syncedProwlarrIds == null
+                            || !e.ProwlarrIndexerId.HasValue
+                            || !syncedProwlarrIds.Contains(e.ProwlarrIndexerId.Value)))
+            .ToList();
+
+        foreach (var indexerToPrune in toPrune)
+        {
+            this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
+            TorznabClient.InvalidateCapabilities(indexerToPrune.Url, indexerToPrune.ApiKey);
+            this.repository.Delete(indexerToPrune.Id);
+        }
+    }
+
+    private static bool IsProwlarrManagedOnInstance(IndexerDefinition indexer, string baseUri)
+    {
+        if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
+        {
+            return false;
+        }
+
+        var managed = indexer.IsProwlarrManaged
+            || indexer.ProwlarrIndexerId.HasValue
+            || string.Equals(indexer.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase);
+
+        return managed && UrlBelongsToProwlarrInstance(indexer.Url, baseUri);
     }
 
     private static bool UrlBelongsToProwlarrInstance(string url, string baseUri)
