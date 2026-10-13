@@ -34,18 +34,13 @@ internal static class HttpOutboundProxyConfigurator
             return;
         }
 
-        if (profile == HttpOutboundProxyProfile.SocketsHttpHandler && proxyType is "socks4" or "socks4a")
-        {
-            logger?.Warn(
-                "SOCKS4/SOCKS4a proxy is not supported by .NET SocketsHttpHandler for HTTP traffic (supported only for raw TCP sockets). Proxy configuration ignored for SocketsHttpHandler.");
-            return;
-        }
-
         var scheme = MapScheme(proxyType, profile);
         if (scheme == null)
         {
             scheme = "http";
         }
+
+        logger?.Debug("Applying outbound {0} proxy {1}://{2}:{3}", profile, scheme, proxyHost, proxyPort);
 
         var proxy = new WebProxy(ProxyUriHelper.BuildProxyUri(scheme, proxyHost, proxyPort));
         if (configService.ProxyAuthEnabled && !string.IsNullOrEmpty(configService.ProxyUsername))
@@ -62,6 +57,10 @@ internal static class HttpOutboundProxyConfigurator
         return proxyType is "socks5" or "socks4" or "socks4a" ? 1080 : 8080;
     }
 
+    // .NET 10 SocketsHttpHandler accepts socks4, socks4a, and socks5. socks5 already sends the
+    // destination hostname to the proxy, and socks5h is rejected with NotSupportedException.
+    // curl resolves socks5 locally, so that profile must use socks5h. socks4a is the remote-DNS
+    // SOCKS4 variant. Leaving it unmapped turns the proxy URI into http and misses the tunnel.
     private static string MapScheme(string proxyType, HttpOutboundProxyProfile profile)
     {
         return profile switch
@@ -69,6 +68,8 @@ internal static class HttpOutboundProxyConfigurator
             HttpOutboundProxyProfile.SocketsHttpHandler => proxyType switch
             {
                 "socks5" => "socks5",
+                "socks4" => "socks4",
+                "socks4a" => "socks4a",
                 "http" => "http",
                 "https" => "https",
                 _ => "http",
@@ -77,6 +78,7 @@ internal static class HttpOutboundProxyConfigurator
             {
                 "socks5" => "socks5h",
                 "socks4" => "socks4",
+                "socks4a" => "socks4a",
                 "http" => "http",
                 _ => "http",
             },
@@ -84,6 +86,7 @@ internal static class HttpOutboundProxyConfigurator
             {
                 "socks5" => "socks5",
                 "socks4" => "socks4",
+                "socks4a" => "socks4a",
                 "http" => "http",
                 _ => "http",
             },

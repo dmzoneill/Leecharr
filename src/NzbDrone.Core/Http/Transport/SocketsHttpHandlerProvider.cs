@@ -91,19 +91,11 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IHttpOutboundP
             });
         }
 
-        var proxyType = this.configService?.ProxyType?.ToLowerInvariant() ?? "none";
-        var result = new HttpTransportHealthCheckResult
+        return Task.FromResult(new HttpTransportHealthCheckResult
         {
             IsHealthy = true,
             StatusMessage = "SocketsHttpHandler pipeline is healthy (HTTP/1.1, HTTP/2, HTTP/3 QUIC enabled).",
-        };
-
-        if (proxyType is "socks4" or "socks4a")
-        {
-            result.Warnings.Add("SOCKS4 proxy is configured but is not supported by SocketsHttpHandler. SOCKS4 is only supported for raw TCP socket connections.");
-        }
-
-        return Task.FromResult(result);
+        });
     }
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
