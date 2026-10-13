@@ -245,7 +245,7 @@ public class DynamicAuthSchemeManagerTest
         await capturedOptions.Events.OnTokenValidated(tokenValidatedContext);
 
         tokenValidatedContext.Result?.Failure.Should().BeNull();
-        await this.jitUserProvisioning.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p =>
+        this.jitUserProvisioning.Received(1).ProvisionOrUpdateUser(Arg.Is<ExternalUserProfile>(p =>
             p.SubjectId == "stableuser" && p.Username == "stableuser"));
     }
 
@@ -281,6 +281,6 @@ public class DynamicAuthSchemeManagerTest
         await capturedOptions.Events.OnTokenValidated(tokenValidatedContext);
 
         tokenValidatedContext.Result?.Failure.Should().NotBeNull();
-        await this.jitUserProvisioning.DidNotReceive().ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>());
+        this.jitUserProvisioning.DidNotReceive().ProvisionOrUpdateUser(Arg.Any<ExternalUserProfile>());
     }
 }

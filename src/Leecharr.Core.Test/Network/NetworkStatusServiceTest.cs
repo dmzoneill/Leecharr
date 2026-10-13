@@ -310,7 +310,7 @@ public class NetworkStatusServiceTest
 
         var addresses = service.GetLocalAddresses();
 
-        addresses.Should().OnlyContain(IsLocalOrIpv6Address);
+        addresses.Should().OnlyContain(address => IsLocalOrIpv6Address(address));
 
         var hasGlobalIpv6 = NetworkInterface.GetAllNetworkInterfaces()
             .Any(ni => ni.OperationalStatus == OperationalStatus.Up &&

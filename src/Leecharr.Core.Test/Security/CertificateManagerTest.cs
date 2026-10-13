@@ -552,9 +552,13 @@ public class CertificateManagerTest
                         _ = Task.Run(
                             async () =>
                             {
-                                await using var tcpClient = client;
+                                using var tcpClient = client;
                                 await using var sslStream = new SslStream(tcpClient.GetStream(), leaveInnerStreamOpen: false);
-                                await sslStream.AuthenticateAsServerAsync(serverCertificate, cancellationToken);
+                                var serverOptions = new SslServerAuthenticationOptions
+                                {
+                                    ServerCertificate = serverCertificate,
+                                };
+                                await sslStream.AuthenticateAsServerAsync(serverOptions, cancellationToken);
 
                                 var buffer = new byte[4096];
 #pragma warning disable CA2022 // Test server only needs to consume any client bytes

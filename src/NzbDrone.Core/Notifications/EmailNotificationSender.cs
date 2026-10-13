@@ -284,7 +284,11 @@ public static class EmailNotificationSender
             return null;
         }
 
+        // ignoreSslErrors is an explicit operator opt-in for this SMTP server.
+        // Default validation stays in place unless that flag is set.
+#pragma warning disable CA5359
         return static (_, _, _, _) => true;
+#pragma warning restore CA5359
     }
 
     private static async Task SendWithMailKitAsync(

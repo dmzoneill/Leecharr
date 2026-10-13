@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using FluentAssertions;
 using Leecharr.Http.Security;
 using NSubstitute;

@@ -445,7 +445,7 @@ public class SabnzbdApiControllerTest
     public async Task HandleApi_AddFile_WhenAddReturnsNull_DoesNotReportSuccess()
     {
         var bytes = new byte[] { 1, 2, 3, 4 };
-        var context = this.CreateAddFileContext(bytes);
+        var context = SabnzbdApiControllerTest.CreateAddFileContext(bytes);
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
         this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(new ParsedTorrent { Name = "Upload" });
         this.torrentService
@@ -473,7 +473,7 @@ public class SabnzbdApiControllerTest
     public async Task HandleApi_AddFile_WithUpload_ReturnsInfoHashWhenTorrentIsAdded()
     {
         var bytes = new byte[] { 1, 2, 3, 4 };
-        var context = this.CreateAddFileContext(bytes);
+        var context = SabnzbdApiControllerTest.CreateAddFileContext(bytes);
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
         this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(new ParsedTorrent { Name = "Upload" });
         var added = new Torrent { Id = 11, InfoHash = "uploadhash" };

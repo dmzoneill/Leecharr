@@ -336,7 +336,7 @@ public class FileBrowserControllerTest
                 Assert.Pass("Temp directory is inside a protected path.");
             }
 
-            var controller = this.CreateController(protectedDir);
+            var controller = FileBrowserControllerTest.CreateController(protectedDir);
 
             controller.Download(fileLink).Should().BeOfType<BadRequestObjectResult>();
             controller.Stream(fileLink).Should().BeOfType<BadRequestObjectResult>();
@@ -378,7 +378,7 @@ public class FileBrowserControllerTest
                 Assert.Pass("Temp directory is inside a protected path.");
             }
 
-            var controller = this.CreateController(protectedDir);
+            var controller = FileBrowserControllerTest.CreateController(protectedDir);
 
             controller.Download(fileLink).Should().BeOfType<PhysicalFileResult>();
         }
@@ -400,7 +400,7 @@ public class FileBrowserControllerTest
         return service.IsRootOrSystemDirectory(path);
     }
 
-    private FileBrowserController CreateController(string protectedDirectory)
+    private static FileBrowserController CreateController(string protectedDirectory)
     {
         var appFolderInfo = Substitute.For<IAppFolderInfo>();
         appFolderInfo.AppDataFolder.Returns(protectedDirectory);

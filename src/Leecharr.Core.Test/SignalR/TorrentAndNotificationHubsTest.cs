@@ -23,6 +23,7 @@ public class TorrentAndNotificationHubsTest
     private IConfigFileProvider configFileProvider;
     private HubCallerContext hubCallerContext;
     private IHubCallerClients clients;
+    private IHubClients hubClients;
     private ISingleClientProxy callerProxy;
     private IClientProxy groupProxy;
     private IClientProxy allProxy;
@@ -42,6 +43,7 @@ public class TorrentAndNotificationHubsTest
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.hubCallerContext = Substitute.For<HubCallerContext>();
         this.clients = Substitute.For<IHubCallerClients>();
+        this.hubClients = Substitute.For<IHubClients>();
         this.callerProxy = Substitute.For<ISingleClientProxy>();
         this.groupProxy = Substitute.For<IClientProxy>();
         this.allProxy = Substitute.For<IClientProxy>();
@@ -51,10 +53,12 @@ public class TorrentAndNotificationHubsTest
         this.clients.Caller.Returns(this.callerProxy);
         this.clients.Group(Arg.Any<string>()).Returns(this.groupProxy);
         this.clients.All.Returns(this.allProxy);
+        this.hubClients.Group(Arg.Any<string>()).Returns(this.groupProxy);
+        this.hubClients.All.Returns(this.allProxy);
         this.torrentHubContext = Substitute.For<IHubContext<TorrentHub>>();
-        this.torrentHubContext.Clients.Returns(this.clients);
+        this.torrentHubContext.Clients.Returns(this.hubClients);
         this.notificationHubContext = Substitute.For<IHubContext<NotificationHub>>();
-        this.notificationHubContext.Clients.Returns(this.clients);
+        this.notificationHubContext.Clients.Returns(this.hubClients);
         this.hubCallerContext.ConnectionId.Returns("conn-torrent-123");
 
         this.httpContext = new DefaultHttpContext();
@@ -378,7 +382,7 @@ public class TorrentAndNotificationHubsTest
         var broadcaster = new TorrentHubBroadcaster(this.torrentHubContext);
         await broadcaster.BroadcastTorrentProgress(99, progressData);
 
-        this.clients.Received(1).Group("torrent-99");
+        this.hubClients.Received(1).Group("torrent-99");
         await this.groupProxy.Received(1).SendCoreAsync(
             "torrentProgress",
             Arg.Is<object[]>(args => args.Length == 1 && args[0] == progressData),
@@ -392,7 +396,7 @@ public class TorrentAndNotificationHubsTest
         var broadcaster = new TorrentHubBroadcaster(this.torrentHubContext);
         await broadcaster.BroadcastGlobalProgress(globalProgress);
 
-        this.clients.Received(1).Group("torrents");
+        this.hubClients.Received(1).Group("torrents");
         await this.groupProxy.Received(1).SendCoreAsync(
             "torrentProgress",
             Arg.Is<object[]>(args => args.Length == 1 && args[0] == globalProgress),
@@ -406,7 +410,7 @@ public class TorrentAndNotificationHubsTest
         var broadcaster = new TorrentHubBroadcaster(this.torrentHubContext);
         await broadcaster.PushSwarmTelemetry(7, swarmData);
 
-        this.clients.Received(1).Group("torrent-7");
+        this.hubClients.Received(1).Group("torrent-7");
         await this.groupProxy.Received(1).SendCoreAsync(
             "swarmTelemetry",
             Arg.Is<object[]>(args => args.Length == 1 && args[0] == swarmData),
@@ -753,7 +757,7 @@ public class TorrentAndNotificationHubsTest
         var broadcaster = new NotificationHubBroadcaster(this.notificationHubContext);
         await broadcaster.DispatchNotificationToTopic("Security", notification);
 
-        this.clients.Received(1).Group("topic-security");
+        this.hubClients.Received(1).Group("topic-security");
         await this.groupProxy.Received(1).SendCoreAsync(
             "notificationDispatched",
             Arg.Is<object[]>(args => args.Length == 1 && args[0] == notification),

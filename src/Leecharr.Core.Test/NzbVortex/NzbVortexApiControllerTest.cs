@@ -517,7 +517,7 @@ public class NzbVortexApiControllerTest
     [Test]
     public void GetQueueItem_WhenTorrentMissing_ReturnsNotFound()
     {
-        this.torrentService.Get(99).Returns((Torrent?)null);
+        this.torrentService.Get(99).Returns((Torrent)null);
 
         var result = this.controller.GetQueueItem(99);
 
