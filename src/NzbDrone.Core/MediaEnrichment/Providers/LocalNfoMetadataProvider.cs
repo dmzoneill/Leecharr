@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using NLog;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
@@ -443,17 +444,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                     meta.Genres = string.Join(", ", genreElems);
                 }
 
-                var imdbElem = root.Element("id") ?? root.Element("imdbid");
-                if (imdbElem != null && !string.IsNullOrWhiteSpace(imdbElem.Value))
-                {
-                    meta.ImdbId = imdbElem.Value.Trim();
-                }
-
-                var tmdbElem = root.Element("tmdbid");
-                if (tmdbElem != null && !string.IsNullOrWhiteSpace(tmdbElem.Value))
-                {
-                    meta.TmdbId = tmdbElem.Value.Trim();
-                }
+                ApplyNfoIdentifiers(root, meta);
 
                 if (string.Equals(root.Name.LocalName, "tvshow", StringComparison.OrdinalIgnoreCase))
                 {
@@ -557,6 +548,8 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             }
         }
 
+        ApplyNfoIdentifiersFromRegex(xmlContent, meta);
+
         var actorMatches = Regex.Matches(xmlContent, @"<actor>(?:(?!</actor>).)*?<name>(.*?)</name>(?:(?:(?!</actor>).)*?<role>(.*?)</role>)?", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
         if (actorMatches.Count > 0)
         {
@@ -581,6 +574,157 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                 meta.Cast = castList;
             }
         }
+    }
+
+    private static void ApplyNfoIdentifiers(XElement root, MediaMetadata meta)
+    {
+        foreach (var uniqueId in root.Elements("uniqueid"))
+        {
+            var type = uniqueId.Attribute("type")?.Value?.Trim();
+            var value = uniqueId.Value?.Trim();
+            if (string.IsNullOrWhiteSpace(type) || string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            switch (type.ToLowerInvariant())
+            {
+                case "imdb":
+                    meta.ImdbId = value;
+                    break;
+                case "tvdb":
+                    meta.TvdbId = value;
+                    break;
+                case "tmdb":
+                    meta.TmdbId = value;
+                    break;
+            }
+        }
+
+        var tvdbElem = root.Element("tvdbid");
+        if (tvdbElem != null && !string.IsNullOrWhiteSpace(tvdbElem.Value) && string.IsNullOrEmpty(meta.TvdbId))
+        {
+            meta.TvdbId = tvdbElem.Value.Trim();
+        }
+
+        var imdbElem = root.Element("imdbid");
+        if (imdbElem != null && !string.IsNullOrWhiteSpace(imdbElem.Value) && string.IsNullOrEmpty(meta.ImdbId))
+        {
+            meta.ImdbId = imdbElem.Value.Trim();
+        }
+
+        var tmdbElem = root.Element("tmdbid");
+        if (tmdbElem != null && !string.IsNullOrWhiteSpace(tmdbElem.Value) && string.IsNullOrEmpty(meta.TmdbId))
+        {
+            meta.TmdbId = tmdbElem.Value.Trim();
+        }
+
+        var idElem = root.Element("id");
+        if (idElem == null || string.IsNullOrWhiteSpace(idElem.Value))
+        {
+            return;
+        }
+
+        var idValue = idElem.Value.Trim();
+        if (LooksLikeImdbId(idValue))
+        {
+            if (string.IsNullOrEmpty(meta.ImdbId))
+            {
+                meta.ImdbId = idValue;
+            }
+        }
+        else if (string.IsNullOrEmpty(meta.TvdbId) && LooksLikeNumericId(idValue))
+        {
+            meta.TvdbId = idValue;
+        }
+    }
+
+    private static void ApplyNfoIdentifiersFromRegex(string xmlContent, MediaMetadata meta)
+    {
+        const string uniqueIdPattern = @"<uniqueid[^>]*\btype\s*=\s*(?:\"|')([^\"']+)(?:\"|')[^>]*>(.*?)</uniqueid>";
+        var uniqueIdMatches = Regex.Matches(
+            xmlContent,
+            uniqueIdPattern,
+            RegexOptions.IgnoreCase | RegexOptions.Singleline,
+            TimeSpan.FromSeconds(2));
+        foreach (Match match in uniqueIdMatches)
+        {
+            var type = match.Groups[1].Value.Trim();
+            var value = match.Groups[2].Value.Trim();
+            if (string.IsNullOrWhiteSpace(type) || string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            switch (type.ToLowerInvariant())
+            {
+                case "imdb":
+                    meta.ImdbId = value;
+                    break;
+                case "tvdb":
+                    meta.TvdbId = value;
+                    break;
+                case "tmdb":
+                    meta.TmdbId = value;
+                    break;
+            }
+        }
+
+        if (string.IsNullOrEmpty(meta.TvdbId))
+        {
+            var tvdbMatch = Regex.Match(xmlContent, @"<tvdbid>(.*?)</tvdbid>", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
+            if (tvdbMatch.Success && !string.IsNullOrWhiteSpace(tvdbMatch.Groups[1].Value))
+            {
+                meta.TvdbId = tvdbMatch.Groups[1].Value.Trim();
+            }
+        }
+
+        if (string.IsNullOrEmpty(meta.ImdbId))
+        {
+            var imdbMatch = Regex.Match(xmlContent, @"<imdbid>(.*?)</imdbid>", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
+            if (imdbMatch.Success && !string.IsNullOrWhiteSpace(imdbMatch.Groups[1].Value))
+            {
+                meta.ImdbId = imdbMatch.Groups[1].Value.Trim();
+            }
+        }
+
+        if (string.IsNullOrEmpty(meta.TmdbId))
+        {
+            var tmdbMatch = Regex.Match(xmlContent, @"<tmdbid>(.*?)</tmdbid>", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
+            if (tmdbMatch.Success && !string.IsNullOrWhiteSpace(tmdbMatch.Groups[1].Value))
+            {
+                meta.TmdbId = tmdbMatch.Groups[1].Value.Trim();
+            }
+        }
+
+        var idMatch = Regex.Match(xmlContent, @"<id>(.*?)</id>", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromSeconds(2));
+        if (!idMatch.Success || string.IsNullOrWhiteSpace(idMatch.Groups[1].Value))
+        {
+            return;
+        }
+
+        var idValue = idMatch.Groups[1].Value.Trim();
+        if (LooksLikeImdbId(idValue))
+        {
+            if (string.IsNullOrEmpty(meta.ImdbId))
+            {
+                meta.ImdbId = idValue;
+            }
+        }
+        else if (string.IsNullOrEmpty(meta.TvdbId) && LooksLikeNumericId(idValue))
+        {
+            meta.TvdbId = idValue;
+        }
+    }
+
+    private static bool LooksLikeImdbId(string id)
+    {
+        return id.StartsWith("tt", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool LooksLikeNumericId(string id)
+    {
+        return id.Length > 0 && id.All(char.IsDigit);
     }
 
     private void InspectLocalArtwork(string directory, MediaMetadata meta)
