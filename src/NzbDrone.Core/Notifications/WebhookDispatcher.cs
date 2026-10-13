@@ -8,6 +8,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
+using System.Security;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -67,11 +69,12 @@ public class WebhookDispatcher : IWebhookDispatcher
 
     public WebhookDispatcher(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null, TimeSpan? timeout = null, bool allowLoopback = false, IConfigService configService = null)
         : this(
-            httpClient ?? CreateDefaultHttpClient(transportEngine, timeout),
+            httpClient,
             null,
             timeout,
             allowLoopback,
-            configService?.AllowPrivateNetworkRequests ?? false)
+            configService?.AllowPrivateNetworkRequests ?? false,
+            transportEngine)
     {
     }
 
@@ -80,29 +83,143 @@ public class WebhookDispatcher : IWebhookDispatcher
     {
     }
 
-    internal WebhookDispatcher(HttpClient httpClient, AsyncRetryPolicy<HttpResponseMessage> retryPolicy, TimeSpan? timeout = null, bool allowLoopback = false, bool allowPrivateNetworkRequests = false)
+    internal WebhookDispatcher(HttpClient httpClient, AsyncRetryPolicy<HttpResponseMessage> retryPolicy, TimeSpan? timeout = null, bool allowLoopback = false, bool allowPrivateNetworkRequests = false, IHttpTransportEngine transportEngine = null)
     {
         this.timeout = timeout ?? TimeSpan.FromSeconds(10);
         this.allowLoopback = allowLoopback;
         this.allowPrivateNetworkRequests = allowPrivateNetworkRequests;
-        this.httpClient = httpClient ?? CreateDefaultHttpClient(null, this.timeout);
+        this.httpClient = httpClient ?? CreateDefaultHttpClient(transportEngine, this.timeout, allowLoopback, allowPrivateNetworkRequests);
         this.logger = LogManager.GetCurrentClassLogger();
         this.retryPolicy = retryPolicy ?? CreateRetryPolicy();
     }
 
-    private static HttpClient CreateDefaultHttpClient(IHttpTransportEngine transportEngine, TimeSpan? timeout)
+    private static HttpClient CreateDefaultHttpClient(IHttpTransportEngine transportEngine, TimeSpan timeout, bool allowLoopback, bool allowPrivateNetworkRequests)
     {
         var handler = transportEngine != null
             ? (HttpMessageHandler)new DynamicHttpTransportHandler(transportEngine)
-            : new SocketsHttpHandler { AllowAutoRedirect = false };
+            : CreatePinnedSocketsHttpHandler(allowLoopback, allowPrivateNetworkRequests);
 
         return new HttpClient(handler, disposeHandler: true)
         {
-            Timeout = timeout ?? TimeSpan.FromSeconds(10),
+            Timeout = timeout,
         };
     }
 
+    internal static SocketsHttpHandler CreatePinnedSocketsHttpHandler(
+        bool allowLoopback,
+        bool allowPrivateNetworkRequests,
+        Func<string, CancellationToken, Task<IPAddress[]>> resolveHostAsync = null)
+    {
+        return new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            ConnectCallback = (context, cancellationToken) =>
+                ConnectPinnedAsync(context, allowLoopback, allowPrivateNetworkRequests, resolveHostAsync, cancellationToken),
+        };
+    }
+
+    internal static async ValueTask<Stream> ConnectPinnedAsync(
+        SocketsHttpConnectionContext context,
+        bool allowLoopback,
+        bool allowPrivateNetworkRequests,
+        Func<string, CancellationToken, Task<IPAddress[]>> resolveHostAsync,
+        CancellationToken cancellationToken)
+    {
+        var host = context.DnsEndPoint.Host;
+        var port = context.DnsEndPoint.Port;
+        var addresses = await ResolveForConnectAsync(host, resolveHostAsync, cancellationToken).ConfigureAwait(false);
+        EnsureConnectable(host, addresses, allowLoopback, allowPrivateNetworkRequests);
+
+        Exception lastError = null;
+        foreach (var address in addresses)
+        {
+            var targetIp = address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
+            var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+            {
+                NoDelay = true,
+            };
+
+            try
+            {
+                await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch (Exception ex) when (ex is SocketException or IOException)
+            {
+                lastError = ex;
+                socket.Dispose();
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+
+        if (lastError != null)
+        {
+            throw lastError;
+        }
+
+        throw new SocketException((int)SocketError.HostUnreachable);
+    }
+
+    internal static void EnsureConnectable(string host, IPAddress[] addresses, bool allowLoopback, bool allowPrivateNetworkRequests)
+    {
+        if (addresses == null || addresses.Length == 0)
+        {
+            throw new SecurityException($"Unable to resolve IP address for host '{host}'.");
+        }
+
+        foreach (var address in addresses)
+        {
+            if (IsBlockedIp(address, allowLoopback, allowPrivateNetworkRequests))
+            {
+                throw new SecurityException($"SSRF blocked: IP address '{address}' for host '{host}' is prohibited.");
+            }
+        }
+    }
+
+    private static async Task<IPAddress[]> ResolveForConnectAsync(
+        string host,
+        Func<string, CancellationToken, Task<IPAddress[]>> resolveHostAsync,
+        CancellationToken cancellationToken)
+    {
+        if (IPAddress.TryParse(host, out var parsedIp))
+        {
+            return [parsedIp];
+        }
+
+        try
+        {
+            if (resolveHostAsync != null)
+            {
+                return await resolveHostAsync(host, cancellationToken).ConfigureAwait(false);
+            }
+
+            return await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (SecurityException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            StaticLogger.Trace(ex, "DNS lookup failed during connect for host '{0}'", host);
+            throw new SecurityException($"Unable to resolve IP address for host '{host}'.", ex);
+        }
+    }
+
     public static bool IsValidTargetUrl(string targetUrl, bool allowLoopback = false, bool allowPrivateNetworkRequests = false)
+    {
+        return IsValidTargetUrl(targetUrl, allowLoopback, allowPrivateNetworkRequests, resolveHost: null);
+    }
+
+    internal static bool IsValidTargetUrl(string targetUrl, bool allowLoopback, bool allowPrivateNetworkRequests, Func<string, IPAddress[]> resolveHost)
     {
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
@@ -156,17 +273,20 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
         else
         {
+            IPAddress[] addresses;
             try
             {
-                var addresses = Dns.GetHostAddresses(host);
-                if (addresses.Length > 0 && addresses.Any(a => IsBlockedIp(a, allowLoopback, allowPrivateNetworkRequests)))
-                {
-                    return false;
-                }
+                addresses = resolveHost != null ? resolveHost(host) : Dns.GetHostAddresses(host);
             }
             catch (Exception ex)
             {
                 StaticLogger.Trace(ex, "DNS lookup failed during validation for host '{0}'", host);
+                return false;
+            }
+
+            if (addresses == null || addresses.Length == 0 || addresses.Any(a => IsBlockedIp(a, allowLoopback, allowPrivateNetworkRequests)))
+            {
+                return false;
             }
         }
 

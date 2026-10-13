@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
+using System.Security;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -546,6 +548,116 @@ public class WebhookDispatcherTest
     }
 
     [Test]
+    public async Task DispatchAsync_WhenHostnameDoesNotResolve_ReturnsFalseWithoutSendingHttp()
+    {
+        var result = await this.dispatcher.DispatchAsync("http://leecharr-webhook.invalid/hook", new { eventType = "Test" });
+
+        result.Should().BeFalse();
+        this.handler.SentRequests.Should().BeEmpty();
+    }
+
+    [Test]
+    public void IsValidTargetUrl_WhenDnsLookupThrows_ReturnsFalse()
+    {
+        WebhookDispatcher.IsValidTargetUrl(
+            "https://rebinding.example/hook",
+            allowLoopback: false,
+            allowPrivateNetworkRequests: false,
+            resolveHost: _ => throw new SocketException((int)SocketError.HostNotFound))
+            .Should().BeFalse();
+    }
+
+    [Test]
+    public void IsValidTargetUrl_WhenDnsReturnsNoAddresses_ReturnsFalse()
+    {
+        WebhookDispatcher.IsValidTargetUrl(
+            "https://rebinding.example/hook",
+            allowLoopback: false,
+            allowPrivateNetworkRequests: false,
+            resolveHost: _ => [])
+            .Should().BeFalse();
+    }
+
+    [TestCase("169.254.169.254")]
+    [TestCase("127.0.0.1")]
+    [TestCase("10.1.2.3")]
+    [TestCase("fd00::1")]
+    public void IsValidTargetUrl_WhenDnsReturnsBlockedAddress_ReturnsFalse(string address)
+    {
+        WebhookDispatcher.IsValidTargetUrl(
+            "https://rebinding.example/hook",
+            allowLoopback: false,
+            allowPrivateNetworkRequests: false,
+            resolveHost: _ => [IPAddress.Parse(address)])
+            .Should().BeFalse();
+    }
+
+    [Test]
+    public void IsValidTargetUrl_WhenAnyResolvedAddressIsBlocked_ReturnsFalse()
+    {
+        WebhookDispatcher.IsValidTargetUrl(
+            "https://rebinding.example/hook",
+            allowLoopback: false,
+            allowPrivateNetworkRequests: false,
+            resolveHost: _ => [IPAddress.Parse("93.184.216.34"), IPAddress.Parse("10.1.1.1")])
+            .Should().BeFalse();
+    }
+
+    [Test]
+    public void IsValidTargetUrl_WhenDnsReturnsPublicAddress_ReturnsTrue()
+    {
+        WebhookDispatcher.IsValidTargetUrl(
+            "https://rebinding.example/hook",
+            allowLoopback: false,
+            allowPrivateNetworkRequests: false,
+            resolveHost: _ => [IPAddress.Parse("93.184.216.34")])
+            .Should().BeTrue();
+    }
+
+    [Test]
+    public void EnsureConnectable_WhenLookupIsEmptyOrBlocked_Throws()
+    {
+        var empty = () => WebhookDispatcher.EnsureConnectable("rebinding.example", [], false, false);
+        empty.Should().Throw<SecurityException>();
+
+        var blocked = () => WebhookDispatcher.EnsureConnectable(
+            "rebinding.example",
+            [IPAddress.Parse("169.254.169.254")],
+            false,
+            false);
+        blocked.Should().Throw<SecurityException>();
+    }
+
+    [Test]
+    public async Task PinnedHandler_WhenSecondLookupIsPrivate_RejectsBeforeConnect()
+    {
+        using var handler = WebhookDispatcher.CreatePinnedSocketsHttpHandler(
+            allowLoopback: false,
+            allowPrivateNetworkRequests: false,
+            resolveHostAsync: (_, _) => Task.FromResult(new[] { IPAddress.Parse("169.254.169.254") }));
+        using var client = new HttpClient(handler, disposeHandler: false);
+
+        var act = async () => await client.GetAsync("http://rebinding.example/hook");
+
+        var thrown = await act.Should().ThrowAsync<HttpRequestException>();
+        thrown.Which.InnerException.Should().BeOfType<SecurityException>();
+    }
+
+    [Test]
+    public async Task PinnedHandler_ConnectCallbackRejectsMetadataAddress()
+    {
+        using var handler = WebhookDispatcher.CreatePinnedSocketsHttpHandler(allowLoopback: false, allowPrivateNetworkRequests: false);
+        handler.AllowAutoRedirect.Should().BeFalse();
+        handler.ConnectCallback.Should().NotBeNull();
+        using var client = new HttpClient(handler, disposeHandler: false);
+
+        var act = async () => await client.GetAsync("http://169.254.169.254/latest/meta-data/");
+
+        var thrown = await act.Should().ThrowAsync<HttpRequestException>();
+        thrown.Which.InnerException.Should().BeOfType<SecurityException>();
+    }
+
+    [Test]
     public void Constructor_SupportsConfigurableTimeout()
     {
         using var client = new HttpClient();
@@ -669,12 +781,12 @@ public class WebhookDispatcherTest
         this.handler.ResponseFactory = _ =>
         {
             var res = new HttpResponseMessage(HttpStatusCode.Redirect);
-            res.Headers.Location = new Uri("https://other.example/collect");
+            res.Headers.Location = new Uri("https://example.org/collect");
             return res;
         };
 
         var result = await this.dispatcher.DispatchAsync(
-            "https://hooks.example/notify",
+            "https://example.com/notify",
             new { eventType = "Test" },
             "{\"Authorization\":\"Bearer secret\"}");
 
