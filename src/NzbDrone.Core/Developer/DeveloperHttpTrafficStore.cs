@@ -5,6 +5,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Developer;
 
@@ -12,6 +14,16 @@ public class DeveloperHttpTrafficStore : IDeveloperHttpTrafficStore
 {
     private const int MaxEntries = 250;
     private const int MaxBodyLength = 1024;
+    private const string RedactedValue = "***REDACTED***";
+
+    private static readonly HashSet<string> SensitiveHeaderNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Authorization",
+        "Proxy-Authorization",
+        "Cookie",
+        "Set-Cookie",
+    };
+
     private readonly ConcurrentQueue<DeveloperHttpTrafficEntry> traffic = new();
 
     public void Record(
@@ -28,31 +40,24 @@ public class DeveloperHttpTrafficStore : IDeveloperHttpTrafficStore
         }
 
         var reqHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var h in request.Headers)
+        CopyHeaders(request.Headers, reqHeaders);
+        if (request.Content != null)
         {
-            // Mask auth headers for security
-            if (string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(h.Key, "X-Api-Key", StringComparison.OrdinalIgnoreCase))
-            {
-                reqHeaders[h.Key] = "***REDACTED***";
-            }
-            else
-            {
-                reqHeaders[h.Key] = string.Join(", ", h.Value);
-            }
+            CopyHeaders(request.Content.Headers, reqHeaders);
         }
 
         var respHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (response?.Headers != null)
+        if (response != null)
         {
-            foreach (var h in response.Headers)
+            CopyHeaders(response.Headers, respHeaders);
+            if (response.Content != null)
             {
-                respHeaders[h.Key] = string.Join(", ", h.Value);
+                CopyHeaders(response.Content.Headers, respHeaders);
             }
         }
 
         var uri = request.RequestUri;
-        var urlStr = uri?.ToString() ?? string.Empty;
+        var urlStr = uri == null ? string.Empty : TrackerUrlSanitizer.Sanitize(uri.ToString());
         var hostStr = uri?.Host ?? string.Empty;
 
         var statusCode = response != null ? (int)response.StatusCode : (error != null ? 500 : 0);
@@ -126,5 +131,28 @@ public class DeveloperHttpTrafficStore : IDeveloperHttpTrafficStore
         while (this.traffic.TryDequeue(out _))
         {
         }
+    }
+
+    private static void CopyHeaders(HttpHeaders headers, Dictionary<string, string> target)
+    {
+        foreach (var h in headers)
+        {
+            target[h.Key] = ShouldRedactHeader(h.Key) ? RedactedValue : string.Join(", ", h.Value);
+        }
+    }
+
+    private static bool ShouldRedactHeader(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return false;
+        }
+
+        if (SensitiveHeaderNames.Contains(name))
+        {
+            return true;
+        }
+
+        return name.Contains("api-key", StringComparison.OrdinalIgnoreCase);
     }
 }
