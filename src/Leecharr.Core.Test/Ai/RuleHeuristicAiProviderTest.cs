@@ -460,7 +460,7 @@ public class RuleHeuristicAiProviderTest
     [Test]
     public async Task AnalyzeMalwareRiskAsync_DangerousTorrentNameWithoutFiles_ReturnsHigh()
     {
-        var names = new[] { "payload.exe", "payload.ps1", "payload.js", "payload.vbs", "movie.mp4.ps1", "invoice.lnk" };
+        var names = new[] { "payload.exe", "payload.ps1", "payload.js", "payload.vbs", "movie.mp4.ps1", "invoice.lnk", "payload.exe.", "movie.mp4.exe." };
 
         foreach (var name in names)
         {
@@ -484,6 +484,50 @@ public class RuleHeuristicAiProviderTest
 
         assessment.RiskLevel.Should().Be("Medium");
         assessment.RiskScore.Should().Be(0.25);
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_TrailingDotOrSpaceOnExecutable_MatchesCleanName()
+    {
+        var suffixes = new[] { ".", " ", ". ", " .", "..", "  " };
+        var baselines = new[] { "codec.exe", "Setup.mp4.exe", "Movie.2024.1080p/codec.exe" };
+
+        foreach (var baseline in baselines)
+        {
+            var expected = await this.provider.AnalyzeMalwareRiskAsync(
+                "Release",
+                new List<TorrentFile> { new() { Path = baseline, Size = 150000 } });
+
+            expected.RiskScore.Should().BeGreaterThan(0, because: baseline);
+
+            foreach (var suffix in suffixes)
+            {
+                var disguised = baseline + suffix;
+                var assessment = await this.provider.AnalyzeMalwareRiskAsync(
+                    "Release",
+                    new List<TorrentFile> { new() { Path = disguised, Size = 150000 } });
+
+                assessment.RiskScore.Should().Be(expected.RiskScore, because: disguised);
+                assessment.RiskLevel.Should().Be(expected.RiskLevel, because: disguised);
+                assessment.SuspiciousFileNames.Should().Contain(disguised, because: disguised);
+            }
+        }
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_TrailingDotOnMediaFile_StaysSafe()
+    {
+        var files = new List<TorrentFile>
+        {
+            new() { Path = "Movie.2024.1080p/Movie.2024.1080p.mkv.", Size = 4294967296 },
+            new() { Path = "Movie.2024.1080p/Movie.2024.1080p.mkv ", Size = 4294967296 },
+        };
+
+        var assessment = await this.provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p", files);
+
+        assessment.RiskLevel.Should().Be("Safe");
+        assessment.RiskScore.Should().Be(0);
+        assessment.ThreatReasons.Should().BeEmpty();
     }
 
     [Test]

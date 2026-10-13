@@ -723,12 +723,13 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         var riskScore = 0.0;
 
         var totalFiles = files.Count;
-        var hasMediaFiles = files.Any(f => MediaExtensions.Contains(Path.GetExtension(f.Path ?? string.Empty)));
+        var hasMediaFiles = files.Any(f => MediaExtensions.Contains(Path.GetExtension(FileNameForMalwareScan(f.Path))));
 
         foreach (var file in files)
         {
             var filePath = file.Path ?? string.Empty;
-            var ext = Path.GetExtension(filePath);
+            var scannedName = FileNameForMalwareScan(filePath);
+            var ext = Path.GetExtension(scannedName);
             var fileName = Path.GetFileName(filePath);
 
             // 1. Executable or script in media release
@@ -749,7 +750,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             }
 
             // 2. Double extension trick (e.g. Movie.mp4.exe, Song.mp3.scr)
-            if (Regex.IsMatch(fileName, @"(?i)\.(mkv|mp4|avi|mp3|flac|pdf|jpg|png)\.(exe|scr|bat|cmd|vbs|js|pif|ps1|msi)$", RegexOptions.None, TimeSpan.FromSeconds(2)))
+            if (Regex.IsMatch(scannedName, @"(?i)\.(mkv|mp4|avi|mp3|flac|pdf|jpg|png)\.(exe|scr|bat|cmd|vbs|js|pif|ps1|msi)$", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 riskScore += 0.8;
                 suspiciousFiles.Add(filePath);
@@ -757,7 +758,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             }
 
             // 3. Fake codec / password unlocker traps
-            if (Regex.IsMatch(fileName, @"(?i)(password|unlocker|codec_setup|install_first|how_to_play|readme_key)\.(exe|scr|url|lnk|bat)", RegexOptions.None, TimeSpan.FromSeconds(2)))
+            if (Regex.IsMatch(scannedName, @"(?i)(password|unlocker|codec_setup|install_first|how_to_play|readme_key)\.(exe|scr|url|lnk|bat)", RegexOptions.None, TimeSpan.FromSeconds(2)))
             {
                 riskScore += 0.7;
                 suspiciousFiles.Add(filePath);
@@ -776,7 +777,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // Check torrent name anomalies (align with DangerousExtensions used for file paths)
-        var torrentBaseName = Path.GetFileName(torrentName.Trim());
+        var torrentBaseName = FileNameForMalwareScan(torrentName.Trim());
         if (DangerousExtensions.Contains(Path.GetExtension(torrentBaseName)))
         {
             riskScore += 0.5;
@@ -1318,5 +1319,11 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         return group;
+    }
+
+    private static string FileNameForMalwareScan(string path)
+    {
+        // Windows removes trailing dots and spaces when the file is written.
+        return Path.GetFileName(path ?? string.Empty).TrimEnd('.', ' ');
     }
 }
