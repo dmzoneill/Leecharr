@@ -742,16 +742,25 @@ public class ArrWebhookControllerTest
             IsImported = false,
         };
 
+        var suffixOnly = new Torrent
+        {
+            Id = 3,
+            Name = "video.mkv",
+            InfoHash = "3333333333333333333333333333333333333333",
+            SavePath = "/archive/video.mkv",
+            IsImported = false,
+        };
+
         var targetShow = new Torrent
         {
             Id = 2,
             Name = "Dark.Matter.S01E01.1080p.WEB-DL",
             InfoHash = "2222222222222222222222222222222222222222",
-            SavePath = "/downloads",
+            SavePath = "/downloads/Dark.Matter.S01E01.1080p.WEB-DL/video.mkv",
             IsImported = false,
         };
 
-        this.torrentRepository.All().Returns(new List<Torrent> { ancientIso, targetShow });
+        this.torrentRepository.All().Returns(new List<Torrent> { ancientIso, suffixOnly, targetShow });
 
         var payload = new ArrWebhookPayload
         {
@@ -774,7 +783,7 @@ public class ArrWebhookControllerTest
         res.TorrentId.Should().Be(2);
         res.InfoHash.Should().Be("2222222222222222222222222222222222222222");
 
-        this.torrentRepository.DidNotReceive().Update(Arg.Is<Torrent>(t => t.Id == 1));
+        this.torrentRepository.DidNotReceive().Update(Arg.Is<Torrent>(t => t.Id == 1 || t.Id == 3));
         this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 2 && t.IsImported == true));
     }
 
@@ -786,7 +795,7 @@ public class ArrWebhookControllerTest
             Id = 3,
             Name = "Breaking.Bad.S01.1080p.BluRay",
             InfoHash = "3333333333333333333333333333333333333333",
-            SavePath = "/downloads",
+            SavePath = "/downloads/Breaking.Bad.S01.1080p.BluRay/Breaking.Bad.S01E01.mkv",
             IsImported = false,
         };
 
@@ -796,7 +805,7 @@ public class ArrWebhookControllerTest
         {
             EventType = "EpisodeImport",
             InstanceName = "Sonarr",
-            SourcePath = "/downloads/Breaking.Bad.S01.1080p.BluRay/Breaking.Bad.S01E01.mkv",
+            SourcePath = "\\downloads\\Breaking.Bad.S01.1080p.BluRay\\Breaking.Bad.S01E01.mkv\\",
             EpisodeFile = new ArrWebhookEpisodeFile
             {
                 Path = "/media/tv/Breaking Bad/Season 01/Breaking Bad - S01E01.mkv",
@@ -1374,23 +1383,47 @@ public class ArrWebhookControllerTest
     [Test]
     public async Task FindMatchingTorrent_WhenMatchingByTrackFileOrBookFilePath_MatchesCorrectTorrent()
     {
+        var looseMusic = new Torrent
+        {
+            Id = 1,
+            Name = "Complete Discovery Discography",
+            InfoHash = "0000111122223333444455556666777788889999",
+            SavePath = "/music",
+        };
+
         var torrentMusic = new Torrent
         {
             Id = 10,
             Name = "Daft Punk - Discovery",
             InfoHash = "aaaabbbbccccddddeeeeffff0000111122223333",
-            SavePath = "/music/Daft Punk - Discovery",
+            SavePath = "/music/Daft Punk - Discovery/01 One More Time.flac",
         };
 
-        this.torrentRepository.All().Returns(new List<Torrent> { torrentMusic });
+        var looseBook = new Torrent
+        {
+            Id = 11,
+            Name = "Project Hail Mary Unabridged",
+            InfoHash = "bbbbccccddddeeeeffff00001111222233334444",
+            SavePath = "/books",
+        };
 
-        var payload = new ArrWebhookPayload
+        var torrentBook = new Torrent
+        {
+            Id = 12,
+            Name = "Andy Weir - Project Hail Mary",
+            InfoHash = "ccccddddeeeeffff000011112222333344445555",
+            SavePath = "/books/Andy Weir - Project Hail Mary/Project Hail Mary.epub",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { looseMusic, torrentMusic, looseBook, torrentBook });
+
+        var musicPayload = new ArrWebhookPayload
         {
             EventType = "TrackImport",
             InstanceName = "Lidarr",
             TrackFile = new ArrWebhookTrackFile
             {
-                Path = "/music/Daft Punk - Discovery/01 One More Time.flac",
+                Path = "\\music\\Daft Punk - Discovery\\01 One More Time.flac\\",
             },
             Album = new ArrWebhookAlbum
             {
@@ -1399,13 +1432,143 @@ public class ArrWebhookControllerTest
             },
         };
 
-        var result = await this.controller.HandleLidarr(payload);
+        var musicResult = await this.controller.HandleLidarr(musicPayload);
+        var musicOk = musicResult.Result as OkObjectResult;
+        musicOk.Should().NotBeNull();
+
+        var musicRes = musicOk!.Value as ArrWebhookResult;
+        musicRes.Should().NotBeNull();
+        musicRes!.TorrentId.Should().Be(10);
+
+        var bookPayload = new ArrWebhookPayload
+        {
+            EventType = "BookImport",
+            InstanceName = "Readarr",
+            BookFile = new ArrWebhookBookFile
+            {
+                Path = "/books/Andy Weir - Project Hail Mary/Project Hail Mary.epub",
+            },
+            Book = new ArrWebhookBook
+            {
+                Id = 21,
+                Title = "Project Hail Mary",
+            },
+        };
+
+        var bookResult = await this.controller.HandleReadarr(bookPayload);
+        var bookOk = bookResult.Result as OkObjectResult;
+        bookOk.Should().NotBeNull();
+
+        var bookRes = bookOk!.Value as ArrWebhookResult;
+        bookRes.Should().NotBeNull();
+        bookRes!.TorrentId.Should().Be(12);
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Is<Torrent>(t => t.Id == 1 || t.Id == 11));
+    }
+
+    [Test]
+    public async Task FindMatchingTorrent_WhenNameOrPathIsOnlySubstringOrSuffix_DoesNotMatch()
+    {
+        var containedName = new Torrent
+        {
+            Id = 1,
+            Name = "Dark.Matter",
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            SavePath = "/downloads",
+        };
+
+        var containingName = new Torrent
+        {
+            Id = 2,
+            Name = "Dark.Matter.S01E01.1080p.WEB-DL",
+            InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            SavePath = "/data/downloads",
+            ImportPath = "/downloads/Dark.Matter.S01E01.1080p",
+        };
+
+        var sharedSuffix = new Torrent
+        {
+            Id = 3,
+            Name = "video.mkv",
+            InfoHash = "cccccccccccccccccccccccccccccccccccccccc",
+            SavePath = "/library/Season 01/video.mkv",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { containedName, containingName, sharedSuffix });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Import",
+            InstanceName = "Sonarr",
+            Release = new ArrWebhookRelease
+            {
+                ReleaseTitle = "Dark.Matter.S01E01.1080p",
+            },
+            SourcePath = "/downloads/Dark.Matter.S01E01.1080p/video.mkv",
+            EpisodeFile = new ArrWebhookEpisodeFile
+            {
+                Path = "/media/tv/Dark Matter/Season 01/video.mkv",
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
         var res = okResult!.Value as ArrWebhookResult;
         res.Should().NotBeNull();
-        res!.TorrentId.Should().Be(10);
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeFalse();
+        res.TorrentId.Should().BeNull();
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task FindMatchingTorrent_WhenReleaseTitleEqualsTorrentName_MatchesThatTorrent()
+    {
+        var first = new Torrent
+        {
+            Id = 1,
+            Name = "Other.Show.S01E01.1080p",
+            InfoHash = "dddddddddddddddddddddddddddddddddddddddd",
+            SavePath = "/downloads",
+            Category = "tv-sonarr",
+        };
+
+        var target = new Torrent
+        {
+            Id = 2,
+            Name = "Dark.Matter.S01E01.1080p",
+            InfoHash = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            SavePath = "/downloads",
+            Category = "tv-sonarr",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { first, target });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            InstanceName = "Sonarr",
+            Release = new ArrWebhookRelease
+            {
+                ReleaseTitle = "  dark.matter.s01e01.1080p  ",
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeFalse();
+        res.TorrentId.Should().Be(2);
+        res.InfoHash.Should().Be("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
     }
 
     [Test]

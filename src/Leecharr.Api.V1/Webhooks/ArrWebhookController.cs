@@ -2,10 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Leecharr.Http.Security;
@@ -34,7 +32,6 @@ public class ArrWebhookController : Controller
     private readonly IEventAggregator eventAggregator;
     private readonly IDeveloperWebhookStore webhookStore;
     private readonly Logger logger;
-    private static readonly char[] TitleDelimiters = ['.', '_', '-', ' '];
 
     public ArrWebhookController(
         ITorrentRepository torrentRepository,
@@ -505,13 +502,6 @@ public class ArrWebhookController : Controller
             : this.torrentRepository.All();
     }
 
-    private static readonly HashSet<string> CommonReleaseTags = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "1080p", "720p", "2160p", "4k", "remux", "web-dl", "webrip", "bluray", "hdtv",
-        "x264", "x265", "hevc", "repack", "proper", "hdr", "aac", "dts", "flac",
-        "truehd", "atmos", "uhd", "sdr", "subpack", "raw",
-    };
-
     private Torrent FindMatchingTorrent(ArrWebhookPayload payload)
     {
         if (payload == null)
@@ -633,7 +623,10 @@ public class ArrWebhookController : Controller
 
         foreach (var title in candidateTitles)
         {
-            var match = allTorrents.FirstOrDefault(t => IsTitleMatch(t.Name, title));
+            var cleanTitle = title.Trim();
+            var match = allTorrents.FirstOrDefault(t =>
+                !string.IsNullOrWhiteSpace(t.Name) &&
+                string.Equals(t.Name.Trim(), cleanTitle, StringComparison.OrdinalIgnoreCase));
             if (match != null)
             {
                 return match;
@@ -717,8 +710,13 @@ public class ArrWebhookController : Controller
 
         foreach (var path in candidatePaths)
         {
-            var normalizedSource = path.Replace('\\', '/').TrimEnd('/');
-            var match = allTorrents.FirstOrDefault(t => IsSourcePathMatch(normalizedSource, t));
+            var normalizedSource = NormalizeWebhookPath(path);
+            if (string.IsNullOrWhiteSpace(normalizedSource))
+            {
+                continue;
+            }
+
+            var match = allTorrents.FirstOrDefault(t => IsExactNormalizedPath(normalizedSource, t));
             if (match != null)
             {
                 return match;
@@ -728,143 +726,37 @@ public class ArrWebhookController : Controller
         return null;
     }
 
-    private static string GetNormalizedTorrentRoot(Torrent torrent)
+    private static string NormalizeWebhookPath(string path)
     {
-        if (torrent == null || string.IsNullOrWhiteSpace(torrent.SavePath))
+        if (string.IsNullOrWhiteSpace(path))
         {
             return null;
         }
 
-        var normalizedSavePath = torrent.SavePath.Replace('\\', '/').TrimEnd('/');
-        if (string.IsNullOrWhiteSpace(torrent.Name))
-        {
-            return normalizedSavePath;
-        }
-
-        var normalizedName = torrent.Name.Trim().TrimStart('/');
-        if (normalizedSavePath.EndsWith("/" + normalizedName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(normalizedSavePath, normalizedName, StringComparison.OrdinalIgnoreCase))
-        {
-            return normalizedSavePath;
-        }
-
-        return normalizedSavePath + "/" + normalizedName;
+        return path.Replace('\\', '/').Trim().TrimEnd('/');
     }
 
-    private static bool IsSourcePathMatch(string normalizedSource, Torrent torrent)
+    private static bool IsExactNormalizedPath(string normalizedSource, Torrent torrent)
     {
         if (string.IsNullOrWhiteSpace(normalizedSource) || torrent == null)
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(torrent.ImportPath))
-        {
-            var normalizedImport = torrent.ImportPath.Replace('\\', '/').TrimEnd('/');
-            if (string.Equals(normalizedImport, normalizedSource, StringComparison.OrdinalIgnoreCase) ||
-                normalizedSource.StartsWith(normalizedImport + "/", StringComparison.OrdinalIgnoreCase) ||
-                normalizedImport.StartsWith(normalizedSource + "/", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(torrent.Name))
-        {
-            var cleanName = torrent.Name.Trim();
-            if (string.Equals(normalizedSource, cleanName, StringComparison.OrdinalIgnoreCase) ||
-                normalizedSource.EndsWith("/" + cleanName, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var nameWithoutExt = Path.GetFileNameWithoutExtension(cleanName);
-            if (!string.IsNullOrWhiteSpace(nameWithoutExt) && nameWithoutExt.Length >= 4)
-            {
-                var sourceFileName = Path.GetFileName(normalizedSource);
-                var sourceNoExt = Path.GetFileNameWithoutExtension(normalizedSource);
-                if (string.Equals(sourceNoExt, nameWithoutExt, StringComparison.OrdinalIgnoreCase) &&
-                    (normalizedSource.EndsWith("/" + sourceFileName, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(normalizedSource, sourceFileName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return true;
-                }
-            }
-        }
-
-        var torrentRoot = GetNormalizedTorrentRoot(torrent);
-        if (!string.IsNullOrWhiteSpace(torrentRoot))
-        {
-            if (string.Equals(normalizedSource, torrentRoot, StringComparison.OrdinalIgnoreCase) ||
-                normalizedSource.StartsWith(torrentRoot + "/", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return PathsEqual(normalizedSource, torrent.SavePath) ||
+            PathsEqual(normalizedSource, torrent.ImportPath) ||
+            PathsEqual(normalizedSource, torrent.Name);
     }
 
-    private static bool IsTitleMatch(string torrentName, string releaseTitle)
+    private static bool PathsEqual(string normalizedSource, string candidate)
     {
-        if (string.IsNullOrWhiteSpace(torrentName) || string.IsNullOrWhiteSpace(releaseTitle))
+        var normalizedCandidate = NormalizeWebhookPath(candidate);
+        if (string.IsNullOrWhiteSpace(normalizedCandidate))
         {
             return false;
         }
 
-        var cleanTorrent = torrentName.Trim();
-        var cleanRelease = releaseTitle.Trim();
-
-        if (string.Equals(cleanTorrent, cleanRelease, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        var torrentNoExt = Path.GetFileNameWithoutExtension(cleanTorrent);
-        var releaseNoExt = Path.GetFileNameWithoutExtension(cleanRelease);
-        if (!string.IsNullOrWhiteSpace(torrentNoExt) && !string.IsNullOrWhiteSpace(releaseNoExt))
-        {
-            if (string.Equals(torrentNoExt, releaseNoExt, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        var normTorrent = NormalizeTitleDelimiters(torrentNoExt ?? cleanTorrent);
-        var normRelease = NormalizeTitleDelimiters(releaseNoExt ?? cleanRelease);
-        if (string.Equals(normTorrent, normRelease, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (cleanTorrent.Length >= 8 && !CommonReleaseTags.Contains(cleanTorrent))
-        {
-            if (IsWordBoundaryMatch(cleanRelease, cleanTorrent))
-            {
-                return true;
-            }
-        }
-
-        if (cleanRelease.Length >= 8 && !CommonReleaseTags.Contains(cleanRelease))
-        {
-            if (IsWordBoundaryMatch(cleanTorrent, cleanRelease))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static string NormalizeTitleDelimiters(string title)
-    {
-        return string.Join(" ", title.Split(TitleDelimiters, StringSplitOptions.RemoveEmptyEntries));
-    }
-
-    private static bool IsWordBoundaryMatch(string fullText, string phrase)
-    {
-        var pattern = @"(^|[\s._\-\[\]\(\)])" + Regex.Escape(phrase) + @"([\s._\-\[\]\(\)]|$)";
-        return Regex.IsMatch(fullText, pattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+        return string.Equals(normalizedSource, normalizedCandidate, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsDeleteEvent(string eventType)
