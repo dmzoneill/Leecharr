@@ -343,8 +343,13 @@ public class StoragePathService : IStoragePathService
                             {
                                 if (file.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
                                 {
+                                    if (!this.IsConfinedToStripRoot(targetDirectoryOrFile, file))
+                                    {
+                                        break;
+                                    }
+
                                     var cleanPath = file[..^ext.Length];
-                                    this.diskProvider.MoveFile(file, cleanPath, overwrite: true);
+                                    this.MoveFileWithoutOverwrite(file, cleanPath);
                                     break;
                                 }
                             }
@@ -366,7 +371,7 @@ public class StoragePathService : IStoragePathService
                 var incompletePath = targetDirectoryOrFile + ext;
                 if (this.diskProvider.FileExists(incompletePath))
                 {
-                    this.diskProvider.MoveFile(incompletePath, targetDirectoryOrFile, overwrite: true);
+                    this.MoveFileWithoutOverwrite(incompletePath, targetDirectoryOrFile);
                     return;
                 }
             }
@@ -379,7 +384,7 @@ public class StoragePathService : IStoragePathService
                     if (targetDirectoryOrFile.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
                     {
                         var cleanPath = targetDirectoryOrFile[..^ext.Length];
-                        this.diskProvider.MoveFile(targetDirectoryOrFile, cleanPath, overwrite: true);
+                        this.MoveFileWithoutOverwrite(targetDirectoryOrFile, cleanPath);
                         return;
                     }
                 }
@@ -388,6 +393,97 @@ public class StoragePathService : IStoragePathService
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Failed to strip incomplete extension from {0}", targetDirectoryOrFile);
+        }
+    }
+
+    private void MoveFileWithoutOverwrite(string source, string destination)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(destination))
+        {
+            return;
+        }
+
+        if (string.Equals(source, destination, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var target = destination;
+        if (this.diskProvider.FileExists(target) || this.diskProvider.FolderExists(target))
+        {
+            target = this.ResolveNonCollidingFilePath(target);
+            this.logger.Warn(
+                "Refusing to overwrite '{0}' while stripping incomplete extension from '{1}'. Renaming to '{2}'.",
+                destination,
+                source,
+                target);
+        }
+
+        this.diskProvider.MoveFile(source, target, overwrite: false);
+    }
+
+    private bool IsConfinedToStripRoot(string root, string file)
+    {
+        if (!IsLexicallyInsideDirectory(root, file))
+        {
+            this.logger.Warn(
+                "Skipping incomplete-extension strip for '{0}' because it is outside '{1}'.",
+                file,
+                root);
+            return false;
+        }
+
+        try
+        {
+            if (!Directory.Exists(root))
+            {
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Unable to check whether strip root '{0}' exists.", root);
+            return true;
+        }
+
+        if (!TorrentPathValidator.IsStrictSubPath(root, file))
+        {
+            this.logger.Warn(
+                "Skipping incomplete-extension strip for '{0}' because it resolves outside '{1}'.",
+                file,
+                root);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsLexicallyInsideDirectory(string directory, string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullDirectory = Path.GetFullPath(directory);
+            var fullCandidate = Path.GetFullPath(candidate);
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            if (!fullDirectory.EndsWith(Path.DirectorySeparatorChar) &&
+                !fullDirectory.EndsWith(Path.AltDirectorySeparatorChar))
+            {
+                fullDirectory += Path.DirectorySeparatorChar;
+            }
+
+            return fullCandidate.StartsWith(fullDirectory, comparison);
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 
@@ -439,7 +535,28 @@ public class StoragePathService : IStoragePathService
         catch (IOException ioEx)
         {
             this.logger.Info(ioEx, "MoveFolder failed (cross-volume) from '{0}' to '{1}'. Falling back to recursive copy and delete.", source, destination);
-            this.CopyFolderRecursive(source, destination);
+            var createdDestination = !this.diskProvider.FolderExists(destination) && !this.diskProvider.FileExists(destination);
+            try
+            {
+                this.CopyFolderRecursive(source, destination);
+            }
+            catch (Exception)
+            {
+                if (createdDestination)
+                {
+                    try
+                    {
+                        this.diskProvider.DeleteFolder(destination, true);
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        this.logger.Debug(cleanupEx, "Failed to remove partial destination '{0}' after cross-volume copy failure", destination);
+                    }
+                }
+
+                throw;
+            }
+
             this.diskProvider.DeleteFolder(source, true);
         }
     }

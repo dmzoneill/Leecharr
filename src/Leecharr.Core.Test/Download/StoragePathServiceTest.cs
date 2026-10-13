@@ -231,7 +231,7 @@ public class StoragePathServiceTest
 
         this.storagePathService.StripIncompleteExtensions(target);
 
-        this.diskProvider.Received(1).MoveFile(target, "/downloads/tv/Movie.mkv", true);
+        this.diskProvider.Received(1).MoveFile(target, "/downloads/tv/Movie.mkv", false);
     }
 
     [Test]
@@ -246,7 +246,7 @@ public class StoragePathServiceTest
 
         this.storagePathService.StripIncompleteExtensions(cleanTarget);
 
-        this.diskProvider.Received(1).MoveFile(incompleteFile, cleanTarget, overwrite: true);
+        this.diskProvider.Received(1).MoveFile(incompleteFile, cleanTarget, overwrite: false);
     }
 
     [Test]
@@ -261,22 +261,46 @@ public class StoragePathServiceTest
 
         this.storagePathService.StripIncompleteExtensions(cleanTarget);
 
-        this.diskProvider.Received(1).MoveFile(incompleteFile, cleanTarget, overwrite: true);
+        this.diskProvider.Received(1).MoveFile(incompleteFile, cleanTarget, overwrite: false);
     }
 
     [Test]
-    public void StripIncompleteExtensions_WhenCleanFileAlreadyExists_OverwritesCleanFile()
+    public void StripIncompleteExtensions_WhenCleanFileAlreadyExists_RenamesIncompleteFileWithoutOverwrite()
     {
         var cleanTarget = "/downloads/movies/Movie.mkv";
         var incompleteFile = "/downloads/movies/Movie.mkv.!mt";
+        var renamed = "/downloads/movies/Movie_1.mkv";
 
         this.diskProvider.FolderExists(cleanTarget).Returns(false);
         this.diskProvider.FileExists(cleanTarget).Returns(true);
         this.diskProvider.FileExists(incompleteFile).Returns(true);
+        this.diskProvider.FileExists(renamed).Returns(false);
+        this.diskProvider.FolderExists(renamed).Returns(false);
 
         this.storagePathService.StripIncompleteExtensions(cleanTarget);
 
-        this.diskProvider.Received(1).MoveFile(incompleteFile, cleanTarget, overwrite: true);
+        this.diskProvider.Received(1).MoveFile(incompleteFile, renamed, overwrite: false);
+        this.diskProvider.DidNotReceive().MoveFile(incompleteFile, cleanTarget, Arg.Any<bool>());
+    }
+
+    [Test]
+    public void StripIncompleteExtensions_WhenIncompletePathCollidesWithExistingCleanFile_DoesNotOverwrite()
+    {
+        var incomplete = "/downloads/tv/Movie.mkv.!mt";
+        var clean = "/downloads/tv/Movie.mkv";
+        var renamed = "/downloads/tv/Movie_1.mkv";
+
+        this.diskProvider.FolderExists(incomplete).Returns(false);
+        this.diskProvider.FileExists(incomplete).Returns(true);
+        this.diskProvider.FileExists(clean).Returns(true);
+        this.diskProvider.FolderExists(clean).Returns(false);
+        this.diskProvider.FileExists(renamed).Returns(false);
+        this.diskProvider.FolderExists(renamed).Returns(false);
+
+        this.storagePathService.StripIncompleteExtensions(incomplete);
+
+        this.diskProvider.Received(1).MoveFile(incomplete, renamed, false);
+        this.diskProvider.DidNotReceive().MoveFile(incomplete, clean, Arg.Any<bool>());
     }
 
     [Test]
@@ -293,9 +317,44 @@ public class StoragePathServiceTest
 
         this.storagePathService.StripIncompleteExtensions(dir);
 
-        this.diskProvider.Received(1).MoveFile(file1, "/downloads/tv/Show/ep1.mkv", true);
-        this.diskProvider.Received(1).MoveFile(file2, "/downloads/tv/Show/ep2.mkv", true);
+        this.diskProvider.Received(1).MoveFile(file1, "/downloads/tv/Show/ep1.mkv", false);
+        this.diskProvider.Received(1).MoveFile(file2, "/downloads/tv/Show/ep2.mkv", false);
         this.diskProvider.DidNotReceive().MoveFile(file3, Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void StripIncompleteExtensions_WhenDirectoryContainsCleanAndIncompleteFile_DoesNotOverwriteCleanFile()
+    {
+        var dir = "/downloads/tv/Show";
+        var incomplete = "/downloads/tv/Show/video.mkv.!mt";
+        var clean = "/downloads/tv/Show/video.mkv";
+        var renamed = "/downloads/tv/Show/video_1.mkv";
+
+        this.diskProvider.FolderExists(dir).Returns(true);
+        this.diskProvider.GetFiles(dir, true).Returns(new[] { incomplete, clean });
+        this.diskProvider.FileExists(clean).Returns(true);
+        this.diskProvider.FolderExists(clean).Returns(false);
+        this.diskProvider.FileExists(renamed).Returns(false);
+        this.diskProvider.FolderExists(renamed).Returns(false);
+
+        this.storagePathService.StripIncompleteExtensions(dir);
+
+        this.diskProvider.Received(1).MoveFile(incomplete, renamed, false);
+        this.diskProvider.DidNotReceive().MoveFile(incomplete, clean, Arg.Any<bool>());
+    }
+
+    [Test]
+    public void StripIncompleteExtensions_WhenEnumeratedFileIsOutsideDirectory_DoesNotRenameIt()
+    {
+        var dir = "/downloads/tv/Show";
+        var outside = "/other/library/video.mkv.!mt";
+
+        this.diskProvider.FolderExists(dir).Returns(true);
+        this.diskProvider.GetFiles(dir, true).Returns(new[] { outside });
+
+        this.storagePathService.StripIncompleteExtensions(dir);
+
+        this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
     }
 
     [Test]
@@ -644,6 +703,37 @@ public class StoragePathServiceTest
         success.Should().BeFalse();
         this.diskProvider.Received(1).DeleteFile(staging);
         this.diskProvider.DidNotReceive().DeleteFile(source);
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenCrossDeviceFolderCopyFails_RemovesPartialDestinationAndKeepsSource()
+    {
+        var source = "/downloads/incomplete/Show.Season.1";
+        var dest = "/downloads/tv/Show.Season.1";
+        var file = source + "/ep1.mkv";
+        var staging = dest + "/ep1.mkv.leecharr.tmp";
+
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+        this.diskProvider.FileExists(source).Returns(false);
+        this.diskProvider.FolderExists(source).Returns(true);
+        this.diskProvider.FolderExists(dest).Returns(false);
+        this.diskProvider.FileExists(dest).Returns(false);
+
+        this.diskProvider.When(x => x.MoveFolder(source, dest))
+            .Do(_ => throw new IOException("Cross-device link"));
+
+        this.diskProvider.GetDirectories(source).Returns(Array.Empty<string>());
+        this.diskProvider.GetFiles(source, false).Returns(new[] { file });
+
+        this.diskProvider.When(x => x.CopyFile(file, staging, true))
+            .Do(_ => throw new IOException("Disk full"));
+
+        var success = this.storagePathService.MoveToCompleted(source, "tv", "Show.Season.1", out _);
+
+        success.Should().BeFalse();
+        this.diskProvider.Received(1).DeleteFolder(dest, true);
+        this.diskProvider.DidNotReceive().DeleteFolder(source, true);
     }
 
     [Test]

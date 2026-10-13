@@ -110,6 +110,116 @@ public class StoragePathServiceComprehensiveIntegrationTests : IntegrationTestBa
     }
 
     [Test]
+    public void StoragePath_StripIncompleteExtensions_DoesNotOverwriteExistingCleanFile()
+    {
+        var services = GlobalSetup.Factory.Services;
+        var storagePathService = services.GetService(typeof(IStoragePathService)) as IStoragePathService;
+        storagePathService.Should().NotBeNull();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"strip_collision_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var clean = Path.Combine(tempDir, "video.mkv");
+        var partial = Path.Combine(tempDir, "video.mkv.!mt");
+        var renamed = Path.Combine(tempDir, "video_1.mkv");
+        File.WriteAllText(clean, "complete");
+        File.WriteAllText(partial, "partial");
+
+        try
+        {
+            storagePathService.StripIncompleteExtensions(tempDir);
+
+            File.ReadAllText(clean).Should().Be("complete");
+            File.Exists(partial).Should().BeFalse();
+            File.ReadAllText(renamed).Should().Be("partial");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public void StoragePath_StripIncompleteExtensions_DoesNotRenameFilesThroughDirectorySymlink()
+    {
+        var services = GlobalSetup.Factory.Services;
+        var storagePathService = services.GetService(typeof(IStoragePathService)) as IStoragePathService;
+        storagePathService.Should().NotBeNull();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"strip_link_{Guid.NewGuid():N}");
+        var outsideDir = Path.Combine(Path.GetTempPath(), $"strip_outside_{Guid.NewGuid():N}");
+        var link = Path.Combine(tempDir, "linked");
+        var outsideFile = Path.Combine(outsideDir, "video.mkv.!mt");
+
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            Directory.CreateDirectory(outsideDir);
+            File.WriteAllText(outsideFile, "outside");
+            Directory.CreateSymbolicLink(link, outsideDir);
+
+            storagePathService.StripIncompleteExtensions(tempDir);
+
+            File.Exists(outsideFile).Should().BeTrue();
+            File.ReadAllText(outsideFile).Should().Be("outside");
+            File.Exists(Path.Combine(outsideDir, "video.mkv")).Should().BeFalse();
+        }
+        catch (IOException)
+        {
+            Assert.Pass();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Assert.Pass();
+        }
+        catch (PlatformNotSupportedException)
+        {
+            Assert.Pass();
+        }
+        finally
+        {
+            try
+            {
+                if (File.GetAttributes(link).HasFlag(FileAttributes.ReparsePoint))
+                {
+                    File.Delete(link);
+                }
+            }
+            catch (Exception)
+            {
+                // The link may not exist when symlink creation is unavailable.
+            }
+
+            try
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test result.
+            }
+
+            try
+            {
+                if (Directory.Exists(outsideDir))
+                {
+                    Directory.Delete(outsideDir, true);
+                }
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test result.
+            }
+        }
+    }
+
+    [Test]
     public void StoragePath_NormalizeCompletedSavePath_HandlesPaths()
     {
         var services = GlobalSetup.Factory.Services;
