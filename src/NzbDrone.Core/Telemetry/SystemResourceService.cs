@@ -666,7 +666,7 @@ public class SystemResourceService : ISystemResourceService
             Metrics = new Dictionary<string, object>
             {
                 ["boundInterface"] = boundIface,
-                ["killSwitchArmed"] = !string.Equals(boundIface, "All Interfaces", StringComparison.OrdinalIgnoreCase) && !string.Equals(boundIface, "Any", StringComparison.OrdinalIgnoreCase),
+                ["killSwitchArmed"] = this.configService?.EnableVpnKillSwitch ?? false,
                 ["supportsInterfaceBinding"] = netCaps?.SupportsInterfaceBinding ?? false,
                 ["supportsKernelLock"] = netCaps?.SupportsSoBindToDevice ?? false,
                 ["supportsVpnKillSwitch"] = netCaps?.SupportsVpnKillSwitch ?? false,

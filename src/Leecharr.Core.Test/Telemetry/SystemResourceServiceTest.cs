@@ -250,6 +250,26 @@ public class SystemResourceServiceTest
         mediaReport.Metrics["cacheDirectory"].Should().Be("/custom/appdata/MediaCache");
     }
 
+    [Test]
+    public void GetSubsystemTelemetry_KillSwitchArmed_ReflectsEnableVpnKillSwitch()
+    {
+        this.configService.NetworkInterfaceBinding.Returns("eth0");
+        this.configService.EnableVpnKillSwitch.Returns(false);
+        SystemResourceService.ResetSubsystemMetricsCache();
+
+        var reports = this.service.GetSubsystemTelemetry();
+        var networkReport = reports.Find(r => r.SubsystemId == "networkbinding");
+        networkReport.Should().NotBeNull();
+        networkReport!.Metrics["killSwitchArmed"].Should().Be(false);
+
+        this.configService.EnableVpnKillSwitch.Returns(true);
+        SystemResourceService.ResetSubsystemMetricsCache();
+
+        reports = this.service.GetSubsystemTelemetry();
+        networkReport = reports.Find(r => r.SubsystemId == "networkbinding");
+        networkReport!.Metrics["killSwitchArmed"].Should().Be(true);
+    }
+
     [TearDown]
     public void TearDown()
     {
