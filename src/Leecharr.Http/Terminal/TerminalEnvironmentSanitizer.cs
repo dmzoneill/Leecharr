@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -24,6 +25,11 @@ public static class TerminalEnvironmentSanitizer
         "CREDENTIAL",
         "PRIVATE_KEY",
         "LEECHARR_",
+        "ACCESS_KEY",
+        "CONNECTIONSTRING",
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "LD_AUDIT",
     ];
 
     public static bool IsSensitiveKey(string key)
@@ -68,89 +74,116 @@ public static class TerminalEnvironmentSanitizer
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443", Justification = "Private temp directory created with 0700 permissions")]
-    public static void Sanitize(ProcessStartInfo startInfo)
+    public static Dictionary<string, string> BuildSafeEnvironment(string workingDirectory)
     {
-        ArgumentNullException.ThrowIfNull(startInfo);
+        return BuildSafeEnvironment(ReadProcessEnvironment(), workingDirectory);
+    }
 
-        var path = Environment.GetEnvironmentVariable("PATH") ?? "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
-        var home = Environment.GetEnvironmentVariable("HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var user = Environment.GetEnvironmentVariable("USER") ?? Environment.GetEnvironmentVariable("USERNAME") ?? "leecharr";
-        var shell = Environment.GetEnvironmentVariable("SHELL") ?? (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "powershell.exe" : (File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh"));
-        var tmpdir = Environment.GetEnvironmentVariable("TMPDIR");
+    public static Dictionary<string, string> BuildSafeEnvironment(
+        IReadOnlyDictionary<string, string> sourceEnvironment,
+        string workingDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(sourceEnvironment);
+
+        var path = GetSourceValue(sourceEnvironment, "PATH") ?? "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+        var home = GetSourceValue(sourceEnvironment, "HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var user = GetSourceValue(sourceEnvironment, "USER")
+            ?? GetSourceValue(sourceEnvironment, "USERNAME")
+            ?? "leecharr";
+        var shell = GetSourceValue(sourceEnvironment, "SHELL")
+            ?? (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "powershell.exe" : (File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh"));
+        var tmpdir = GetSourceValue(sourceEnvironment, "TMPDIR");
         if (string.IsNullOrWhiteSpace(tmpdir))
         {
             tmpdir = GetSafeTempDirectory();
         }
-        var lang = Environment.GetEnvironmentVariable("LANG") ?? "en_US.UTF-8";
-        var pwd = !string.IsNullOrWhiteSpace(startInfo.WorkingDirectory)
-            ? startInfo.WorkingDirectory
-            : (Environment.GetEnvironmentVariable("PWD") ?? Directory.GetCurrentDirectory());
 
-        startInfo.Environment.Clear();
+        var lang = GetSourceValue(sourceEnvironment, "LANG") ?? "en_US.UTF-8";
+        var pwd = !string.IsNullOrWhiteSpace(workingDirectory)
+            ? workingDirectory
+            : (GetSourceValue(sourceEnvironment, "PWD") ?? Directory.GetCurrentDirectory());
 
-        if (!string.IsNullOrEmpty(path))
-        {
-            startInfo.Environment["PATH"] = path;
-        }
-
-        if (!string.IsNullOrEmpty(home))
-        {
-            startInfo.Environment["HOME"] = home;
-        }
-
-        if (!string.IsNullOrEmpty(user))
-        {
-            startInfo.Environment["USER"] = user;
-        }
-
-        if (!string.IsNullOrEmpty(shell))
-        {
-            startInfo.Environment["SHELL"] = shell;
-        }
-
-        if (!string.IsNullOrEmpty(tmpdir))
-        {
-            startInfo.Environment["TMPDIR"] = tmpdir;
-        }
-
-        if (!string.IsNullOrEmpty(pwd))
-        {
-            startInfo.Environment["PWD"] = pwd;
-        }
-
-        startInfo.Environment["TERM"] = "xterm-256color";
-        startInfo.Environment["COLORTERM"] = "truecolor";
-        startInfo.Environment["LANG"] = lang;
-        startInfo.Environment["PS1"] = @"\[\e[1;32m\]\u@leecharr\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ ";
+        var environment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        SetIfPresent(environment, "PATH", path);
+        SetIfPresent(environment, "HOME", home);
+        SetIfPresent(environment, "USER", user);
+        SetIfPresent(environment, "SHELL", shell);
+        SetIfPresent(environment, "TMPDIR", tmpdir);
+        SetIfPresent(environment, "PWD", pwd);
+        environment["TERM"] = "xterm-256color";
+        environment["COLORTERM"] = "truecolor";
+        environment["LANG"] = lang;
+        environment["PS1"] = @"\[\e[1;32m\]\u@leecharr\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ ";
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var systemRoot = Environment.GetEnvironmentVariable("SystemRoot");
-            if (!string.IsNullOrEmpty(systemRoot))
-            {
-                startInfo.Environment["SystemRoot"] = systemRoot;
-            }
+            SetIfPresent(environment, "SystemRoot", GetSourceValue(sourceEnvironment, "SystemRoot"));
+            SetIfPresent(environment, "windir", GetSourceValue(sourceEnvironment, "windir"));
+            SetIfPresent(environment, "PATHEXT", GetSourceValue(sourceEnvironment, "PATHEXT"));
+            SetIfPresent(environment, "USERPROFILE", GetSourceValue(sourceEnvironment, "USERPROFILE"));
+        }
 
-            var winDir = Environment.GetEnvironmentVariable("windir");
-            if (!string.IsNullOrEmpty(winDir))
-            {
-                startInfo.Environment["windir"] = winDir;
-            }
+        return environment;
+    }
 
-            var pathext = Environment.GetEnvironmentVariable("PATHEXT");
-            if (!string.IsNullOrEmpty(pathext))
-            {
-                startInfo.Environment["PATHEXT"] = pathext;
-            }
+    public static void Sanitize(ProcessStartInfo startInfo)
+    {
+        ArgumentNullException.ThrowIfNull(startInfo);
 
-            var userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
-            if (!string.IsNullOrEmpty(userProfile))
-            {
-                startInfo.Environment["USERPROFILE"] = userProfile;
-            }
+        var workingDirectory = string.IsNullOrWhiteSpace(startInfo.WorkingDirectory)
+            ? null
+            : startInfo.WorkingDirectory;
+
+        startInfo.Environment.Clear();
+        foreach (var pair in BuildSafeEnvironment(workingDirectory))
+        {
+            startInfo.Environment[pair.Key] = pair.Value;
         }
 
         StripSensitiveKeys(startInfo);
+    }
+
+    private static Dictionary<string, string> ReadProcessEnvironment()
+    {
+        var source = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+        {
+            var key = entry.Key?.ToString();
+            if (string.IsNullOrEmpty(key))
+            {
+                continue;
+            }
+
+            source[key] = entry.Value?.ToString() ?? string.Empty;
+        }
+
+        return source;
+    }
+
+    private static string GetSourceValue(IReadOnlyDictionary<string, string> sourceEnvironment, string key)
+    {
+        if (sourceEnvironment.TryGetValue(key, out var value))
+        {
+            return value;
+        }
+
+        foreach (var pair in sourceEnvironment)
+        {
+            if (string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                return pair.Value;
+            }
+        }
+
+        return null;
+    }
+
+    private static void SetIfPresent(Dictionary<string, string> environment, string key, string value)
+    {
+        if (!string.IsNullOrEmpty(value) && !IsSensitiveKey(key))
+        {
+            environment[key] = value;
+        }
     }
 #pragma warning restore S5443
 }

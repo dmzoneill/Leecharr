@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using FluentAssertions;
@@ -50,6 +51,13 @@ public class TerminalEnvironmentSanitizerTest
     [TestCase("LANG", false)]
     [TestCase("PWD", false)]
     [TestCase("TMPDIR", false)]
+    [TestCase("AWS_ACCESS_KEY_ID", true)]
+    [TestCase("AWS_SECRET_ACCESS_KEY", true)]
+    [TestCase("ConnectionStrings__Default", true)]
+    [TestCase("ConnectionStrings__Leecharr", true)]
+    [TestCase("LD_PRELOAD", true)]
+    [TestCase("LD_LIBRARY_PATH", true)]
+    [TestCase("LD_AUDIT", true)]
     public void IsSensitiveKey_CorrectlyIdentifiesSensitiveAndSafeKeys(string key, bool expectedSensitive)
     {
         TerminalEnvironmentSanitizer.IsSensitiveKey(key).Should().Be(expectedSensitive);
@@ -70,6 +78,9 @@ public class TerminalEnvironmentSanitizerTest
         startInfo.EnvironmentVariables["JWT_SECRET"] = "super_jwt_secret";
         startInfo.EnvironmentVariables["AUTH_TOKEN"] = "token_abc";
         startInfo.EnvironmentVariables["CUSTOM_SECRET_KEY"] = "hidden";
+        startInfo.EnvironmentVariables["AWS_ACCESS_KEY_ID"] = "AKIAIOSFODNN7EXAMPLE";
+        startInfo.EnvironmentVariables["ConnectionStrings__Default"] = "Host=db;Password=secret";
+        startInfo.EnvironmentVariables["LD_PRELOAD"] = "/tmp/libevil.so";
 
         TerminalEnvironmentSanitizer.Sanitize(startInfo);
 
@@ -97,6 +108,64 @@ public class TerminalEnvironmentSanitizerTest
         startInfo.EnvironmentVariables.ContainsKey("PWD").Should().BeTrue();
         startInfo.EnvironmentVariables["PWD"].Should().Be("/tmp");
         startInfo.EnvironmentVariables.ContainsKey("PS1").Should().BeTrue();
+        startInfo.EnvironmentVariables.ContainsKey("AWS_ACCESS_KEY_ID").Should().BeFalse();
+        startInfo.EnvironmentVariables.ContainsKey("ConnectionStrings__Default").Should().BeFalse();
+        startInfo.EnvironmentVariables.ContainsKey("LD_PRELOAD").Should().BeFalse();
+    }
+
+    [Test]
+    public void BuildSafeEnvironment_ThrowsOnNullSource()
+    {
+        var act = () => TerminalEnvironmentSanitizer.BuildSafeEnvironment(null!, "/tmp");
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Test]
+    public void BuildSafeEnvironment_KeepsShellAllowlist_AndDropsHostSecrets()
+    {
+        var source = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["PATH"] = "/usr/bin:/bin",
+            ["HOME"] = "/home/tester",
+            ["USER"] = "tester",
+            ["SHELL"] = "/bin/bash",
+            ["LANG"] = "C.UTF-8",
+            ["TMPDIR"] = "/tmp",
+            ["AWS_ACCESS_KEY_ID"] = "AKIAIOSFODNN7EXAMPLE",
+            ["AWS_SECRET_ACCESS_KEY"] = "aws-secret",
+            ["ConnectionStrings__Default"] = "Host=db;Password=secret",
+            ["LD_PRELOAD"] = "/tmp/libevil.so",
+            ["LD_LIBRARY_PATH"] = "/tmp/evil",
+            ["LEECHARR_API_KEY"] = "api-key",
+            ["UNRELATED_CONFIG"] = "do-not-copy",
+        };
+
+        var sanitized = TerminalEnvironmentSanitizer.BuildSafeEnvironment(source, "/srv/leecharr");
+
+        sanitized.Keys.Should().BeEquivalentTo(new[]
+        {
+            "PATH",
+            "HOME",
+            "USER",
+            "SHELL",
+            "TMPDIR",
+            "PWD",
+            "TERM",
+            "COLORTERM",
+            "LANG",
+            "PS1",
+        });
+        sanitized["PATH"].Should().Be("/usr/bin:/bin");
+        sanitized["HOME"].Should().Be("/home/tester");
+        sanitized["USER"].Should().Be("tester");
+        sanitized["PWD"].Should().Be("/srv/leecharr");
+        sanitized["LANG"].Should().Be("C.UTF-8");
+        sanitized["TERM"].Should().Be("xterm-256color");
+        sanitized["COLORTERM"].Should().Be("truecolor");
+        sanitized.Values.Should().NotContain("AKIAIOSFODNN7EXAMPLE");
+        sanitized.Values.Should().NotContain("aws-secret");
+        sanitized.Values.Should().NotContain("/tmp/libevil.so");
+        sanitized.Values.Should().NotContain(value => value.Contains("Password=secret", StringComparison.Ordinal));
     }
 
     [Test]

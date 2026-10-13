@@ -309,6 +309,9 @@ public class HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests : Inte
         TerminalEnvironmentSanitizer.IsSensitiveKey("USER_CREDENTIAL").Should().BeTrue();
         TerminalEnvironmentSanitizer.IsSensitiveKey("SSH_PRIVATE_KEY").Should().BeTrue();
         TerminalEnvironmentSanitizer.IsSensitiveKey("LEECHARR_DOWNLOAD_DIR").Should().BeTrue();
+        TerminalEnvironmentSanitizer.IsSensitiveKey("AWS_ACCESS_KEY_ID").Should().BeTrue();
+        TerminalEnvironmentSanitizer.IsSensitiveKey("ConnectionStrings__Default").Should().BeTrue();
+        TerminalEnvironmentSanitizer.IsSensitiveKey("LD_PRELOAD").Should().BeTrue();
 
         // Safe keys
         TerminalEnvironmentSanitizer.IsSensitiveKey(null).Should().BeFalse();
