@@ -21,7 +21,7 @@ public class QualityGateMetric
 
 public class QualityGateStatus
 {
-    public string Status { get; set; } = "OK";
+    public string Status { get; set; } = "NONE";
 
     public List<QualityGateMetric> Conditions { get; set; } = new();
 }
@@ -44,11 +44,11 @@ public class QualityOverviewMetrics
 
     public double SecurityHotspotsReviewed { get; set; }
 
-    public string ReliabilityRating { get; set; } = "A";
+    public string ReliabilityRating { get; set; } = string.Empty;
 
-    public string SecurityRating { get; set; } = "A";
+    public string SecurityRating { get; set; } = string.Empty;
 
-    public string MaintainabilityRating { get; set; } = "A";
+    public string MaintainabilityRating { get; set; } = string.Empty;
 
     public string TechnicalDebtFormatted { get; set; } = "0 min";
 }

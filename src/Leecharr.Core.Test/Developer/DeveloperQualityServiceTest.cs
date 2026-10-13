@@ -90,6 +90,8 @@ public class DeveloperQualityServiceTest
         Assert.That(report.Metrics.ReliabilityRating, Is.EqualTo("A"));
         Assert.That(report.RecentPipelines, Has.Count.EqualTo(1));
         Assert.That(report.RecentPipelines[0].Name, Is.EqualTo("SonarCloud Analysis"));
+        Assert.That(report.UsedFallbackQualityGate, Is.False);
+        Assert.That(report.UsedFallbackPipelines, Is.False);
     }
 
     [Test]
@@ -117,6 +119,8 @@ public class DeveloperQualityServiceTest
 
         Assert.That(report.Metrics.DuplicationDensity, Is.EqualTo(14.2));
         Assert.That(report.Metrics.NewCodeDuplicationDensity, Is.EqualTo(0));
+        Assert.That(report.UsedFallbackPipelines, Is.False);
+        Assert.That(report.RecentPipelines, Is.Empty);
     }
 
     [Test]
@@ -145,6 +149,9 @@ public class DeveloperQualityServiceTest
 
         Assert.That(report.QualityGate.Status, Is.EqualTo("ERROR"));
         Assert.That(report.Metrics.Bugs, Is.EqualTo(3));
+        Assert.That(report.UsedFallbackQualityGate, Is.False);
+        Assert.That(report.UsedFallbackPipelines, Is.False);
+        Assert.That(report.RecentPipelines, Is.Empty);
     }
 
     [Test]
@@ -288,9 +295,79 @@ public class DeveloperQualityServiceTest
         var report = await service.GetQualityReportAsync(CancellationToken.None);
 
         Assert.That(report, Is.Not.Null);
-        Assert.That(report.QualityGate.Status, Is.EqualTo("OK"));
-        Assert.That(report.Metrics.ReliabilityRating, Is.EqualTo("A"));
-        Assert.That(report.RecentPipelines, Is.Not.Empty);
+        Assert.That(report.QualityGate.Status, Is.EqualTo("NONE"));
+        Assert.That(report.UsedFallbackQualityGate, Is.True);
+        Assert.That(report.UsedFallbackPipelines, Is.True);
+        Assert.That(report.Metrics.ReliabilityRating, Is.Empty);
+        Assert.That(report.Metrics.Coverage, Is.EqualTo(0));
+        Assert.That(report.Metrics.Bugs, Is.EqualTo(0));
+        Assert.That(report.RecentPipelines, Is.Empty);
+        Assert.That(report.Message, Does.Contain("unavailable"));
+    }
+
+    [Test]
+    public async Task GetQualityReportAsync_does_not_cache_failed_sonar_and_github_calls_as_a_pass()
+    {
+        var handler = new MockHttpMessageHandler();
+        handler.Enqueue(HttpStatusCode.Unauthorized, "denied");
+        handler.Enqueue(HttpStatusCode.Unauthorized, "denied");
+        handler.Enqueue(HttpStatusCode.Forbidden, "denied");
+        handler.Enqueue(HttpStatusCode.Unauthorized, "denied");
+        handler.Enqueue(HttpStatusCode.Unauthorized, "denied");
+        handler.Enqueue(HttpStatusCode.Forbidden, "denied");
+
+        var client = new HttpClient(handler);
+        var service = new DeveloperQualityService(client);
+
+        var first = await service.GetQualityReportAsync(CancellationToken.None);
+        var second = await service.GetQualityReportAsync(CancellationToken.None);
+
+        Assert.That(first.QualityGate.Status, Is.EqualTo("NONE"));
+        Assert.That(first.UsedFallbackQualityGate, Is.True);
+        Assert.That(first.UsedFallbackPipelines, Is.True);
+        Assert.That(first.RecentPipelines, Is.Empty);
+        Assert.That(second.QualityGate.Status, Is.EqualTo("NONE"));
+        Assert.That(second.UsedFallbackQualityGate, Is.True);
+        Assert.That(handler.RequestCount, Is.EqualTo(6));
+    }
+
+    [Test]
+    public async Task GetQualityReportAsync_when_github_fails_does_not_invent_successful_pipelines()
+    {
+        var qualityGateJson = @"{ ""projectStatus"": { ""status"": ""ERROR"", ""conditions"": [] } }";
+        var measuresJson = @"{ ""component"": { ""measures"": [] } }";
+
+        var handler = new MockHttpMessageHandler();
+        handler.Enqueue(HttpStatusCode.OK, qualityGateJson);
+        handler.Enqueue(HttpStatusCode.OK, measuresJson);
+        handler.Enqueue(HttpStatusCode.Forbidden, "denied");
+
+        var client = new HttpClient(handler);
+        var service = new DeveloperQualityService(client);
+
+        var report = await service.GetQualityReportAsync(CancellationToken.None);
+
+        Assert.That(report.QualityGate.Status, Is.EqualTo("ERROR"));
+        Assert.That(report.UsedFallbackQualityGate, Is.False);
+        Assert.That(report.UsedFallbackPipelines, Is.True);
+        Assert.That(report.RecentPipelines, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetQualityReportAsync_when_network_fails_does_not_invent_a_passing_gate()
+    {
+        var client = new HttpClient(new ThrowingHttpMessageHandler());
+        var service = new DeveloperQualityService(client);
+
+        var report = await service.GetQualityReportAsync(CancellationToken.None);
+
+        Assert.That(report.QualityGate.Status, Is.EqualTo("NONE"));
+        Assert.That(report.UsedFallbackQualityGate, Is.True);
+        Assert.That(report.UsedFallbackPipelines, Is.True);
+        Assert.That(report.Metrics.Coverage, Is.EqualTo(0));
+        Assert.That(report.Metrics.NewCodeCoverage, Is.EqualTo(0));
+        Assert.That(report.Metrics.ReliabilityRating, Is.Empty);
+        Assert.That(report.RecentPipelines, Is.Empty);
     }
 
     private class DelayedHttpMessageHandler : MockHttpMessageHandler
@@ -309,9 +386,19 @@ public class DeveloperQualityServiceTest
         }
     }
 
+    private class ThrowingHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            throw new HttpRequestException("network down");
+        }
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Queue<HttpResponseMessage> responses = new();
+
+        public int RequestCount { get; private set; }
 
         public void Enqueue(HttpStatusCode statusCode, string content)
         {
@@ -323,6 +410,7 @@ public class DeveloperQualityServiceTest
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            this.RequestCount++;
             if (this.responses.Count > 0)
             {
                 return Task.FromResult(this.responses.Dequeue());

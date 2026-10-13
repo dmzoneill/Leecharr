@@ -46,6 +46,53 @@ interface QualityReportResponse {
   codacyUrl: string;
   githubRepoUrl: string;
   message?: string;
+  usedFallbackQualityGate?: boolean;
+  usedFallbackPipelines?: boolean;
+}
+
+function isQualityGateUnavailable(report: QualityReportResponse): boolean {
+  const status = report.qualityGate?.status;
+  return Boolean(report.usedFallbackQualityGate) || !status || status === "NONE";
+}
+
+function qualityGatePresentation(report: QualityReportResponse): { label: string; color: string; background: string } {
+  if (isQualityGateUnavailable(report)) {
+    return {
+      label: "UNAVAILABLE",
+      color: "#d97706",
+      background: "rgba(217, 119, 6, 0.12)",
+    };
+  }
+
+  if (report.qualityGate.status === "OK") {
+    return {
+      label: "PASSED (OK)",
+      color: "#10b981",
+      background: "rgba(16, 185, 129, 0.12)",
+    };
+  }
+
+  return {
+    label: "FAILED (" + report.qualityGate.status + ")",
+    color: "#ef4444",
+    background: "rgba(239, 68, 68, 0.12)",
+  };
+}
+
+function ratingColor(rating: string): string {
+  if (rating === "A") {
+    return "#10b981";
+  }
+
+  if (rating === "B") {
+    return "#84cc16";
+  }
+
+  if (!rating) {
+    return "var(--text-dim, #a8a29e)";
+  }
+
+  return "#ef4444";
 }
 
 export const DeveloperQuality: React.FC = () => {
@@ -79,6 +126,9 @@ export const DeveloperQuality: React.FC = () => {
     };
   }, []);
 
+  const gate = report ? qualityGatePresentation(report) : null;
+  const dataMissing = Boolean(report?.usedFallbackQualityGate || report?.usedFallbackPipelines);
+
   return (
     <div className="developer-page developer-quality-page" style={{ padding: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
@@ -87,7 +137,9 @@ export const DeveloperQuality: React.FC = () => {
             🛡️ Code Quality &amp; Security Dashboard
           </h1>
           <p style={{ margin: 0, color: "var(--text-dim, #a8a29e)", fontSize: "0.9rem" }}>
-            Live metrics from SonarCloud Quality Gate, Codacy, CodeQL, and GitHub Actions CI/CD pipelines.
+            {dataMissing
+              ? "SonarCloud or GitHub Actions could not be reached. Missing results are shown as unavailable."
+              : "Live metrics from SonarCloud Quality Gate, Codacy, CodeQL, and GitHub Actions CI/CD pipelines."}
           </p>
         </div>
 
@@ -137,14 +189,29 @@ export const DeveloperQuality: React.FC = () => {
         </div>
       )}
 
-      {!loading && report && (
+      {!loading && report && gate && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {report.message && (
+            <div
+              className="alert"
+              style={{
+                background: "rgba(217, 119, 6, 0.12)",
+                border: "1px solid #d97706",
+                color: "var(--text-color, #f5f5f4)",
+                borderRadius: "8px",
+                padding: "12px 16px",
+              }}
+            >
+              {report.message}
+            </div>
+          )}
+
           {/* Quality Gate Status Banner */}
           <div
             className="card"
             style={{
-              background: report.qualityGate.status === "OK" ? "rgba(16, 185, 129, 0.12)" : "rgba(239, 68, 68, 0.12)",
-              border: `1px solid ${report.qualityGate.status === "OK" ? "#10b981" : "#ef4444"}`,
+              background: gate.background,
+              border: `1px solid ${gate.color}`,
               borderRadius: "8px",
               padding: "16px",
               display: "flex",
@@ -153,8 +220,8 @@ export const DeveloperQuality: React.FC = () => {
             }}
           >
             <div>
-              <h2 style={{ margin: 0, fontSize: "1.2rem", color: report.qualityGate.status === "OK" ? "#10b981" : "#ef4444" }}>
-                SonarCloud Quality Gate: {report.qualityGate.status === "OK" ? "PASSED (OK)" : "FAILED (ERROR)"}
+              <h2 style={{ margin: 0, fontSize: "1.2rem", color: gate.color }}>
+                SonarCloud Quality Gate: {gate.label}
               </h2>
               <p style={{ margin: "4px 0 0 0", fontSize: "0.85rem", color: "var(--text-color, #f5f5f4)" }}>
                 Strict zero-suppression policy evaluating new code coverage (&ge;80%) and duplication density (&le;3%).
@@ -162,8 +229,8 @@ export const DeveloperQuality: React.FC = () => {
             </div>
 
             <div style={{ textAlign: "right" }}>
-              <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: report.qualityGate.status === "OK" ? "#10b981" : "#ef4444" }}>
-                {report.metrics.newCodeCoverage.toFixed(1)}%
+              <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: gate.color }}>
+                {report.usedFallbackQualityGate ? "n/a" : `${report.metrics.newCodeCoverage.toFixed(1)}%`}
               </span>
               <div style={{ fontSize: "0.75rem", color: "var(--text-dim, #a8a29e)" }}>New Code Coverage</div>
             </div>
@@ -173,26 +240,26 @@ export const DeveloperQuality: React.FC = () => {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
             <div className="card" style={{ background: "var(--bg-card, #131733)", border: "1px solid var(--border-color, #44403c)", borderRadius: "8px", padding: "16px" }}>
               <div style={{ fontSize: "0.85rem", color: "var(--text-dim, #a8a29e)", marginBottom: "4px" }}>Reliability Rating</div>
-              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#10b981" }}>{report.metrics.reliabilityRating}</div>
+              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: ratingColor(report.metrics.reliabilityRating) }}>{report.metrics.reliabilityRating || "n/a"}</div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-dim, #a8a29e)", marginTop: "4px" }}>{report.metrics.bugs} Bugs</div>
             </div>
 
             <div className="card" style={{ background: "var(--bg-card, #131733)", border: "1px solid var(--border-color, #44403c)", borderRadius: "8px", padding: "16px" }}>
               <div style={{ fontSize: "0.85rem", color: "var(--text-dim, #a8a29e)", marginBottom: "4px" }}>Security Rating</div>
-              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#10b981" }}>{report.metrics.securityRating}</div>
+              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: ratingColor(report.metrics.securityRating) }}>{report.metrics.securityRating || "n/a"}</div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-dim, #a8a29e)", marginTop: "4px" }}>{report.metrics.vulnerabilities} Vulnerabilities</div>
             </div>
 
             <div className="card" style={{ background: "var(--bg-card, #131733)", border: "1px solid var(--border-color, #44403c)", borderRadius: "8px", padding: "16px" }}>
               <div style={{ fontSize: "0.85rem", color: "var(--text-dim, #a8a29e)", marginBottom: "4px" }}>Maintainability Rating</div>
-              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#10b981" }}>{report.metrics.maintainabilityRating}</div>
+              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: ratingColor(report.metrics.maintainabilityRating) }}>{report.metrics.maintainabilityRating || "n/a"}</div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-dim, #a8a29e)", marginTop: "4px" }}>{report.metrics.codeSmells} Code Smells</div>
             </div>
 
             <div className="card" style={{ background: "var(--bg-card, #131733)", border: "1px solid var(--border-color, #44403c)", borderRadius: "8px", padding: "16px" }}>
               <div style={{ fontSize: "0.85rem", color: "var(--text-dim, #a8a29e)", marginBottom: "4px" }}>Security Hotspots</div>
-              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#10b981" }}>{report.metrics.securityHotspotsReviewed.toFixed(0)}%</div>
-              <div style={{ fontSize: "0.8rem", color: "var(--text-dim, #a8a29e)", marginTop: "4px" }}>100% Reviewed</div>
+              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: report.usedFallbackQualityGate ? "var(--text-dim, #a8a29e)" : "#10b981" }}>{report.usedFallbackQualityGate ? "n/a" : `${report.metrics.securityHotspotsReviewed.toFixed(0)}%`}</div>
+              <div style={{ fontSize: "0.8rem", color: "var(--text-dim, #a8a29e)", marginTop: "4px" }}>Reviewed</div>
             </div>
           </div>
 
@@ -246,56 +313,62 @@ export const DeveloperQuality: React.FC = () => {
           )}
 
           {/* Recent CI/CD Pipeline Runs */}
-          {report.recentPipelines.length > 0 && (
+          {(report.usedFallbackPipelines || report.recentPipelines.length > 0) && (
             <div className="card" style={{ background: "var(--bg-card, #131733)", border: "1px solid var(--border-color, #44403c)", borderRadius: "8px", padding: "16px" }}>
               <h3 style={{ margin: "0 0 12px 0", fontSize: "1rem", color: "var(--text-color, #f5f5f4)" }}>
                 Recent CI/CD &amp; Security Pipeline Runs
               </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {report.recentPipelines.map((run, i) => {
-                  const isSuccess = run.conclusion === "success";
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        padding: "10px 14px",
-                        background: "var(--bg-lighter, #1c1917)",
-                        border: "1px solid var(--border-color, #44403c)",
-                        borderRadius: "6px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "1.1rem" }}>
-                          {isSuccess ? "✅" : run.status === "in_progress" ? "⏳" : "❌"}
-                        </span>
-                        <div>
-                          <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-color, #f5f5f4)" }}>
-                            {run.name}
+              {report.usedFallbackPipelines ? (
+                <p style={{ margin: 0, color: "var(--text-dim, #a8a29e)", fontSize: "0.9rem" }}>
+                  Pipeline history is unavailable. GitHub Actions did not return workflow runs, so no run is shown as successful.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {report.recentPipelines.map((run, i) => {
+                    const isSuccess = run.conclusion === "success";
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          padding: "10px 14px",
+                          background: "var(--bg-lighter, #1c1917)",
+                          border: "1px solid var(--border-color, #44403c)",
+                          borderRadius: "6px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "1.1rem" }}>
+                            {isSuccess ? "✅" : run.status === "in_progress" ? "⏳" : "❌"}
                           </span>
-                          <span style={{ color: "var(--text-dim, #a8a29e)", fontSize: "0.8rem", marginLeft: "8px" }}>
-                            #{run.runNumber} &bull; {new Date(run.createdAt).toLocaleString()}
-                          </span>
+                          <div>
+                            <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-color, #f5f5f4)" }}>
+                              {run.name}
+                            </span>
+                            <span style={{ color: "var(--text-dim, #a8a29e)", fontSize: "0.8rem", marginLeft: "8px" }}>
+                              #{run.runNumber} &bull; {new Date(run.createdAt).toLocaleString()}
+                            </span>
+                          </div>
                         </div>
-                      </div>
 
-                      {run.htmlUrl && (
-                        <a
-                          href={run.htmlUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-sm btn-secondary"
-                          style={{ textDecoration: "none" }}
-                        >
-                          View Run ↗
-                        </a>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        {run.htmlUrl && (
+                          <a
+                            href={run.htmlUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-secondary"
+                            style={{ textDecoration: "none" }}
+                          >
+                            View Run ↗
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
