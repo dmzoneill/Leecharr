@@ -286,7 +286,17 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(jsonResult.Value);
         json.Should().Contain("\"result\":true");
         await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
-        await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+        await this.torrentService.Received().UpdateAsync(torrent);
+        torrent.SavePath.Should().Be("/downloads");
+
+        using var statusDoc = JsonDocument.Parse("{\"method\":\"core.get_torrent_status\",\"params\":[\"aabbccddeeff00112233445566778899aabbccdd\", [\"move_completed_path\", \"download_location\", \"save_path\"]],\"id\":2}");
+        var statusResult = await this.controller.HandleRpc(statusDoc.RootElement);
+        var statusJson = JsonSerializer.Serialize(((JsonResult)statusResult).Value);
+        using var statusParsed = JsonDocument.Parse(statusJson);
+        var status = statusParsed.RootElement.GetProperty("result");
+        status.GetProperty("move_completed_path").GetString().Should().Be("/downloads/completed");
+        status.GetProperty("download_location").GetString().Should().Be("/downloads");
+        status.GetProperty("save_path").GetString().Should().Be("/downloads");
     }
 
     [Test]
@@ -3526,10 +3536,10 @@ public class DelugeJsonRpcControllerTest
 
     [TestCase("core.set_torrent_max_connections", 100)]
     [TestCase("core.set_torrent_max_upload_slots", 10)]
-    [TestCase("core.set_torrent_auto_managed", true)]
+    [TestCase("core.set_torrent_auto_managed", false)]
     [TestCase("core.set_torrent_move_completed", true)]
     [TestCase("core.set_torrent_move_completed_path", "/downloads/completed")]
-    public async Task HandleRpc_CoreSetTorrentGranular_StandardDelugeMutators_ReturnSuccess(string method, object value)
+    public async Task HandleRpc_CoreSetTorrentGranular_StandardDelugeMutators_PersistWithoutRelocating(string method, object value)
     {
         var context = new DefaultHttpContext();
         context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
@@ -3551,6 +3561,36 @@ public class DelugeJsonRpcControllerTest
         var json = JsonSerializer.Serialize(((JsonResult)result).Value);
         json.Should().Contain("\"result\":true");
         await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
+        await this.torrentService.Received().UpdateAsync(torrent);
+
+        using var statusDoc = JsonDocument.Parse($"{{\"method\":\"core.get_torrent_status\",\"params\":[\"{torrent.InfoHash}\", [\"max_connections\",\"max_upload_slots\",\"auto_managed\",\"is_auto_managed\",\"move_completed\",\"move_completed_path\",\"download_location\"]],\"id\":310}}");
+        var statusResult = await this.controller.HandleRpc(statusDoc.RootElement);
+        var statusJson = JsonSerializer.Serialize(((JsonResult)statusResult).Value);
+        using var statusParsed = JsonDocument.Parse(statusJson);
+        var status = statusParsed.RootElement.GetProperty("result");
+
+        switch (method)
+        {
+            case "core.set_torrent_max_connections":
+                status.GetProperty("max_connections").GetInt32().Should().Be(100);
+                break;
+            case "core.set_torrent_max_upload_slots":
+                status.GetProperty("max_upload_slots").GetInt32().Should().Be(10);
+                break;
+            case "core.set_torrent_auto_managed":
+                status.GetProperty("auto_managed").GetBoolean().Should().BeFalse();
+                status.GetProperty("is_auto_managed").GetBoolean().Should().BeFalse();
+                break;
+            case "core.set_torrent_move_completed":
+                status.GetProperty("move_completed").GetBoolean().Should().BeTrue();
+                break;
+            case "core.set_torrent_move_completed_path":
+                status.GetProperty("move_completed_path").GetString().Should().Be("/downloads/completed");
+                status.GetProperty("download_location").GetString().Should().Be("/downloads");
+                break;
+        }
+
+        this.configService.Received().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
     }
 
     [Test]
@@ -3653,5 +3693,77 @@ public class DelugeJsonRpcControllerTest
         result.Should().BeOfType<JsonResult>();
         var json = JsonSerializer.Serialize(((JsonResult)result).Value);
         json.Should().Contain("\"result\":1073741824");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentOptions_DownloadLocationAndMoveCompletedPath_RelocatesOnlyDownloadLocation()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 77,
+            InfoHash = "7788990011223344556677889900112233445566",
+            SavePath = "/downloads/incomplete",
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_options\",\"params\":[[\"{torrent.InfoHash}\"], {{\"download_location\": \"/downloads/active\", \"move_completed\": true, \"move_completed_path\": \"/downloads/completed\", \"max_connections\": 40, \"max_upload_slots\": 4, \"auto_managed\": false}}],\"id\":401}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        await this.torrentService.Received(1).SetLocationAsync(77, "/downloads/active", moveFiles: true);
+        await this.torrentService.DidNotReceive().SetLocationAsync(77, "/downloads/completed", Arg.Any<bool>());
+        await this.torrentService.Received().UpdateAsync(torrent);
+
+        using var statusDoc = JsonDocument.Parse($"{{\"method\":\"core.get_torrent_status\",\"params\":[\"{torrent.InfoHash}\", [\"move_completed\",\"move_completed_path\",\"max_connections\",\"max_upload_slots\",\"auto_managed\"]],\"id\":402}}");
+        var statusResult = await this.controller.HandleRpc(statusDoc.RootElement);
+        var statusJson = JsonSerializer.Serialize(((JsonResult)statusResult).Value);
+        using var statusParsed = JsonDocument.Parse(statusJson);
+        var status = statusParsed.RootElement.GetProperty("result");
+        status.GetProperty("move_completed").GetBoolean().Should().BeTrue();
+        status.GetProperty("move_completed_path").GetString().Should().Be("/downloads/completed");
+        status.GetProperty("max_connections").GetInt32().Should().Be(40);
+        status.GetProperty("max_upload_slots").GetInt32().Should().Be(4);
+        status.GetProperty("auto_managed").GetBoolean().Should().BeFalse();
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreAddTorrentMagnet_MoveCompletedPath_DoesNotUseItAsSavePath()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        const string hash = "8899001122334455667788990011223344556677";
+        const string magnet = "magnet:?xt=urn:btih:8899001122334455667788990011223344556677&dn=MoveLater";
+        var created = new Torrent
+        {
+            Id = 78,
+            InfoHash = hash,
+            Name = "MoveLater",
+            SavePath = "/downloads",
+        };
+        this.torrentService.AddFromMagnetAsync(magnet, null, null, false).Returns(Task.FromResult(created));
+        this.torrentService.GetByInfoHash(hash).Returns(created);
+
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.add_torrent_magnet\",\"params\":[\"{magnet}\", {{\"move_completed\": true, \"move_completed_path\": \"/downloads/completed\"}}],\"id\":403}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        await this.torrentService.Received(1).AddFromMagnetAsync(magnet, null, null, false);
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(magnet, Arg.Any<string>(), "/downloads/completed", Arg.Any<bool>());
+        await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
+
+        using var statusDoc = JsonDocument.Parse($"{{\"method\":\"core.get_torrent_status\",\"params\":[\"{hash}\", [\"move_completed\",\"move_completed_path\",\"download_location\"]],\"id\":404}}");
+        var statusResult = await this.controller.HandleRpc(statusDoc.RootElement);
+        var statusJson = JsonSerializer.Serialize(((JsonResult)statusResult).Value);
+        using var statusParsed = JsonDocument.Parse(statusJson);
+        var status = statusParsed.RootElement.GetProperty("result");
+        status.GetProperty("move_completed").GetBoolean().Should().BeTrue();
+        status.GetProperty("move_completed_path").GetString().Should().Be("/downloads/completed");
+        status.GetProperty("download_location").GetString().Should().Be("/downloads");
     }
 }

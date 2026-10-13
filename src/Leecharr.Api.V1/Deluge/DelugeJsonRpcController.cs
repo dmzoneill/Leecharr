@@ -1,7 +1,9 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -140,6 +142,9 @@ public class DelugeJsonRpcController : ControllerBase
     private readonly IDelugePluginSettingsService delugePluginSettings;
     private readonly IBlocklistService blocklistService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+    private static readonly ConcurrentDictionary<string, DelugeTorrentOptionState> TorrentOptionStates =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public DelugeJsonRpcController(
         ITorrentService torrentService,
@@ -1395,10 +1400,17 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        if (opts.TryGetProperty("max_connections", out var mc) && mc.ValueKind == JsonValueKind.Number)
+        var optionConfigUpdates = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        if (TryStoreDelugeTorrentOption(added, "max_connections", opts, optionConfigUpdates) |
+            TryStoreDelugeTorrentOption(added, "max_upload_slots", opts, optionConfigUpdates) |
+            TryStoreDelugeTorrentOption(added, "auto_managed", opts, optionConfigUpdates) |
+            TryStoreDelugeTorrentOption(added, "move_completed", opts, optionConfigUpdates) |
+            TryStoreDelugeTorrentOption(added, "move_completed_path", opts, optionConfigUpdates))
         {
-            // Extracted from Deluge add options; connection limits are managed globally or via engine.
+            hasUpdates = true;
         }
+
+        this.FlushDelugeTorrentOptionConfig(optionConfigUpdates);
 
         if (opts.TryGetProperty("file_priorities", out var fp) && fp.ValueKind == JsonValueKind.Array && this.torrentFileService != null)
         {
@@ -1477,10 +1489,6 @@ public class DelugeJsonRpcController : ControllerBase
             {
                 savePath = dl.GetString();
             }
-            else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
-            {
-                savePath = mcp.GetString();
-            }
 
             if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
             {
@@ -1543,10 +1551,6 @@ public class DelugeJsonRpcController : ControllerBase
             {
                 savePath = dl.GetString();
             }
-            else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
-            {
-                savePath = mcp.GetString();
-            }
 
             if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
             {
@@ -1608,10 +1612,6 @@ public class DelugeJsonRpcController : ControllerBase
             if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
             {
                 savePath = dl.GetString();
-            }
-            else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
-            {
-                savePath = mcp.GetString();
             }
 
             if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
@@ -1794,10 +1794,6 @@ public class DelugeJsonRpcController : ControllerBase
                         if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
                         {
                             savePath = dl.GetString();
-                        }
-                        else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
-                        {
-                            savePath = mcp.GetString();
                         }
 
                         if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
@@ -2003,6 +1999,7 @@ public class DelugeJsonRpcController : ControllerBase
 
     private async Task<IActionResult> HandleCoreSetTorrentOptionsAsync(JsonElement paramsElem, object id)
     {
+        var optionConfigUpdates = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
         {
             var optHashes = ExtractHashes(paramsElem[0]);
@@ -2091,9 +2088,14 @@ public class DelugeJsonRpcController : ControllerBase
                         await this.torrentService.SetSuperSeedingAsync(t.Id, enabled);
                     }
 
-                    if (opts.TryGetProperty("move_completed", out var mc) && mc.ValueKind != JsonValueKind.Null)
+                    if (TryStoreDelugeTorrentOption(t, "max_connections", opts, optionConfigUpdates) |
+                        TryStoreDelugeTorrentOption(t, "max_upload_slots", opts, optionConfigUpdates) |
+                        TryStoreDelugeTorrentOption(t, "auto_managed", opts, optionConfigUpdates) |
+                        TryStoreDelugeTorrentOption(t, "move_completed", opts, optionConfigUpdates) |
+                        TryStoreDelugeTorrentOption(t, "move_completed_path", opts, optionConfigUpdates))
                     {
-                        // Handled as standard Deluge option
+                        // Completion path is stored for later. It must not relocate incomplete files.
+                        hasOtherUpdates = true;
                     }
 
                     if (opts.TryGetProperty("sequential_download", out var seq) && seq.ValueKind != JsonValueKind.Null)
@@ -2179,11 +2181,13 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
+        this.FlushDelugeTorrentOptionConfig(optionConfigUpdates);
         return DelugeResult(new { result = true, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreSetTorrentPropertyAsync(string method, JsonElement paramsElem, object id)
     {
+        var optionConfigUpdates = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
         {
             var optHashes = ExtractHashes(paramsElem[0]);
@@ -2203,11 +2207,23 @@ public class DelugeJsonRpcController : ControllerBase
                 switch (method)
                 {
                     case "core.set_torrent_max_connections":
+                        hasUpdates = TryStoreDelugeTorrentOption(t, "max_connections", valElem, optionConfigUpdates, valueIsDirect: true);
+                        break;
+
                     case "core.set_torrent_max_upload_slots":
+                        hasUpdates = TryStoreDelugeTorrentOption(t, "max_upload_slots", valElem, optionConfigUpdates, valueIsDirect: true);
+                        break;
+
                     case "core.set_torrent_auto_managed":
+                        hasUpdates = TryStoreDelugeTorrentOption(t, "auto_managed", valElem, optionConfigUpdates, valueIsDirect: true);
+                        break;
+
                     case "core.set_torrent_move_completed":
+                        hasUpdates = TryStoreDelugeTorrentOption(t, "move_completed", valElem, optionConfigUpdates, valueIsDirect: true);
+                        break;
+
                     case "core.set_torrent_move_completed_path":
-                        // Standard Deluge properties accepted and acknowledged
+                        hasUpdates = TryStoreDelugeTorrentOption(t, "move_completed_path", valElem, optionConfigUpdates, valueIsDirect: true);
                         break;
 
                     case "core.set_torrent_max_download_speed":
@@ -2345,6 +2361,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
+        this.FlushDelugeTorrentOptionConfig(optionConfigUpdates);
         return DelugeResult(new { result = true, error = (object)null, id });
     }
 
@@ -2955,12 +2972,12 @@ public class DelugeJsonRpcController : ControllerBase
             { "creator", t.CreatedBy ?? string.Empty },
             { "owner", "admin" },
             { "storage_mode", "sparse" },
-            { "move_completed", false },
-            { "move_completed_path", savePath },
+            { "move_completed", this.ReadDelugeTorrentBool(t, "MoveCompleted", false) },
+            { "move_completed_path", this.ReadDelugeMoveCompletedPath(t, savePath) },
             { "prioritize_first_last_pieces", t.FirstLastPiecePriority },
             { "sequential_download", t.SequentialDownload },
-            { "max_connections", -1 },
-            { "max_upload_slots", -1 },
+            { "max_connections", this.ReadDelugeTorrentInt(t, "MaxConnections", -1) },
+            { "max_upload_slots", this.ReadDelugeTorrentInt(t, "MaxUploadSlots", -1) },
             { "is_finished", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
             { "is_seed", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
             { "paused", t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed },
@@ -2971,8 +2988,8 @@ public class DelugeJsonRpcController : ControllerBase
             { "seeding_time", t.SeedingTimeSeconds },
             { "seed_rank", 0 },
             { "message", t.Status == TorrentStatus.Error ? "Error" : "OK" },
-            { "is_auto_managed", true },
-            { "auto_managed", true },
+            { "is_auto_managed", this.ReadDelugeTorrentBool(t, "AutoManaged", true) },
+            { "auto_managed", this.ReadDelugeTorrentBool(t, "AutoManaged", true) },
             { "stop_at_ratio", t.TargetRatio > 0 },
             { "remove_at_ratio", string.Equals(t.ShareLimitAction, "Remove", StringComparison.OrdinalIgnoreCase) || string.Equals(t.ShareLimitAction, "Delete", StringComparison.OrdinalIgnoreCase) },
             { "stop_ratio", t.TargetRatio },
@@ -3470,6 +3487,228 @@ public class DelugeJsonRpcController : ControllerBase
             2 or 3 or 4 => 3,
             >= 5 => 4,
         };
+    }
+
+    private sealed class DelugeTorrentOptionState
+    {
+        public int? MaxConnections { get; set; }
+
+        public int? MaxUploadSlots { get; set; }
+
+        public bool? AutoManaged { get; set; }
+
+        public bool? MoveCompleted { get; set; }
+
+        public string MoveCompletedPath { get; set; }
+
+        public bool HasMoveCompletedPath { get; set; }
+    }
+
+    private static string TorrentOptionKey(Torrent torrent)
+    {
+        if (!string.IsNullOrWhiteSpace(torrent?.InfoHash))
+        {
+            return torrent.InfoHash.Trim();
+        }
+
+        return "id:" + (torrent?.Id.ToString(CultureInfo.InvariantCulture) ?? "0");
+    }
+
+    private static DelugeTorrentOptionState GetOrCreateTorrentOptions(Torrent torrent)
+    {
+        return TorrentOptionStates.GetOrAdd(TorrentOptionKey(torrent), _ => new DelugeTorrentOptionState());
+    }
+
+    private static bool TryGetTorrentOptions(Torrent torrent, out DelugeTorrentOptionState state)
+    {
+        return TorrentOptionStates.TryGetValue(TorrentOptionKey(torrent), out state);
+    }
+
+    private static bool TryStoreDelugeTorrentOption(
+        Torrent torrent,
+        string optionName,
+        JsonElement source,
+        Dictionary<string, object> configUpdates,
+        bool valueIsDirect = false)
+    {
+        if (torrent == null || configUpdates == null)
+        {
+            return false;
+        }
+
+        var value = source;
+        if (!valueIsDirect)
+        {
+            if (source.ValueKind != JsonValueKind.Object || !source.TryGetProperty(optionName, out value))
+            {
+                return false;
+            }
+        }
+
+        if (value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return false;
+        }
+
+        var state = GetOrCreateTorrentOptions(torrent);
+        var configKey = "DelugeTorrent." + TorrentOptionKey(torrent) + ".";
+        switch (optionName)
+        {
+            case "max_connections":
+                if (!TryReadDelugeInt(value, out var maxConnections))
+                {
+                    return false;
+                }
+
+                state.MaxConnections = maxConnections;
+                configUpdates[configKey + "MaxConnections"] = maxConnections.ToString(CultureInfo.InvariantCulture);
+                return true;
+
+            case "max_upload_slots":
+                if (!TryReadDelugeInt(value, out var maxUploadSlots))
+                {
+                    return false;
+                }
+
+                state.MaxUploadSlots = maxUploadSlots;
+                configUpdates[configKey + "MaxUploadSlots"] = maxUploadSlots.ToString(CultureInfo.InvariantCulture);
+                return true;
+
+            case "auto_managed":
+                var autoManaged = SafeGetBoolean(value);
+                state.AutoManaged = autoManaged;
+                configUpdates[configKey + "AutoManaged"] = autoManaged ? "true" : "false";
+                return true;
+
+            case "move_completed":
+                var moveCompleted = SafeGetBoolean(value);
+                state.MoveCompleted = moveCompleted;
+                configUpdates[configKey + "MoveCompleted"] = moveCompleted ? "true" : "false";
+                return true;
+
+            case "move_completed_path":
+                if (value.ValueKind != JsonValueKind.String)
+                {
+                    return false;
+                }
+
+                state.MoveCompletedPath = value.GetString() ?? string.Empty;
+                state.HasMoveCompletedPath = true;
+                configUpdates[configKey + "MoveCompletedPath"] = state.MoveCompletedPath;
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private void FlushDelugeTorrentOptionConfig(Dictionary<string, object> configUpdates)
+    {
+        if (configUpdates != null && configUpdates.Count > 0 && this.configService != null)
+        {
+            this.configService.SaveConfigDictionary(configUpdates);
+        }
+    }
+
+    private int ReadDelugeTorrentInt(Torrent torrent, string name, int fallback)
+    {
+        if (TryGetTorrentOptions(torrent, out var state))
+        {
+            var inline = name switch
+            {
+                "MaxConnections" => state.MaxConnections,
+                "MaxUploadSlots" => state.MaxUploadSlots,
+                _ => null,
+            };
+            if (inline.HasValue)
+            {
+                return inline.Value;
+            }
+        }
+
+        var raw = this.configService?.GetValue("DelugeTorrent." + TorrentOptionKey(torrent) + "." + name, string.Empty);
+        if (!string.IsNullOrEmpty(raw) && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        return fallback;
+    }
+
+    private bool ReadDelugeTorrentBool(Torrent torrent, string name, bool fallback)
+    {
+        if (TryGetTorrentOptions(torrent, out var state))
+        {
+            var inline = name switch
+            {
+                "AutoManaged" => state.AutoManaged,
+                "MoveCompleted" => state.MoveCompleted,
+                _ => null,
+            };
+            if (inline.HasValue)
+            {
+                return inline.Value;
+            }
+        }
+
+        var raw = this.configService?.GetValue("DelugeTorrent." + TorrentOptionKey(torrent) + "." + name, string.Empty);
+        if (string.IsNullOrEmpty(raw))
+        {
+            return fallback;
+        }
+
+        if (bool.TryParse(raw, out var parsed))
+        {
+            return parsed;
+        }
+
+        if (raw == "1")
+        {
+            return true;
+        }
+
+        if (raw == "0")
+        {
+            return false;
+        }
+
+        return fallback;
+    }
+
+    private string ReadDelugeMoveCompletedPath(Torrent torrent, string savePath)
+    {
+        if (TryGetTorrentOptions(torrent, out var state) && state.HasMoveCompletedPath)
+        {
+            return state.MoveCompletedPath ?? string.Empty;
+        }
+
+        var raw = this.configService?.GetValue("DelugeTorrent." + TorrentOptionKey(torrent) + ".MoveCompletedPath", string.Empty);
+        if (!string.IsNullOrEmpty(raw))
+        {
+            return raw;
+        }
+
+        return savePath;
+    }
+
+    private static bool TryReadDelugeInt(JsonElement value, out int number)
+    {
+        if (value.ValueKind == JsonValueKind.Number)
+        {
+            if (value.TryGetInt32(out number))
+            {
+                return true;
+            }
+
+            if (value.TryGetDouble(out var rounded))
+            {
+                number = (int)Math.Round(rounded);
+                return true;
+            }
+        }
+
+        number = 0;
+        return false;
     }
 
     private static bool SafeGetBoolean(JsonElement element, bool defaultValue = false)
