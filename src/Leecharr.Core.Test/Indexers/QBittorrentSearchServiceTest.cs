@@ -520,4 +520,143 @@ public class QBittorrentSearchServiceTest
         var result = this.searchService.GetResults(99999);
         result.Should().BeNull();
     }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    [TestCase("enabled")]
+    [TestCase("multi")]
+    [TestCase("all")]
+    public async Task StartSearch_WhenPluginDisabled_SkipsDisabledIndexer(string plugins)
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "IndexerTwo", Enable = true, EnableSearch = true, Url = "http://indexer2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer1, indexer2 });
+
+        this.searchService.EnablePlugin("indexerTwo", false).Should().BeTrue();
+
+        var id = this.searchService.StartSearch("ubuntu", plugins: plugins);
+        await WaitForSearchStoppedAsync(this.searchService, id);
+
+        await this.torznabClient.Received(1).SearchAsync(indexer1, "ubuntu", categoryId: null, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
+        await this.torznabClient.DidNotReceive().SearchAsync(indexer2, Arg.Any<string>(), categoryId: Arg.Any<int?>(), limit: Arg.Any<int>(), cancellationToken: Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task StartSearch_WhenDisabledPluginIsNamed_StillQueriesThatIndexer()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "IndexerTwo", Enable = true, EnableSearch = true, Url = "http://indexer2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer1, indexer2 });
+
+        this.searchService.EnablePlugin("IndexerTwo", false);
+
+        var id = this.searchService.StartSearch("ubuntu", plugins: "IndexerTwo");
+        await WaitForSearchStoppedAsync(this.searchService, id);
+
+        await this.torznabClient.DidNotReceive().SearchAsync(indexer1, Arg.Any<string>(), categoryId: Arg.Any<int?>(), limit: Arg.Any<int>(), cancellationToken: Arg.Any<CancellationToken>());
+        await this.torznabClient.Received(1).SearchAsync(indexer2, "ubuntu", categoryId: null, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task StartSearch_WithInstalledPlugin_QueriesItAlongsideEnabledIndexers()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
+
+        this.searchService.InstallPlugin("ExtraPlugin.py").Should().BeTrue();
+
+        var id = this.searchService.StartSearch("ubuntu", plugins: "enabled");
+        await WaitForSearchStoppedAsync(this.searchService, id);
+
+        await this.torznabClient.Received(1).SearchAsync(indexer, "ubuntu", categoryId: null, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
+        await this.torznabClient.Received(1).SearchAsync(
+            Arg.Is<IndexerDefinition>(i => i.Name == "ExtraPlugin" && i.Url == "ExtraPlugin.py" && i.Enable),
+            "ubuntu",
+            categoryId: null,
+            limit: 100,
+            cancellationToken: Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task StartSearch_WithNamedInstalledPlugin_QueriesThatPluginInsteadOfStoppingEmpty()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
+        this.torznabClient.SearchAsync(
+                Arg.Is<IndexerDefinition>(i => i.Name == "ExtraPlugin"),
+                "ubuntu",
+                categoryId: null,
+                limit: 100,
+                cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(new List<TorznabSearchResult>
+            {
+                new() { Title = "Extra Result", DownloadUrl = "http://extra", Seeders = 3 },
+            });
+
+        this.searchService.InstallPlugin("https://plugins.example/ExtraPlugin.py|other.py").Should().BeTrue();
+
+        var id = this.searchService.StartSearch("ubuntu", plugins: "ExtraPlugin");
+        await WaitForSearchStoppedAsync(this.searchService, id);
+
+        await this.torznabClient.DidNotReceive().SearchAsync(indexer, Arg.Any<string>(), categoryId: Arg.Any<int?>(), limit: Arg.Any<int>(), cancellationToken: Arg.Any<CancellationToken>());
+        var results = this.searchService.GetResults(id);
+        results.Status.Should().Be("Stopped");
+        results.Results.Should().ContainSingle(r => r.FileName == "Extra Result");
+    }
+
+    [Test]
+    public async Task StartSearch_WhenInstalledPluginDisabled_EnabledSearchSkipsIt()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
+        this.searchService.InstallPlugin("ExtraPlugin.py");
+        this.searchService.EnablePlugin("ExtraPlugin", false);
+
+        var id = this.searchService.StartSearch("ubuntu", plugins: "enabled");
+        await WaitForSearchStoppedAsync(this.searchService, id);
+
+        await this.torznabClient.Received(1).SearchAsync(indexer, "ubuntu", categoryId: null, limit: 100, cancellationToken: Arg.Any<CancellationToken>());
+        await this.torznabClient.DidNotReceive().SearchAsync(
+            Arg.Is<IndexerDefinition>(i => i.Name == "ExtraPlugin"),
+            Arg.Any<string>(),
+            categoryId: Arg.Any<int?>(),
+            limit: Arg.Any<int>(),
+            cancellationToken: Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task StartSearch_AfterUninstall_DoesNotQueryRemovedPlugin()
+    {
+        this.indexerRepository.GetSearchEnabled().Returns(Array.Empty<IndexerDefinition>());
+        this.searchService.InstallPlugin("ExtraPlugin.py").Should().BeTrue();
+        this.searchService.UninstallPlugin("ExtraPlugin").Should().BeTrue();
+
+        var id = this.searchService.StartSearch("ubuntu", plugins: "enabled");
+        await WaitForSearchStoppedAsync(this.searchService, id);
+
+        await this.torznabClient.DidNotReceive().SearchAsync(
+            Arg.Any<IndexerDefinition>(),
+            Arg.Any<string>(),
+            categoryId: Arg.Any<int?>(),
+            limit: Arg.Any<int>(),
+            cancellationToken: Arg.Any<CancellationToken>());
+        this.searchService.GetStatus(id).Status.Should().Be("Stopped");
+        this.searchService.GetResults(id).Total.Should().Be(0);
+    }
+
+    private static async Task WaitForSearchStoppedAsync(QBittorrentSearchService service, int id)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (DateTime.UtcNow < deadline)
+        {
+            var status = service.GetStatus(id);
+            if (status == null || status.Status == "Stopped")
+            {
+                return;
+            }
+
+            await Task.Delay(20);
+        }
+    }
 }

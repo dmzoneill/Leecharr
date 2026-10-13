@@ -150,17 +150,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             {
                 try
                 {
-                    var indexers = this.indexerRepository != null
-                        ? this.indexerRepository.GetSearchEnabled().ToList()
-                        : new List<IndexerDefinition>();
-
-                    if (!string.IsNullOrWhiteSpace(plugins) &&
-                        !string.Equals(plugins, "all", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(plugins, "enabled", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var pluginSet = plugins.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                        indexers = indexers.Where(i => pluginSet.Contains(i.Name, StringComparer.OrdinalIgnoreCase)).ToList();
-                    }
+                    var indexers = this.ResolveSearchIndexers(plugins);
 
                     if (indexers.Count == 0)
                     {
@@ -639,6 +629,117 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
 
             this.disposed = true;
         }
+    }
+
+    private List<IndexerDefinition> ResolveSearchIndexers(string plugins)
+    {
+        var indexers = this.indexerRepository != null
+            ? this.indexerRepository.GetSearchEnabled().ToList()
+            : new List<IndexerDefinition>();
+
+        var requested = (plugins ?? string.Empty).Split(
+            PluginListSeparators,
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (requested.Length == 0 || IsBroadPluginSelection(requested))
+        {
+            return this.SelectEnabledPlugins(indexers);
+        }
+
+        return this.SelectNamedPlugins(indexers, requested);
+    }
+
+    private List<IndexerDefinition> SelectEnabledPlugins(List<IndexerDefinition> indexers)
+    {
+        var selected = new List<IndexerDefinition>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var indexer in indexers)
+        {
+            if (!this.IsSearchPluginEnabled(indexer.Name, indexer.Enable))
+            {
+                continue;
+            }
+
+            selected.Add(indexer);
+            seen.Add(indexer.Name);
+        }
+
+        foreach (var installed in this.installedPlugins)
+        {
+            if (seen.Contains(installed.Key))
+            {
+                continue;
+            }
+
+            var plugin = installed.Value;
+            if (!this.IsSearchPluginEnabled(installed.Key, plugin.Enabled))
+            {
+                continue;
+            }
+
+            selected.Add(CreateInstalledPluginIndexer(installed.Key, plugin.Url, plugin.Enabled));
+            seen.Add(installed.Key);
+        }
+
+        return selected;
+    }
+
+    private List<IndexerDefinition> SelectNamedPlugins(List<IndexerDefinition> indexers, string[] names)
+    {
+        var nameSet = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+        var selected = new List<IndexerDefinition>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var indexer in indexers)
+        {
+            if (nameSet.Contains(indexer.Name) && seen.Add(indexer.Name))
+            {
+                selected.Add(indexer);
+            }
+        }
+
+        foreach (var name in names)
+        {
+            if (seen.Contains(name) || !this.installedPlugins.TryGetValue(name, out var plugin))
+            {
+                continue;
+            }
+
+            selected.Add(CreateInstalledPluginIndexer(name, plugin.Url, plugin.Enabled));
+            seen.Add(name);
+        }
+
+        return selected;
+    }
+
+    private bool IsSearchPluginEnabled(string name, bool fallback)
+    {
+        return this.pluginEnabledOverrides.TryGetValue(name, out var enabled) ? enabled : fallback;
+    }
+
+    private static bool IsBroadPluginSelection(string[] requested)
+    {
+        if (requested.Length != 1)
+        {
+            return false;
+        }
+
+        var token = requested[0];
+        return string.Equals(token, "all", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(token, "enabled", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(token, "multi", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static IndexerDefinition CreateInstalledPluginIndexer(string name, string url, bool enabled)
+    {
+        return new IndexerDefinition
+        {
+            Name = name,
+            Url = url,
+            Enable = enabled,
+            EnableSearch = true,
+        };
     }
 
     private static string ExtractBtih(string url)
