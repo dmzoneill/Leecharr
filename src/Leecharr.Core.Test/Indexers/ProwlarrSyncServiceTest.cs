@@ -12,6 +12,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers;
 
 namespace Leecharr.Core.Test.Indexers;
@@ -911,6 +912,67 @@ public class ProwlarrSyncServiceTest
         var handler = handlerField?.GetValue(client) as SocketsHttpHandler;
         handler.Should().NotBeNull();
         handler!.SslOptions.RemoteCertificateValidationCallback.Should().BeNull();
+        handler.ConnectCallback.Should().NotBeNull();
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenSafeClientRejectsUrl_DoesNotUseRawHttpClient()
+    {
+        var rawCalled = false;
+        var rawHandler = new MockHttpMessageHandler(_ =>
+        {
+            rawCalled = true;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]"),
+            };
+        });
+        using var rawClient = new HttpClient(rawHandler);
+        var safeClient = Substitute.For<ISafeHttpClientService>();
+        safeClient.When(s => s.ValidateUrl(Arg.Any<string>()))
+            .Do(_ => throw new System.Security.SecurityException("SSRF blocked: IP address '169.254.169.254' is prohibited."));
+
+        var service = new ProwlarrSyncService(this.repository, null, rawClient, safeHttpClientService: safeClient);
+
+        var act = async () => await service.SyncFromProwlarrAsync("http://169.254.169.254", "key");
+
+        await act.Should().ThrowAsync<System.Security.SecurityException>();
+        rawCalled.Should().BeFalse();
+        safeClient.DidNotReceive().CreateHttpClient(Arg.Any<TimeSpan>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenSafeClientProvided_FetchesThroughSafeClient()
+    {
+        var safeHandler = new MockHttpMessageHandler(req =>
+        {
+            req.Headers.GetValues("X-Api-Key").Should().Contain("secret");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]"),
+            };
+        });
+        using var safeHttp = new HttpClient(safeHandler);
+        var safeClient = Substitute.For<ISafeHttpClientService>();
+        safeClient.CreateHttpClient(Arg.Any<TimeSpan>(), Arg.Any<bool>()).Returns(safeHttp);
+
+        var rawCalled = false;
+        var rawHandler = new MockHttpMessageHandler(_ =>
+        {
+            rawCalled = true;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]"),
+            };
+        });
+        using var rawClient = new HttpClient(rawHandler);
+        var service = new ProwlarrSyncService(this.repository, null, rawClient, safeHttpClientService: safeClient);
+
+        var count = await service.SyncFromProwlarrAsync("http://prowlarr.example:9696", "secret");
+
+        count.Should().Be(0);
+        rawCalled.Should().BeFalse();
+        safeClient.Received(1).ValidateUrl(Arg.Is<string>(u => u.Contains("/api/v1/indexer", StringComparison.Ordinal)));
     }
 
     [Test]

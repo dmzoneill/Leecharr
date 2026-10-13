@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Messaging.Commands;
 
@@ -78,6 +79,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
     private readonly IIndexerRepository repository;
     private readonly IArrConnectionRepository arrRepository;
+    private readonly ISafeHttpClientService safeHttpClientService;
     private readonly HttpClient httpClient;
     private readonly ITorznabClient torznabClient;
     private readonly SemaphoreSlim syncLock = new(1, 1);
@@ -88,11 +90,20 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         IHttpTransportEngine transportEngine = null,
         HttpClient httpClient = null,
         ITorznabClient torznabClient = null,
-        IArrConnectionRepository arrRepository = null)
+        IArrConnectionRepository arrRepository = null,
+        ISafeHttpClientService safeHttpClientService = null)
     {
         this.repository = repository;
         this.arrRepository = arrRepository;
-        if (httpClient != null)
+        this.safeHttpClientService = safeHttpClientService;
+
+        // An injected ISafeHttpClientService wins over HttpClient. DryIoc auto-resolves a raw HttpClient,
+        // and that client follows redirects with no SSRF connect callback.
+        if (safeHttpClientService != null)
+        {
+            this.httpClient = null;
+        }
+        else if (httpClient != null)
         {
             this.httpClient = httpClient;
         }
@@ -105,8 +116,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         }
         else
         {
-            var handler = new SocketsHttpHandler();
-            this.httpClient = new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(15) };
+            this.httpClient = new SafeHttpClientService().CreateHttpClient(TimeSpan.FromSeconds(15), false);
         }
 
         this.torznabClient = torznabClient;
@@ -265,29 +275,48 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
             using var request = CreateProwlarrRequest(HttpMethod.Get, requestUri, apiKey);
 
-            HttpResponseMessage response;
+            HttpClient requestClient = this.httpClient;
+            var disposeRequestClient = false;
+            if (this.safeHttpClientService != null)
+            {
+                this.safeHttpClientService.ValidateUrl(requestUri.AbsoluteUri);
+                requestClient = this.safeHttpClientService.CreateHttpClient(TimeSpan.FromSeconds(15), false);
+                disposeRequestClient = true;
+            }
+
+            HttpResponseMessage response = null;
+            string json;
             try
             {
-                response = await this.httpClient.SendAsync(request);
-            }
-            catch (Exception ex)
-            {
-                var sanitizedUri = requestUri.ToString().Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
-                this.logger.Error(ex, "Failed to connect to Prowlarr at {0}", sanitizedUri);
-                throw;
-            }
-
-            string json;
-            using (response)
-            {
-                if (!response.IsSuccessStatusCode)
+                try
                 {
-                    var msg = $"Prowlarr returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase})";
-                    this.logger.Warn("Failed to query Prowlarr indexers: {0}", msg);
-                    throw new HttpRequestException(msg, null, response.StatusCode);
+                    response = await requestClient.SendAsync(request);
+                }
+                catch (Exception ex)
+                {
+                    var sanitizedUri = requestUri.ToString().Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
+                    this.logger.Error(ex, "Failed to connect to Prowlarr at {0}", sanitizedUri);
+                    throw;
                 }
 
-                json = await response.Content.ReadAsStringAsync();
+                using (response)
+                {
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var msg = $"Prowlarr returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase})";
+                        this.logger.Warn("Failed to query Prowlarr indexers: {0}", msg);
+                        throw new HttpRequestException(msg, null, response.StatusCode);
+                    }
+
+                    json = await response.Content.ReadAsStringAsync();
+                }
+            }
+            finally
+            {
+                if (disposeRequestClient)
+                {
+                    requestClient.Dispose();
+                }
             }
 
             var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexerDto>>(json, CaseInsensitiveJsonOptions);

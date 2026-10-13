@@ -548,6 +548,21 @@ public class IndexerControllerTest
         var result = await this.controller.SyncProwlarr(request);
 
         result.Result.Should().BeOfType<OkObjectResult>();
+        this.safeHttpClientService.Received(1).ValidateUrl("http://localhost:9696");
+    }
+
+    [Test]
+    public async Task SyncProwlarr_WhenUrlIsBlocked_DoesNotCallSync()
+    {
+        var request = new ProwlarrSyncRequest { Url = "http://169.254.169.254", ApiKey = "key" };
+        this.safeHttpClientService.When(x => x.ValidateUrl("http://169.254.169.254"))
+            .Do(_ => throw new System.Security.SecurityException("SSRF blocked: IP address '169.254.169.254' is prohibited."));
+
+        var result = await this.controller.SyncProwlarr(request);
+
+        var badRequest = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequest.Value!.ToString().Should().Contain("SSRF blocked");
+        await this.prowlarrSyncService.DidNotReceive().SyncFromProwlarrAsync(Arg.Any<string>(), Arg.Any<string>());
     }
 
     [Test]

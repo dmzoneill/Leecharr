@@ -346,6 +346,11 @@ public class IndexerController : Controller
             if (targetUrl != null && targetApiKey != null)
             {
                 var cleanedUrl = CleanProwlarrBaseUrl(targetUrl);
+                if (!string.IsNullOrEmpty(cleanedUrl))
+                {
+                    this.safeHttpClientService.ValidateUrl(cleanedUrl);
+                }
+
                 var count = await this.prowlarrSyncService.SyncFromProwlarrAsync(cleanedUrl, targetApiKey);
                 return this.Ok(new { success = true, syncedCount = count });
             }
@@ -362,6 +367,7 @@ public class IndexerController : Controller
             }
 
             var defaultUrl = "http://localhost:9696";
+            this.safeHttpClientService.ValidateUrl(defaultUrl);
             var directCount = await this.prowlarrSyncService.SyncFromProwlarrAsync(defaultUrl, targetApiKey);
             return this.Ok(new { success = true, syncedCount = directCount });
         }
