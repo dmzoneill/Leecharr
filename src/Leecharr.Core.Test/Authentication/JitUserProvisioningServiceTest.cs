@@ -239,6 +239,75 @@ public class JitUserProvisioningServiceTest
         Assert.That(result.Username, Is.EqualTo("carol"));
     }
 
+    [Test]
+    public void ProvisionOrUpdateUser_SameProviderDifferentSubjectMatchingEmail_ShouldNotReplaceSubject()
+    {
+        var existing = new User
+        {
+            Id = 30,
+            Username = "erin",
+            Email = "erin@example.com",
+            ExternalProviderId = "keycloak",
+            ExternalSubjectId = "kc-erin-original",
+            Roles = "[\"Admin\"]",
+        };
+        this.userRepository.Insert(existing);
+
+        var profile = new ExternalUserProfile(
+            "keycloak",
+            "kc-erin-attacker",
+            "erin",
+            "erin@example.com",
+            "Erin Attacker",
+            new List<string> { "users" });
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Id, Is.Not.EqualTo(30));
+        Assert.That(result.Username, Is.EqualTo("erin_keycloak"));
+        Assert.That(result.ExternalSubjectId, Is.EqualTo("kc-erin-attacker"));
+
+        var original = this.userRepository.Get(30);
+        Assert.That(original.ExternalSubjectId, Is.EqualTo("kc-erin-original"));
+        Assert.That(original.ExternalProviderId, Is.EqualTo("keycloak"));
+        Assert.That(original.Username, Is.EqualTo("erin"));
+        Assert.That(original.Roles, Is.EqualTo("[\"Admin\"]"));
+    }
+
+    [Test]
+    public void ProvisionOrUpdateUser_SameProviderDifferentSubjectMatchingUsername_ShouldNotReplaceSubject()
+    {
+        var existing = new User
+        {
+            Id = 31,
+            Username = "frank",
+            Email = "frank@example.com",
+            ExternalProviderId = "authentik",
+            ExternalSubjectId = "sub-frank-original",
+            Roles = "[\"User\"]",
+        };
+        this.userRepository.Insert(existing);
+
+        var profile = new ExternalUserProfile(
+            "authentik",
+            "sub-frank-other",
+            "frank",
+            "other-frank@example.com",
+            "Frank Other",
+            new List<string> { "users" });
+
+        var result = this.jitService.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Id, Is.Not.EqualTo(31));
+        Assert.That(result.Username, Is.EqualTo("frank_authentik"));
+        Assert.That(result.ExternalSubjectId, Is.EqualTo("sub-frank-other"));
+
+        var original = this.userRepository.Get(31);
+        Assert.That(original.ExternalSubjectId, Is.EqualTo("sub-frank-original"));
+        Assert.That(original.Username, Is.EqualTo("frank"));
+        Assert.That(original.Email, Is.EqualTo("frank@example.com"));
+    }
+
     [TestCase("https://example.com/avatar.png", "https://example.com/avatar.png")]
     [TestCase("http://cdn.example.org/pic.jpg", "http://cdn.example.org/pic.jpg")]
     [TestCase("javascript:alert(1)", null)]

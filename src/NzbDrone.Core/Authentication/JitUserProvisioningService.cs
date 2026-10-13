@@ -101,31 +101,42 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             !string.IsNullOrEmpty(matchedUser.ExternalProviderId) &&
             string.Equals(matchedUser.ExternalProviderId, profile.ProviderId, StringComparison.OrdinalIgnoreCase))
         {
-            matchedUser.ExternalSubjectId = profile.SubjectId;
-            matchedUser.LastLogin = DateTime.UtcNow;
-            var sanitizedAvatar = SanitizeAvatarUrl(profile.AvatarUrl);
-            if (!string.IsNullOrEmpty(sanitizedAvatar))
+            if (!string.IsNullOrWhiteSpace(matchedUser.ExternalSubjectId) &&
+                !string.Equals(matchedUser.ExternalSubjectId, profile.SubjectId, StringComparison.Ordinal))
             {
-                matchedUser.AvatarUrl = sanitizedAvatar;
+                this.logger.Warn(
+                    "Refused to replace external subject for user {0} on provider {1}",
+                    matchedUser.Username,
+                    profile.ProviderId);
             }
-
-            if (profile.RawGroups != null && profile.RawGroups.Count > 0)
+            else
             {
-                var roles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
-                var newRolesJson = JsonSerializer.Serialize(roles);
-                var rolesChanged = HaveRolesChanged(matchedUser.Roles, roles, newRolesJson);
-                matchedUser.Roles = newRolesJson;
-
-                if (rolesChanged)
+                matchedUser.ExternalSubjectId = profile.SubjectId;
+                matchedUser.LastLogin = DateTime.UtcNow;
+                var sanitizedAvatar = SanitizeAvatarUrl(profile.AvatarUrl);
+                if (!string.IsNullOrEmpty(sanitizedAvatar))
                 {
-                    this.RevokeUserSessions(matchedUser.Id);
+                    matchedUser.AvatarUrl = sanitizedAvatar;
                 }
-            }
 
-            matchedUser.UpdatedAt = DateTime.UtcNow;
-            this.userRepository.Update(matchedUser);
-            this.logger.Info("Linked external {0} login to existing user {1}", profile.ProviderId, matchedUser.Username);
-            return matchedUser;
+                if (profile.RawGroups != null && profile.RawGroups.Count > 0)
+                {
+                    var roles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
+                    var newRolesJson = JsonSerializer.Serialize(roles);
+                    var rolesChanged = HaveRolesChanged(matchedUser.Roles, roles, newRolesJson);
+                    matchedUser.Roles = newRolesJson;
+
+                    if (rolesChanged)
+                    {
+                        this.RevokeUserSessions(matchedUser.Id);
+                    }
+                }
+
+                matchedUser.UpdatedAt = DateTime.UtcNow;
+                this.userRepository.Update(matchedUser);
+                this.logger.Info("Linked external {0} login to existing user {1}", profile.ProviderId, matchedUser.Username);
+                return matchedUser;
+            }
         }
 
         // 3. JIT Provision new user with disambiguated username if collision exists
