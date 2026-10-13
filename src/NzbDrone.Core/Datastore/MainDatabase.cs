@@ -22,12 +22,17 @@ public class MainDatabase : IMainDatabase
     private readonly Logger logger;
 
     public MainDatabase(IDbFactory dbFactory, IConnectionStringFactory connectionStringFactory, IAppFolderInfo appFolderInfo)
+        : this(dbFactory, connectionStringFactory, appFolderInfo, null)
+    {
+    }
+
+    internal MainDatabase(IDbFactory dbFactory, IConnectionStringFactory connectionStringFactory, IAppFolderInfo appFolderInfo, Action<string> deleteBackupFile)
     {
         this.logger = LogManager.GetCurrentClassLogger();
 
         if (connectionStringFactory.DatabaseType == DatabaseType.SQLite)
         {
-            this.ApplyPendingRestore(appFolderInfo.AppDataFolder);
+            this.ApplyPendingRestore(appFolderInfo.AppDataFolder, deleteBackupFile ?? new Action<string>(File.Delete));
         }
 
         this.database = dbFactory.Create(
@@ -79,7 +84,7 @@ public class MainDatabase : IMainDatabase
         }
     }
 
-    private void ApplyPendingRestore(string appDataFolder)
+    private void ApplyPendingRestore(string appDataFolder, Action<string> deleteBackupFile)
     {
         var dbPath = Path.Combine(appDataFolder, DbFileName);
         var dbRestorePath = dbPath + ".restore";
@@ -104,6 +109,7 @@ public class MainDatabase : IMainDatabase
         var backedUpWal = false;
         var backedUpShm = false;
         var backedUpJournal = false;
+        var restoreApplied = false;
 
         try
         {
@@ -136,28 +142,33 @@ public class MainDatabase : IMainDatabase
             }
 
             File.Move(dbRestorePath, dbPath, overwrite: true);
+            restoreApplied = true;
 
             if (backedUpDb && File.Exists(backupDbPath))
             {
-                File.Delete(backupDbPath);
+                deleteBackupFile(backupDbPath);
             }
 
             if (backedUpWal && File.Exists(backupWalPath))
             {
-                File.Delete(backupWalPath);
+                deleteBackupFile(backupWalPath);
             }
 
             if (backedUpShm && File.Exists(backupShmPath))
             {
-                File.Delete(backupShmPath);
+                deleteBackupFile(backupShmPath);
             }
 
             if (backedUpJournal && File.Exists(backupJournalPath))
             {
-                File.Delete(backupJournalPath);
+                deleteBackupFile(backupJournalPath);
             }
 
             this.logger.Info("Database restore applied successfully from {0}", dbRestorePath);
+        }
+        catch (Exception ex) when (restoreApplied)
+        {
+            this.logger.Warn(ex, "Database restore from {0} was already applied, but removing backup files failed. The restored database was left in place.", dbRestorePath);
         }
         catch (Exception ex)
         {

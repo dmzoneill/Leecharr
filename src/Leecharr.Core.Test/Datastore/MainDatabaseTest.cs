@@ -100,6 +100,107 @@ public class MainDatabaseTest
     }
 
     [Test]
+    public void ApplyPendingRestore_WhenBackupCleanupFailsAfterMove_KeepsRestoredDatabaseAndDoesNotReattachWal()
+    {
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(this.tempFolder);
+
+        var connStringFactory = Substitute.For<IConnectionStringFactory>();
+        connStringFactory.DatabaseType.Returns(DatabaseType.SQLite);
+        connStringFactory.MainDbConnectionString.Returns($"Data Source={Path.Combine(this.tempFolder, "leecharr.db")}");
+
+        var dbFactory = Substitute.For<IDbFactory>();
+        var fakeDb = Substitute.For<IDatabase>();
+        dbFactory.Create(DatabaseType.SQLite, Arg.Any<string>()).Returns(fakeDb);
+
+        var dbPath = Path.Combine(this.tempFolder, "leecharr.db");
+        var dbRestorePath = dbPath + ".restore";
+        var walPath = dbPath + "-wal";
+        var shmPath = dbPath + "-shm";
+        var journalPath = dbPath + "-journal";
+
+        CreateValidSqliteDatabase(dbPath, "OriginalTable");
+        CreateValidSqliteDatabase(dbRestorePath, "RestoredTable");
+        File.WriteAllText(walPath, "stale-wal");
+        File.WriteAllText(shmPath, "stale-shm");
+        File.WriteAllText(journalPath, "stale-journal");
+
+        Action<string> deleteBackup = path =>
+        {
+            throw new IOException("backup cleanup failed for " + path);
+        };
+
+        var mainDb = new MainDatabase(dbFactory, connStringFactory, appFolderInfo, deleteBackup);
+
+        mainDb.Should().NotBeNull();
+        File.Exists(dbRestorePath).Should().BeFalse("the restore payload is already consumed");
+        File.Exists(dbRestorePath + ".failed").Should().BeFalse("a completed move must not be renamed as a failed restore");
+        File.Exists(dbPath + ".bak").Should().BeTrue("a failed backup delete must leave the previous database aside");
+        File.Exists(walPath).Should().BeFalse("the previous WAL must not be moved back beside the restored database");
+        File.Exists(shmPath).Should().BeFalse("the previous SHM must not be moved back beside the restored database");
+        File.Exists(journalPath).Should().BeFalse("the previous journal must not be moved back beside the restored database");
+        File.ReadAllText(dbPath + "-wal.bak").Should().Be("stale-wal");
+        File.ReadAllText(dbPath + "-shm.bak").Should().Be("stale-shm");
+        File.ReadAllText(dbPath + "-journal.bak").Should().Be("stale-journal");
+        dbFactory.Received(1).Create(DatabaseType.SQLite, Arg.Any<string>());
+
+        using var conn = new SqliteConnection($"Data Source={dbPath};");
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='RestoredTable';";
+        Convert.ToInt32(cmd.ExecuteScalar()).Should().Be(1, "the restored database must stay in place");
+        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='OriginalTable';";
+        Convert.ToInt32(cmd.ExecuteScalar()).Should().Be(0, "the previous database must not be copied back over the restore");
+    }
+
+    [Test]
+    public void ApplyPendingRestore_WhenWalBackupCleanupFailsAfterDatabaseBackupDeleted_DoesNotReattachWal()
+    {
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(this.tempFolder);
+
+        var connStringFactory = Substitute.For<IConnectionStringFactory>();
+        connStringFactory.DatabaseType.Returns(DatabaseType.SQLite);
+        connStringFactory.MainDbConnectionString.Returns($"Data Source={Path.Combine(this.tempFolder, "leecharr.db")}");
+
+        var dbFactory = Substitute.For<IDbFactory>();
+        var fakeDb = Substitute.For<IDatabase>();
+        dbFactory.Create(DatabaseType.SQLite, Arg.Any<string>()).Returns(fakeDb);
+
+        var dbPath = Path.Combine(this.tempFolder, "leecharr.db");
+        var dbRestorePath = dbPath + ".restore";
+        var walPath = dbPath + "-wal";
+
+        CreateValidSqliteDatabase(dbPath, "OriginalTable");
+        CreateValidSqliteDatabase(dbRestorePath, "RestoredTable");
+        File.WriteAllText(walPath, "stale-wal");
+
+        Action<string> deleteBackup = path =>
+        {
+            if (path.EndsWith("-wal.bak", StringComparison.Ordinal))
+            {
+                throw new IOException("wal backup cleanup failed");
+            }
+
+            File.Delete(path);
+        };
+
+        var mainDb = new MainDatabase(dbFactory, connStringFactory, appFolderInfo, deleteBackup);
+
+        mainDb.Should().NotBeNull();
+        File.Exists(dbPath + ".bak").Should().BeFalse("the database backup delete already succeeded");
+        File.Exists(walPath).Should().BeFalse("the previous WAL must stay aside when its backup delete fails");
+        File.ReadAllText(dbPath + "-wal.bak").Should().Be("stale-wal");
+        dbFactory.Received(1).Create(DatabaseType.SQLite, Arg.Any<string>());
+
+        using var conn = new SqliteConnection($"Data Source={dbPath};");
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='RestoredTable';";
+        Convert.ToInt32(cmd.ExecuteScalar()).Should().Be(1, "the restored database must stay in place");
+    }
+
+    [Test]
     public void ApplyPendingRestore_WhenRestoreFileIsCorruptOrInvalid_PreservesOriginalDatabaseAndWalAndRenamesRestoreToFailed()
     {
         var appFolderInfo = Substitute.For<IAppFolderInfo>();
