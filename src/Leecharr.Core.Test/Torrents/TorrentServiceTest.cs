@@ -1329,6 +1329,8 @@ public class TorrentServiceTest
 
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(1, 20000, 5000);
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(2, 8000, 3000);
+        await this.downloadEngine.Received(1).SetTorrentCategoryAsync(1, "movies");
+        await this.downloadEngine.Received(1).SetTorrentCategoryAsync(2, "movies");
     }
 
     [Test]
@@ -1369,6 +1371,8 @@ public class TorrentServiceTest
 
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(1, 0, 0);
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(2, 8000, 3000);
+        await this.downloadEngine.Received(1).SetTorrentCategoryAsync(1, string.Empty);
+        await this.downloadEngine.Received(1).SetTorrentCategoryAsync(2, string.Empty);
     }
 
     [Test]

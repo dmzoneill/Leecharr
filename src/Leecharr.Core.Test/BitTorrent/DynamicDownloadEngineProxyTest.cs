@@ -322,6 +322,12 @@ public class DynamicDownloadEngineProxyTest
         await this.proxy.SetSequentialDownloadAsync(10, true);
         await this.monoTorrentEngine.Received(1).SetSequentialDownloadAsync(10, true);
 
+        await ((IDownloadEngine)this.proxy).SetTorrentCategoryAsync(10, "movies");
+        await this.monoTorrentEngine.Received(1).SetTorrentCategoryAsync(10, "movies");
+
+        await ((IDownloadEngine)this.proxy).SetTorrentCategoryAsync(10, string.Empty);
+        await this.monoTorrentEngine.Received(1).SetTorrentCategoryAsync(10, string.Empty);
+
         await this.proxy.MoveTorrentFilesAsync(10, "/new/save/path", false);
         await this.monoTorrentEngine.Received(1).MoveTorrentFilesAsync(10, "/new/save/path", false);
 
