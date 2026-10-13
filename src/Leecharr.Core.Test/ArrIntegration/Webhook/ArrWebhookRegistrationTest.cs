@@ -1302,7 +1302,13 @@ public class ArrWebhookRegistrationTest
         {
             if (field.GetProperty("name").GetString() == name)
             {
-                return field.GetProperty("value").ToString();
+                var value = field.GetProperty("value");
+                if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    return value.GetRawText();
+                }
+
+                return value.ToString();
             }
         }
 

@@ -20,13 +20,13 @@ public class GeneralConfigResource : RestResource
 
     public string WatchFolderPath { get; set; }
 
-    public int WatchFolderScanIntervalSeconds { get; set; }
+    public int WatchFolderScanIntervalSeconds { get; set; } = 10;
 
     public bool WatchFolderAutoStartTorrents { get; set; }
 
     public bool WatchFolderDeleteAddedTorrents { get; set; }
 
-    public int Port { get; set; }
+    public int Port { get; set; } = 7889;
 
     public string Branch { get; set; } = "main";
 
@@ -42,7 +42,7 @@ public class GeneralConfigResource : RestResource
 
     public bool EnableSsl { get; set; }
 
-    public int SslPort { get; set; }
+    public int SslPort { get; set; } = 7890;
 
     public string SslCertPath { get; set; }
 

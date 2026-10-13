@@ -287,7 +287,7 @@ public class EngineResourceMetricsTest
         var torrent = new Torrent
         {
             Id = 200,
-            InfoHash = "lib-hash-200",
+            InfoHash = "2000200020002000200020002000200020002000",
             Name = "LibTorrent Ingested",
             TotalSize = 10000,
             Category = null!,

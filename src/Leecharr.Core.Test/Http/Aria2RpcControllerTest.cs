@@ -2386,13 +2386,13 @@ public class Aria2RpcControllerTest
         this.SetXmlRequestBody($"""
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>aria2.changeUri</methodName>
-              <params>
-                <param><value><string>{ExpectedGid}</string></value></param>
-                <param><value><int>1</int></value></param>
-                <param><value><array><data><value><string>http://dead.example/announce</string></value></data></array></value></param>
-                <param><value><array><data><value><string>http://new.example/announce</string></value></data></array></value></param>
-              </params>
+                <methodName>aria2.changeUri</methodName>
+                <params>
+                    <param><value><string>{ExpectedGid}</string></value></param>
+                    <param><value><int>1</int></value></param>
+                    <param><value><array><data><value><string>http://dead.example/announce</string></value></data></array></value></param>
+                    <param><value><array><data><value><string>http://new.example/announce</string></value></data></array></value></param>
+                </params>
             </methodCall>
             """);
 

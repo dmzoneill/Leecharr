@@ -47,8 +47,8 @@ public class AlternateEnginesVpnRestorationTest
 
         await engine.StartAsync();
 
-        var completedTorrent = new Torrent { Id = 1, InfoHash = "AABBCC11", Name = "Completed Torrent", TotalSize = 1000 };
-        var incompleteTorrent = new Torrent { Id = 2, InfoHash = "AABBCC22", Name = "Incomplete Torrent", TotalSize = 1000 };
+        var completedTorrent = new Torrent { Id = 1, InfoHash = "aabbcc11aabbcc11aabbcc11aabbcc11aabbcc11", Name = "Completed Torrent", TotalSize = 1000 };
+        var incompleteTorrent = new Torrent { Id = 2, InfoHash = "aabbcc22aabbcc22aabbcc22aabbcc22aabbcc22", Name = "Incomplete Torrent", TotalSize = 1000 };
 
         var task1 = (TransmissionDownloadTask)await engine.AddTorrentAsync(completedTorrent);
         var task2 = (TransmissionDownloadTask)await engine.AddTorrentAsync(incompleteTorrent);
@@ -84,8 +84,8 @@ public class AlternateEnginesVpnRestorationTest
 
         await engine.StartAsync();
 
-        var completedTorrent = new Torrent { Id = 1, InfoHash = "AABBCC11", Name = "Completed Torrent", TotalSize = 1000 };
-        var incompleteTorrent = new Torrent { Id = 2, InfoHash = "AABBCC22", Name = "Incomplete Torrent", TotalSize = 1000 };
+        var completedTorrent = new Torrent { Id = 1, InfoHash = "aabbcc11aabbcc11aabbcc11aabbcc11aabbcc11", Name = "Completed Torrent", TotalSize = 1000 };
+        var incompleteTorrent = new Torrent { Id = 2, InfoHash = "aabbcc22aabbcc22aabbcc22aabbcc22aabbcc22", Name = "Incomplete Torrent", TotalSize = 1000 };
 
         var task1 = (LibTorrentDownloadTask)await engine.AddTorrentAsync(completedTorrent);
         var task2 = (LibTorrentDownloadTask)await engine.AddTorrentAsync(incompleteTorrent);

@@ -81,7 +81,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 1,
             Name = "Test.Movie.2024.1080p",
-            InfoHash = "abcdef0123456789",
+            InfoHash = "00000000000000000000000000000000000000a1",
             TotalSize = 1024 * 1024 * 500,
             Category = "movies",
             Progress = 0.5,
@@ -97,7 +97,7 @@ public class DownloadHistoryServiceTest
 
         result.Should().NotBeNull();
         result.Title.Should().Be("Test.Movie.2024.1080p");
-        result.InfoHash.Should().Be("abcdef0123456789");
+        result.InfoHash.Should().Be("00000000000000000000000000000000000000a1");
         result.Source.Should().Be("Radarr");
         result.Status.Should().Be("Active");
     }
@@ -109,7 +109,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 1,
             Name = "Test.Show.S01E01",
-            InfoHash = "1234567890abcdef",
+            InfoHash = "00000000000000000000000000000000000000a2",
             TotalSize = 1000,
             Progress = 1.0,
             Uploaded = 2000,
@@ -122,7 +122,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 10,
             TorrentId = 1,
-            InfoHash = "1234567890abcdef",
+            InfoHash = "00000000000000000000000000000000000000a2",
             Title = "Test.Show.S01E01",
             Status = "Active",
             SeedingTime = 0,
@@ -146,14 +146,14 @@ public class DownloadHistoryServiceTest
         {
             Id = 401,
             Name = "PreserveTrackersTest",
-            InfoHash = "trackershash123",
+            InfoHash = "00000000000000000000000000000000000000b1",
         };
 
         var existing = new DownloadHistory
         {
             Id = 50,
             TorrentId = 401,
-            InfoHash = "trackershash123",
+            InfoHash = "00000000000000000000000000000000000000b1",
             Title = "PreserveTrackersTest",
             Status = "Active",
             PrimaryTracker = "udp://existing-tracker.org:1337/announce",
@@ -181,21 +181,21 @@ public class DownloadHistoryServiceTest
         {
             Id = 402,
             Name = "PreserveTrackersAdded",
-            InfoHash = "trackershash456",
+            InfoHash = "00000000000000000000000000000000000000b2",
         };
 
         var existing = new DownloadHistory
         {
             Id = 51,
             TorrentId = 402,
-            InfoHash = "trackershash456",
+            InfoHash = "00000000000000000000000000000000000000b2",
             Title = "PreserveTrackersAdded",
             Status = "Removed",
             PrimaryTracker = "udp://existing-tracker.org:1337/announce",
             Trackers = new List<string> { "udp://existing-tracker.org:1337/announce" },
         };
 
-        this.historyRepository.FindByInfoHash("trackershash456").Returns(existing);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000b2").Returns(existing);
         this.trackerEntryRepository.GetByTorrentId(402).Returns(new List<TrackerEntry>());
 
         this.service.RecordTorrentAdded(torrent);
@@ -213,12 +213,12 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 5,
-            InfoHash = "dup123",
+            InfoHash = "00000000000000000000000000000000000000b3",
             Title = "Duplicate Release",
         };
 
         this.historyRepository.Get(5).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("dup123").Returns(true);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000b3").Returns(true);
 
         Action act = () => this.service.ReAdd(5);
 
@@ -232,14 +232,14 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 5,
-            InfoHash = "unique123",
+            InfoHash = "1111111111111111111111111111111111111111",
             Title = "Unique Release",
             TotalSize = 5000,
             PrimaryTracker = "udp://tracker.opentrackr.org:1337/announce",
         };
 
         this.historyRepository.Get(5).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("unique123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("1111111111111111111111111111111111111111").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -252,7 +252,7 @@ public class DownloadHistoryServiceTest
 
         added.Should().NotBeNull();
         added.Id.Should().Be(42);
-        added.InfoHash.Should().Be("unique123");
+        added.InfoHash.Should().Be("1111111111111111111111111111111111111111");
         added.SavePath.Should().Be("/downloads/movies");
         added.Category.Should().Be("movies");
         history.TorrentId.Should().Be(42);
@@ -266,7 +266,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 15,
-            InfoHash = "indexerhash999",
+            InfoHash = "00000000000000000000000000000000000000b4",
             Title = "Indexer Release",
             TotalSize = 8000,
             Source = "1337x",
@@ -274,7 +274,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(15).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("indexerhash999").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000b4").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.categoryService.GetByName("1337x").Returns((Category)null!);
         this.configService.DefaultCategory.Returns("movies");
@@ -300,7 +300,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 16,
-            InfoHash = "tvshowhash123",
+            InfoHash = "00000000000000000000000000000000000000b5",
             Title = "TV Show Release",
             TotalSize = 12000,
             Source = "tv",
@@ -308,7 +308,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(16).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("tvshowhash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000b5").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.categoryService.GetByName("tv").Returns(new Category { Id = 2, Name = "tv", SavePath = "/media/tv" });
         this.categoryService.GetSavePathForCategory("tv", Arg.Any<string>()).Returns("/media/tv");
@@ -333,7 +333,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 17,
-            InfoHash = "completedhash555",
+            InfoHash = "5555555555555555555555555555555555555555",
             Title = "Completed Show",
             TotalSize = 50000,
             Status = "Completed",
@@ -344,7 +344,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(17).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("completedhash555").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("5555555555555555555555555555555555555555").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -378,7 +378,7 @@ public class DownloadHistoryServiceTest
             var history = new DownloadHistory
             {
                 Id = 19,
-                InfoHash = "partialhash777",
+                InfoHash = "7777777777777777777777777777777777777777",
                 Title = "Partial Show",
                 TotalSize = 50000,
                 Status = "Downloading",
@@ -388,7 +388,7 @@ public class DownloadHistoryServiceTest
             };
 
             this.historyRepository.Get(19).Returns(history);
-            this.torrentRepository.ExistsByInfoHash("partialhash777").Returns(false);
+            this.torrentRepository.ExistsByInfoHash("7777777777777777777777777777777777777777").Returns(false);
             this.torrentRepository.All().Returns(new List<Torrent>());
             this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
             {
@@ -430,7 +430,7 @@ public class DownloadHistoryServiceTest
             var history = new DownloadHistory
             {
                 Id = 17,
-                InfoHash = "completedhash555",
+                InfoHash = "5555555555555555555555555555555555555555",
                 Title = "Completed Show",
                 TotalSize = 50000,
                 Status = "Completed",
@@ -441,7 +441,7 @@ public class DownloadHistoryServiceTest
             };
 
             this.historyRepository.Get(17).Returns(history);
-            this.torrentRepository.ExistsByInfoHash("completedhash555").Returns(false);
+            this.torrentRepository.ExistsByInfoHash("5555555555555555555555555555555555555555").Returns(false);
             this.torrentRepository.All().Returns(new List<Torrent>());
             this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
             {
@@ -473,7 +473,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 18,
-            InfoHash = "parsedbyteshash",
+            InfoHash = "00000000000000000000000000000000000000b6",
             Title = "Parsed Torrent Release",
             TotalSize = 10000,
             DownloadUrl = "https://tracker.example.com/download/test.torrent",
@@ -483,7 +483,7 @@ public class DownloadHistoryServiceTest
         var parsed = new ParsedTorrent
         {
             Name = "Parsed Torrent Release",
-            InfoHash = "parsedbyteshash",
+            InfoHash = "00000000000000000000000000000000000000b6",
             TotalSize = 10000,
             PieceCount = 10,
             PieceLength = 1000,
@@ -496,7 +496,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(18).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("parsedbyteshash").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000b6").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.safeHttpClientService.DownloadBytesAsync("https://tracker.example.com/download/test.torrent")
             .Returns(Task.FromResult(fakeBytes));
@@ -531,7 +531,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 6,
-            InfoHash = "dlurlhash123",
+            InfoHash = "00000000000000000000000000000000000000b7",
             Title = "DownloadUrl Release",
             TotalSize = 10000,
             DownloadUrl = "https://tracker.example.com/download/test.torrent",
@@ -541,7 +541,7 @@ public class DownloadHistoryServiceTest
         var fakeBytes = new byte[] { 0x64, 0x38, 0x3a };
 
         this.historyRepository.Get(6).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("dlurlhash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000b7").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -566,7 +566,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 7,
-            InfoHash = "fallbackhash123",
+            InfoHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
             Title = "Fallback Release",
             TotalSize = 20000,
             DownloadUrl = "https://tracker.example.com/download/missing.torrent",
@@ -575,7 +575,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(7).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("fallbackhash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -593,7 +593,7 @@ public class DownloadHistoryServiceTest
         await this.downloadEngine.Received(1).AddTorrentAsync(
             added,
             null,
-            Arg.Is<string>(m => m.Contains("magnet:?xt=urn:btih:fallbackhash123") && m.Contains("tr=udp%3A%2F%2Ftracker.open.org%3A1337")));
+            Arg.Is<string>(m => m.Contains("magnet:?xt=urn:btih:deadbeefdeadbeefdeadbeefdeadbeefdeadbeef") && m.Contains("tr=udp%3A%2F%2Ftracker.open.org%3A1337")));
     }
 
     [Test]
@@ -602,14 +602,14 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 8,
-            InfoHash = "magurlhash123",
+            InfoHash = "00000000000000000000000000000000000000b8",
             Title = "Magnet Release",
-            MagnetUrl = "magnet:?xt=urn:btih:magurlhash123&dn=Magnet%20Release",
+            MagnetUrl = "magnet:?xt=urn:btih:00000000000000000000000000000000000000b8&dn=Magnet%20Release",
             DownloadUrl = "https://tracker.example.com/download/not_used.torrent",
         };
 
         this.historyRepository.Get(8).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("magurlhash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000b8").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -632,7 +632,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 1,
             Name = "Grabbed.Release.1080p",
-            InfoHash = "grabbedhash123",
+            InfoHash = "00000000000000000000000000000000000000b9",
             TotalSize = 1000,
         };
 
@@ -640,7 +640,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 20,
             TorrentId = 1,
-            InfoHash = "grabbedhash123",
+            InfoHash = "00000000000000000000000000000000000000b9",
             Title = "Grabbed.Release.1080p",
             Source = "Manual",
             IndexerName = null,
@@ -649,12 +649,12 @@ public class DownloadHistoryServiceTest
             Status = "Active",
         };
 
-        this.historyRepository.FindByInfoHash("grabbedhash123").Returns(existing);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000b9").Returns(existing);
 
         var result = this.service.RecordTorrentAdded(
             torrent,
             source: "Prowlarr (TrackerName)",
-            magnetUrl: "magnet:?xt=urn:btih:grabbedhash123",
+            magnetUrl: "magnet:?xt=urn:btih:00000000000000000000000000000000000000b9",
             downloadUrl: "https://prowlarr.local/dl/1",
             indexerName: "Prowlarr (TrackerName)");
 
@@ -662,7 +662,7 @@ public class DownloadHistoryServiceTest
         existing.Source.Should().Be("Prowlarr (TrackerName)");
         existing.IndexerName.Should().Be("Prowlarr (TrackerName)");
         existing.DownloadUrl.Should().Be("https://prowlarr.local/dl/1");
-        existing.MagnetUrl.Should().Be("magnet:?xt=urn:btih:grabbedhash123");
+        existing.MagnetUrl.Should().Be("magnet:?xt=urn:btih:00000000000000000000000000000000000000b9");
         this.historyRepository.Received(1).Update(existing);
     }
 
@@ -673,11 +673,11 @@ public class DownloadHistoryServiceTest
         {
             Id = 2,
             Name = "New.Release.1080p",
-            InfoHash = "newhash456",
+            InfoHash = "00000000000000000000000000000000000000ba",
             TotalSize = 2000,
         };
 
-        this.historyRepository.FindByInfoHash("newhash456").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000ba").Returns((DownloadHistory)null!);
         this.historyRepository.Insert(Arg.Any<DownloadHistory>()).Returns(args => (DownloadHistory)args[0]);
 
         var result = this.service.RecordTorrentAdded(
@@ -765,7 +765,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 99,
-            InfoHash = "multitrackerhash123",
+            InfoHash = "2222222222222222222222222222222222222222",
             Title = "Multi Tracker Release",
             TotalSize = 5000,
             PrimaryTracker = trackers[0],
@@ -774,7 +774,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(99).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("multitrackerhash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("2222222222222222222222222222222222222222").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.trackerEntryRepository.GetByTorrentId(77).Returns(trackers.Select(u => new TrackerEntry { TorrentId = 77, Url = u }).ToList());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
@@ -815,7 +815,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 100,
-            InfoHash = "privatetrackerhash123",
+            InfoHash = "3333333333333333333333333333333333333333",
             Title = "Private Tracker Release",
             TotalSize = 10000,
             PrimaryTracker = "https://private-tracker.org/announce?passkey=secret123",
@@ -824,7 +824,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(100).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("privatetrackerhash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("3333333333333333333333333333333333333333").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -849,7 +849,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 20,
-            InfoHash = "enginefailhash123",
+            InfoHash = "8888888888888888888888888888888888888888",
             Title = "Engine Fail Release",
             TotalSize = 25000,
             Status = "Removed",
@@ -860,7 +860,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(20).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("enginefailhash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("8888888888888888888888888888888888888888").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -924,7 +924,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 25,
-            InfoHash = "metadatahash123",
+            InfoHash = "4444444444444444444444444444444444444444",
             Title = "Fight Club 1999 1080p",
             TotalSize = 5000,
             PrimaryTracker = "udp://tracker.opentrackr.org:1337/announce",
@@ -932,7 +932,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(25).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("metadatahash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("4444444444444444444444444444444444444444").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -980,14 +980,14 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 26,
-            InfoHash = "corrupthash123",
+            InfoHash = "6666666666666666666666666666666666666666",
             Title = "Corrupt Metadata Torrent",
             TotalSize = 5000,
             DataJson = "{ not valid json ...",
         };
 
         this.historyRepository.Get(26).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("corrupthash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("6666666666666666666666666666666666666666").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -1029,14 +1029,14 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 27,
-            InfoHash = "failhash123",
+            InfoHash = "9999999999999999999999999999999999999999",
             Title = "Failed Release",
             TotalSize = 5000,
             DataJson = JsonSerializer.Serialize(cachedMetadata),
         };
 
         this.historyRepository.Get(27).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("failhash123").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("9999999999999999999999999999999999999999").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
@@ -1089,21 +1089,21 @@ public class DownloadHistoryServiceTest
     [Test]
     public void GetByInfoHash_ReturnsEntryByInfoHash()
     {
-        var entry = new DownloadHistory { Id = 10, InfoHash = "hash123" };
-        this.historyRepository.FindByInfoHash("hash123").Returns(entry);
+        var entry = new DownloadHistory { Id = 10, InfoHash = "00000000000000000000000000000000000000bb" };
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000bb").Returns(entry);
 
-        var result = this.service.GetByInfoHash("hash123");
+        var result = this.service.GetByInfoHash("00000000000000000000000000000000000000bb");
 
         result.Should().BeSameAs(entry);
-        this.historyRepository.Received(1).FindByInfoHash("hash123");
+        this.historyRepository.Received(1).FindByInfoHash("00000000000000000000000000000000000000bb");
     }
 
     [Test]
     public void Delete_WhenTorrentExistsInLibrary_DoesNotDeleteTorrentFile_AndDeletesHistoryRecord()
     {
-        var entry = new DownloadHistory { Id = 12, InfoHash = "existinghash" };
+        var entry = new DownloadHistory { Id = 12, InfoHash = "00000000000000000000000000000000000000bc" };
         this.historyRepository.Get(12).Returns(entry);
-        this.torrentRepository.ExistsByInfoHash("existinghash").Returns(true);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000bc").Returns(true);
 
         this.service.Delete(12);
 
@@ -1161,7 +1161,7 @@ public class DownloadHistoryServiceTest
     {
         var entries = new List<DownloadHistory>
         {
-            new DownloadHistory { Id = 1, InfoHash = "hash1" },
+            new DownloadHistory { Id = 1, InfoHash = "00000000000000000000000000000000000000bd" },
             new DownloadHistory { Id = 2, InfoHash = string.Empty },
         };
         this.historyRepository.GetHistory(limit: 0).Returns(entries);
@@ -1259,12 +1259,12 @@ public class DownloadHistoryServiceTest
         {
             Id = 301,
             Name = "TrackerUrl Torrent",
-            InfoHash = "trackerurlhash",
+            InfoHash = "00000000000000000000000000000000000000be",
             TrackerUrl = "http://mytracker.org/announce",
             TotalSize = 500,
         };
 
-        this.historyRepository.FindByInfoHash("trackerurlhash").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000be").Returns((DownloadHistory)null!);
         this.trackerEntryRepository.GetByTorrentId(301).Returns(new List<TrackerEntry>());
         this.historyRepository.Insert(Arg.Any<DownloadHistory>()).Returns(args => (DownloadHistory)args[0]);
 
@@ -1282,11 +1282,11 @@ public class DownloadHistoryServiceTest
         {
             Id = 302,
             Name = "Completed Torrent",
-            InfoHash = "completedhash",
+            InfoHash = "00000000000000000000000000000000000000bf",
             Progress = 1.0,
         };
 
-        this.historyRepository.FindByInfoHash("completedhash").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000bf").Returns((DownloadHistory)null!);
         this.historyRepository.Insert(Arg.Any<DownloadHistory>()).Returns(args => (DownloadHistory)args[0]);
 
         var result = this.service.RecordTorrentAdded(torrent);
@@ -1306,9 +1306,9 @@ public class DownloadHistoryServiceTest
     [Test]
     public void RecordTorrentUpdated_WhenEntryNotFound_DoesNothing()
     {
-        var torrent = new Torrent { Id = 501, InfoHash = "notfoundhash" };
+        var torrent = new Torrent { Id = 501, InfoHash = "00000000000000000000000000000000000000c1" };
         this.historyRepository.FindByTorrentId(501).Returns((DownloadHistory)null!);
-        this.historyRepository.FindByInfoHash("notfoundhash").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000c1").Returns((DownloadHistory)null!);
 
         this.service.RecordTorrentUpdated(torrent);
 
@@ -1321,7 +1321,7 @@ public class DownloadHistoryServiceTest
         var torrent = new Torrent
         {
             Id = 502,
-            InfoHash = "updatedhash",
+            InfoHash = "00000000000000000000000000000000000000c2",
             Uploaded = 5000,
             Downloaded = 2500,
             Ratio = 2.0,
@@ -1334,7 +1334,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 80,
             TorrentId = 502,
-            InfoHash = "updatedhash",
+            InfoHash = "00000000000000000000000000000000000000c2",
             DateCompleted = null,
             Status = "Active",
             SeedingTime = 0,
@@ -1376,7 +1376,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 601,
             Name = "Deleted Torrent",
-            InfoHash = "delhash",
+            InfoHash = "00000000000000000000000000000000000000c3",
             TotalSize = 9000,
             DateAdded = dateAdded,
             Progress = 1.0,
@@ -1388,7 +1388,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.FindByTorrentId(601).Returns((DownloadHistory)null!);
-        this.historyRepository.FindByInfoHash("delhash").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000c3").Returns((DownloadHistory)null!);
 
         var mediaMetaRepo = Substitute.For<ITorrentMediaMetadataRepository>();
         mediaMetaRepo.GetByTorrentId(601).Returns(new TorrentMediaMetadata
@@ -1424,7 +1424,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 602,
             Name = "Existing Movie",
-            InfoHash = "existingdelhash",
+            InfoHash = "00000000000000000000000000000000000000c4",
             Uploaded = 500,
             Downloaded = 500,
             Ratio = 1.0,
@@ -1434,7 +1434,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 85,
             TorrentId = 602,
-            InfoHash = "existingdelhash",
+            InfoHash = "00000000000000000000000000000000000000c4",
             Status = "Active",
         };
 
@@ -1481,7 +1481,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 778,
-            InfoHash = "multitierhash",
+            InfoHash = "00000000000000000000000000000000000000c5",
             Title = "Multi Tier Torrent",
             TotalSize = 10000,
             DownloadUrl = "https://tracker.example.com/multi.torrent",
@@ -1491,7 +1491,7 @@ public class DownloadHistoryServiceTest
         var parsed = new ParsedTorrent
         {
             Name = "Multi Tier Torrent",
-            InfoHash = "multitierhash",
+            InfoHash = "00000000000000000000000000000000000000c5",
             TotalSize = 10000,
             AnnounceList = new List<List<string>>
             {
@@ -1501,7 +1501,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(778).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("multitierhash").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000c5").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.configService.TrackerAnnounceInterval.Returns(3600);
         this.safeHttpClientService.DownloadBytesAsync("https://tracker.example.com/multi.torrent")
@@ -1532,7 +1532,7 @@ public class DownloadHistoryServiceTest
         var history = new DownloadHistory
         {
             Id = 779,
-            InfoHash = "dupannouncehash",
+            InfoHash = "00000000000000000000000000000000000000c6",
             Title = "Dup Announce Torrent",
             TotalSize = 10000,
             DownloadUrl = "https://tracker.example.com/dup.torrent",
@@ -1542,7 +1542,7 @@ public class DownloadHistoryServiceTest
         var parsed = new ParsedTorrent
         {
             Name = "Dup Announce Torrent",
-            InfoHash = "dupannouncehash",
+            InfoHash = "00000000000000000000000000000000000000c6",
             TotalSize = 10000,
             AnnounceList = new List<List<string>>
             {
@@ -1552,7 +1552,7 @@ public class DownloadHistoryServiceTest
         };
 
         this.historyRepository.Get(779).Returns(history);
-        this.torrentRepository.ExistsByInfoHash("dupannouncehash").Returns(false);
+        this.torrentRepository.ExistsByInfoHash("00000000000000000000000000000000000000c6").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
         this.safeHttpClientService.DownloadBytesAsync("https://tracker.example.com/dup.torrent")
             .Returns(Task.FromResult(fakeBytes));
@@ -1590,7 +1590,7 @@ public class DownloadHistoryServiceTest
         var t1 = new Torrent
         {
             Id = 701,
-            InfoHash = "newreconcilehash",
+            InfoHash = "00000000000000000000000000000000000000c7",
             Name = "T1",
             TotalSize = 1000,
             IsPrivate = false,
@@ -1598,7 +1598,7 @@ public class DownloadHistoryServiceTest
         var t2 = new Torrent
         {
             Id = 702,
-            InfoHash = "existingreconcilehash",
+            InfoHash = "00000000000000000000000000000000000000c8",
             Name = "T2",
             TotalSize = 2000,
             IsPrivate = true,
@@ -1614,7 +1614,7 @@ public class DownloadHistoryServiceTest
         {
             Id = 90,
             TorrentId = null,
-            InfoHash = "existingreconcilehash",
+            InfoHash = "00000000000000000000000000000000000000c8",
             IsPrivate = false,
             Trackers = new List<string>(),
             Status = "Removed",
@@ -1623,8 +1623,8 @@ public class DownloadHistoryServiceTest
         };
 
         this.torrentRepository.All().Returns(new List<Torrent> { t1, t2, t3 });
-        this.historyRepository.FindByInfoHash("newreconcilehash").Returns((DownloadHistory)null!);
-        this.historyRepository.FindByInfoHash("existingreconcilehash").Returns(existingH2);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000c7").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000c8").Returns(existingH2);
         this.trackerEntryRepository.GetByTorrentId(702).Returns(new List<TrackerEntry>
         {
             new TrackerEntry { Url = "udp://recon-tracker.org:1337" },
@@ -1635,7 +1635,7 @@ public class DownloadHistoryServiceTest
         backfilled.Should().Be(1);
         this.historyRepository.Received(1).Insert(Arg.Is<DownloadHistory>(h =>
             h.TorrentId == 701 &&
-            h.InfoHash == "newreconcilehash" &&
+            h.InfoHash == "00000000000000000000000000000000000000c7" &&
             h.Source == "Public Tracker"));
 
         existingH2.TorrentId.Should().Be(702);
@@ -1657,11 +1657,11 @@ public class DownloadHistoryServiceTest
         var t = new Torrent
         {
             Id = 801,
-            InfoHash = "handleaddhash",
+            InfoHash = "00000000000000000000000000000000000000c9",
             Name = "Add Torrent",
             TotalSize = 500,
         };
-        this.historyRepository.FindByInfoHash("handleaddhash").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000c9").Returns((DownloadHistory)null!);
 
         this.service.Handle(new TorrentAddedEvent { Torrent = t });
 
@@ -1674,8 +1674,8 @@ public class DownloadHistoryServiceTest
         this.service.Handle((TorrentDeletedEvent)null!);
         this.service.Handle(new TorrentDeletedEvent { Torrent = null });
 
-        var t = new Torrent { Id = 802, InfoHash = "handledelhash" };
-        var existing = new DownloadHistory { Id = 95, TorrentId = 802, InfoHash = "handledelhash" };
+        var t = new Torrent { Id = 802, InfoHash = "00000000000000000000000000000000000000ca" };
+        var existing = new DownloadHistory { Id = 95, TorrentId = 802, InfoHash = "00000000000000000000000000000000000000ca" };
         this.historyRepository.FindByTorrentId(802).Returns(existing);
 
         this.service.Handle(new TorrentDeletedEvent { Torrent = t });
@@ -1694,13 +1694,13 @@ public class DownloadHistoryServiceTest
         var t = new Torrent
         {
             Id = 803,
-            InfoHash = "handlecompletehash",
+            InfoHash = "00000000000000000000000000000000000000cb",
             Downloaded = 1000,
             Uploaded = 2000,
             Ratio = 2.0,
             CumulativeSeedingTimeSeconds = 1200,
         };
-        this.historyRepository.FindByInfoHash("handlecompletehash").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000cb").Returns((DownloadHistory)null!);
 
         this.service.Handle(new TorrentDownloadCompletedEvent(t));
         this.historyRepository.DidNotReceiveWithAnyArgs().Update(Arg.Any<DownloadHistory>());
@@ -1708,11 +1708,11 @@ public class DownloadHistoryServiceTest
         var existing = new DownloadHistory
         {
             Id = 96,
-            InfoHash = "handlecompletehash",
+            InfoHash = "00000000000000000000000000000000000000cb",
             Status = "Active",
             SeedingTime = 0,
         };
-        this.historyRepository.FindByInfoHash("handlecompletehash").Returns(existing);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000cb").Returns(existing);
 
         this.service.Handle(new TorrentDownloadCompletedEvent(t));
 
@@ -1734,7 +1734,7 @@ public class DownloadHistoryServiceTest
         var t = new Torrent
         {
             Id = 804,
-            InfoHash = "statuschangehash",
+            InfoHash = "00000000000000000000000000000000000000cc",
             Uploaded = 100,
             Downloaded = 50,
             Ratio = 2.0,
@@ -1744,11 +1744,11 @@ public class DownloadHistoryServiceTest
         var existing = new DownloadHistory
         {
             Id = 97,
-            InfoHash = "statuschangehash",
+            InfoHash = "00000000000000000000000000000000000000cc",
             DateCompleted = null,
             SeedingTime = 0,
         };
-        this.historyRepository.FindByInfoHash("statuschangehash").Returns(existing);
+        this.historyRepository.FindByInfoHash("00000000000000000000000000000000000000cc").Returns(existing);
 
         this.service.Handle(new TorrentStatusChangedEvent
         {

@@ -51,16 +51,17 @@ public class ConnectionStringFactoryTest
         var factory = new ConnectionStringFactory(this.appFolderInfo, this.configFileProvider);
 
         factory.DatabaseType.Should().Be(DatabaseType.PostgreSQL);
-        factory.MainDbConnectionString.Should().Contain("Host=postgres-host");
-        factory.MainDbConnectionString.Should().Contain("Port=5432");
-        factory.MainDbConnectionString.Should().Contain("Database=leecharr_db");
-        factory.MainDbConnectionString.Should().Contain("Username=user1");
-        factory.MainDbConnectionString.Should().Contain("Password=pass1");
-        factory.MainDbConnectionString.Should().Contain("Pooling=true");
-        factory.MainDbConnectionString.Should().Contain("Minimum Pool Size=1");
-        factory.MainDbConnectionString.Should().Contain("Maximum Pool Size=50");
-        factory.MainDbConnectionString.Should().Contain("Connection Timeout=15");
-        factory.MainDbConnectionString.Should().Contain("Command Timeout=30");
+        var parsed = new NpgsqlConnectionStringBuilder(factory.MainDbConnectionString);
+        parsed.Host.Should().Be("postgres-host");
+        parsed.Port.Should().Be(5432);
+        parsed.Database.Should().Be("leecharr_db");
+        parsed.Username.Should().Be("user1");
+        parsed.Password.Should().Be("pass1");
+        parsed.Pooling.Should().BeTrue();
+        parsed.MinPoolSize.Should().Be(1);
+        parsed.MaxPoolSize.Should().Be(50);
+        parsed.Timeout.Should().Be(15);
+        parsed.CommandTimeout.Should().Be(30);
     }
 
     [Test]

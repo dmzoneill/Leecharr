@@ -166,7 +166,7 @@ public class SidecarEnginesControlsAndPeersTest
             this.diskProvider,
             this.eventAggregator);
 
-        var torrent = new Torrent { Id = 20, InfoHash = "CCDDEE4455", Name = "Test Torrent 2", TotalSize = 10000 };
+        var torrent = new Torrent { Id = 20, InfoHash = "ccddee4455ccddee4455ccddee4455ccddee4455", Name = "Test Torrent 2", TotalSize = 10000 };
         await engine.AddTorrentAsync(torrent);
 
         var actRemoveTrackers = async () => await engine.RemoveTrackersAsync(20, new[] { "http://tracker.example.com/announce" });
@@ -288,8 +288,8 @@ public class SidecarEnginesControlsAndPeersTest
             this.eventAggregator,
             httpClient);
 
-        await engine.AddTorrentAsync(new Torrent { Id = 1, InfoHash = "aa", Name = "A", TotalSize = 100 });
-        await engine.AddTorrentAsync(new Torrent { Id = 2, InfoHash = "bb", Name = "B", TotalSize = 100 });
+        await engine.AddTorrentAsync(new Torrent { Id = 1, InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Name = "A", TotalSize = 100 });
+        await engine.AddTorrentAsync(new Torrent { Id = 2, InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Name = "B", TotalSize = 100 });
         await engine.PauseTorrentAsync(2);
         pauseRpcCount = 0;
 
