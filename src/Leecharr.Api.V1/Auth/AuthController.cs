@@ -32,6 +32,7 @@ public class AuthController : ControllerBase
 {
     public const int MaxTrackedIps = 10000;
     private const int MaxFailedAttempts = 5;
+    private const string SamlBearerConfirmationMethod = "urn:oasis:names:tc:SAML:2.0:cm:bearer";
     private static readonly TimeSpan AttemptWindow = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan SamlRequestTtl = TimeSpan.FromMinutes(15);
@@ -629,6 +630,28 @@ public class AuthController : ControllerBase
                 }
             }
 
+            if (!ApplicationPublicUrlResolver.TryResolvePublicBaseUrl(this.configFileProvider, out var baseUrl))
+            {
+                return this.Unauthorized("Unable to determine application public URL for SAML validation");
+            }
+
+            var acsProviderId = !string.IsNullOrWhiteSpace(providerId) ? providerId : provider.ProviderId;
+            var expectedRecipient = string.IsNullOrWhiteSpace(acsProviderId)
+                ? null
+                : $"{baseUrl}/api/v1/auth/callback/saml/{acsProviderId}";
+            var expectedAudience = $"{baseUrl}/saml/metadata";
+
+            var confirmationError = ValidateBearerSubjectConfirmation(assertionDoc, expectedRecipient, now, allowedSkew);
+            if (confirmationError != null)
+            {
+                return this.Unauthorized(confirmationError);
+            }
+
+            if (!AudienceTargetsServiceProvider(assertionDoc, expectedAudience))
+            {
+                return this.Unauthorized("SAML AudienceRestriction does not target this service provider");
+            }
+
             var replayUntilUtc = latestNotOnOrAfterUtc.HasValue
                 ? latestNotOnOrAfterUtc.Value + allowedSkew
                 : now.Add(SamlReplayTtl);
@@ -816,6 +839,89 @@ public class AuthController : ControllerBase
     private static ActionResult SafeRedirect(string url)
     {
         return (ActionResult)global::System.Activator.CreateInstance(typeof(RedirectResult), url)!;
+    }
+
+    private static string ValidateBearerSubjectConfirmation(
+        XElement assertion,
+        string expectedRecipient,
+        DateTime nowUtc,
+        TimeSpan allowedSkew)
+    {
+        if (assertion == null || string.IsNullOrWhiteSpace(expectedRecipient))
+        {
+            return "SAML SubjectConfirmationData Recipient does not match this assertion consumer";
+        }
+
+        var sawMatchingRecipient = false;
+        foreach (var confirmation in assertion.Descendants().Where(e => e.Name.LocalName == "SubjectConfirmation"))
+        {
+            var method = confirmation.Attribute("Method")?.Value;
+            if (!string.Equals(method, SamlBearerConfirmationMethod, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var data = confirmation.Elements().FirstOrDefault(e => e.Name.LocalName == "SubjectConfirmationData");
+            if (data == null)
+            {
+                continue;
+            }
+
+            var recipient = data.Attribute("Recipient")?.Value;
+            if (!string.Equals(recipient, expectedRecipient, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            sawMatchingRecipient = true;
+            var notOnOrAfterVal = data.Attribute("NotOnOrAfter")?.Value;
+            if (string.IsNullOrWhiteSpace(notOnOrAfterVal) ||
+                !DateTimeOffset.TryParse(notOnOrAfterVal, out var notOnOrAfter))
+            {
+                continue;
+            }
+
+            if (nowUtc >= notOnOrAfter.UtcDateTime + allowedSkew)
+            {
+                continue;
+            }
+
+            return null;
+        }
+
+        if (sawMatchingRecipient)
+        {
+            return "SAML SubjectConfirmationData NotOnOrAfter validation failed";
+        }
+
+        return "SAML SubjectConfirmationData Recipient does not match this assertion consumer";
+    }
+
+    private static bool AudienceTargetsServiceProvider(XElement assertion, string expectedAudience)
+    {
+        if (assertion == null || string.IsNullOrWhiteSpace(expectedAudience))
+        {
+            return false;
+        }
+
+        var restrictions = assertion.Descendants().Where(e => e.Name.LocalName == "AudienceRestriction").ToList();
+        if (restrictions.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var restriction in restrictions)
+        {
+            var matches = restriction.Elements()
+                .Where(e => e.Name.LocalName == "Audience")
+                .Any(e => string.Equals(e.Value?.Trim(), expectedAudience, StringComparison.Ordinal));
+            if (!matches)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void CountSamlElements(XmlNode node, ref int responseCount, ref int assertionCount)

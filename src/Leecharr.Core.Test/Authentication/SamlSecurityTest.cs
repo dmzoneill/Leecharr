@@ -24,7 +24,12 @@ namespace Leecharr.Core.Test.Authentication;
 [TestFixture]
 public class SamlSecurityTest
 {
+    private const string SpBaseUrl = "https://leecharr.test";
+    private const string ExpectedRecipient = SpBaseUrl + "/api/v1/auth/callback/saml/saml1";
+    private const string ExpectedAudience = SpBaseUrl + "/saml/metadata";
+
     private IUserService userService;
+    private string priorLeecharrUrl;
     private IIdentityProviderService identityProviderService;
     private IConfigFileProvider configFileProvider;
     private IConfigService configService;
@@ -34,6 +39,9 @@ public class SamlSecurityTest
     [SetUp]
     public void SetUp()
     {
+        this.priorLeecharrUrl = Environment.GetEnvironmentVariable("LEECHARR_URL");
+        Environment.SetEnvironmentVariable("LEECHARR_URL", SpBaseUrl);
+
         this.userService = Substitute.For<IUserService>();
         this.identityProviderService = Substitute.For<IIdentityProviderService>();
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
@@ -59,6 +67,12 @@ public class SamlSecurityTest
         {
             HttpContext = httpContext,
         };
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        Environment.SetEnvironmentVariable("LEECHARR_URL", this.priorLeecharrUrl);
     }
 
     #region Open Redirect Tests
@@ -678,6 +692,81 @@ public class SamlSecurityTest
         body.Should().Contain("Invalid SAML certificate in Identity Provider configuration");
     }
 
+    [Test]
+    public async Task SamlCallback_WhenRecipientTargetsDifferentAcs_RejectsWithUnauthorized()
+    {
+        const string assertionId = "_assertion_wrong_recipient";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "replay@example.com",
+            "User",
+            recipient: "https://other-sp.example/api/v1/auth/callback/saml/saml1");
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        ((UnauthorizedObjectResult)result).Value.ToString().Should().Contain("Recipient");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenAudienceTargetsDifferentSp_RejectsWithUnauthorized()
+    {
+        const string assertionId = "_assertion_wrong_audience";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "replay@example.com",
+            "User",
+            audience: "https://other-sp.example/saml/metadata");
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        ((UnauthorizedObjectResult)result).Value.ToString().Should().Contain("AudienceRestriction");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenBearerConfirmationNotOnOrAfterExpired_RejectsWithUnauthorized()
+    {
+        const string assertionId = "_assertion_expired_confirmation";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "replay@example.com",
+            "User",
+            confirmationNotOnOrAfter: DateTime.UtcNow.AddMinutes(-10));
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        ((UnauthorizedObjectResult)result).Value.ToString().Should().Contain("NotOnOrAfter");
+    }
+
     #endregion
 
     private static (string SamlResponseBase64, string CertBase64) CreateSignedSamlResponse(
@@ -686,7 +775,10 @@ public class SamlSecurityTest
         string role,
         bool injectDuplicateAssertion = false,
         string inResponseTo = null,
-        IReadOnlyList<string> groups = null)
+        IReadOnlyList<string> groups = null,
+        string recipient = null,
+        string audience = null,
+        DateTime? confirmationNotOnOrAfter = null)
     {
         if (inResponseTo == null)
         {
@@ -702,7 +794,10 @@ public class SamlSecurityTest
         var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
         var notBefore = DateTime.UtcNow.AddMinutes(-5).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var notOnOrAfter = DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var confirmationExpiry = (confirmationNotOnOrAfter ?? DateTime.UtcNow.AddMinutes(5)).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var inResponseToAttr = string.IsNullOrWhiteSpace(inResponseTo) ? string.Empty : $@" InResponseTo=""{inResponseTo}""";
+        var recipientUrl = System.Security.SecurityElement.Escape(recipient ?? ExpectedRecipient) ?? string.Empty;
+        var audienceUrl = System.Security.SecurityElement.Escape(audience ?? ExpectedAudience) ?? string.Empty;
 
         var extraGroupsXml = new StringBuilder();
         if (groups != null)
@@ -726,8 +821,15 @@ public class SamlSecurityTest
     <saml:Issuer>https://idp.example.com</saml:Issuer>
     <saml:Subject>
         <saml:NameID Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"">{nameId}</saml:NameID>
+        <saml:SubjectConfirmation Method=""urn:oasis:names:tc:SAML:2.0:cm:bearer"">
+            <saml:SubjectConfirmationData Recipient=""{recipientUrl}"" NotOnOrAfter=""{confirmationExpiry}""{inResponseToAttr}/>
+        </saml:SubjectConfirmation>
     </saml:Subject>
-    <saml:Conditions NotBefore=""{notBefore}"" NotOnOrAfter=""{notOnOrAfter}""/>
+    <saml:Conditions NotBefore=""{notBefore}"" NotOnOrAfter=""{notOnOrAfter}"">
+        <saml:AudienceRestriction>
+            <saml:Audience>{audienceUrl}</saml:Audience>
+        </saml:AudienceRestriction>
+    </saml:Conditions>
     <saml:AttributeStatement>
         <saml:Attribute Name=""email"">
         <saml:AttributeValue>{nameId}</saml:AttributeValue>
