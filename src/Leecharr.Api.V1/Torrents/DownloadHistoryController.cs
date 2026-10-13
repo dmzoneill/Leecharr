@@ -69,6 +69,7 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpPost("{id:int}/readd")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<TorrentResource>> ReAdd(int id)
     {
         try
@@ -91,6 +92,7 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpPost("{id:int}/enrich")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<DownloadHistoryResource>> Enrich(int id)
     {
         var record = this.historyService.Get(id);
@@ -129,6 +131,7 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpPost("enrich-all")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult> EnrichAll()
     {
         var (examined, enriched) = await this.EnrichAllHistoryRecordsAsync();
@@ -136,6 +139,7 @@ public class DownloadHistoryController : Controller
     }
 
     [HttpPost("reconcile")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult> Reconcile()
     {
         var count = this.historyService.ReconcileAllTorrents();

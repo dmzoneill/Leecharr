@@ -100,4 +100,21 @@ public class ControllerAuthorizationPolicyTest
         authAttr.Should().NotBeNull($"SubsystemsController.{methodName} must have an [Authorize] attribute");
         authAttr!.Policy.Should().Be("RequireOperator");
     }
+
+    [TestCase(nameof(DownloadHistoryController.ReAdd))]
+    [TestCase(nameof(DownloadHistoryController.Enrich))]
+    [TestCase(nameof(DownloadHistoryController.EnrichAll))]
+    [TestCase(nameof(DownloadHistoryController.Reconcile))]
+    public void DownloadHistoryController_MutatingActions_RequireOperator(string methodName)
+    {
+        var method = typeof(DownloadHistoryController).GetMethod(methodName);
+
+        method.Should().NotBeNull($"DownloadHistoryController.{methodName} must exist");
+        var authAttr = method!.GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
+            .Cast<AuthorizeAttribute>()
+            .FirstOrDefault();
+
+        authAttr.Should().NotBeNull($"DownloadHistoryController.{methodName} must have an [Authorize] attribute");
+        authAttr!.Policy.Should().Be("RequireOperator");
+    }
 }
