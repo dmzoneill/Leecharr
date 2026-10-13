@@ -1282,6 +1282,79 @@ public class BackupControllerTest
         args.Should().Contain("single-transaction");
     }
 
+    [TestCase("-f /config/config.xml", "localhost", "postgres")]
+    [TestCase("leecharr\" -f /config/config.xml", "localhost", "postgres")]
+    [TestCase("leecharr", "localhost\" -f /config/config.xml", "postgres")]
+    [TestCase("leecharr", "localhost", "postgres\" -f /config/config.xml")]
+    public async Task RunPgDump_WhenConnectionFieldSmugglesArguments_DoesNotStartProcess(string dbName, string host, string user)
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var marker = Path.Combine(this.testTempDir, "pg_dump_started_" + Guid.NewGuid().ToString("N"));
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? $"@echo off\r\necho started > \"{marker}\"\r\nexit /b 0"
+            : $"#!/bin/sh\necho started > \"{marker}\"\nexit 0\n");
+        var outputPath = Path.Combine(this.testTempDir, "injected_dump.sql");
+
+        var result = await controller.TestRunPgDump(script, host, 5432, user, "secret", dbName, outputPath);
+
+        result.Should().BeFalse();
+        File.Exists(marker).Should().BeFalse();
+        File.Exists(outputPath).Should().BeFalse();
+    }
+
+    [TestCase("-f /config/config.xml", "localhost", "postgres")]
+    [TestCase("leecharr\" -f /config/config.xml", "localhost", "postgres")]
+    [TestCase("leecharr", "localhost\" -f /config/config.xml", "postgres")]
+    [TestCase("leecharr", "localhost", "postgres\" -f /config/config.xml")]
+    public async Task RunPsqlRestore_WhenConnectionFieldSmugglesArguments_DoesNotStartProcess(string dbName, string host, string user)
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var marker = Path.Combine(this.testTempDir, "psql_started_" + Guid.NewGuid().ToString("N"));
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? $"@echo off\r\necho started > \"{marker}\"\r\nexit /b 0"
+            : $"#!/bin/sh\necho started > \"{marker}\"\nexit 0\n");
+        var sqlPath = Path.Combine(this.testTempDir, "restore.sql");
+        File.WriteAllText(sqlPath, "-- sql script");
+
+        var result = await controller.TestRunPsqlRestore(script, host, 5432, user, "secret", dbName, sqlPath);
+
+        result.Should().BeFalse();
+        File.Exists(marker).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task RunPgDump_WhenConnectionFieldsAreSafe_PassesEachFieldAsItsOwnArgument()
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var outputPath = Path.Combine(this.testTempDir, "safe_dump.sql");
+        var argsFile = Path.Combine(this.testTempDir, "pg_dump_args.txt");
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? $"@echo off\r\npowershell -NoProfile -Command \"Set-Content -LiteralPath '{argsFile}' -Value $args\"\r\nexit /b 1"
+            : $"#!/bin/sh\nprintf '%s\\n' \"$@\" > \"{argsFile}\"\nprintf 'ok\\n' > \"{outputPath}\"\nexit 0\n");
+
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Ignore("Argument boundaries are asserted with a POSIX argv dump.");
+        }
+
+        var result = await controller.TestRunPgDump(script, "db-1.example.com", 5432, "leecharr_user", null, "leecharr_main", outputPath);
+
+        result.Should().BeTrue();
+        File.ReadAllLines(argsFile).Should().Equal(
+            "--clean",
+            "--if-exists",
+            "-h",
+            "db-1.example.com",
+            "-p",
+            "5432",
+            "-U",
+            "leecharr_user",
+            "-d",
+            "leecharr_main",
+            "-f",
+            outputPath);
+    }
+
     [Test]
     public void PruneOldBackups_WhenBackupsExceedMaxCount_PrunesOldestArchives()
     {

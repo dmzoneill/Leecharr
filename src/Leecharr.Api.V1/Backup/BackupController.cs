@@ -15,6 +15,7 @@ using Microsoft.Data.Sqlite;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Backup;
 using NzbDrone.Core.Common;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
@@ -822,6 +823,12 @@ public class BackupController : Controller
     {
         try
         {
+            if (!PostgresCliArguments.TryBuildPgDumpArguments(host, port, user, dbName, outputPath, out var arguments))
+            {
+                this.logger.Error("Refusing to run pg_dump because a PostgreSQL connection setting is not safe to pass as an argument.");
+                return false;
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = pgDumpExe,
@@ -831,18 +838,10 @@ public class BackupController : Controller
                 CreateNoWindow = true,
             };
 
-            psi.ArgumentList.Add("--clean");
-            psi.ArgumentList.Add("--if-exists");
-            psi.ArgumentList.Add("-h");
-            psi.ArgumentList.Add(host);
-            psi.ArgumentList.Add("-p");
-            psi.ArgumentList.Add(port.ToString());
-            psi.ArgumentList.Add("-U");
-            psi.ArgumentList.Add(user);
-            psi.ArgumentList.Add("-d");
-            psi.ArgumentList.Add(dbName);
-            psi.ArgumentList.Add("-f");
-            psi.ArgumentList.Add(outputPath);
+            foreach (var argument in arguments)
+            {
+                psi.ArgumentList.Add(argument);
+            }
 
             if (!string.IsNullOrEmpty(password))
             {
@@ -916,6 +915,12 @@ public class BackupController : Controller
     {
         try
         {
+            if (!PostgresCliArguments.TryBuildPsqlArguments(host, port, user, dbName, sqlScriptPath, out var arguments))
+            {
+                this.logger.Error("Refusing to run psql because a PostgreSQL connection setting is not safe to pass as an argument.");
+                return false;
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = psqlExe,
@@ -925,19 +930,10 @@ public class BackupController : Controller
                 CreateNoWindow = true,
             };
 
-            psi.ArgumentList.Add("-h");
-            psi.ArgumentList.Add(host);
-            psi.ArgumentList.Add("-p");
-            psi.ArgumentList.Add(port.ToString());
-            psi.ArgumentList.Add("-U");
-            psi.ArgumentList.Add(user);
-            psi.ArgumentList.Add("-d");
-            psi.ArgumentList.Add(dbName);
-            psi.ArgumentList.Add("-v");
-            psi.ArgumentList.Add("ON_ERROR_STOP=1");
-            psi.ArgumentList.Add("--single-transaction");
-            psi.ArgumentList.Add("-f");
-            psi.ArgumentList.Add(sqlScriptPath);
+            foreach (var argument in arguments)
+            {
+                psi.ArgumentList.Add(argument);
+            }
 
             if (!string.IsNullOrEmpty(password))
             {

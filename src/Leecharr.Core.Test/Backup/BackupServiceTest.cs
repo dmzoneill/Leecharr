@@ -297,4 +297,37 @@ public class BackupServiceTest
         Directory.GetFiles(manualDir, "*.zip").Should().HaveCount(2);
         Directory.GetFiles(scheduledDir, "*.zip").Should().HaveCount(2);
     }
+
+    [Test]
+    public void RunPgDump_WhenDatabaseNameSmugglesFileFlag_DoesNotStartProcess()
+    {
+        var service = new ProbeBackupService(this.appFolderInfo);
+        var marker = Path.Combine(this.testTempDir, "service_pg_dump_started");
+        var scriptPath = Path.Combine(this.testTempDir, OperatingSystem.IsWindows() ? "pg_dump_probe.cmd" : "pg_dump_probe.sh");
+        File.WriteAllText(scriptPath, OperatingSystem.IsWindows()
+            ? $"@echo off\r\necho started > \"{marker}\"\r\nexit /b 0"
+            : $"#!/bin/sh\necho started > \"{marker}\"\nexit 0\n");
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        var result = service.InvokePgDump(scriptPath, "localhost", 5432, "postgres", "secret", "-f /config/config.xml", Path.Combine(this.testTempDir, "out.sql"));
+
+        result.Should().BeFalse();
+        File.Exists(marker).Should().BeFalse();
+    }
+
+    private sealed class ProbeBackupService : BackupService
+    {
+        public ProbeBackupService(IAppFolderInfo appFolderInfo)
+            : base(appFolderInfo)
+        {
+        }
+
+        public bool InvokePgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
+        {
+            return this.RunPgDump(pgDumpExe, host, port, user, password, dbName, outputPath);
+        }
+    }
 }

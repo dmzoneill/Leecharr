@@ -340,15 +340,25 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
     {
         try
         {
+            if (!PostgresCliArguments.TryBuildPgDumpArguments(host, port, user, dbName, outputPath, out var arguments))
+            {
+                this.logger.Error("Refusing to run pg_dump because a PostgreSQL connection setting is not safe to pass as an argument.");
+                return false;
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = pgDumpExe,
-                Arguments = $"--clean --if-exists -h \"{host}\" -p {port} -U \"{user}\" -d \"{dbName}\" -f \"{outputPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+
+            foreach (var argument in arguments)
+            {
+                psi.ArgumentList.Add(argument);
+            }
 
             if (!string.IsNullOrEmpty(password))
             {
