@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -237,6 +238,7 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
             var changeUriPayload = new { jsonrpc = "2.0", id = 24, method = "aria2.changeUri", @params = new object[] { gid, 1, System.Array.Empty<string>(), System.Array.Empty<string>() } };
             var changeUriResp = await this.PostJsonAsync("/jsonrpc", changeUriPayload);
             changeUriResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            ReadJsonRpcInts(await changeUriResp.Content.ReadAsStringAsync()).Should().Equal(0, 0);
 
             // 7. aria2.purgeDownloadResult and aria2.removeDownloadResult
             var purgePayload = new { jsonrpc = "2.0", id = 25, method = "aria2.purgeDownloadResult", @params = System.Array.Empty<object>() };
@@ -509,5 +511,184 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
         var getUrisXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.getUris</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><string>a2a2a2a2a2a2a2a2</string></value></param></params></methodCall>";
         var getUrisResp = await this.Client.PostAsync("/rpc", new StringContent(getUrisXml, Encoding.UTF8, "text/xml"));
         getUrisResp.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Aria2_ChangeUri_JsonAndXml_PersistsEditsAndReturnsAppliedCounts()
+    {
+        const string dead = "http://dead.example/announce";
+        const string keep = "http://keep.example/announce";
+        const string added = "http://new.example/announce";
+        const string tail = "http://tail.example/announce";
+        const string xmlAdded = "http://xml.example/announce";
+        var hash = "b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1";
+        var gid = hash[..16];
+
+        var addResp = await this.PostJsonAsync("/api/v1/torrents", new
+        {
+            magnetLink = $"magnet:?xt=urn:btih:{hash}&dn=Aria2ChangeUri",
+            category = "aria2-changeuri",
+            paused = true,
+        });
+        addResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var torrentId = JsonDocument.Parse(await addResp.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetInt32();
+
+        try
+        {
+            (await this.PostJsonAsync($"/api/v1/torrents/{torrentId}/trackers", new { url = dead, tier = 0 })).StatusCode.Should().Be(HttpStatusCode.OK);
+            (await this.PostJsonAsync($"/api/v1/torrents/{torrentId}/trackers", new { url = keep, tier = 5 })).StatusCode.Should().Be(HttpStatusCode.OK);
+            (await this.ReadUrisAsync("/jsonrpc", gid)).Should().Equal(dead, keep);
+
+            var replaceResp = await this.PostJsonAsync("/jsonrpc", new
+            {
+                jsonrpc = "2.0",
+                id = 1099,
+                method = "aria2.changeUri",
+                @params = new object[]
+                {
+                    "token:" + this.ApiKey,
+                    gid,
+                    "1",
+                    new[] { dead, "http://missing.example/announce", "" },
+                    new[] { added, added },
+                    0,
+                },
+            });
+            replaceResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            ReadJsonRpcInts(await replaceResp.Content.ReadAsStringAsync()).Should().Equal(1, 1);
+            (await this.ReadUrisAsync("/aria2/jsonrpc", gid)).Should().Equal(added, keep);
+
+            var trackerResp = await this.GetAsync($"/api/v1/torrents/{torrentId}/trackers");
+            trackerResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var trackerUrls = JsonDocument.Parse(await trackerResp.Content.ReadAsStringAsync()).RootElement.EnumerateArray()
+                .Select(item => item.GetProperty("url").GetString())
+                .ToList();
+            trackerUrls.Should().BeEquivalentTo(new[] { added, keep });
+            trackerUrls.Should().NotContain(dead);
+
+            var torrentResp = await this.GetAsync($"/api/v1/torrents/{torrentId}");
+            torrentResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            JsonDocument.Parse(await torrentResp.Content.ReadAsStringAsync()).RootElement.GetProperty("trackerUrl").GetString().Should().Be(added);
+
+            var noopResp = await this.PostJsonAsync("/rpc", new
+            {
+                jsonrpc = "2.0",
+                id = 1100,
+                method = "aria2.changeUri",
+                @params = new object[] { gid, 1, new[] { "http://missing.example/announce" }, new[] { keep } },
+            });
+            ReadJsonRpcInts(await noopResp.Content.ReadAsStringAsync()).Should().Equal(0, 0);
+            (await this.ReadUrisAsync("/jsonrpc", gid)).Should().Equal(added, keep);
+
+            var tailResp = await this.PostJsonAsync("/jsonrpc", new
+            {
+                jsonrpc = "2.0",
+                id = 1101,
+                method = "aria2.changeUri",
+                @params = new object[] { gid, 1, System.Array.Empty<string>(), new[] { tail }, 50 },
+            });
+            ReadJsonRpcInts(await tailResp.Content.ReadAsStringAsync()).Should().Equal(0, 1);
+            (await this.ReadUrisAsync("/jsonrpc", gid)).Should().Equal(added, keep, tail);
+
+            var unknownResp = await this.PostJsonAsync("/jsonrpc", new
+            {
+                jsonrpc = "2.0",
+                id = 1102,
+                method = "aria2.changeUri",
+                @params = new object[] { "deadbeefdeadbeef", 1, new[] { added }, new[] { "http://other.example/announce" } },
+            });
+            ReadJsonRpcError(await unknownResp.Content.ReadAsStringAsync()).Should().Be("GID deadbeefdeadbeef is not found");
+            (await this.ReadUrisAsync("/jsonrpc", gid)).Should().Equal(added, keep, tail);
+
+            var badIndexResp = await this.PostJsonAsync("/jsonrpc", new
+            {
+                jsonrpc = "2.0",
+                id = 1103,
+                method = "aria2.changeUri",
+                @params = new object[] { gid, 0, new[] { added }, new[] { "http://other.example/announce" } },
+            });
+            ReadJsonRpcError(await badIndexResp.Content.ReadAsStringAsync()).Should().Be("fileIndex is out of range");
+            (await this.ReadUrisAsync("/jsonrpc", gid)).Should().Equal(added, keep, tail);
+
+            var xml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.changeUri</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><string>{gid}</string></value></param><param><value><int>1</int></value></param><param><value><array><data><value><string>{tail}</string></value></data></array></value></param><param><value><array><data><value><string>{xmlAdded}</string></value></data></array></value></param></params></methodCall>";
+            var xmlResp = await this.Client.PostAsync("/rpc", new StringContent(xml, Encoding.UTF8, "text/xml"));
+            xmlResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var xmlBody = await xmlResp.Content.ReadAsStringAsync();
+            xmlBody.Should().NotContain("faultString");
+            ReadXmlRpcInts(xmlBody).Should().Equal(1, 1);
+            (await this.ReadUrisAsync("/jsonrpc", gid)).Should().Equal(added, keep, xmlAdded);
+
+            var multiResp = await this.PostJsonAsync("/aria2/rpc", new
+            {
+                jsonrpc = "2.0",
+                id = "multi-changeuri",
+                method = "system.multicall",
+                @params = new object[]
+                {
+                    new object[]
+                    {
+                        new
+                        {
+                            methodName = "aria2.changeUri",
+                            @params = new object[] { gid, 1, new[] { xmlAdded }, System.Array.Empty<string>() },
+                        },
+                    },
+                },
+            });
+            multiResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var multiDoc = JsonDocument.Parse(await multiResp.Content.ReadAsStringAsync());
+            var multiResult = multiDoc.RootElement.GetProperty("result")[0][0];
+            multiResult[0].GetInt32().Should().Be(1);
+            multiResult[1].GetInt32().Should().Be(0);
+            (await this.ReadUrisAsync("/jsonrpc", gid)).Should().Equal(added, keep);
+
+            var emptyResp = await this.PostJsonAsync("/jsonrpc", new
+            {
+                jsonrpc = "2.0",
+                id = 1104,
+                method = "aria2.changeUri",
+                @params = new object[] { gid, 1, System.Array.Empty<string>(), System.Array.Empty<string>() },
+            });
+            ReadJsonRpcInts(await emptyResp.Content.ReadAsStringAsync()).Should().Equal(0, 0);
+            (await this.ReadUrisAsync("/jsonrpc", gid)).Should().Equal(added, keep);
+        }
+        finally
+        {
+            await this.DeleteAsync($"/api/v1/torrents/{torrentId}?deleteData=true");
+        }
+    }
+
+    private async Task<List<string>> ReadUrisAsync(string path, string gid)
+    {
+        var response = await this.PostJsonAsync(path, new
+        {
+            jsonrpc = "2.0",
+            id = "get-uris",
+            method = "aria2.getUris",
+            @params = new object[] { gid },
+        });
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return doc.RootElement.GetProperty("result").EnumerateArray()
+            .Select(item => item.GetProperty("uri").GetString())
+            .ToList();
+    }
+
+    private static List<int> ReadJsonRpcInts(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("result").EnumerateArray().Select(item => item.GetInt32()).ToList();
+    }
+
+    private static string ReadJsonRpcError(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("error").GetProperty("message").GetString();
+    }
+
+    private static List<int> ReadXmlRpcInts(string xml)
+    {
+        var doc = System.Xml.Linq.XDocument.Parse(xml);
+        return doc.Descendants("int").Concat(doc.Descendants("i4")).Select(node => int.Parse(node.Value)).ToList();
     }
 }
