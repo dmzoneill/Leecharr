@@ -126,7 +126,7 @@ public class BackupServiceTest
     }
 
     [Test]
-    public void CreateBackup_WhenDbNotValidSqlite_FallsBackToDirectFileCopyIncludingWal()
+    public void CreateBackup_WhenSqliteSnapshotFails_DoesNotReportSuccessfulDatabaseBackup()
     {
         var dbPath = Path.Combine(this.testTempDir, "leecharr.db");
         File.WriteAllText(dbPath, "not-a-valid-sqlite-header-plain-text");
@@ -134,14 +134,19 @@ public class BackupServiceTest
         var walPath = Path.Combine(this.testTempDir, "leecharr.db-wal");
         File.WriteAllText(walPath, "wal-contents");
 
-        var result = this.backupService.CreateBackup("Manual");
+        var act = () => this.backupService.CreateBackup("Manual");
 
-        result.Should().NotBeNull();
-        result.IncludesDatabase.Should().BeTrue();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("SQLite backup failed: VACUUM INTO did not produce an atomic snapshot.");
 
-        using var zip = ZipFile.OpenRead(result.Path);
-        zip.Entries.Should().Contain(e => e.Name == "leecharr.db");
-        zip.Entries.Should().Contain(e => e.Name == "leecharr.db-wal");
+        var manualDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        if (Directory.Exists(manualDir))
+        {
+            Directory.GetFiles(manualDir, "*.zip").Should().BeEmpty();
+        }
+
+        File.ReadAllText(dbPath).Should().Be("not-a-valid-sqlite-header-plain-text");
+        File.ReadAllText(walPath).Should().Be("wal-contents");
     }
 
     [Test]

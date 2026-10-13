@@ -131,8 +131,12 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
                     catch (Exception ex)
                     {
                         this.logger.Warn(ex, "Failed to create atomic SQLite snapshot via VACUUM INTO on {0}", dbPath);
-                        tempDumpFile = null;
-                        includesDb = true;
+                        if (global::System.IO.File.Exists(tempSnapshotPath))
+                        {
+                            tempDumpFile = tempSnapshotPath;
+                        }
+
+                        throw new InvalidOperationException("SQLite backup failed: VACUUM INTO did not produce an atomic snapshot.", ex);
                     }
                     finally
                     {
@@ -150,27 +154,9 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
                         zip.CreateEntryFromFile(tempDumpFile, "leecharr_postgres.sql");
                     }
                 }
-                else
+                else if (tempDumpFile != null && global::System.IO.File.Exists(tempDumpFile))
                 {
-                    if (tempDumpFile != null && global::System.IO.File.Exists(tempDumpFile))
-                    {
-                        zip.CreateEntryFromFile(tempDumpFile, "leecharr.db");
-                    }
-                    else
-                    {
-                        var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
-                        var walPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
-
-                        if (global::System.IO.File.Exists(dbPath))
-                        {
-                            zip.CreateEntryFromFile(dbPath, "leecharr.db");
-                        }
-
-                        if (global::System.IO.File.Exists(walPath))
-                        {
-                            zip.CreateEntryFromFile(walPath, "leecharr.db-wal");
-                        }
-                    }
+                    zip.CreateEntryFromFile(tempDumpFile, "leecharr.db");
                 }
 
                 var configPath = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");

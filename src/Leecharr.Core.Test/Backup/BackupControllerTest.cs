@@ -507,6 +507,31 @@ public class BackupControllerTest
     }
 
     [Test]
+    public async Task Create_WhenSqliteSnapshotFails_Returns500AndDoesNotArchiveLiveDatabase()
+    {
+        var dbPath = Path.Combine(this.testTempDir, "leecharr.db");
+        File.WriteAllText(dbPath, "not-a-valid-sqlite-header-plain-text");
+
+        var walPath = Path.Combine(this.testTempDir, "leecharr.db-wal");
+        File.WriteAllText(walPath, "wal-contents");
+
+        var result = await this.controller.Create();
+        result.Result.Should().BeOfType<ObjectResult>();
+
+        var objResult = (ObjectResult)result.Result!;
+        objResult.StatusCode.Should().Be(500);
+
+        var manualDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        if (Directory.Exists(manualDir))
+        {
+            Directory.GetFiles(manualDir, "*.zip").Should().BeEmpty();
+        }
+
+        File.ReadAllText(dbPath).Should().Be("not-a-valid-sqlite-header-plain-text");
+        File.ReadAllText(walPath).Should().Be("wal-contents");
+    }
+
+    [Test]
     public async Task Create_WhenNoDatabaseExists_CreatesBackupWithConfig()
     {
         var configPath = Path.Combine(this.testTempDir, "config.xml");
