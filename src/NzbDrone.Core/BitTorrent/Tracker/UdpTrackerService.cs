@@ -20,7 +20,9 @@ public class UdpTrackerService : IUdpTrackerService
 {
     private const long MagicProtocolId = 0x41727101980L;
 
-    private const int MaxConnectionIds = 10000;
+    internal const int MaxConnectionIds = 10000;
+
+    private static readonly TimeSpan ConnectionIdPruneInterval = TimeSpan.FromSeconds(30);
 
     private readonly IEmbeddedTrackerService trackerService;
     private readonly IConfigService configService;
@@ -30,6 +32,7 @@ public class UdpTrackerService : IUdpTrackerService
     private readonly object syncRoot = new();
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private DateTime lastPruneUtc = DateTime.UtcNow;
+    private int connectionIdCount;
 
     private Socket socket;
     private CancellationTokenSource cts;
@@ -174,23 +177,24 @@ public class UdpTrackerService : IUdpTrackerService
         var action = BinaryPrimitives.ReadInt32BigEndian(packet.Slice(8, 4));
         var transactionId = BinaryPrimitives.ReadInt32BigEndian(packet.Slice(12, 4));
 
-        if (this.IsRateLimited(clientIp))
-        {
-            return BuildErrorResponse(transactionId, "Rate limit exceeded.");
-        }
-
-        // Connect
+        // Connect has no connection id yet. A spoofed source must not receive an error
+        // datagram: invalid protocol ids, rate limits, and a full table are dropped.
         if (action == 0)
         {
             if (first8 != MagicProtocolId)
             {
-                return BuildErrorResponse(transactionId, "Invalid protocol_id.");
+                return null;
             }
 
-            this.PruneConnectionIdsIfNeeded();
+            if (this.IsRateLimited(clientIp))
+            {
+                return null;
+            }
 
-            var connectionId = GenerateConnectionId();
-            this.connectionIds[connectionId] = (clientIp, DateTime.UtcNow.AddMinutes(2));
+            if (!this.TryAllocateConnectionId(clientIp, out var connectionId))
+            {
+                return null;
+            }
 
             var response = new byte[16];
             BinaryPrimitives.WriteInt32BigEndian(response.AsSpan(0, 4), 0);
@@ -204,6 +208,11 @@ public class UdpTrackerService : IUdpTrackerService
         {
             // Silently drop packets with invalid or expired connection IDs to avoid UDP reflection/amplification attacks
             return null;
+        }
+
+        if (this.IsRateLimited(clientIp))
+        {
+            return BuildErrorResponse(transactionId, "Rate limit exceeded.");
         }
 
         // Announce
@@ -470,24 +479,66 @@ public class UdpTrackerService : IUdpTrackerService
 
             if (state.ExpiresUtc < DateTime.UtcNow)
             {
-                this.connectionIds.TryRemove(connectionId, out _);
+                this.TryRemoveConnectionId(connectionId);
             }
         }
 
         return false;
     }
 
+    private bool TryAllocateConnectionId(IPAddress clientIp, out long connectionId)
+    {
+        this.PruneConnectionIdsIfNeeded();
+
+        lock (this.pruneLock)
+        {
+            if (this.connectionIdCount >= MaxConnectionIds)
+            {
+                connectionId = 0;
+                return false;
+            }
+
+            connectionId = GenerateConnectionId();
+            for (var attempt = 0; attempt < 4 && this.connectionIds.ContainsKey(connectionId); attempt++)
+            {
+                connectionId = GenerateConnectionId();
+            }
+
+            if (this.connectionIds.ContainsKey(connectionId))
+            {
+                connectionId = 0;
+                return false;
+            }
+
+            this.connectionIds[connectionId] = (clientIp, DateTime.UtcNow.AddMinutes(2));
+            Interlocked.Increment(ref this.connectionIdCount);
+            return true;
+        }
+    }
+
+    private bool TryRemoveConnectionId(long connectionId)
+    {
+        if (!this.connectionIds.TryRemove(connectionId, out _))
+        {
+            return false;
+        }
+
+        Interlocked.Decrement(ref this.connectionIdCount);
+        return true;
+    }
+
     private void PruneConnectionIdsIfNeeded()
     {
         var now = DateTime.UtcNow;
-        if (now - this.lastPruneUtc < TimeSpan.FromSeconds(30) && this.connectionIds.Count < MaxConnectionIds)
+        if (now - this.lastPruneUtc < ConnectionIdPruneInterval)
         {
             return;
         }
 
         lock (this.pruneLock)
         {
-            if (now - this.lastPruneUtc < TimeSpan.FromSeconds(30) && this.connectionIds.Count < MaxConnectionIds)
+            now = DateTime.UtcNow;
+            if (now - this.lastPruneUtc < ConnectionIdPruneInterval)
             {
                 return;
             }
@@ -497,17 +548,21 @@ public class UdpTrackerService : IUdpTrackerService
             {
                 if (kvp.Value.ExpiresUtc < now)
                 {
-                    this.connectionIds.TryRemove(kvp.Key, out _);
+                    this.TryRemoveConnectionId(kvp.Key);
                 }
             }
 
-            if (this.connectionIds.Count >= MaxConnectionIds)
+            if (this.connectionIdCount > MaxConnectionIds)
             {
-                var excess = this.connectionIds.Count - MaxConnectionIds + 1000;
-                var toEvict = this.connectionIds.OrderBy(kvp => kvp.Value.ExpiresUtc).Take(excess);
-                foreach (var item in toEvict)
+                var excess = this.connectionIdCount - MaxConnectionIds;
+                var toEvict = this.connectionIds
+                    .OrderBy(kvp => kvp.Value.ExpiresUtc)
+                    .Take(excess)
+                    .Select(kvp => kvp.Key)
+                    .ToArray();
+                foreach (var id in toEvict)
                 {
-                    this.connectionIds.TryRemove(item.Key, out _);
+                    this.TryRemoveConnectionId(id);
                 }
             }
         }

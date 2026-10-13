@@ -74,18 +74,15 @@ public class UdpTrackerServiceTest
     }
 
     [Test]
-    public void HandlePacket_Connect_InvalidProtocolId_ReturnsErrorResponse()
+    public void HandlePacket_Connect_InvalidProtocolId_SilentlyDropsPacket()
     {
         var packet = new byte[16];
         BinaryPrimitives.WriteInt64BigEndian(packet.AsSpan(0, 8), 0x12345678L);
         BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(8, 4), 0);
         BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(12, 4), 112233);
 
-        var response = this.udpTrackerService.HandlePacket(packet, new IPEndPoint(IPAddress.Loopback, 12345));
-        response.Should().NotBeNull();
-        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(0, 4)).Should().Be(3); // Action = Error
-        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(4, 4)).Should().Be(112233);
-        Encoding.UTF8.GetString(response.AsSpan(8)).Should().Contain("Invalid protocol_id");
+        var response = this.udpTrackerService.HandlePacket(packet, new IPEndPoint(IPAddress.Parse("198.51.100.10"), 12345));
+        response.Should().BeNull();
     }
 
     [Test]
@@ -546,7 +543,7 @@ public class UdpTrackerServiceTest
     }
 
     [Test]
-    public void HandlePacket_WhenRateLimitExceeded_ReturnsErrorResponse()
+    public void HandlePacket_WhenRateLimitExceeded_DropsConnectWithoutErrorResponse()
     {
         this.configService.TrackerRateLimitPerMinute.Returns(2);
 
@@ -554,7 +551,7 @@ public class UdpTrackerServiceTest
         BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
         BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
         BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
-        var ep = new IPEndPoint(IPAddress.Loopback, 12345);
+        var ep = new IPEndPoint(IPAddress.Parse("198.51.100.20"), 12345);
 
         var resp1 = this.udpTrackerService.HandlePacket(connectPacket, ep);
         resp1.Should().NotBeNull();
@@ -565,8 +562,81 @@ public class UdpTrackerServiceTest
         BinaryPrimitives.ReadInt32BigEndian(resp2.AsSpan(0, 4)).Should().Be(0);
 
         var resp3 = this.udpTrackerService.HandlePacket(connectPacket, ep);
-        resp3.Should().NotBeNull();
-        BinaryPrimitives.ReadInt32BigEndian(resp3.AsSpan(0, 4)).Should().Be(3);
-        Encoding.UTF8.GetString(resp3.AsSpan(8)).Should().Contain("Rate limit exceeded.");
+        resp3.Should().BeNull();
+    }
+
+    [Test]
+    public void HandlePacket_Announce_InvalidConnectionId_DoesNotReflectWhenRateLimited()
+    {
+        this.configService.TrackerRateLimitPerMinute.Returns(1);
+
+        var announcePacket = new byte[98];
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(0, 8), 0x1111L);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(8, 4), 1);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(12, 4), 44);
+        var ep = new IPEndPoint(IPAddress.Parse("203.0.113.8"), 9);
+
+        for (var i = 0; i < 5; i++)
+        {
+            this.udpTrackerService.HandlePacket(announcePacket, ep).Should().BeNull();
+        }
+    }
+
+    [Test]
+    public void HandlePacket_Announce_WhenRateLimitExceeded_ReturnsErrorResponse()
+    {
+        this.configService.TrackerRateLimitPerMinute.Returns(2);
+
+        var ep = new IPEndPoint(IPAddress.Parse("198.51.100.30"), 12345);
+        var connectPacket = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
+        var connectResp = this.udpTrackerService.HandlePacket(connectPacket, ep);
+        var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResp.AsSpan(8, 8));
+
+        this.trackerService.Announce(Arg.Any<TrackerAnnounceRequest>())
+            .Returns(new TrackerAnnounceResult { Success = true, Interval = 1800 });
+
+        var announcePacket = new byte[98];
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(0, 8), connectionId);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(8, 4), 1);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(12, 4), 77);
+        BinaryPrimitives.WriteUInt16BigEndian(announcePacket.AsSpan(96, 2), 6881);
+
+        var allowed = this.udpTrackerService.HandlePacket(announcePacket, ep);
+        allowed.Should().NotBeNull();
+        BinaryPrimitives.ReadInt32BigEndian(allowed.AsSpan(0, 4)).Should().Be(1);
+
+        var limited = this.udpTrackerService.HandlePacket(announcePacket, ep);
+        limited.Should().NotBeNull();
+        BinaryPrimitives.ReadInt32BigEndian(limited.AsSpan(0, 4)).Should().Be(3);
+        BinaryPrimitives.ReadInt32BigEndian(limited.AsSpan(4, 4)).Should().Be(77);
+        Encoding.UTF8.GetString(limited.AsSpan(8)).Should().Contain("Rate limit exceeded.");
+    }
+
+    [Test]
+    public void HandlePacket_Connect_WhenConnectionTableIsFull_DropsFurtherConnectsWithoutError()
+    {
+        var packet = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(packet.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(12, 4), 7);
+        var ep = new IPEndPoint(IPAddress.Parse("192.0.2.10"), 12345);
+
+        var accepted = 0;
+        for (var i = 0; i < UdpTrackerService.MaxConnectionIds; i++)
+        {
+            var response = this.udpTrackerService.HandlePacket(packet, ep);
+            if (response != null && response.Length == 16 && BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(0, 4)) == 0)
+            {
+                accepted++;
+            }
+        }
+
+        accepted.Should().Be(UdpTrackerService.MaxConnectionIds);
+
+        var rejected = this.udpTrackerService.HandlePacket(packet, ep);
+        rejected.Should().BeNull();
     }
 }
