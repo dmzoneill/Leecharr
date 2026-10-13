@@ -30,6 +30,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly ConcurrentDictionary<int, bool> seedingTimeReachedTorrents = new();
     private readonly ConcurrentDictionary<int, bool> stalledTorrents = new();
     private readonly ConcurrentDictionary<int, DateTime> zeroDownloadSpeedSince = new();
+    private bool speedThresholdExceeded;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
     private Task rssLoopTask;
@@ -696,12 +697,12 @@ public class AppLifetime : IHostedService, IDisposable
                             this.services.BandwidthQuotaService.CheckBandwidthQuotaThresholds();
                         }
 
+                        long totalDlSpeed = 0;
+                        long totalUlSpeed = 0;
+                        var activeTasksCount = 0;
+
                         if (tasks != null && tasks.Count > 0)
                         {
-                            long totalDlSpeed = 0;
-                            long totalUlSpeed = 0;
-                            var activeTasksCount = 0;
-
                             foreach (var task in tasks)
                             {
                                 totalDlSpeed += task.DownloadSpeed;
@@ -712,14 +713,16 @@ public class AppLifetime : IHostedService, IDisposable
                                     activeTasksCount++;
                                 }
 
-                                if (task.Status == TorrentStatus.Downloading && task.DownloadSpeed == 0 && task.Progress < 1.0)
+                                var trackerStalled = task.Status == TorrentStatus.Stalled && task.Progress < 1.0;
+                                var zeroSpeedDownload = task.Status == TorrentStatus.Downloading && task.DownloadSpeed == 0 && task.Progress < 1.0;
+                                if (trackerStalled || zeroSpeedDownload)
                                 {
                                     var torrent = this.services.TorrentService?.Get(task.TorrentId);
                                     if (torrent != null)
                                     {
                                         var zeroSince = this.zeroDownloadSpeedSince.GetOrAdd(torrent.Id, _ => DateTime.UtcNow);
                                         var stalledMinutes = (int)(DateTime.UtcNow - zeroSince).TotalMinutes;
-                                        if (stalledMinutes >= 5)
+                                        if (trackerStalled || stalledMinutes >= 5)
                                         {
                                             if (this.stalledTorrents.TryAdd(torrent.Id, true))
                                             {
@@ -734,15 +737,23 @@ public class AppLifetime : IHostedService, IDisposable
                                     this.stalledTorrents.TryRemove(task.TorrentId, out _);
                                 }
                             }
-
-                            var maxDl = this.services.ConfigService.MaxDownloadSpeedKbps > 0 ? (long)this.services.ConfigService.MaxDownloadSpeedKbps * 1024L : 0;
-                            var maxUl = this.services.ConfigService.MaxUploadSpeedKbps > 0 ? (long)this.services.ConfigService.MaxUploadSpeedKbps * 1024L : 0;
-
-                            if ((maxDl > 0 && totalDlSpeed >= maxDl) || (maxUl > 0 && totalUlSpeed >= maxUl))
-                            {
-                                this.services.EventAggregator?.PublishEvent(new SpeedThresholdExceededEvent(totalDlSpeed, totalUlSpeed, activeTasksCount));
-                            }
                         }
+
+                        var maxDl = this.services.ConfigService.MaxDownloadSpeedKbps > 0 ? (long)this.services.ConfigService.MaxDownloadSpeedKbps * 1024L : 0;
+                        var maxUl = this.services.ConfigService.MaxUploadSpeedKbps > 0 ? (long)this.services.ConfigService.MaxUploadSpeedKbps * 1024L : 0;
+                        var speedExceeded = (maxDl > 0 && totalDlSpeed >= maxDl) || (maxUl > 0 && totalUlSpeed >= maxUl);
+                        if (speedExceeded && !this.speedThresholdExceeded)
+                        {
+                            this.services.EventAggregator?.PublishEvent(new SpeedThresholdExceededEvent(totalDlSpeed, totalUlSpeed, activeTasksCount));
+                        }
+                        else if (!speedExceeded && this.speedThresholdExceeded)
+                        {
+                            var currentSpeed = Math.Max(totalDlSpeed, totalUlSpeed);
+                            var expectedMinimum = Math.Max(maxDl, maxUl);
+                            this.services.EventAggregator?.PublishEvent(new SpeedThresholdDroppedEvent(currentSpeed, expectedMinimum, activeTasksCount));
+                        }
+
+                        this.speedThresholdExceeded = speedExceeded;
                     }
                     catch (Exception ex)
                     {

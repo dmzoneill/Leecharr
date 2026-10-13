@@ -942,6 +942,102 @@ public class AppLifetimeTest
         await lifetime.StopAsync(CancellationToken.None);
     }
 
+    [Test]
+    public async Task BackgroundLoop_WhenTaskStatusIsStalled_PublishesTorrentStalledEventWithoutZeroSpeedWindow()
+    {
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(22);
+        mockTask.Status.Returns(TorrentStatus.Stalled);
+        mockTask.DownloadSpeed.Returns(0L);
+        mockTask.Progress.Returns(0.4);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        var torrent = new Torrent
+        {
+            Id = 22,
+            Name = "Tracker stalled",
+            Status = TorrentStatus.Stalled,
+            Progress = 0.4,
+        };
+        this.torrentService.Get(22).Returns(torrent);
+
+        var stallTcs = new TaskCompletionSource<TorrentStalledEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.eventAggregator
+            .When(x => x.PublishEvent(Arg.Any<TorrentStalledEvent>()))
+            .Do(ci => stallTcs.TrySetResult(ci.Arg<TorrentStalledEvent>()));
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+
+        var completed = await Task.WhenAny(stallTcs.Task, Task.Delay(2000));
+        completed.Should().Be(stallTcs.Task, "tracker-stalled tasks should publish TorrentStalledEvent");
+
+        var stalledEvent = await stallTcs.Task;
+        stalledEvent.Torrent.Id.Should().Be(22);
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Any<TorrentStalledEvent>());
+    }
+
+    [Test]
+    public async Task BackgroundLoop_WhenSpeedCrossesLimit_PublishesExceededThenDroppedOnce()
+    {
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+        this.configService.MaxDownloadSpeedKbps.Returns(100);
+        this.configService.MaxUploadSpeedKbps.Returns(0);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(23);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        mockTask.DownloadSpeed.Returns(200L * 1024L);
+        mockTask.UploadSpeed.Returns(0L);
+        mockTask.Progress.Returns(0.2);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+        this.torrentService.Get(23).Returns(new Torrent
+        {
+            Id = 23,
+            Name = "Fast torrent",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.2,
+        });
+
+        var exceededTcs = new TaskCompletionSource<SpeedThresholdExceededEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var droppedTcs = new TaskCompletionSource<SpeedThresholdDroppedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.eventAggregator
+            .When(x => x.PublishEvent(Arg.Any<SpeedThresholdExceededEvent>()))
+            .Do(ci => exceededTcs.TrySetResult(ci.Arg<SpeedThresholdExceededEvent>()));
+        this.eventAggregator
+            .When(x => x.PublishEvent(Arg.Any<SpeedThresholdDroppedEvent>()))
+            .Do(ci => droppedTcs.TrySetResult(ci.Arg<SpeedThresholdDroppedEvent>()));
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+
+        var exceededDone = await Task.WhenAny(exceededTcs.Task, Task.Delay(2000));
+        exceededDone.Should().Be(exceededTcs.Task, "crossing the configured cap should publish SpeedThresholdExceededEvent once");
+
+        mockTask.DownloadSpeed.Returns(0L);
+
+        var droppedDone = await Task.WhenAny(droppedTcs.Task, Task.Delay(2000));
+        droppedDone.Should().Be(droppedTcs.Task, "falling back under the cap should publish SpeedThresholdDroppedEvent");
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Any<SpeedThresholdExceededEvent>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Any<SpeedThresholdDroppedEvent>());
+    }
+
     private static bool CheckRatioInSpeedPulse(object body, int expectedId, double expectedRatio)
     {
         if (body is not IEnumerable<object> items)
