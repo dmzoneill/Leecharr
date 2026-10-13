@@ -17,6 +17,7 @@ using Leecharr.Api.V1.Notifications;
 using Leecharr.Api.V1.Packages;
 using Leecharr.Api.V1.Peers;
 using Leecharr.Api.V1.Seeding;
+using Leecharr.Api.V1.Subsystems;
 using Leecharr.Api.V1.System;
 using Leecharr.Api.V1.Tags;
 using Leecharr.Api.V1.Torrents;
@@ -80,5 +81,23 @@ public class ControllerAuthorizationPolicyTest
 
         authAttr.Should().NotBeNull($"Controller {controllerType.Name} must have an [Authorize] attribute");
         authAttr!.Policy.Should().Be(expectedPolicy);
+    }
+
+    [TestCase(nameof(SubsystemsController.UpdateBlocklistRules))]
+    [TestCase(nameof(SubsystemsController.GetSubsystemsMetrics))]
+    [TestCase(nameof(SubsystemsController.GetSubsystemMetrics))]
+    [TestCase(nameof(SubsystemsController.SwitchProvider))]
+    [TestCase(nameof(SubsystemsController.ProbeProvider))]
+    public void SubsystemsController_SensitiveActions_RequireOperator(string methodName)
+    {
+        var method = typeof(SubsystemsController).GetMethod(methodName);
+
+        method.Should().NotBeNull($"SubsystemsController.{methodName} must exist");
+        var authAttr = method!.GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
+            .Cast<AuthorizeAttribute>()
+            .FirstOrDefault();
+
+        authAttr.Should().NotBeNull($"SubsystemsController.{methodName} must have an [Authorize] attribute");
+        authAttr!.Policy.Should().Be("RequireOperator");
     }
 }

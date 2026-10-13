@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Ai;
 using NzbDrone.Core.BitTorrent;
@@ -67,6 +68,7 @@ public class SubsystemsController : Controller
     }
 
     [HttpPost("blocklist/update")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<IActionResult> UpdateBlocklistRules()
     {
         try
@@ -97,6 +99,7 @@ public class SubsystemsController : Controller
     }
 
     [HttpGet("metrics")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<List<SubsystemTelemetryReport>>> GetSubsystemsMetrics(CancellationToken cancellationToken = default)
     {
         var reports = await this.resourceService.GetSubsystemTelemetryAsync(null, cancellationToken);
@@ -104,6 +107,7 @@ public class SubsystemsController : Controller
     }
 
     [HttpGet("{subsystemId}/metrics")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<SubsystemTelemetryReport>> GetSubsystemMetrics(string subsystemId, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeSubsystemId(subsystemId);
@@ -182,6 +186,7 @@ public class SubsystemsController : Controller
     }
 
     [HttpPost("{subsystemId}/switch")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<SwitchSubsystemProviderResult>> SwitchProvider(string subsystemId, [FromBody] SwitchSubsystemProviderRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.ProviderId))
@@ -360,6 +365,7 @@ public class SubsystemsController : Controller
     }
 
     [HttpPost("{subsystemId}/probe/{providerId}")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<SubsystemProbeResult>> ProbeProvider(string subsystemId, string providerId)
     {
         var normalized = subsystemId?.ToLowerInvariant();
