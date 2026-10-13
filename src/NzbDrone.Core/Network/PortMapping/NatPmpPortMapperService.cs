@@ -8,11 +8,14 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Network.PortMapping;
@@ -71,6 +74,10 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     public IReadOnlyCollection<ActivePortMapping> ActiveMappings => this.activeMappings.Values.ToList();
 
     public bool IsSuspended => Volatile.Read(ref this.isSuspended) != 0;
+
+    internal Func<IPEndPoint> ResolveBoundLocalEndPoint { get; set; }
+
+    internal Action<Socket, string> BindUdpSocketToDevice { get; set; }
 
     internal IReadOnlyDictionary<IPAddress, uint> GatewayEpochs => this.gatewayEpochs;
 
@@ -169,7 +176,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return matchedGw ?? boundNic.GatewayAddresses[0];
             }
 
-            if (failClosed)
+            // Bound NIC is down, or it is up but its gateway cannot be resolved.
+            // Linux tunnels such as tailscale0 and nordlynx often advertise no
+            // GatewayAddresses. Do not fall back to a physical LAN gateway.
+            // A name that is absent entirely still falls back only when the kill switch is off.
+            if (boundNic != null || failClosed)
             {
                 return null;
             }
@@ -372,6 +383,20 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 name.StartsWith("utun", StringComparison.OrdinalIgnoreCase);
     }
 
+    public static bool IsUnprefixedLinuxTunnel(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        return name.Contains("tailscale", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("nordlynx", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("zerotier", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("mullvad", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("proton", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static IPAddress SelectGatewayFromLinuxProcRoute(string interfaceName, IEnumerable<string> procRouteLines)
     {
         return NatPmpRouteGatewayResolver.SelectGatewayFromLinuxProcRoute(interfaceName, procRouteLines);
@@ -386,7 +411,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
                                     ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
-                                    IsVpnInterfaceName(ni.Name);
+                                    IsVpnInterfaceName(ni.Name) ||
+                                    IsUnprefixedLinuxTunnel(ni.Name);
 
         if (!isVpnOrPointToPoint)
         {
@@ -432,8 +458,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             {
                 try
                 {
-                    if (ni.OperationalStatus != OperationalStatus.Up ||
-                        ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
                     {
                         continue;
                     }
@@ -519,6 +544,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     internal IPEndPoint GetLocalEndPointForBoundInterface()
     {
+        if (this.ResolveBoundLocalEndPoint != null)
+        {
+            return this.ResolveBoundLocalEndPoint();
+        }
+
         var iface = this.GetEffectiveBoundInterface();
         if (string.IsNullOrWhiteSpace(iface) ||
             string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) ||
@@ -752,27 +782,13 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return;
             }
 
-            var iface = this.GetEffectiveBoundInterface();
-            var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
-                                    !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
-            var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
-            var localEp = this.GetLocalEndPointForBoundInterface();
-
-            if (hasSpecificBound && failClosed && localEp == null)
+            var currentGateway = this.ResolveGateway();
+            if (this.ShouldSuppressOutboundNatPmp(currentGateway))
             {
-                this.logger.Warn("NAT-PMP renewals skipped: bound interface '{0}' is unavailable and fail-closed kill switch is active.", iface);
                 return;
             }
 
             var now = DateTime.UtcNow;
-            var currentGateway = this.ResolveGateway();
-
-            if (hasSpecificBound && failClosed && currentGateway == null)
-            {
-                this.logger.Warn("NAT-PMP renewals skipped: bound interface '{0}' has no valid gateway and fail-closed kill switch is active.", iface);
-                return;
-            }
 
             foreach (var kvp in this.activeMappings)
             {
@@ -968,6 +984,36 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         return mappingGateway ?? currentGateway;
     }
 
+    private bool ShouldSuppressOutboundNatPmp(IPAddress currentGateway)
+    {
+        var iface = this.GetEffectiveBoundInterface();
+        var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
+                                !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+        var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
+        var localEp = this.GetLocalEndPointForBoundInterface();
+
+        if (hasSpecificBound && localEp == null)
+        {
+            this.logger.Warn("NAT-PMP UDP suppressed: bound interface '{0}' is down or has no local address.", iface);
+            return true;
+        }
+
+        if (failClosed && currentGateway == null)
+        {
+            this.logger.Warn("NAT-PMP UDP suppressed: VPN kill switch is fail-closed and no gateway is available.");
+            return true;
+        }
+
+        if (hasSpecificBound && currentGateway == null)
+        {
+            this.logger.Warn("NAT-PMP UDP suppressed: bound interface '{0}' has no resolvable gateway.", iface);
+            return true;
+        }
+
+        return false;
+    }
+
     internal async Task CheckAndRenewMappingsAsync(IPAddress discoveredGateway = null)
     {
         if (this.isDisposed != 0 || this.isRunning == 0 || this.isSuspended != 0 || this.activeMappings.IsEmpty)
@@ -994,25 +1040,10 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return;
             }
 
-            var iface = this.GetEffectiveBoundInterface();
-            var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
-                                    !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
-            var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
-            var localEp = this.GetLocalEndPointForBoundInterface();
-
-            if (hasSpecificBound && failClosed && localEp == null)
-            {
-                this.logger.Warn("NAT-PMP renewals skipped: bound interface '{0}' is unavailable and fail-closed kill switch is active.", iface);
-                return;
-            }
-
             var now = DateTime.UtcNow;
             var currentGateway = discoveredGateway ?? this.ResolveGateway();
-
-            if (hasSpecificBound && failClosed && currentGateway == null)
+            if (this.ShouldSuppressOutboundNatPmp(currentGateway))
             {
-                this.logger.Warn("NAT-PMP renewals skipped: bound interface '{0}' has no valid gateway and fail-closed kill switch is active.", iface);
                 return;
             }
 
@@ -1282,12 +1313,10 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
                                 !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
                                 !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
-        var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
         var localEp = this.GetLocalEndPointForBoundInterface();
 
-        if (hasSpecificBound && failClosed && localEp == null)
+        if (this.ShouldSuppressOutboundNatPmp(targetGateway) || (hasSpecificBound && localEp == null))
         {
-            this.logger.Warn("NAT-PMP request aborted: bound interface '{0}' is unavailable and fail-closed kill switch is active.", iface);
             return null;
         }
 
@@ -1302,7 +1331,24 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             UdpClient udp = null;
             try
             {
-                udp = localEp != null ? new UdpClient(localEp) : new UdpClient(AddressFamily.InterNetwork);
+                if (hasSpecificBound)
+                {
+                    udp = new UdpClient(AddressFamily.InterNetwork);
+                    udp.Client.Bind(localEp);
+                    try
+                    {
+                        this.BindNatPmpSocketToDevice(udp.Client, iface);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "SO_BINDTODEVICE failed for '{0}'. NAT-PMP socket stays bound to {1}.", iface, localEp);
+                    }
+                }
+                else
+                {
+                    udp = new UdpClient(AddressFamily.InterNetwork);
+                }
+
                 var endpoint = new IPEndPoint(targetGateway, this.gatewayPort);
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -1368,6 +1414,33 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
 
         return null;
+    }
+
+    private void BindNatPmpSocketToDevice(Socket socket, string interfaceName)
+    {
+        var binder = this.BindUdpSocketToDevice ?? this.ApplyLinuxDeviceBinding;
+        binder(socket, interfaceName);
+    }
+
+    private void ApplyLinuxDeviceBinding(Socket socket, string interfaceName)
+    {
+        if (socket == null || string.IsNullOrWhiteSpace(interfaceName))
+        {
+            return;
+        }
+
+        if (!OsInfo.IsLinux && !RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return;
+        }
+
+        var provider = new LinuxBindToDeviceProvider();
+        if (!provider.IsAvailable)
+        {
+            return;
+        }
+
+        provider.BindSocket(socket, interfaceName);
     }
 
     internal void TrackEpoch(IPAddress gateway, uint epoch)
@@ -1479,7 +1552,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                                 !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
         var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
 
-        if (hasSpecificBound && failClosed)
+        if (hasSpecificBound || failClosed)
         {
             return null;
         }

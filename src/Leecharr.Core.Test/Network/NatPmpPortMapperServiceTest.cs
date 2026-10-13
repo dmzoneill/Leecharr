@@ -2,11 +2,13 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -1392,7 +1394,56 @@ public class NatPmpPortMapperServiceTest
         selectedFailClosed.Should().BeNull();
 
         var selectedFailOpen = NatPmpPortMapperService.SelectBestGateway(candidates, boundInterface: "tun0", failClosed: false);
-        selectedFailOpen.Should().Be(IPAddress.Parse("192.168.1.1"));
+        selectedFailOpen.Should().BeNull();
+    }
+
+    [TestCase("tailscale0")]
+    [TestCase("nordlynx")]
+    public void SelectBestGateway_WhenBoundLinuxTunnelHasNoGateway_DoesNotFallBackToLan(string tunnelName)
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            LanCandidate(),
+            new(
+                Name: tunnelName,
+                Description: "Userspace tunnel",
+                Id: tunnelName,
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("100.64.0.2"), IPAddress.Parse("255.255.255.255")) },
+                GatewayAddresses: new List<IPAddress>()),
+        };
+
+        NatPmpPortMapperService.SelectBestGateway(candidates, boundInterface: tunnelName, failClosed: false).Should().BeNull();
+    }
+
+    [Test]
+    public void SelectBestGateway_WhenBoundInterfaceMissingAndKillSwitchOff_FallsBackToPhysical()
+    {
+        var selected = NatPmpPortMapperService.SelectBestGateway(new List<NatPmpNetworkInterfaceCandidate> { LanCandidate() }, boundInterface: "missing0", failClosed: false);
+        selected.Should().Be(IPAddress.Parse("192.168.1.1"));
+    }
+
+    [Test]
+    public void IsUnprefixedLinuxTunnel_MatchesTailscaleAndNordlynx()
+    {
+        NatPmpPortMapperService.IsUnprefixedLinuxTunnel("tailscale0").Should().BeTrue();
+        NatPmpPortMapperService.IsUnprefixedLinuxTunnel("nordlynx").Should().BeTrue();
+        NatPmpPortMapperService.IsUnprefixedLinuxTunnel("eth0").Should().BeFalse();
+        NatPmpPortMapperService.IsVpnInterfaceName("tailscale0").Should().BeFalse();
+        NatPmpPortMapperService.IsVpnInterfaceName("nordlynx").Should().BeFalse();
+    }
+
+    private static NatPmpNetworkInterfaceCandidate LanCandidate()
+    {
+        return new(
+            Name: "eth0",
+            Description: "Intel Ethernet",
+            Id: "eth0",
+            InterfaceType: NetworkInterfaceType.Ethernet,
+            OperationalStatus: OperationalStatus.Up,
+            UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.1.100"), IPAddress.Parse("255.255.255.0")) },
+            GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.1.1") });
     }
 
     [Test]
@@ -1497,5 +1548,114 @@ public class NatPmpPortMapperServiceTest
         };
 
         NatPmpPortMapperService.SelectGatewayFromLinuxProcRoute("tun0", lines).Should().BeNull();
+    }
+
+    [Test]
+    public async Task CheckAndRenewMappingsAsync_WhenBoundInterfaceDown_DoesNotSendUdp()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+        var config = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        config.EnableVpnKillSwitch.Returns(false);
+
+        using var service = new NatPmpPortMapperService(mockPort, "issue798-down0", config);
+        SeedActiveMapping(service, IPAddress.Loopback);
+
+        var received = await RenewAndProbeAsync(service, mockGateway);
+        received.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task CheckAndRenewMappingsAsync_WhenKillSwitchFailClosed_DoesNotSendUdp()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+        var config = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        config.EnableVpnKillSwitch.Returns(true);
+
+        using var service = new NatPmpPortMapperService(mockPort, "issue798-down0", config);
+        service.ResolveBoundLocalEndPoint = () => new IPEndPoint(IPAddress.Loopback, 0);
+        SeedActiveMapping(service, IPAddress.Loopback);
+
+        var received = await RenewAndProbeAsync(service, mockGateway);
+        received.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task GetExternalIpAddressAsync_BindsUdpSocketToBoundInterfaceBeforeSend()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+        var config = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        config.EnableVpnKillSwitch.Returns(false);
+
+        using var service = new NatPmpPortMapperService(mockPort, "tailscale0", config);
+        service.ResolveBoundLocalEndPoint = () => new IPEndPoint(IPAddress.Loopback, 0);
+
+        string boundInterface = null;
+        IPAddress boundAddress = null;
+        service.BindUdpSocketToDevice = (socket, name) =>
+        {
+            boundInterface = name;
+            boundAddress = (socket.LocalEndPoint as IPEndPoint)?.Address;
+        };
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var serverTask = Task.Run(async () =>
+        {
+            var received = await mockGateway.ReceiveAsync(cts.Token);
+            var resp = new byte[12];
+            resp[0] = 0x00;
+            resp[1] = 0x80;
+            resp[8] = 203;
+            resp[9] = 0;
+            resp[10] = 113;
+            resp[11] = 1;
+            await mockGateway.SendAsync(resp, resp.Length, received.RemoteEndPoint);
+        });
+
+        var ip = await service.GetExternalIpAddressAsync(IPAddress.Loopback, cts.Token);
+        await serverTask;
+
+        ip.Should().NotBeNull();
+        boundInterface.Should().Be("tailscale0");
+        boundAddress.Should().Be(IPAddress.Loopback);
+    }
+
+    private static void SeedActiveMapping(NatPmpPortMapperService service, IPAddress gateway)
+    {
+        var field = typeof(NatPmpPortMapperService).GetField("activeMappings", BindingFlags.NonPublic | BindingFlags.Instance);
+        var mappings = (ConcurrentDictionary<(int InternalPort, NatPmpProtocol Protocol), ActivePortMapping>)field.GetValue(service);
+        mappings[(51413, NatPmpProtocol.Tcp)] = new ActivePortMapping
+        {
+            InternalPort = 51413,
+            Protocol = NatPmpProtocol.Tcp,
+            ExternalPort = 51413,
+            LifetimeSeconds = 3600,
+            GatewayAddress = gateway,
+            NextRenewalUtc = DateTime.UtcNow.AddSeconds(-5),
+        };
+    }
+
+    private static async Task<bool> RenewAndProbeAsync(NatPmpPortMapperService service, UdpClient mockGateway)
+    {
+        var received = false;
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        var receiveTask = Task.Run(async () =>
+        {
+            try
+            {
+                await mockGateway.ReceiveAsync(cts.Token);
+                received = true;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        });
+
+        await service.CheckAndRenewMappingsAsync();
+        cts.Cancel();
+        await receiveTask;
+        return received;
     }
 }

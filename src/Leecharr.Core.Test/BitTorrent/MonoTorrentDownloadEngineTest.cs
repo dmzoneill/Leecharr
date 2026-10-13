@@ -3624,6 +3624,23 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public void OnVpnDropped_SuspendsNatPmpRenewals()
+    {
+        var mockNatPmp = Substitute.For<INatPmpPortMapperService>();
+        using var vpnEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            natPmpPortMapperService: mockNatPmp);
+
+        vpnEngine.OnVpnDropped("tun0");
+
+        mockNatPmp.Received(1).Suspend();
+    }
+
+    [Test]
     public async Task BoundSocketConnector_WhenLocalIpv4IsNull_ThrowsNetworkUnreachable()
     {
         var connector = new BoundSocketConnector(() => (IPAddress)null, () => IPAddress.IPv6Any);
