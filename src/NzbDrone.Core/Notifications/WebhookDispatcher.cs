@@ -960,11 +960,7 @@ public class WebhookDispatcher : IWebhookDispatcher
             var newDict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             foreach (var kvp in dict)
             {
-                if (!string.Equals(kvp.Key, "parse_mode", StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(kvp.Key, "parseMode", StringComparison.OrdinalIgnoreCase))
-                {
-                    newDict[kvp.Key] = kvp.Value;
-                }
+                AddPlainTextField(newDict, kvp.Key, kvp.Value);
             }
 
             return newDict;
@@ -975,11 +971,14 @@ public class WebhookDispatcher : IWebhookDispatcher
             var newDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var kvp in stringDict)
             {
-                if (!string.Equals(kvp.Key, "parse_mode", StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(kvp.Key, "parseMode", StringComparison.OrdinalIgnoreCase))
+                if (IsParseModeKey(kvp.Key))
                 {
-                    newDict[kvp.Key] = kvp.Value;
+                    continue;
                 }
+
+                newDict[kvp.Key] = IsTelegramTextKey(kvp.Key)
+                    ? UnescapeTelegramMarkdown(kvp.Value)
+                    : kvp.Value;
             }
 
             return newDict;
@@ -992,16 +991,7 @@ public class WebhookDispatcher : IWebhookDispatcher
                 using var doc = JsonDocument.Parse(jsonStr);
                 if (doc.RootElement.ValueKind == JsonValueKind.Object)
                 {
-                    var dictFromJson = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var prop in doc.RootElement.EnumerateObject())
-                    {
-                        if (!prop.NameEquals("parse_mode") && !prop.NameEquals("parseMode"))
-                        {
-                            dictFromJson[prop.Name] = prop.Value.Clone();
-                        }
-                    }
-
-                    return dictFromJson;
+                    return CopyObjectWithoutParseMode(doc.RootElement);
                 }
             }
             catch (Exception ex)
@@ -1016,16 +1006,7 @@ public class WebhookDispatcher : IWebhookDispatcher
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
-                var dictFromJson = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                foreach (var prop in doc.RootElement.EnumerateObject())
-                {
-                    if (!prop.NameEquals("parse_mode") && !prop.NameEquals("parseMode"))
-                    {
-                        dictFromJson[prop.Name] = prop.Value.Clone();
-                    }
-                }
-
-                return dictFromJson;
+                return CopyObjectWithoutParseMode(doc.RootElement);
             }
         }
         catch (Exception ex)
@@ -1034,6 +1015,81 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
 
         return payload;
+    }
+
+    internal static string UnescapeTelegramMarkdown(string text)
+    {
+        if (string.IsNullOrEmpty(text) || text.IndexOf('\\') < 0)
+        {
+            return text ?? string.Empty;
+        }
+
+        var sb = new StringBuilder(text.Length);
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] == '\\' && i + 1 < text.Length)
+            {
+                sb.Append(text[i + 1]);
+                i++;
+                continue;
+            }
+
+            sb.Append(text[i]);
+        }
+
+        return sb.ToString();
+    }
+
+    private static bool IsParseModeKey(string key)
+    {
+        return string.Equals(key, "parse_mode", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(key, "parseMode", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTelegramTextKey(string key)
+    {
+        return string.Equals(key, "text", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AddPlainTextField(IDictionary<string, object> target, string key, object value)
+    {
+        if (IsParseModeKey(key))
+        {
+            return;
+        }
+
+        target[key] = IsTelegramTextKey(key) ? UnescapeTelegramText(value) : value;
+    }
+
+    private static Dictionary<string, object> CopyObjectWithoutParseMode(JsonElement root)
+    {
+        var dictFromJson = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (var prop in root.EnumerateObject())
+        {
+            if (IsParseModeKey(prop.Name))
+            {
+                continue;
+            }
+
+            dictFromJson[prop.Name] = IsTelegramTextKey(prop.Name)
+                ? UnescapeTelegramText(prop.Value.Clone())
+                : prop.Value.Clone();
+        }
+
+        return dictFromJson;
+    }
+
+    private static object UnescapeTelegramText(object value)
+    {
+        switch (value)
+        {
+            case string text:
+                return UnescapeTelegramMarkdown(text);
+            case JsonElement element when element.ValueKind == JsonValueKind.String:
+                return UnescapeTelegramMarkdown(element.GetString() ?? string.Empty);
+            default:
+                return value;
+        }
     }
 
     private static async Task<string> ExtractBodySnippetAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)

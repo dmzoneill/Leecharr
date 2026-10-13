@@ -1435,7 +1435,7 @@ public static class NotificationPayloadBuilder
         var sb = new StringBuilder(text.Length * 2);
         foreach (var c in text)
         {
-            if (c is '_' or '*' or '[' or ']' or '`' or '\\')
+            if (c is '_' or '*' or '[' or ']' or '(' or ')' or '`' or '\\')
             {
                 sb.Append('\\');
             }

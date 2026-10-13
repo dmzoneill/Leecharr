@@ -811,8 +811,8 @@ public class NotificationEventHandlerTest
             "https://api.telegram.org/botbot-token-abc/sendMessage",
             Arg.Is<object>(payload =>
                 payload != null &&
-                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movie.Title.(2024).\[1080p\].x264-GROUP") &&
-                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movies (HD)") &&
+                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movie.Title.\(2024\).\[1080p\].x264-GROUP") &&
+                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movies \(HD\)") &&
                 ((Dictionary<string, object>)payload)["parse_mode"].ToString() == "Markdown"),
             Arg.Any<string>(),
             HttpMethod.Post);

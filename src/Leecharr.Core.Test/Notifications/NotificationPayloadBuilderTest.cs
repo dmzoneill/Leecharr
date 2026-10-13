@@ -305,7 +305,7 @@ public class NotificationPayloadBuilderTest
     }
 
     [Test]
-    public void BuildProviderPayload_Telegram_DoesNotEscapeParenthesesInLegacyMarkdown()
+    public void BuildProviderPayload_Telegram_EscapesParenthesesInLegacyMarkdown()
     {
         var torrent = new Torrent
         {
@@ -325,14 +325,21 @@ public class NotificationPayloadBuilderTest
         var text = dict["text"].ToString();
         text.Should().NotBeNull();
 
-        // Parentheses must NOT be escaped
-        text.Should().Contain("(2024)");
-        text.Should().Contain("Linux (Distros)");
-        text.Should().NotContain(@"\(");
-        text.Should().NotContain(@"\)");
-
-        // Reserved characters like [ and ] must be escaped
+        text.Should().Contain(@"\(2024\)");
+        text.Should().Contain(@"Linux \(Distros\)");
+        text.Should().NotContain("(2024)");
+        text.Should().NotContain("Linux (Distros)");
         text.Should().Contain(@"\[x86\_64\]");
+    }
+
+    [TestCase(null, "")]
+    [TestCase("", "")]
+    [TestCase("Movie.Name.(2024).1080p", @"Movie.Name.\(2024\).1080p")]
+    [TestCase("Test_Name*With[Brackets]And`Code`", @"Test\_Name\*With\[Brackets\]And\`Code\`")]
+    [TestCase(@"C:\Path", @"C:\\Path")]
+    public void EscapeTelegramMarkdown_EscapesLegacyMarkdownCharacters(string input, string expected)
+    {
+        NotificationPayloadBuilder.EscapeTelegramMarkdown(input).Should().Be(expected);
     }
 
     [Test]

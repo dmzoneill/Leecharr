@@ -201,6 +201,83 @@ public class WebhookDispatcherTest
     }
 
     [Test]
+    public async Task DispatchAsync_WhenTelegramCannotParseEntities_RetriesWithoutParseModeOrBackslashes()
+    {
+        var attempts = 0;
+        this.handler.ResponseFactory = _ =>
+        {
+            attempts++;
+            if (attempts == 1)
+            {
+                return new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = new StringContent("{\"ok\":false,\"description\":\"Bad Request: can't parse entities\"}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        };
+
+        var payload = new Dictionary<string, object>
+        {
+            ["text"] = "*Leecharr \\[OnGrab\\]*\n*Movie.Name.\\(2024\\)*",
+            ["parse_mode"] = "Markdown",
+            ["chat_id"] = "12345",
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", payload);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(2);
+
+        var retryBody = await this.handler.SentRequests[1].Content!.ReadAsStringAsync();
+        retryBody.Should().NotContain("parse_mode");
+        retryBody.Should().NotContain("parseMode");
+        retryBody.Should().Contain("Movie.Name.(2024)");
+        retryBody.Should().Contain("[OnGrab]");
+        retryBody.Should().NotContain(@"\(");
+        retryBody.Should().NotContain(@"\[");
+        retryBody.Should().Contain("12345");
+    }
+
+    [Test]
+    public void RemoveParseMode_DropsParseModeAndUnescapesText()
+    {
+        var payload = new Dictionary<string, object>
+        {
+            ["text"] = @"Movie.Name.\(2024\) and C:\\Path",
+            ["parse_mode"] = "Markdown",
+            ["chat_id"] = "12345",
+        };
+
+        var result = WebhookDispatcher.RemoveParseMode(payload).Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        result.Should().NotContainKey("parse_mode");
+        result["chat_id"].Should().Be("12345");
+        result["text"].Should().Be(@"Movie.Name.(2024) and C:\Path");
+    }
+
+    [Test]
+    public void RemoveParseMode_UnescapesStringDictionaryAndJsonText()
+    {
+        var stringPayload = new Dictionary<string, string>
+        {
+            ["text"] = @"Name\_2024",
+            ["parseMode"] = "Markdown",
+        };
+
+        var stringResult = WebhookDispatcher.RemoveParseMode(stringPayload).Should().BeOfType<Dictionary<string, string>>().Subject;
+        stringResult.Should().NotContainKey("parseMode");
+        stringResult["text"].Should().Be("Name_2024");
+
+        var jsonPayload = "{\"text\":\"Movie.Name.\\(2024\\)\",\"parse_mode\":\"Markdown\",\"chat_id\":\"9\"}";
+        var jsonResult = WebhookDispatcher.RemoveParseMode(jsonPayload).Should().BeOfType<Dictionary<string, object>>().Subject;
+        jsonResult.Should().NotContainKey("parse_mode");
+        jsonResult["text"].Should().Be("Movie.Name.(2024)");
+        ((JsonElement)jsonResult["chat_id"]).GetString().Should().Be("9");
+    }
+
+    [Test]
     public async Task DispatchAsync_WhenCustomHeadersJsonInvalid_StillDispatchesPayloadSuccessfully()
     {
         var invalidHeadersJson = "{ not-a-valid-json }";
