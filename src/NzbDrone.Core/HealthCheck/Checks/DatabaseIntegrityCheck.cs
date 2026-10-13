@@ -73,8 +73,8 @@ SELECT COUNT(*)
 FROM pg_catalog.pg_class c
 INNER JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
-  AND c.relkind IN ('r', 'p')
-  AND c.relname IN ('VersionInfo', 'Config', 'Torrents');";
+    AND c.relkind IN ('r', 'p')
+    AND c.relname IN ('VersionInfo', 'Config', 'Torrents');";
         var coreTableCount = Convert.ToInt32(cmd.ExecuteScalar());
         if (coreTableCount < ExpectedCoreTableCount)
         {

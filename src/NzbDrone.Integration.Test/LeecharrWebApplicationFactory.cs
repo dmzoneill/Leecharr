@@ -209,34 +209,6 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
         }
     }
 
-    private void ConfigureEmbeddedTrackerHttpPort()
-    {
-        try
-        {
-            if (!Uri.TryCreate(this.BaseUrl, UriKind.Absolute, out var baseUri) || baseUri.Port <= 0)
-            {
-                return;
-            }
-
-            var configService = this.app.Services.GetService<IConfigService>();
-            if (configService == null)
-            {
-                return;
-            }
-
-            configService.SaveConfigDictionary(new Dictionary<string, object>
-            {
-                ["TrackerServerEnabled"] = true,
-                ["TrackerHttpEnabled"] = true,
-                ["TrackerHttpPort"] = baseUri.Port,
-            });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ConfigureEmbeddedTrackerHttpPort] Warning: {ex.Message}");
-        }
-    }
-
     private void LoadApiKey()
     {
         try

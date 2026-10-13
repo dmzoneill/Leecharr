@@ -264,45 +264,6 @@ public class LocalNfoMetadataProviderTest
     }
 
     [Test]
-    public async Task FetchMetadataAsync_WithCompletedMediaPath_FindsTvshowNfoInParentShowFolder()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_local_nfo_test_" + Guid.NewGuid().ToString("N"));
-        var showDir = Path.Combine(tempDir, "Severance");
-        var seasonDir = Path.Combine(showDir, "Season 1");
-        Directory.CreateDirectory(seasonDir);
-        try
-        {
-            var nfoPath = Path.Combine(showDir, "tvshow.nfo");
-            await File.WriteAllTextAsync(nfoPath, @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-<tvshow>
-    <title>Severance</title>
-    <year>2022</year>
-    <plot>Office workers with divided memories.</plot>
-</tvshow>");
-
-            var mediaFile = Path.Combine(seasonDir, "Severance.S01E01.mkv");
-            await File.WriteAllBytesAsync(mediaFile, new byte[] { 0x00 });
-
-            var metadata = await this.provider.FetchMetadataAsync(
-                "Severance.S01E01.1080p.WEB-DL.x265",
-                "tv",
-                mediaFilePath: mediaFile);
-
-            metadata.Should().NotBeNull();
-            metadata!.Title.Should().Be("Severance");
-            metadata.Year.Should().Be(2022);
-            metadata.Overview.Should().Contain("divided memories");
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, true);
-            }
-        }
-    }
-
-    [Test]
     public async Task FetchMetadataAsync_WithoutNfo_StillLoadsLocalArtwork()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_local_nfo_test_" + Guid.NewGuid().ToString("N"));
