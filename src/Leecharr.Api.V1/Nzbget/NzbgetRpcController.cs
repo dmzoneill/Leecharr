@@ -339,7 +339,7 @@ public class NzbgetRpcController : ControllerBase
                             }
                             else if (command == "groupmoveoffset")
                             {
-                                await this.torrentService.MoveQueueAsync(targetId, offset > 0 ? "down" : "up");
+                                await this.MoveQueueByOffsetAsync(targetId, offset);
                             }
                             else if (command == "groupsetcategory")
                             {
@@ -634,6 +634,23 @@ public class NzbgetRpcController : ControllerBase
         return 0;
     }
 
+    private async Task MoveQueueByOffsetAsync(int targetId, int offset)
+    {
+        if (offset == 0)
+        {
+            return;
+        }
+
+        // MoveQueueAsync steps a single slot. NZBGet Offset is the relative slot count:
+        // positive moves down, negative moves up.
+        var direction = offset > 0 ? "down" : "up";
+        var steps = Math.Abs((long)offset);
+        for (var step = 0L; step < steps; step++)
+        {
+            await this.torrentService.MoveQueueAsync(targetId, direction);
+        }
+    }
+
     private async Task ExecuteEditQueueAsync(List<object> paramValues)
     {
         if (paramValues.Count < 2)
@@ -708,7 +725,7 @@ public class NzbgetRpcController : ControllerBase
             }
             else if (command == "groupmoveoffset")
             {
-                await this.torrentService.MoveQueueAsync(targetId, offset > 0 ? "down" : "up");
+                await this.MoveQueueByOffsetAsync(targetId, offset);
             }
             else if (command == "groupsetcategory")
             {

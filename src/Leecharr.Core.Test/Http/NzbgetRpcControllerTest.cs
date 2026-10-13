@@ -913,6 +913,91 @@ public class NzbgetRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_EditQueue_GroupMoveOffset_NegativeOffsetMovesUpByMagnitude()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[\"GroupMoveOffset\", -3, \"\", [77]]");
+        var request = new NzbgetRequest
+        {
+            Method = "editqueue",
+            Params = doc.RootElement,
+            Id = 62,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(3).MoveQueueAsync(77, "up");
+        await this.torrentService.DidNotReceive().MoveQueueAsync(77, "down");
+    }
+
+    [Test]
+    public async Task HandleRpc_EditQueue_GroupMoveOffset_ZeroOffsetDoesNotMove()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[\"GroupMoveOffset\", 0, \"\", [77]]");
+        var request = new NzbgetRequest
+        {
+            Method = "editqueue",
+            Params = doc.RootElement,
+            Id = 63,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.DidNotReceive().MoveQueueAsync(Arg.Any<int>(), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EditQueue_GroupMoveOffset_MovesDownByOffset()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>GroupMoveOffset</string></value></param><param><value><int>2</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>77</int></value></data></array></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(2).MoveQueueAsync(77, "down");
+        await this.torrentService.DidNotReceive().MoveQueueAsync(77, "up");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EditQueue_GroupMoveOffset_NegativeOffsetMovesUpByMagnitude()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>GroupMoveOffset</string></value></param><param><value><int>-3</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>77</int></value></data></array></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(3).MoveQueueAsync(77, "up");
+        await this.torrentService.DidNotReceive().MoveQueueAsync(77, "down");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EditQueue_GroupMoveOffset_ZeroOffsetDoesNotMove()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>editqueue</methodName><params><param><value><string>GroupMoveOffset</string></value></param><param><value><int>0</int></value></param><param><value><string></string></value></param><param><value><array><data><value><int>77</int></value></data></array></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.DidNotReceive().MoveQueueAsync(Arg.Any<int>(), Arg.Any<string>());
+    }
+
+    [Test]
     public async Task HandleRpc_ListGroups_ReturnsActiveTorrentsMappedToNZBGetGroups()
     {
         var context = new DefaultHttpContext();
@@ -1260,13 +1345,15 @@ public class NzbgetRpcControllerTest
             await this.torrentService.Received(1).MoveQueueAsync(77, "down");
         }
 
-        // GroupMoveOffset with positive offset
+        // GroupMoveOffset with positive offset steps once per slot, apart from the earlier GroupMoveDown.
+        this.torrentService.ClearReceivedCalls();
         var moveOffsetJson = "{\"method\":\"editqueue\",\"params\":[\"groupmoveoffset\",2,\"\",[77]],\"id\":26}";
         using (var moveOffsetDoc = JsonDocument.Parse(moveOffsetJson))
         {
             var req = new NzbgetRequest { Method = "editqueue", Params = moveOffsetDoc.RootElement.GetProperty("params"), Id = 26 };
             await this.controller.HandleRpc(req);
             await this.torrentService.Received(2).MoveQueueAsync(77, "down");
+            await this.torrentService.DidNotReceive().MoveQueueAsync(77, "up");
         }
 
         // GroupSetCategory
