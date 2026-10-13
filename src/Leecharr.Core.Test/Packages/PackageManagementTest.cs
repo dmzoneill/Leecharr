@@ -512,7 +512,8 @@ public class PackageManagementTest
         await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
         await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
         {
-            // Highly compressible payload of zeros: 2 MiB
+            // 2 MiB of zeros compresses far above the default 50:1 limit.
+            // A limit below 1 would pass even when the computed ratio is stuck at 1.
             var payloadData = new byte[2 * 1024 * 1024];
             using var payloadMs = new MemoryStream(payloadData);
             var entry = new PaxTarEntry(TarEntryType.RegularFile, "payload/0123456789abcdef0123456789abcdef01234567/zero.bin")
@@ -525,12 +526,70 @@ public class PackageManagementTest
         memoryStream.Position = 0;
         var options = new PackageImportOptions
         {
-            MaxCompressionRatio = 0.5,
+            MaxCompressionRatio = 50,
             MinBytesForRatioCheck = 1024 * 1024, // 1 MiB
         };
 
         var act = async () => await this.packageImportService.ImportPackageAsync(memoryStream, options);
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Suspicious compression ratio*");
+    }
+
+    [Test]
+    public async Task ImportPackageAsync_IncompressiblePayload_AcceptsDefaultCompressionRatio()
+    {
+        const int payloadLength = 2 * 1024 * 1024;
+        using var memoryStream = new MemoryStream();
+        await using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, leaveOpen: true))
+        await using (var tarWriter = new TarWriter(gzipStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var payloadData = new byte[payloadLength];
+            var random = new Random(1060);
+            random.NextBytes(payloadData);
+            using var payloadMs = new MemoryStream(payloadData);
+            var entry = new PaxTarEntry(TarEntryType.RegularFile, "payload/0123456789abcdef0123456789abcdef01234567/random.bin")
+            {
+                DataStream = payloadMs,
+            };
+            await tarWriter.WriteEntryAsync(entry);
+        }
+
+        memoryStream.Position = 0;
+        var options = new PackageImportOptions
+        {
+            MaxCompressionRatio = 50,
+            MinBytesForRatioCheck = 1024 * 1024,
+            RestoreTorrents = false,
+        };
+
+        var result = await this.packageImportService.ImportPackageAsync(memoryStream, options);
+        result.TotalBytesExtracted.Should().Be(payloadLength);
+    }
+
+    [Test]
+    public async Task ImportPackageAsync_UncompressedTarPayload_AcceptsDefaultCompressionRatio()
+    {
+        const int payloadLength = 2 * 1024 * 1024;
+        using var memoryStream = new MemoryStream();
+        await using (var tarWriter = new TarWriter(memoryStream, TarEntryFormat.Pax, leaveOpen: true))
+        {
+            var payloadData = new byte[payloadLength];
+            using var payloadMs = new MemoryStream(payloadData);
+            await tarWriter.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, "payload/0123456789abcdef0123456789abcdef01234567/plain.bin")
+            {
+                DataStream = payloadMs,
+            });
+        }
+
+        memoryStream.Position = 0;
+        var options = new PackageImportOptions
+        {
+            MaxCompressionRatio = 50,
+            MinBytesForRatioCheck = 1024 * 1024,
+            RestoreTorrents = false,
+        };
+
+        var result = await this.packageImportService.ImportPackageAsync(memoryStream, options);
+        result.TotalBytesExtracted.Should().Be(payloadLength);
     }
 
     [Test]

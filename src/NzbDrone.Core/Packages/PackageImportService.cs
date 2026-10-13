@@ -86,10 +86,12 @@ public class PackageImportService : IPackageImportService
             var readHeader = await archiveStream.ReadAsync(header.AsMemory(0, 2), cancellationToken);
             var isGzip = readHeader == 2 && header[0] == 0x1F && header[1] == 0x8B;
 
+            Stream compressedSource;
             Stream effectiveStream;
             if (archiveStream.CanSeek)
             {
                 archiveStream.Position = 0;
+                compressedSource = archiveStream;
                 effectiveStream = isGzip ? new GZipStream(archiveStream, CompressionMode.Decompress, leaveOpen: true) : archiveStream;
             }
             else
@@ -98,6 +100,7 @@ public class PackageImportService : IPackageImportService
                 await ms.WriteAsync(header.AsMemory(0, readHeader), cancellationToken);
                 await archiveStream.CopyToAsync(ms, cancellationToken);
                 ms.Position = 0;
+                compressedSource = ms;
                 effectiveStream = isGzip ? new GZipStream(ms, CompressionMode.Decompress, leaveOpen: true) : ms;
             }
 
@@ -105,7 +108,6 @@ public class PackageImportService : IPackageImportService
             var metainfoFiles = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
             var extractedPayloadFiles = new List<string>();
             long totalExtractedBytes = 0;
-            long totalReadArchiveBytes = 0;
 
             await using (effectiveStream)
             {
@@ -211,13 +213,14 @@ public class PackageImportService : IPackageImportService
                             while ((read = await entry.DataStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
                             {
                                 totalExtractedBytes += read;
-                                totalReadArchiveBytes += read;
 
                                 if (totalExtractedBytes > effectiveMaxBytes)
                                 {
                                     throw new InvalidOperationException($"Package payload exceeds maximum extraction limit of {effectiveMaxBytes} bytes.");
                                 }
 
+                                // entry.DataStream is already decompressed. The denominator is bytes read from the archive.
+                                var totalReadArchiveBytes = compressedSource.Position;
                                 if (totalExtractedBytes > minBytesForRatioCheck && totalReadArchiveBytes > 0)
                                 {
                                     var ratio = (double)totalExtractedBytes / totalReadArchiveBytes;
