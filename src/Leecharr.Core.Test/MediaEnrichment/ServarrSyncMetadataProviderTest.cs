@@ -408,6 +408,123 @@ public class ServarrSyncMetadataProviderTest
     }
 
     [Test]
+    public async Task FetchMetadataAsync_WhenCorrelatingFromSonarrQueue_RequestsFullPageAndUnknownSeriesItems()
+    {
+        string queueUri = null!;
+        var queueJson = @"{""records"":[]}";
+        var lookupJson = @"[{ ""title"": ""Fallback Show"", ""year"": 2020 }]";
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri!.ToString();
+            if (uri.Contains("/api/v3/queue"))
+            {
+                queueUri = uri;
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(queueJson, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (uri.Contains("/api/v3/history"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(@"{""records"":[]}", Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (uri.Contains("/api/v3/series/lookup"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(lookupJson, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new ServarrSyncMetadataProvider(this.arrRepository, httpClient);
+
+        var conn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://127.0.0.1:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+        };
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition> { conn });
+
+        await provider.FetchMetadataAsync("Fallback Show S01E01", "tv", 2020, "DEADBEEF");
+
+        queueUri.Should().NotBeNull();
+        queueUri.Should().Contain("page=1");
+        queueUri.Should().Contain("pageSize=100");
+        queueUri.Should().Contain("includeUnknownSeriesItems=true");
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WhenCorrelatingFromRadarrQueue_RequestsFullPageAndUnknownMovieItems()
+    {
+        string queueUri = null!;
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri!.ToString();
+            if (uri.Contains("/api/v3/queue"))
+            {
+                queueUri = uri;
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(@"{""records"":[]}", Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (uri.Contains("/api/v3/history"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(@"{""records"":[]}", Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (uri.Contains("/api/v3/movie/lookup"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(@"[{ ""title"": ""Fallback Movie"", ""year"": 2021 }]", Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new ServarrSyncMetadataProvider(this.arrRepository, httpClient);
+
+        var conn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Radarr",
+            ArrType = "Radarr",
+            Url = "http://127.0.0.1:7878",
+            ApiKey = "radarr-key",
+            Enable = true,
+        };
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition> { conn });
+
+        await provider.FetchMetadataAsync("Fallback Movie 2021", "movies", 2021, "CAFEBABE");
+
+        queueUri.Should().NotBeNull();
+        queueUri.Should().Contain("pageSize=100");
+        queueUri.Should().Contain("includeUnknownMovieItems=true");
+    }
+
+    [Test]
     public async Task FetchMetadataAsync_WhenHistoryMatchesInfoHash_CorrelatesExactMovieAndPopulatesArrMediaId()
     {
         var historyJson = @"{

@@ -209,8 +209,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var baseUrl = conn.Url.TrimEnd('/');
         var isMusic = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase);
 
-        // 1. Query /queue
-        var queueEndpoint = isMusic ? $"{baseUrl}/api/v1/queue" : $"{baseUrl}/api/v3/queue";
+        // 1. Query /queue (match history page size; include unlinked grabs so downloadId/hash rows are visible)
+        var queueEndpoint = BuildQueueEndpoint(baseUrl, conn);
         var queueMatch = await this.QueryAndMatchEndpointAsync(conn, queueEndpoint, infoHash, rawTitle, cleanTitle);
         if (queueMatch != null)
         {
@@ -226,6 +226,24 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         }
 
         return null;
+    }
+
+    private static string BuildQueueEndpoint(string baseUrl, ArrConnectionDefinition conn)
+    {
+        var isMusic = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase);
+        var isMovie = string.Equals(conn.ArrType, "Radarr", StringComparison.OrdinalIgnoreCase);
+        var path = isMusic ? "api/v1/queue" : "api/v3/queue";
+        var query = "page=1&pageSize=100";
+        if (isMovie)
+        {
+            query += "&includeUnknownMovieItems=true";
+        }
+        else if (!isMusic)
+        {
+            query += "&includeUnknownSeriesItems=true";
+        }
+
+        return $"{baseUrl}/{path}?{query}";
     }
 
     private async Task<MediaMetadata> QueryAndMatchEndpointAsync(
