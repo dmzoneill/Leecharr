@@ -39,6 +39,63 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(2));
 
+    private static readonly Regex SeasonFolderRegex = new(
+        @"(?i)^(?:season|s)[ ._-]*\d{1,2}$",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex ResolutionFolderRegex = new(
+        @"(?i)^(?:\d{3,4}p|4k|uhd)$",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex YearFolderRegex = new(
+        @"^(?:19|20)\d{2}$",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex SeriesSeparatorRegex = new(
+        @"[._-]+",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex SeriesWhitespaceRegex = new(
+        @"\s+",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Regex TrailingYearRegex = new(
+        @"\s+\(?(?:19|20)\d{2}\)?$",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly HashSet<string> IgnorableSeriesFolders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "sub",
+        "subs",
+        "subtitle",
+        "subtitles",
+        "extra",
+        "extras",
+        "bluray",
+        "blu-ray",
+        "bdrip",
+        "brrip",
+        "web",
+        "webrip",
+        "web-dl",
+        "webdl",
+        "hdtv",
+        "dvdrip",
+        "dvd",
+        "remux",
+        "x264",
+        "x265",
+        "h264",
+        "h265",
+        "hevc",
+    };
+
     private static readonly Regex TrackIndexPrefixRegex = new(
         @"^(?:\d+[\s._-]+)+",
         RegexOptions.Compiled,
@@ -101,7 +158,8 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
         var videoPath = Normalize(videoFile.Path);
         var videoDir = GetDirectory(videoPath);
         var videoStem = Path.GetFileNameWithoutExtension(videoPath);
-        var videoEp = ExtractEpisodeCode(videoStem);
+        var videoEp = ExtractEpisodeCodeFromFileOrPath(videoPath);
+        var videoSeries = ExtractSeriesKey(videoPath);
 
         var matched = new List<TorrentFile>();
 
@@ -110,18 +168,23 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
             var subPath = Normalize(sub.Path);
             var subDir = GetDirectory(subPath);
             var subStem = Path.GetFileNameWithoutExtension(subPath);
-            var subEp = ExtractEpisodeCode(subPath);
+            var subEp = ExtractEpisodeCodeFromFileOrPath(subPath);
+            var subSeries = ExtractSeriesKey(subPath);
 
-            // 1. Episode mismatch guard
+            // 1. Episode codes must agree, and a shared code still needs the same series title.
             if (!string.IsNullOrEmpty(videoEp) && !string.IsNullOrEmpty(subEp))
             {
-                if (!string.Equals(videoEp, subEp, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(videoEp, subEp, StringComparison.OrdinalIgnoreCase) ||
+                    SeriesKeysConflict(videoSeries, subSeries))
                 {
-                    continue; // Belongs to a different episode
+                    continue;
                 }
 
-                matched.Add(sub);
-                continue;
+                if (SeriesKeysMatch(videoSeries, subSeries))
+                {
+                    matched.Add(sub);
+                    continue;
+                }
             }
 
             // 2. Exact or prefix stem match
@@ -141,7 +204,10 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
                 if (subPath.Contains("/" + videoEp + "/", StringComparison.OrdinalIgnoreCase) ||
                     subPath.Contains("/" + videoStem + "/", StringComparison.OrdinalIgnoreCase) ||
                     subStem.StartsWith(videoStem, StringComparison.OrdinalIgnoreCase) ||
-                    (isSingleVideo && string.IsNullOrEmpty(subEp)))
+                    (isSingleVideo && string.IsNullOrEmpty(subEp)) ||
+                    (!string.IsNullOrEmpty(videoEp) &&
+                     string.Equals(videoEp, subEp, StringComparison.OrdinalIgnoreCase) &&
+                     !SeriesKeysConflict(videoSeries, subSeries)))
                 {
                     matched.Add(sub);
                     continue;
@@ -168,7 +234,8 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
                     }
                 }
                 else if (!string.IsNullOrEmpty(videoEp) &&
-                         string.Equals(subStemEp, videoEp, StringComparison.OrdinalIgnoreCase))
+                         string.Equals(subStemEp, videoEp, StringComparison.OrdinalIgnoreCase) &&
+                         !SeriesKeysConflict(videoSeries, subSeries))
                 {
                     matched.Add(sub);
                     continue;
@@ -368,6 +435,164 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
 
         entry = null;
         return false;
+    }
+
+    private static string ExtractEpisodeCodeFromFileOrPath(string path)
+    {
+        var normalized = Normalize(path);
+        var fromFile = ExtractEpisodeCode(Path.GetFileName(normalized));
+        if (!string.IsNullOrEmpty(fromFile))
+        {
+            return fromFile;
+        }
+
+        return ExtractEpisodeCode(normalized);
+    }
+
+    private static bool SeriesKeysConflict(string videoSeries, string subSeries)
+    {
+        return !string.IsNullOrEmpty(videoSeries) &&
+               !string.IsNullOrEmpty(subSeries) &&
+               !string.Equals(videoSeries, subSeries, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool SeriesKeysMatch(string videoSeries, string subSeries)
+    {
+        return !string.IsNullOrEmpty(videoSeries) &&
+               string.Equals(videoSeries, subSeries, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ExtractSeriesKey(string path)
+    {
+        var normalized = Normalize(path);
+        var fromFile = SeriesKeyBeforeEpisode(Path.GetFileNameWithoutExtension(normalized));
+        if (!string.IsNullOrEmpty(fromFile))
+        {
+            return fromFile;
+        }
+
+        var dir = GetDirectory(normalized);
+        while (!string.IsNullOrEmpty(dir))
+        {
+            var folder = Path.GetFileName(dir.TrimEnd('/'));
+            if (!IsIgnorableSeriesFolder(folder))
+            {
+                var fromFolder = SeriesKeyBeforeEpisode(folder);
+                if (!string.IsNullOrEmpty(fromFolder))
+                {
+                    return fromFolder;
+                }
+
+                var folderKey = NormalizeSeriesKey(folder);
+                if (!string.IsNullOrEmpty(folderKey))
+                {
+                    return folderKey;
+                }
+            }
+
+            var parent = GetDirectory(dir);
+            if (string.IsNullOrEmpty(parent) || string.Equals(parent, dir, StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            dir = parent;
+        }
+
+        return null;
+    }
+
+    private static string SeriesKeyBeforeEpisode(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var match = EpisodeRegex.Match(text);
+        if (!match.Success || match.Index == 0)
+        {
+            return null;
+        }
+
+        return NormalizeSeriesKey(text.Substring(0, match.Index));
+    }
+
+    private static string NormalizeSeriesKey(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var spaced = SeriesSeparatorRegex.Replace(raw, " ");
+        spaced = SeriesWhitespaceRegex.Replace(spaced, " ").Trim();
+        spaced = TrailingYearRegex.Replace(spaced, string.Empty).Trim();
+        if (spaced.Length == 0)
+        {
+            return null;
+        }
+
+        spaced = StripEdgeNonSeriesTokens(spaced);
+        if (string.IsNullOrEmpty(spaced))
+        {
+            return null;
+        }
+
+        spaced = TrailingYearRegex.Replace(spaced, string.Empty).Trim();
+        return spaced.Length == 0 ? null : spaced.ToLowerInvariant();
+    }
+
+    private static string StripEdgeNonSeriesTokens(string spaced)
+    {
+        var parts = spaced.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var start = 0;
+        var end = parts.Length;
+        while (start < end && IsNonSeriesToken(parts[start]))
+        {
+            start++;
+        }
+
+        while (end > start && IsNonSeriesToken(parts[end - 1]))
+        {
+            end--;
+        }
+
+        if (end <= start)
+        {
+            return null;
+        }
+
+        if (start == 0 && end == parts.Length)
+        {
+            return spaced;
+        }
+
+        return string.Join(" ", parts, start, end - start);
+    }
+
+    private static bool IsNonSeriesToken(string token)
+    {
+        return LanguageMap.ContainsKey(token) ||
+               ForcedRegex.IsMatch(token) ||
+               SdhRegex.IsMatch(token);
+    }
+
+    private static bool IsIgnorableSeriesFolder(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder) ||
+            IgnorableSeriesFolders.Contains(folder) ||
+            SeasonFolderRegex.IsMatch(folder) ||
+            ResolutionFolderRegex.IsMatch(folder) ||
+            YearFolderRegex.IsMatch(folder) ||
+            LanguageMap.ContainsKey(folder) ||
+            IsNonSeriesToken(folder))
+        {
+            return true;
+        }
+
+        var episode = EpisodeRegex.Match(folder);
+        return episode.Success && episode.Index == 0;
     }
 
     private static bool IsInsideSubsFolder(string subPath, string videoDir)

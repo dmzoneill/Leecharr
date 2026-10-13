@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using FluentAssertions;
 using Leecharr.Api.V1.Subtitles;
@@ -202,6 +203,158 @@ public class SubtitleDiscoveryAndStreamingTest
         frSub.Should().NotBeNull();
         frSub!.IsForced.Should().BeTrue();
         frSub.Title.Should().Be("French (Forced)");
+    }
+
+    [Test]
+    public void DiscoverSubtitles_WhenEpisodeCodeMatchesDifferentSeries_DoesNotAttach()
+    {
+        var videoFile = new TorrentFile
+        {
+            Id = 1,
+            Path = "ShowA.S01E01.mkv",
+        };
+
+        var allFiles = new List<TorrentFile>
+        {
+            videoFile,
+            new()
+            {
+                Id = 2,
+                Path = "ShowA.S01E01.en.srt",
+            },
+            new()
+            {
+                Id = 3,
+                Path = "ShowB.S01E01.en.srt",
+            },
+            new()
+            {
+                Id = 4,
+                Path = "ShowB/ShowB.S01E01.fr.srt",
+            },
+            new()
+            {
+                Id = 5,
+                Path = "Subs/ShowA.S01E01.de.srt",
+            },
+            new()
+            {
+                Id = 6,
+                Path = "Subs/ShowB.S01E01.es.srt",
+            },
+        };
+
+        var discovered = this.discoveryService.DiscoverSubtitles(videoFile, allFiles);
+
+        discovered.Select(s => s.Path).Should().BeEquivalentTo(
+            "ShowA.S01E01.en.srt",
+            "Subs/ShowA.S01E01.de.srt");
+    }
+
+    [Test]
+    public void DiscoverSubtitles_WhenAlternateEpisodeCodeMatchesDifferentSeries_DoesNotAttach()
+    {
+        var videoFile = new TorrentFile
+        {
+            Id = 1,
+            Path = "ShowA.1x01.mkv",
+        };
+
+        var allFiles = new List<TorrentFile>
+        {
+            videoFile,
+            new()
+            {
+                Id = 2,
+                Path = "ShowA.1x01.en.srt",
+            },
+            new()
+            {
+                Id = 3,
+                Path = "ShowB.1x01.en.srt",
+            },
+            new()
+            {
+                Id = 4,
+                Path = "ShowB.S01E01.en.srt",
+            },
+        };
+
+        var discovered = this.discoveryService.DiscoverSubtitles(videoFile, allFiles);
+
+        discovered.Should().HaveCount(1);
+        discovered[0].Path.Should().Be("ShowA.1x01.en.srt");
+    }
+
+    [Test]
+    public void DiscoverSubtitles_WhenSameSeriesEpisodeCodeMatches_AttachesAcrossReleaseTags()
+    {
+        var videoFile = new TorrentFile
+        {
+            Id = 1,
+            Path = "My.Show.S01E01.720p.mkv",
+        };
+
+        var allFiles = new List<TorrentFile>
+        {
+            videoFile,
+            new()
+            {
+                Id = 2,
+                Path = "My.Show.S01E01.en.srt",
+            },
+            new()
+            {
+                Id = 3,
+                Path = "My.Show.2020.S01E01.es.srt",
+            },
+            new()
+            {
+                Id = 4,
+                Path = "Other.Show.S01E01.en.srt",
+            },
+        };
+
+        var discovered = this.discoveryService.DiscoverSubtitles(videoFile, allFiles);
+
+        discovered.Select(s => s.Path).Should().BeEquivalentTo(
+            "My.Show.S01E01.en.srt",
+            "My.Show.2020.S01E01.es.srt");
+    }
+
+    [Test]
+    public void DiscoverSubtitles_WhenEpisodeFolderBelongsToAnotherSeries_DoesNotAttach()
+    {
+        var videoFile = new TorrentFile
+        {
+            Id = 1,
+            Path = "ShowA/S01E01/episode.mkv",
+        };
+
+        var allFiles = new List<TorrentFile>
+        {
+            videoFile,
+            new()
+            {
+                Id = 2,
+                Path = "ShowB/S01E01/episode.mkv",
+            },
+            new()
+            {
+                Id = 3,
+                Path = "ShowA/S01E01/english.srt",
+            },
+            new()
+            {
+                Id = 4,
+                Path = "ShowB/S01E01/english.srt",
+            },
+        };
+
+        var discovered = this.discoveryService.DiscoverSubtitles(videoFile, allFiles);
+
+        discovered.Should().HaveCount(1);
+        discovered[0].Path.Should().Be("ShowA/S01E01/english.srt");
     }
 
     [Test]
