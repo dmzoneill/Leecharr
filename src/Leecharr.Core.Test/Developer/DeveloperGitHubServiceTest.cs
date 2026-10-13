@@ -60,7 +60,7 @@ public class DeveloperGitHubServiceTest
     }
 
     [Test]
-    public async Task GetPullRequestsAsync_when_api_fails_returns_fallback_snapshot()
+    public async Task GetPullRequestsAsync_when_api_fails_returns_empty_list_without_invented_rows()
     {
         var handler = new MockHttpMessageHandler();
         handler.Enqueue(HttpStatusCode.InternalServerError, "Error");
@@ -70,8 +70,10 @@ public class DeveloperGitHubServiceTest
         var result = await service.GetPullRequestsAsync("all", CancellationToken.None);
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.Items, Is.Not.Empty);
-        Assert.That(result.Message, Does.Contain("fallback").Or.Contain("500"));
+        Assert.That(result.Items, Is.Empty);
+        Assert.That(result.TotalCount, Is.EqualTo(0));
+        Assert.That(result.UsedFallbackSnapshot, Is.False);
+        Assert.That(result.Message, Does.Contain("500"));
     }
 
     [Test]
@@ -166,7 +168,8 @@ public class DeveloperGitHubServiceTest
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result.IsRateLimited, Is.True);
-        Assert.That(result.Items, Is.Not.Empty);
+        Assert.That(result.Items, Is.Empty);
+        Assert.That(result.TotalCount, Is.EqualTo(0));
     }
 
     [Test]

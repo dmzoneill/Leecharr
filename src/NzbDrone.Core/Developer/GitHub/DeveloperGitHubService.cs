@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -84,23 +83,20 @@ public class DeveloperGitHubService : IDeveloperGitHubService
             if ((int)response.StatusCode == 403 || (int)response.StatusCode == 429)
             {
                 result.IsRateLimited = true;
-                result.Message = "GitHub API rate limit reached. Displaying local workspace snapshot.";
+                result.Message = "GitHub API rate limit reached. Unable to load pull requests.";
             }
             else
             {
-                result.Message = $"GitHub returned status {(int)response.StatusCode}. Displaying local workspace snapshot.";
+                result.Message = $"GitHub returned status {(int)response.StatusCode}. Unable to load pull requests.";
             }
         }
         catch (Exception ex)
         {
-            _logger.Debug(ex, "Failed to query GitHub pull requests API directly; falling back to workspace snapshot");
+            _logger.Debug(ex, "Failed to query GitHub pull requests API");
             result.Message = $"GitHub network offline or unreachable: {ex.Message}";
         }
 
-        result.Items = GetDefaultPullRequests(state);
-        result.TotalCount = result.Items.Count;
-        result.UsedFallbackSnapshot = true;
-        return PublishFallbackOrCached(cacheKey, result);
+        return FinishAfterApiFailure(cacheKey, result);
     }
 
     public async Task<DeveloperGitHubListResult<DeveloperIssueItem>> GetIssuesAsync(string state = "all", CancellationToken cancellationToken = default)
@@ -138,11 +134,11 @@ public class DeveloperGitHubService : IDeveloperGitHubService
                         if ((int)response.StatusCode == 403 || (int)response.StatusCode == 429)
                         {
                             result.IsRateLimited = true;
-                            result.Message = "GitHub API rate limit reached. Displaying local workspace snapshot.";
+                            result.Message = "GitHub API rate limit reached. Unable to load issues.";
                         }
                         else
                         {
-                            result.Message = $"GitHub returned status {(int)response.StatusCode}. Displaying local workspace snapshot.";
+                            result.Message = $"GitHub returned status {(int)response.StatusCode}. Unable to load issues.";
                         }
                     }
 
@@ -165,35 +161,25 @@ public class DeveloperGitHubService : IDeveloperGitHubService
         }
         catch (Exception ex)
         {
-            _logger.Debug(ex, "Failed to query GitHub issues API directly; falling back to workspace snapshot");
+            _logger.Debug(ex, "Failed to query GitHub issues API");
             result.Message = $"GitHub network offline or unreachable: {ex.Message}";
         }
 
-        result.Items = GetDefaultIssues(state);
-        result.TotalCount = result.Items.Count;
-        result.UsedFallbackSnapshot = true;
-        return PublishFallbackOrCached(cacheKey, result);
+        return FinishAfterApiFailure(cacheKey, result);
     }
 
-    private static DeveloperGitHubListResult<T> PublishFallbackOrCached<T>(string cacheKey, DeveloperGitHubListResult<T> fallback)
+    private static DeveloperGitHubListResult<T> FinishAfterApiFailure<T>(string cacheKey, DeveloperGitHubListResult<T> failureResult)
     {
-        if (ShouldPublishFallbackCache<T>(cacheKey))
+        var cached = GetValidCachedResult<T>(cacheKey);
+        if (cached != null && !cached.UsedFallbackSnapshot)
         {
-            MemoryCache[cacheKey] = (fallback, DateTime.UtcNow.AddMinutes(2));
+            return cached;
         }
 
-        return GetValidCachedResult<T>(cacheKey) ?? fallback;
-    }
-
-    private static bool ShouldPublishFallbackCache<T>(string cacheKey)
-    {
-        if (!MemoryCache.TryGetValue(cacheKey, out var existing) || existing.Expiry <= DateTime.UtcNow)
-        {
-            return true;
-        }
-
-        var existingResult = (DeveloperGitHubListResult<T>)existing.Data;
-        return existingResult.UsedFallbackSnapshot;
+        failureResult.Items.Clear();
+        failureResult.TotalCount = 0;
+        failureResult.UsedFallbackSnapshot = false;
+        return failureResult;
     }
 
     private static DeveloperGitHubListResult<T> GetValidCachedResult<T>(string cacheKey)
@@ -394,63 +380,5 @@ public class DeveloperGitHubService : IDeveloperGitHubService
         {
             return null;
         }
-    }
-
-    private static List<DeveloperPullRequestItem> GetDefaultPullRequests(string state)
-    {
-        var all = new List<DeveloperPullRequestItem>
-        {
-            new()
-            {
-                Id = 101,
-                Number = 120,
-                Title = "feat(developer): introduce UML diagrams, issues, and PR views in Developer portal",
-                State = "closed",
-                Author = "dmzoneill",
-                AuthorAvatarUrl = "https://github.com/dmzoneill.png",
-                HtmlUrl = "https://github.com/dmzoneill/Leecharr/pull/120",
-                CreatedAt = DateTime.UtcNow.AddDays(-1),
-                MergedAt = DateTime.UtcNow.AddHours(-2),
-                Labels = new List<string> { "enhancement", "developer" }
-            },
-            new()
-            {
-                Id = 102,
-                Number = 115,
-                Title = "fix(quality): harden CA analyzers under TreatWarningsAsErrors",
-                State = "closed",
-                Author = "dmzoneill",
-                AuthorAvatarUrl = "https://github.com/dmzoneill.png",
-                HtmlUrl = "https://github.com/dmzoneill/Leecharr/pull/115",
-                CreatedAt = DateTime.UtcNow.AddDays(-3),
-                MergedAt = DateTime.UtcNow.AddDays(-2),
-                Labels = new List<string> { "quality", "ci" }
-            }
-        };
-
-        return state == "all" ? all : all.Where(p => string.Equals(p.State, state, StringComparison.OrdinalIgnoreCase)).ToList();
-    }
-
-    private static List<DeveloperIssueItem> GetDefaultIssues(string state)
-    {
-        var all = new List<DeveloperIssueItem>
-        {
-            new()
-            {
-                Id = 201,
-                Number = 95,
-                Title = "Torrent download prioritization in multi-threaded engine",
-                State = "closed",
-                Author = "dmzoneill",
-                AuthorAvatarUrl = "https://github.com/dmzoneill.png",
-                HtmlUrl = "https://github.com/dmzoneill/Leecharr/issues/95",
-                CreatedAt = DateTime.UtcNow.AddDays(-5),
-                ClosedAt = DateTime.UtcNow.AddDays(-4),
-                Labels = new List<string> { "engine", "enhancement" },
-                CommentsCount = 2
-            }
-        };
-
-        return state == "all" ? all : all.Where(i => string.Equals(i.State, state, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 }
