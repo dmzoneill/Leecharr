@@ -3742,6 +3742,94 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task StartAsync_PeerAndUdpTrackerSocketsUseActiveBindingProvider()
+    {
+        var mockBinding = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        var mockProvider = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingProvider>();
+        mockProvider.ProviderId.Returns("ManagedSocket");
+        mockBinding.ActiveProvider.Returns(mockProvider);
+        mockBinding.IsInterfaceUp(Arg.Any<string>()).Returns(true);
+        mockBinding
+            .When(service => service.BindSocket(Arg.Any<Socket>(), Arg.Any<string>(), Arg.Any<int>()))
+            .Do(call =>
+            {
+                var boundSocket = call.Arg<Socket>();
+                if (!boundSocket.IsBound)
+                {
+                    boundSocket.Bind(new IPEndPoint(boundSocket.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Loopback : IPAddress.Loopback, 0));
+                }
+            });
+
+        this.configService.BindInterface.Returns("lo");
+        this.configService.EnableDht.Returns(false);
+        this.configService.EnableLpd.Returns(false);
+        this.configService.UpnpEnabled.Returns(false);
+        this.configService.ListeningPort.Returns(0);
+        this.configService.ProxyType.Returns("none");
+
+        using var boundEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            networkBindingService: mockBinding,
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService);
+
+        await boundEngine.StartAsync();
+
+        const BindingFlags instanceFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var engineField = typeof(MonoTorrentDownloadEngine).GetField("engine", instanceFlags);
+        var client = engineField!.GetValue(boundEngine);
+        client.Should().NotBeNull();
+        var factories = client!.GetType().GetProperty("Factories", instanceFlags)!.GetValue(client);
+        factories.Should().NotBeNull();
+
+        var peer = factories!.GetType().GetMethod("CreatePeerConnection", instanceFlags)!.Invoke(factories, new object[] { new Uri("ipv4://127.0.0.1:9") });
+        peer.Should().NotBeNull();
+        var connector = peer!.GetType().GetProperty("Connector", instanceFlags)!.GetValue(peer);
+        connector.Should().BeOfType<BoundSocketConnector>();
+
+        using (var peerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+        {
+            ((BoundSocketConnector)connector).BindSocket(peerSocket, 0);
+            mockBinding.Received().BindSocket(peerSocket, "lo", 0);
+        }
+
+        var tracker = factories.GetType().GetMethod("CreateTracker", instanceFlags)!.Invoke(factories, new object[] { new Uri("udp://127.0.0.1:1") });
+        tracker.Should().NotBeNull();
+        var connections = tracker!.GetType().GetProperty("Connections", instanceFlags)!.GetValue(tracker) as System.Collections.IEnumerable;
+        connections.Should().NotBeNull();
+        var udpConnection = connections!.Cast<object>().OfType<BindingAwareUdpTrackerConnection>().First();
+        udpConnection.AddressFamily.Should().Be(AddressFamily.InterNetwork);
+        using var datagram = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        udpConnection.BindTrackerSocket(datagram);
+        mockBinding.Received().BindSocket(datagram, "lo", 0);
+
+        mockBinding.ActiveProvider.Returns(Substitute.For<NzbDrone.Core.Network.Binding.IProxyTunnelBindingProvider>());
+        var proxyAct = () => udpConnection.BindTrackerSocket(datagram);
+        proxyAct.Should().Throw<SocketException>().Where(ex => ex.SocketErrorCode == SocketError.AccessDenied);
+
+        await boundEngine.StopAsync();
+    }
+
+    [Test]
+    public void CreateHttpClient_WhenSocks5Configured_UsesBindingConnectorInsteadOfWebProxy()
+    {
+        this.configService.ProxyType.Returns("socks5");
+        this.configService.ProxyHost.Returns("127.0.0.1");
+        this.configService.ProxyPort.Returns(1080);
+
+        var client = this.engine.CreateHttpClient();
+        var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = handlerField!.GetValue(client) as SocketsHttpHandler;
+        handler.Should().NotBeNull();
+        handler!.ConnectCallback.Should().NotBeNull();
+        handler.UseProxy.Should().BeFalse();
+    }
+
+    [Test]
     public async Task BoundSocketConnector_WhenBindingServiceAndInterfaceConfigured_BindsSocketViaService()
     {
         var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);

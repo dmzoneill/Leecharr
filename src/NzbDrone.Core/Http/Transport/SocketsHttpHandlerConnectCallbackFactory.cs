@@ -61,6 +61,12 @@ internal static class SocketsHttpHandlerConnectCallbackFactory
 
             SsrfAddressPolicy.EnsureConnectable(host, resolvedAddresses, allowPrivateNetworkRequests, allowedSsrfSubnets);
 
+            if (networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider proxyProvider)
+            {
+                var tunneled = await proxyProvider.ConnectTunnelAsync(host, port, cancellationToken).ConfigureAwait(false);
+                return new NetworkStream(tunneled, ownsSocket: true);
+            }
+
             Exception lastError = null;
             foreach (var address in resolvedAddresses)
             {

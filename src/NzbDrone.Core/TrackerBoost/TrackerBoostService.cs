@@ -246,6 +246,11 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
                 var host = context.DnsEndPoint.Host;
                 var port = context.DnsEndPoint.Port;
+                if (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider proxyProvider)
+                {
+                    var tunneled = await proxyProvider.ConnectTunnelAsync(host, port, cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(tunneled, ownsSocket: true);
+                }
 
                 IPAddress[] addresses;
                 if (IPAddress.TryParse(host, out var parsedIp))

@@ -40,9 +40,16 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         SupportsAnonymousRouting = false,
     };
 
+    protected virtual bool IsBindToDevicePlatform => this.IsAvailable;
+
+    protected virtual void ApplySoBindToDevice(Socket socket, byte[] option)
+    {
+        socket.SetRawSocketOption(SolSocket, SoBindToDevice, option);
+    }
+
     public Task<NetworkBindingHealthCheckResult> ProbeHealthAsync()
     {
-        if (!this.IsAvailable)
+        if (!this.IsBindToDevicePlatform)
         {
             return Task.FromResult(new NetworkBindingHealthCheckResult
             {
@@ -61,15 +68,19 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             {
                 using var testSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 var loBytes = Encoding.ASCII.GetBytes("lo\0");
-                testSocket.SetRawSocketOption(SolSocket, SoBindToDevice, loBytes);
+                this.ApplySoBindToDevice(testSocket, loBytes);
             }
-            catch (SocketException sex) when (sex.SocketErrorCode == SocketError.AccessDenied || sex.NativeErrorCode == 1)
+            catch (Exception ex) when (IsAccessDenied(ex))
             {
                 return Task.FromResult(new NetworkBindingHealthCheckResult
                 {
                     IsHealthy = false,
                     StatusMessage = "Linux SO_BINDTODEVICE requires CAP_NET_RAW permission (EPERM / Access Denied).",
-                    Warnings = { "Process lacks CAP_NET_RAW capability required for SO_BINDTODEVICE kernel binding. Grant CAP_NET_RAW or run as root/privileged container." },
+                    Warnings =
+                    {
+                        "Process lacks CAP_NET_RAW capability required for SO_BINDTODEVICE kernel binding. Grant CAP_NET_RAW or run as root/privileged container.",
+                        ex.Message,
+                    },
                 });
             }
             catch (SocketException sex)
@@ -124,7 +135,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             throw new ArgumentException($"Interface name '{interfaceName}' exceeds maximum Linux interface name length (IFNAMSIZ = {Ifnamesiz} bytes).", nameof(interfaceName));
         }
 
-        if (!this.IsAvailable)
+        if (!this.IsBindToDevicePlatform)
         {
             throw new PlatformNotSupportedException("SO_BINDTODEVICE is only supported on Linux platforms.");
         }
@@ -134,11 +145,29 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         try
         {
             var ifaceBytes = Encoding.ASCII.GetBytes(kernelInterfaceName + "\0");
-            socket.SetRawSocketOption(SolSocket, SoBindToDevice, ifaceBytes);
+            this.ApplySoBindToDevice(socket, ifaceBytes);
             this.logger.Debug(
                 "Applied SO_BINDTODEVICE kernel lock to socket for interface '{0}' (resolved from '{1}')",
                 kernelInterfaceName,
                 interfaceName);
+        }
+        catch (Exception ex) when (IsAccessDenied(ex))
+        {
+            if (TryBindToInterfaceAddress(socket, kernelInterfaceName, localPort, out var boundIp))
+            {
+                this.logger.Warn(
+                    ex,
+                    "SO_BINDTODEVICE was denied for interface '{0}'. Bound the socket to {1} instead.",
+                    kernelInterfaceName,
+                    boundIp);
+                return;
+            }
+
+            this.logger.Warn(
+                ex,
+                "SO_BINDTODEVICE was denied for interface '{0}' and no interface address was available.",
+                kernelInterfaceName);
+            throw;
         }
         catch (Exception ex)
         {
@@ -149,6 +178,42 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
                 interfaceName);
             throw;
         }
+    }
+
+    private static bool IsAccessDenied(Exception ex)
+    {
+        if (ex is UnauthorizedAccessException)
+        {
+            return true;
+        }
+
+        if (ex is SocketException socketException)
+        {
+            return socketException.SocketErrorCode == SocketError.AccessDenied
+                || socketException.NativeErrorCode == 1
+                || socketException.NativeErrorCode == 13;
+        }
+
+        return false;
+    }
+
+    private static bool TryBindToInterfaceAddress(Socket socket, string interfaceName, int localPort, out IPAddress boundIp)
+    {
+        boundIp = null;
+        if (socket.IsBound)
+        {
+            return false;
+        }
+
+        var ip = FindInterfaceAddress(interfaceName, socket.AddressFamily);
+        if (ip == null)
+        {
+            return false;
+        }
+
+        socket.Bind(new IPEndPoint(ip, localPort));
+        boundIp = ip;
+        return true;
     }
 
     public bool IsInterfaceUp(string interfaceName)
@@ -193,6 +258,14 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         return NetworkInterface.GetAllNetworkInterfaces()
             .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static IPAddress FindInterfaceAddress(string interfaceName, AddressFamily addressFamily)
+    {
+        var nic = FindNetworkInterface(interfaceName);
+        return nic?.GetIPProperties()?.UnicastAddresses?
+            .Select(address => address.Address)
+            .FirstOrDefault(address => address.AddressFamily == addressFamily);
     }
 
     private static string ResolveKernelInterfaceName(string interfaceName)

@@ -79,7 +79,98 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
     {
         ArgumentNullException.ThrowIfNull(socket);
 
-        this.logger.Debug("Proxy tunnel provider active: socket outbound traffic will be proxied via {0}:{1}", this.configService?.ProxyHost, this.configService?.ProxyPort);
+        if (socket.SocketType != SocketType.Stream || socket.ProtocolType != ProtocolType.Tcp)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(interfaceName) ||
+            string.Equals(interfaceName, "any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!this.TryReadConfiguredProxy(out var proxyType, out var proxyHost, out var proxyPort))
+        {
+            return;
+        }
+
+        if (!TryGetTunnelDestination(interfaceName, localPort, out var targetHost, out var targetPort))
+        {
+            throw new InvalidOperationException(
+                "Proxy tunnel BindSocket cannot leave a direct socket. Pass the destination host and port, or call ConnectTunnelAsync to perform the SOCKS handshake.");
+        }
+
+        this.CompleteProxyHandshakeAsync(socket, proxyType, proxyHost, proxyPort, targetHost, targetPort, CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    private bool TryReadConfiguredProxy(out string proxyType, out string proxyHost, out int proxyPort)
+    {
+        proxyType = this.configService?.ProxyType?.ToLowerInvariant() ?? "none";
+        proxyHost = this.configService?.ProxyHost;
+        proxyPort = this.configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" or "socks4a" ? 1080 : 8080);
+        return !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost);
+    }
+
+    private static bool TryGetTunnelDestination(string interfaceName, int localPort, out string targetHost, out int targetPort)
+    {
+        targetHost = null;
+        targetPort = 0;
+        if (localPort <= 0 || localPort > 65535 || string.IsNullOrWhiteSpace(interfaceName))
+        {
+            return false;
+        }
+
+        if (string.Equals(interfaceName, "any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var looksLikeHost = interfaceName.Contains('.') || interfaceName.Contains(':') || TryParseHostAddress(interfaceName, out _);
+        if (!looksLikeHost)
+        {
+            return false;
+        }
+
+        targetHost = interfaceName.Trim();
+        targetPort = localPort;
+        return true;
+    }
+
+    private async Task CompleteProxyHandshakeAsync(
+        Socket socket,
+        string proxyType,
+        string proxyHost,
+        int proxyPort,
+        string targetHost,
+        int targetPort,
+        CancellationToken cancellationToken)
+    {
+        if (!socket.Connected)
+        {
+            await socket.ConnectAsync(proxyHost, proxyPort, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (proxyType == "socks5")
+        {
+            await this.PerformSocks5HandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
+        }
+        else if (proxyType is "socks4" or "socks4a")
+        {
+            await this.PerformSocks4HandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
+        }
+        else if (proxyType == "http")
+        {
+            await this.PerformHttpConnectHandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            throw new NotSupportedException($"Proxy type '{proxyType}' is not supported for tunneling.");
+        }
     }
 
     public bool IsInterfaceUp(string interfaceName)
@@ -166,25 +257,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
         try
         {
-            await socket.ConnectAsync(proxyHost, proxyPort, cancellationToken).ConfigureAwait(false);
-
-            if (proxyType == "socks5")
-            {
-                await this.PerformSocks5HandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
-            }
-            else if (proxyType is "socks4" or "socks4a")
-            {
-                await this.PerformSocks4HandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
-            }
-            else if (proxyType == "http")
-            {
-                await this.PerformHttpConnectHandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                throw new NotSupportedException($"Proxy type '{proxyType}' is not supported for tunneling.");
-            }
-
+            await this.CompleteProxyHandshakeAsync(socket, proxyType, proxyHost, proxyPort, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
             return socket;
         }
         catch (Exception ex)
@@ -334,7 +407,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
         var username = this.configService?.ProxyUsername;
         var password = this.configService?.ProxyPassword;
-        var hasAuth = !string.IsNullOrEmpty(username);
+        var hasAuth = (this.configService?.ProxyAuthEnabled ?? false) && !string.IsNullOrEmpty(username);
 
         // 1. Send SOCKS5 Greeting
         // When credentials are configured, offer only RFC 1929 user/pass (0x02).
@@ -488,6 +561,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
         var username = this.configService?.ProxyUsername;
         var password = this.configService?.ProxyPassword;
+        var hasAuth = (this.configService?.ProxyAuthEnabled ?? false) && !string.IsNullOrEmpty(username);
 
         var formattedHost = FormatHostForAuthority(targetHost);
 
@@ -495,7 +569,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         sb.Append($"CONNECT {formattedHost}:{targetPort} HTTP/1.1\r\n");
         sb.Append($"Host: {formattedHost}:{targetPort}\r\n");
 
-        if (!string.IsNullOrEmpty(username))
+        if (hasAuth)
         {
             var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password ?? string.Empty}"));
             sb.Append($"Proxy-Authorization: Basic {auth}\r\n");

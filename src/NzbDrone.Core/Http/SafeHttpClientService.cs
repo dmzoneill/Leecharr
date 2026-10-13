@@ -497,6 +497,12 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
                 SsrfAddressPolicy.EnsureConnectable(host, addresses, this.AllowPrivateNetworkRequests, this.AllowedSsrfSubnets);
 
+                if (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider proxyProvider)
+                {
+                    var tunneled = await proxyProvider.ConnectTunnelAsync(host, port, cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(tunneled, ownsSocket: true);
+                }
+
                 var targetIp = addresses[0];
                 var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
                 {

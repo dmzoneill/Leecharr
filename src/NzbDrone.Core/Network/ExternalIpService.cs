@@ -282,6 +282,12 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                     throw new SocketException((int)SocketError.HostNotFound);
                 }
 
+                if (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider proxyProvider)
+                {
+                    var tunneled = await proxyProvider.ConnectTunnelAsync(host, port, cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(tunneled, ownsSocket: true);
+                }
+
                 Exception lastException = null;
                 foreach (var targetIp in addresses)
                 {

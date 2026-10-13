@@ -21,6 +21,7 @@ using Microsoft.Win32.SafeHandles;
 using MonoTorrent;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
+using MonoTorrent.Connections.Peer;
 using MonoTorrent.Dht;
 using MonoTorrent.PiecePicking;
 using MonoTorrent.PieceWriter;
@@ -694,17 +695,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         factories = factories.WithHttpClientCreator(af => this.CreateHttpClient(af));
 
         var baseFactories = factories;
-        factories = factories.WithSocketConnectorCreator(() => new BoundSocketConnector(
-            () => this.GetBoundLocalIp(AddressFamily.InterNetwork),
-            () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6),
-            this.networkBindingService,
-            () => !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
-                ? this.configService.NetworkInterfaceBinding
-                : this.configService.BindInterface,
-            this.blocklistService,
-            () => Interlocked.Increment(ref this.blockedPeersCount),
-            this.configService,
-            () => this.isHaltedByKillSwitch || (this.vpnKillSwitchService != null && this.vpnKillSwitchService.IsFailClosedActive)));
+        factories = factories.WithSocketConnectorCreator(() => this.CreateBoundSocketConnector());
+        factories = factories
+            .WithPeerConnectionCreator("ipv4", uri => new SocketPeerConnection(uri, this.CreateBoundSocketConnector()))
+            .WithPeerConnectionCreator("ipv6", uri => new SocketPeerConnection(uri, this.CreateBoundSocketConnector()));
+        factories = factories.WithTrackerCreator(
+            "udp",
+            uri => new MonoTorrent.Trackers.Tracker(
+                new BindingAwareUdpTrackerConnection(uri, AddressFamily.InterNetwork, () => this.CreateBoundSocketConnector(), this.networkBindingService, this.configService),
+                new BindingAwareUdpTrackerConnection(uri, AddressFamily.InterNetworkV6, () => this.CreateBoundSocketConnector(), this.networkBindingService, this.configService)));
 
         lock (this.activePeerListeners)
         {
@@ -5015,6 +5014,32 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return !this.configService.AnonymousMode && !this.IsProxyActive() && !this.IsSpecificInterfaceBound() && !this.IsVpnKillSwitchActive() && this.configService.EnableLpd;
     }
 
+    private bool UseWebProxyForTrackers()
+    {
+        if (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider)
+        {
+            return false;
+        }
+
+        var proxyType = this.configService?.ProxyType?.ToLowerInvariant();
+        return proxyType is not "socks5" and not "socks4" and not "socks4a";
+    }
+
+    private BoundSocketConnector CreateBoundSocketConnector()
+    {
+        return new BoundSocketConnector(
+            () => this.GetBoundLocalIp(AddressFamily.InterNetwork),
+            () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6),
+            this.networkBindingService,
+            () => !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+                ? this.configService.NetworkInterfaceBinding
+                : this.configService.BindInterface,
+            this.blocklistService,
+            () => Interlocked.Increment(ref this.blockedPeersCount),
+            this.configService,
+            () => this.isHaltedByKillSwitch || (this.vpnKillSwitchService != null && this.vpnKillSwitchService.IsFailClosedActive));
+    }
+
     internal HttpClient CreateHttpClient(AddressFamily addressFamily = AddressFamily.InterNetwork)
     {
         var handler = new SocketsHttpHandler
@@ -5023,7 +5048,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             PooledConnectionLifetime = TimeSpan.FromMinutes(15),
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
         };
-        var proxy = this.GetConfiguredWebProxy();
+        var proxy = this.UseWebProxyForTrackers() ? this.GetConfiguredWebProxy() : null;
         if (proxy != null)
         {
             handler.Proxy = proxy;
@@ -5031,6 +5056,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
         else
         {
+            handler.UseProxy = false;
             handler.ConnectCallback = async (context, cancellationToken) =>
             {
                 if (this.isHaltedByKillSwitch || (this.vpnKillSwitchService != null && this.vpnKillSwitchService.IsFailClosedActive))
@@ -5038,17 +5064,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     throw new SocketException((int)SocketError.NetworkUnreachable);
                 }
 
-                var connector = new BoundSocketConnector(
-                    () => this.GetBoundLocalIp(AddressFamily.InterNetwork),
-                    () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6),
-                    this.networkBindingService,
-                    () => !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
-                        ? this.configService.NetworkInterfaceBinding
-                        : this.configService.BindInterface,
-                    this.blocklistService,
-                    () => Interlocked.Increment(ref this.blockedPeersCount),
-                    this.configService,
-                    () => this.isHaltedByKillSwitch || (this.vpnKillSwitchService != null && this.vpnKillSwitchService.IsFailClosedActive));
+                var connector = this.CreateBoundSocketConnector();
 
                 var host = context.DnsEndPoint.Host;
                 var hostStr = host.Contains(':') && !host.StartsWith('[') ? $"[{host}]" : host;

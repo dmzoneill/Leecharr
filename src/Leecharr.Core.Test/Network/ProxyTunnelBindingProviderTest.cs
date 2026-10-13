@@ -1027,4 +1027,70 @@ public class ProxyTunnelBindingProviderTest
             await proxyServerTask;
         }
     }
+
+    [Test]
+    public void BindSocket_WhenSocks5ConfiguredWithoutDestination_ThrowsInsteadOfLoggingOnly()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("socks5");
+        config.ProxyHost.Returns("127.0.0.1");
+        config.ProxyPort.Returns(1080);
+
+        var provider = new ProxyTunnelBindingProvider(config);
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var act = () => provider.BindSocket(socket, "eth0");
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task BindSocket_WhenSocks5DestinationProvided_PerformsHandshake()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var greeting = new byte[3];
+            await stream.ReadExactlyAsync(greeting, 0, 3);
+            greeting[0].Should().Be(0x05);
+            await stream.WriteAsync(new byte[] { 0x05, 0x00 });
+
+            var reqHeader = new byte[4];
+            await stream.ReadExactlyAsync(reqHeader, 0, 4);
+            reqHeader[0].Should().Be(0x05);
+            reqHeader[1].Should().Be(0x01);
+            reqHeader[3].Should().Be(0x03);
+            var domainLen = stream.ReadByte();
+            var domainBytes = new byte[domainLen];
+            await stream.ReadExactlyAsync(domainBytes, 0, domainLen);
+            Encoding.ASCII.GetString(domainBytes).Should().Be("target.tracker.org");
+            var portBytes = new byte[2];
+            await stream.ReadExactlyAsync(portBytes, 0, 2);
+            ((portBytes[0] << 8) | portBytes[1]).Should().Be(6969);
+            await stream.WriteAsync(new byte[] { 0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x1B, 0x39 });
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("socks5");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            var act = () => provider.BindSocket(socket, "target.tracker.org", 6969);
+            act.Should().NotThrow();
+            socket.Connected.Should().BeTrue();
+            await proxyServerTask;
+        }
+        finally
+        {
+            proxyListener.Stop();
+        }
+    }
 }

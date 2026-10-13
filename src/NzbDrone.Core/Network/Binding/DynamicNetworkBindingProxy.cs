@@ -244,7 +244,14 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
 
     public void BindSocket(Socket socket, string interfaceName, int localPort = 0)
     {
-        Volatile.Read(ref this.activeProvider).BindSocket(socket, interfaceName, localPort);
+        ArgumentNullException.ThrowIfNull(socket);
+        var provider = Volatile.Read(ref this.activeProvider);
+        if (provider == null)
+        {
+            throw new InvalidOperationException("No active network binding provider is selected.");
+        }
+
+        provider.BindSocket(socket, interfaceName, localPort);
     }
 
     public bool IsInterfaceUp(string interfaceName)

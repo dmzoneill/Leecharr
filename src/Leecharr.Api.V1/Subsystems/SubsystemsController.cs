@@ -278,13 +278,16 @@ public class SubsystemsController : Controller
 
             case "networkbinding" or "binding":
                 var netRes = await this.networkBindingManager.SwitchProviderAsync(request.ProviderId);
+                var swarmMessage = netRes.Success
+                    ? $"{netRes.Message} Swarm peer and tracker sockets now use {netRes.ActiveProvider}."
+                    : netRes.Message;
                 result = new SwitchSubsystemProviderResult
                 {
                     Success = netRes.Success,
                     SubsystemId = "networkbinding",
                     PreviousProvider = netRes.PreviousProvider,
                     ActiveProvider = netRes.ActiveProvider,
-                    Message = netRes.Message,
+                    Message = swarmMessage,
                     Error = netRes.Error,
                 };
                 break;
@@ -642,7 +645,7 @@ public class SubsystemsController : Controller
             Id = "networkbinding",
             Name = "Network Interface Binding & VPN Kill Switch",
             Category = "Network & Security",
-            Description = "Enforces socket routing through specific VPN interfaces (tun0/wg0) with zero traffic leaks.",
+            Description = "Routes swarm peer and tracker sockets through the active binding provider, including VPN interfaces and SOCKS tunnels.",
             ActiveProviderId = activeId,
             Providers = this.networkBindingManager.GetProviders().Select(p => new SubsystemProviderResource
             {

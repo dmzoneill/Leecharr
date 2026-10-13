@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -136,5 +137,59 @@ public class LinuxBindToDeviceProviderTest
 
         var act = () => this.provider.BindSocket(socket, "lo");
         act.Should().NotThrow();
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenSoBindToDeviceAccessDenied_ReturnsUnhealthy()
+    {
+        var denied = new AccessDeniedBindProvider();
+        var health = await denied.ProbeHealthAsync();
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("CAP_NET_RAW");
+    }
+
+    [Test]
+    public async Task ProbeHealthAsync_WhenNativeEperm_ReturnsUnhealthy()
+    {
+        var denied = new NativeEpermBindProvider();
+        var health = await denied.ProbeHealthAsync();
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("CAP_NET_RAW");
+    }
+
+    [Test]
+    public void BindSocket_WhenSoBindToDeviceAccessDenied_BindsInterfaceAddress()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Assert.Inconclusive("Linux loopback address fallback");
+        }
+
+        var denied = new AccessDeniedBindProvider();
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var act = () => denied.BindSocket(socket, "lo");
+        act.Should().NotThrow();
+        socket.IsBound.Should().BeTrue();
+        ((IPEndPoint)socket.LocalEndPoint!).Address.Should().Be(IPAddress.Loopback);
+    }
+
+    private sealed class AccessDeniedBindProvider : LinuxBindToDeviceProvider
+    {
+        protected override bool IsBindToDevicePlatform => true;
+
+        protected override void ApplySoBindToDevice(Socket socket, byte[] option)
+        {
+            throw new SocketException((int)SocketError.AccessDenied);
+        }
+    }
+
+    private sealed class NativeEpermBindProvider : LinuxBindToDeviceProvider
+    {
+        protected override bool IsBindToDevicePlatform => true;
+
+        protected override void ApplySoBindToDevice(Socket socket, byte[] option)
+        {
+            throw new SocketException(1);
+        }
     }
 }
