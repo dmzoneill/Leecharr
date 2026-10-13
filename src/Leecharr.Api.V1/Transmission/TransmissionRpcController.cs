@@ -1419,7 +1419,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 TimeSpan.FromSeconds(3),
                 cts.Token);
 
-            if (!string.IsNullOrWhiteSpace(response) && (response.Trim() == "1" || response.Contains('1')))
+            if (response?.Trim() == "1")
             {
                 isOpen = true;
             }

@@ -3281,6 +3281,50 @@ public class TransmissionRpcControllerTest
         args!["port-is-open"].Should().Be(false);
     }
 
+    [TestCase("1", true)]
+    [TestCase(" 1 ", true)]
+    [TestCase("1\n", true)]
+    [TestCase("\r\n1", true)]
+    [TestCase("0", false)]
+    [TestCase("", false)]
+    [TestCase(" ", false)]
+    [TestCase("11", false)]
+    [TestCase("10", false)]
+    [TestCase("1.0", false)]
+    [TestCase("Error 1000", false)]
+    [TestCase("closed: 1", false)]
+    [TestCase("<html>port 1</html>", false)]
+    public async Task HandleRpc_PortTest_ReportsOpenOnlyWhenTrimmedBodyIsExactlyOne(string checkerBody, bool expectedOpen)
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.ListenPort.Returns(51413);
+        this.safeHttpClientService.DownloadStringDirectAsync(
+            "https://portcheck.transmissionbt.com/51413",
+            Arg.Any<TimeSpan?>(),
+            Arg.Any<CancellationToken>())
+            .Returns(checkerBody);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "port-test",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["port-is-open"].Should().Be(expectedOpen);
+    }
+
     [Test]
     public async Task HandleRpc_PortTest_WhenServiceThrowsOrTimesOut_ReturnsPortIsOpenFalse()
     {
