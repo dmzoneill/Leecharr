@@ -20,6 +20,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.Aria2;
 
@@ -104,6 +105,8 @@ public class Aria2RpcController : ControllerBase
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IDownloadEngine downloadEngine;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public Aria2RpcController(
@@ -113,7 +116,9 @@ public class Aria2RpcController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService,
         IConfigFileProvider configFileProvider = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        ITrackerEntryRepository trackerEntryRepository = null,
+        IDownloadEngine downloadEngine = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -122,6 +127,8 @@ public class Aria2RpcController : ControllerBase
         this.configService = configService;
         this.configFileProvider = configFileProvider;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
+        this.trackerEntryRepository = trackerEntryRepository;
+        this.downloadEngine = downloadEngine;
     }
 
     [HttpGet]
@@ -509,7 +516,7 @@ public class Aria2RpcController : ControllerBase
             "aria2.getglobaloption" => this.GetGlobalOptions(),
             "aria2.getoption" => this.HandleGetOption(cleanParams),
             "aria2.changeposition" => await this.HandleChangePositionAsync(cleanParams),
-            "aria2.changeuri" => HandleChangeUri(cleanParams),
+            "aria2.changeuri" => await this.HandleChangeUriAsync(cleanParams),
             "aria2.changeoption" or "aria2.changeglobaloption" => await this.HandleChangeOptionAsync(cleanParams),
             "aria2.shutdown" or "aria2.forceshutdown" => "OK",
             "system.multicall" => await this.HandleSystemMulticallAsync(cleanParams),
@@ -638,20 +645,19 @@ public class Aria2RpcController : ControllerBase
     private object HandleGetUris(List<JsonElement> cleanParams)
     {
         var gid = cleanParams.Count > 0 ? cleanParams[0].GetString() : string.Empty;
-        var uri = this.GetTrackerUriForTorrent(gid);
-        if (uri != null)
+        var torrent = this.FindByGid(gid);
+        if (torrent == null)
         {
-            return new[]
-            {
-                new
-                {
-                    uri,
-                    status = "used",
-                },
-            };
+            return Array.Empty<object>();
         }
 
-        return Array.Empty<object>();
+        return this.GetDownloadUris(torrent)
+            .Select(uri => new
+            {
+                uri,
+                status = "used",
+            })
+            .ToArray();
     }
 
     private object HandleGetFiles(List<JsonElement> cleanParams)
@@ -733,22 +739,32 @@ public class Aria2RpcController : ControllerBase
         return 0;
     }
 
-    private static object HandleChangeUri(List<JsonElement> cleanParams)
+    private async Task<int[]> HandleChangeUriAsync(List<JsonElement> cleanParams)
     {
-        var deletedCount = 0;
-        var addedCount = 0;
-
-        if (cleanParams.Count >= 3 && cleanParams[2].ValueKind == JsonValueKind.Array)
+        if (cleanParams.Count < 1 || cleanParams[0].ValueKind != JsonValueKind.String)
         {
-            deletedCount = cleanParams[2].GetArrayLength();
+            ThrowGidNotFound(string.Empty);
         }
 
-        if (cleanParams.Count >= 4 && cleanParams[3].ValueKind == JsonValueKind.Array)
+        var gid = cleanParams[0].GetString();
+        var fileIndex = 1;
+        if (cleanParams.Count > 1)
         {
-            addedCount = cleanParams[3].GetArrayLength();
+            if (!TryReadJsonInt(cleanParams[1], out fileIndex))
+            {
+                throw new InvalidOperationException("fileIndex is out of range");
+            }
         }
 
-        return new[] { deletedCount, addedCount };
+        var delUris = cleanParams.Count > 2 ? ReadJsonStringArray(cleanParams[2]) : new List<string>();
+        var addUris = cleanParams.Count > 3 ? ReadJsonStringArray(cleanParams[3]) : new List<string>();
+        int? position = null;
+        if (cleanParams.Count > 4 && TryReadJsonInt(cleanParams[4], out var parsedPosition))
+        {
+            position = parsedPosition;
+        }
+
+        return await this.ApplyChangeUriAsync(gid, fileIndex, delUris, addUris, position);
     }
 
     private async Task<object> HandleChangeOptionAsync(List<JsonElement> cleanParams)
@@ -887,16 +903,19 @@ public class Aria2RpcController : ControllerBase
 
             case "aria2.geturis":
                 var urisXmlGid = stringParams.Count > 0 ? stringParams[0] : string.Empty;
-                var trackerUri = this.GetTrackerUriForTorrent(urisXmlGid);
                 var urisDataElem = new XElement("data");
-                if (trackerUri != null)
+                var urisTorrent = this.FindByGid(urisXmlGid);
+                if (urisTorrent != null)
                 {
-                    urisDataElem.Add(new XElement(
-                        "value",
-                        new XElement(
-                            "struct",
-                            new XElement("member", new XElement("name", "uri"), new XElement("value", new XElement("string", trackerUri))),
-                            new XElement("member", new XElement("name", "status"), new XElement("value", new XElement("string", "used"))))));
+                    foreach (var trackerUri in this.GetDownloadUris(urisTorrent))
+                    {
+                        urisDataElem.Add(new XElement(
+                            "value",
+                            new XElement(
+                                "struct",
+                                new XElement("member", new XElement("name", "uri"), new XElement("value", new XElement("string", trackerUri))),
+                                new XElement("member", new XElement("name", "status"), new XElement("value", new XElement("string", "used"))))));
+                    }
                 }
 
                 return new XElement("array", urisDataElem);
@@ -1001,28 +1020,13 @@ public class Aria2RpcController : ControllerBase
                 return new XElement("int", 0);
 
             case "aria2.changeuri":
-                var delCount = 0;
-                var addCount = 0;
-                var paramList = xmlDoc?.Root?.Element("params")?.Elements("param").ToList();
-                if (paramList != null)
-                {
-                    if (paramList.Count >= 3 && paramList[2].Element("value")?.Element("array")?.Element("data") is XElement delData)
-                    {
-                        delCount = delData.Elements("value").Count();
-                    }
-
-                    if (paramList.Count >= 4 && paramList[3].Element("value")?.Element("array")?.Element("data") is XElement addData)
-                    {
-                        addCount = addData.Elements("value").Count();
-                    }
-                }
-
+                var changeUriCounts = await this.ChangeUriFromXmlAsync(xmlDoc);
                 return new XElement(
                     "array",
                     new XElement(
                         "data",
-                        new XElement("value", new XElement("int", delCount)),
-                        new XElement("value", new XElement("int", addCount))));
+                        new XElement("value", new XElement("int", changeUriCounts[0])),
+                        new XElement("value", new XElement("int", changeUriCounts[1]))));
 
             case "aria2.changeoption":
             case "aria2.changeglobaloption":
@@ -1282,10 +1286,383 @@ public class Aria2RpcController : ControllerBase
         return gid ?? "OK";
     }
 
-    private string GetTrackerUriForTorrent(string gid)
+    private async Task<int[]> ApplyChangeUriAsync(
+        string gid,
+        int fileIndex,
+        IReadOnlyList<string> delUris,
+        IReadOnlyList<string> addUris,
+        int? position)
     {
         var torrent = this.FindByGid(gid);
-        return torrent != null && !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? torrent.TrackerUrl : null;
+        if (torrent == null)
+        {
+            ThrowGidNotFound(gid);
+        }
+
+        var fileCount = this.GetAria2FileCount(torrent);
+        if (fileIndex < 1 || fileIndex > fileCount)
+        {
+            throw new InvalidOperationException("fileIndex is out of range");
+        }
+
+        var uris = this.GetDownloadUris(torrent);
+        var before = uris.ToList();
+        int? maxCount = this.trackerEntryRepository == null ? 1 : null;
+        var (removed, added) = ApplyUriEdits(uris, delUris, addUris, position, maxCount);
+        if (removed == 0 && added == 0)
+        {
+            return new[] { 0, 0 };
+        }
+
+        await this.PersistDownloadUrisAsync(torrent, before, uris);
+        return new[] { removed, added };
+    }
+
+    private async Task<int[]> ChangeUriFromXmlAsync(XDocument xmlDoc)
+    {
+        var gid = string.Empty;
+        var fileIndex = 1;
+        var sawFileIndex = false;
+        var delUris = new List<string>();
+        var addUris = new List<string>();
+        var arrayCount = 0;
+        int? position = null;
+
+        var paramList = xmlDoc?.Root?.Element("params")?.Elements("param");
+        if (paramList != null)
+        {
+            foreach (var param in paramList)
+            {
+                var value = param.Element("value");
+                if (value == null)
+                {
+                    continue;
+                }
+
+                if (value.Element("array") != null)
+                {
+                    var items = ReadXmlStringArray(value);
+                    if (arrayCount == 0)
+                    {
+                        delUris = items;
+                    }
+                    else if (arrayCount == 1)
+                    {
+                        addUris = items;
+                    }
+
+                    arrayCount++;
+                    continue;
+                }
+
+                var scalar = ReadXmlScalar(value);
+                if (string.IsNullOrWhiteSpace(scalar)
+                    || scalar.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var isInteger = value.Element("int") != null
+                    || value.Element("i4") != null
+                    || value.Element("i8") != null;
+                if (!isInteger && string.IsNullOrEmpty(gid))
+                {
+                    gid = scalar;
+                    continue;
+                }
+
+                if (int.TryParse(scalar, out var number))
+                {
+                    if (!sawFileIndex)
+                    {
+                        fileIndex = number;
+                        sawFileIndex = true;
+                    }
+                    else
+                    {
+                        position = number;
+                    }
+                }
+            }
+        }
+
+        return await this.ApplyChangeUriAsync(gid, fileIndex, delUris, addUris, position);
+    }
+
+    private async Task PersistDownloadUrisAsync(Torrent torrent, IReadOnlyList<string> before, IReadOnlyList<string> after)
+    {
+        this.SyncTrackerEntries(torrent.Id, after);
+
+        var nextPrimary = after.Count > 0 ? after[0] : null;
+        var previousPrimary = string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? null : torrent.TrackerUrl;
+        if (!string.Equals(previousPrimary, nextPrimary, StringComparison.Ordinal))
+        {
+            torrent.TrackerUrl = nextPrimary;
+            await this.torrentService.UpdateAsync(torrent);
+        }
+
+        if (this.downloadEngine == null)
+        {
+            return;
+        }
+
+        var removedUris = before.Where(uri => !after.Any(candidate => string.Equals(candidate, uri, StringComparison.Ordinal))).ToList();
+        var addedUris = after.Where(uri => !before.Any(candidate => string.Equals(candidate, uri, StringComparison.Ordinal))).ToList();
+        if (removedUris.Count > 0)
+        {
+            await this.downloadEngine.RemoveTrackersAsync(torrent.Id, removedUris);
+        }
+
+        if (addedUris.Count > 0)
+        {
+            await this.downloadEngine.AddTrackersAsync(torrent.Id, addedUris);
+        }
+    }
+
+    private void SyncTrackerEntries(int torrentId, IReadOnlyList<string> uris)
+    {
+        if (this.trackerEntryRepository == null)
+        {
+            return;
+        }
+
+        var existing = this.trackerEntryRepository.GetByTorrentId(torrentId)?.ToList() ?? new List<TrackerEntry>();
+        var desired = new HashSet<string>(uris, StringComparer.Ordinal);
+        foreach (var entry in existing)
+        {
+            var url = entry.Url?.Trim() ?? string.Empty;
+            if (!desired.Contains(url))
+            {
+                this.trackerEntryRepository.Delete(entry.Id);
+            }
+        }
+
+        for (var index = 0; index < uris.Count; index++)
+        {
+            var url = uris[index];
+            var match = existing.FirstOrDefault(entry => string.Equals(entry.Url?.Trim(), url, StringComparison.Ordinal));
+            if (match == null)
+            {
+                this.trackerEntryRepository.Insert(new TrackerEntry
+                {
+                    TorrentId = torrentId,
+                    Url = url,
+                    Tier = index,
+                    Enabled = true,
+                    AnnounceInterval = 1800,
+                    NextAnnounce = DateTime.UtcNow.AddSeconds(1800),
+                });
+                continue;
+            }
+
+            if (match.Tier != index)
+            {
+                match.Tier = index;
+                this.trackerEntryRepository.Update(match);
+            }
+        }
+    }
+
+    private List<string> GetDownloadUris(Torrent torrent)
+    {
+        var uris = new List<string>();
+        if (this.trackerEntryRepository != null)
+        {
+            var entries = this.trackerEntryRepository.GetByTorrentId(torrent.Id);
+            if (entries != null)
+            {
+                foreach (var entry in entries
+                    .Where(entry => !string.IsNullOrWhiteSpace(entry.Url))
+                    .OrderBy(entry => entry.Tier)
+                    .ThenBy(entry => entry.Id))
+                {
+                    var url = entry.Url.Trim();
+                    if (!uris.Exists(existing => string.Equals(existing, url, StringComparison.Ordinal)))
+                    {
+                        uris.Add(url);
+                    }
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+        {
+            var primary = torrent.TrackerUrl.Trim();
+            if (!uris.Exists(existing => string.Equals(existing, primary, StringComparison.Ordinal)))
+            {
+                uris.Insert(0, primary);
+            }
+        }
+
+        return uris;
+    }
+
+    private int GetAria2FileCount(Torrent torrent)
+    {
+        var files = this.torrentFileService?.GetFiles(torrent.Id);
+        var count = 0;
+        if (files != null)
+        {
+            foreach (var unused in files)
+            {
+                count++;
+            }
+        }
+
+        return count > 0 ? count : 1;
+    }
+
+    private static (int Removed, int Added) ApplyUriEdits(
+        List<string> uris,
+        IReadOnlyList<string> delUris,
+        IReadOnlyList<string> addUris,
+        int? position,
+        int? maxCount)
+    {
+        var removed = 0;
+        if (delUris != null)
+        {
+            foreach (var del in delUris)
+            {
+                if (string.IsNullOrEmpty(del))
+                {
+                    continue;
+                }
+
+                var index = uris.FindIndex(uri => string.Equals(uri, del, StringComparison.Ordinal));
+                if (index >= 0)
+                {
+                    uris.RemoveAt(index);
+                    removed++;
+                }
+            }
+        }
+
+        var added = 0;
+        var insertAt = position ?? uris.Count;
+        if (insertAt < 0)
+        {
+            insertAt = 0;
+        }
+
+        if (insertAt > uris.Count)
+        {
+            insertAt = uris.Count;
+        }
+
+        if (addUris != null)
+        {
+            foreach (var add in addUris)
+            {
+                if (string.IsNullOrEmpty(add))
+                {
+                    continue;
+                }
+
+                if (uris.Exists(uri => string.Equals(uri, add, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                if (maxCount.HasValue && uris.Count >= maxCount.Value)
+                {
+                    continue;
+                }
+
+                var at = Math.Min(insertAt, uris.Count);
+                uris.Insert(at, add);
+                insertAt = at + 1;
+                added++;
+            }
+        }
+
+        return (removed, added);
+    }
+
+    private static bool TryReadJsonInt(JsonElement element, out int value)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out value))
+        {
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), out value))
+        {
+            return true;
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static List<string> ReadJsonStringArray(JsonElement element)
+    {
+        var list = new List<string>();
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            return list;
+        }
+
+        foreach (var item in element.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            var text = item.GetString();
+            if (!string.IsNullOrEmpty(text))
+            {
+                list.Add(text);
+            }
+        }
+
+        return list;
+    }
+
+    private static List<string> ReadXmlStringArray(XElement value)
+    {
+        var list = new List<string>();
+        var data = value?.Element("array")?.Element("data");
+        if (data == null)
+        {
+            return list;
+        }
+
+        foreach (var item in data.Elements("value"))
+        {
+            var text = ReadXmlScalar(item);
+            if (!string.IsNullOrEmpty(text))
+            {
+                list.Add(text);
+            }
+        }
+
+        return list;
+    }
+
+    private static string ReadXmlScalar(XElement value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var typed = value.Element("string")
+            ?? value.Element("int")
+            ?? value.Element("i4")
+            ?? value.Element("i8");
+        if (typed != null)
+        {
+            return typed.Value;
+        }
+
+        if (!value.Elements().Any())
+        {
+            return value.Value;
+        }
+
+        return null;
     }
 
     private List<PeerInfo> GetPeersForTorrent(string gid)

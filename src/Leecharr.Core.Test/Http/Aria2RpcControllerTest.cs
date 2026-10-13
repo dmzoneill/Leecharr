@@ -20,6 +20,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Core.Test.Http;
 
@@ -2240,6 +2241,187 @@ public class Aria2RpcControllerTest
         content.Should().Contain("faultString").And.Contain("No files to download.");
     }
 
+    [Test]
+    public async Task ChangeUri_JsonRpc_ReplacesTrackerAndReturnsCountsThatWereApplied()
+    {
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "MirrorTorrent",
+            InfoHash = FullInfoHash,
+            TrackerUrl = "http://dead.example/announce",
+        };
+        var dead = new TrackerEntry { Id = 1, TorrentId = 12, Url = "http://dead.example/announce", Tier = 0, Enabled = true };
+        var keep = new TrackerEntry { Id = 2, TorrentId = 12, Url = "http://keep.example/announce", Tier = 5, Enabled = true };
+        var trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        trackerEntryRepository.GetByTorrentId(12).Returns(new List<TrackerEntry> { dead, keep });
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentService.UpdateAsync(Arg.Any<Torrent>()).Returns(call => Task.FromResult(call.Arg<Torrent>()));
+        downloadEngine.RemoveTrackersAsync(Arg.Any<int>(), Arg.Any<IEnumerable<string>>()).Returns(Task.CompletedTask);
+        downloadEngine.AddTrackersAsync(Arg.Any<int>(), Arg.Any<IEnumerable<string>>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>()));
+        this.UseController(trackerEntryRepository, downloadEngine);
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": 1099,
+                "method": "aria2.changeUri",
+                "params": [
+                    "{{ExpectedGid}}",
+                    1,
+                    ["http://dead.example/announce", "http://missing.example/announce"],
+                    ["http://new.example/announce", "http://new.example/announce"],
+                    0
+                ]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcResultInts(result).Should().Equal(1, 1);
+        torrent.TrackerUrl.Should().Be("http://new.example/announce");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+        trackerEntryRepository.Received(1).Delete(1);
+        trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(entry =>
+            entry.TorrentId == 12
+            && entry.Url == "http://new.example/announce"
+            && entry.Tier == 0
+            && entry.Enabled));
+        trackerEntryRepository.Received(1).Update(Arg.Is<TrackerEntry>(entry => entry.Id == 2 && entry.Tier == 1));
+        await downloadEngine.Received(1).RemoveTrackersAsync(
+            12,
+            Arg.Is<IEnumerable<string>>(urls => urls.Single() == "http://dead.example/announce"));
+        await downloadEngine.Received(1).AddTrackersAsync(
+            12,
+            Arg.Is<IEnumerable<string>>(urls => urls.Single() == "http://new.example/announce"));
+    }
+
+    [Test]
+    public async Task ChangeUri_JsonRpc_WhenNothingMatches_DoesNotChangeTheDownload()
+    {
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "MirrorTorrent",
+            InfoHash = FullInfoHash,
+            TrackerUrl = "http://keep.example/announce",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": 1100,
+                "method": "aria2.changeUri",
+                "params": ["{{ExpectedGid}}", 1, ["http://missing.example/announce"], ["http://keep.example/announce"]]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcResultInts(result).Should().Equal(0, 0);
+        torrent.TrackerUrl.Should().Be("http://keep.example/announce");
+        await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task ChangeUri_JsonRpc_WithUnknownGid_ReturnsError()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.SetJsonRequestBody("""
+            {
+                "jsonrpc": "2.0",
+                "id": 1101,
+                "method": "aria2.changeUri",
+                "params": ["deadbeefdeadbeef", 1, ["http://old.example/announce"], ["http://new.example/announce"]]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcErrorMessage(result).Should().Be("GID deadbeefdeadbeef is not found");
+        await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task ChangeUri_JsonRpc_WithFileIndexOutOfRange_ReturnsError()
+    {
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "MirrorTorrent",
+            InfoHash = FullInfoHash,
+            TrackerUrl = "http://keep.example/announce",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": 1102,
+                "method": "aria2.changeUri",
+                "params": ["{{ExpectedGid}}", 5, ["http://keep.example/announce"], ["http://new.example/announce"]]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        GetJsonRpcErrorMessage(result).Should().Be("fileIndex is out of range");
+        torrent.TrackerUrl.Should().Be("http://keep.example/announce");
+        await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task ChangeUri_XmlRpc_ReplacesTrackerUrl()
+    {
+        var torrent = new Torrent
+        {
+            Id = 13,
+            Name = "XmlMirror",
+            InfoHash = FullInfoHash,
+            TrackerUrl = "http://dead.example/announce",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentService.UpdateAsync(Arg.Any<Torrent>()).Returns(call => Task.FromResult(call.Arg<Torrent>()));
+
+        this.SetXmlRequestBody($"""
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>aria2.changeUri</methodName>
+              <params>
+                <param><value><string>{ExpectedGid}</string></value></param>
+                <param><value><int>1</int></value></param>
+                <param><value><array><data><value><string>http://dead.example/announce</string></value></data></array></value></param>
+                <param><value><array><data><value><string>http://new.example/announce</string></value></data></array></value></param>
+              </params>
+            </methodCall>
+            """);
+
+        var result = await this.controller.HandleRpc();
+        result.Should().BeOfType<ContentResult>();
+        var doc = XDocument.Parse(((ContentResult)result).Content);
+        var counts = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data")?.Elements("value")
+            .Select(value => int.Parse(value.Element("int")?.Value ?? value.Value))
+            .ToList();
+        counts.Should().Equal(1, 1);
+        torrent.TrackerUrl.Should().Be("http://new.example/announce");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    private void UseController(ITrackerEntryRepository trackerEntryRepository, IDownloadEngine downloadEngine)
+    {
+        this.controller = new Aria2RpcController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider,
+            this.safeHttpClientService,
+            trackerEntryRepository,
+            downloadEngine);
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);
@@ -2254,6 +2436,15 @@ public class Aria2RpcControllerTest
         var json = JsonSerializer.Serialize(okResult.Value);
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("result").GetString();
+    }
+
+    private static List<int> GetJsonRpcResultInts(IActionResult actionResult)
+    {
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("result").EnumerateArray().Select(item => item.GetInt32()).ToList();
     }
 
     private static string GetJsonRpcErrorMessage(IActionResult actionResult)
