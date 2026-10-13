@@ -48,6 +48,12 @@ public class SynologyDownloadStationControllerTest
             this.configService,
             this.configFileProvider,
             this.safeHttpClientService);
+
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "synologyaddhash" };
+        this.torrentService.AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+        this.torrentService.AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>())
+            .Returns(addedTorrent);
     }
 
     [Test]
@@ -267,6 +273,53 @@ public class SynologyDownloadStationControllerTest
         using var doc = JsonDocument.Parse(json);
         var tasks = doc.RootElement.GetProperty("data").GetProperty("task");
         tasks.GetArrayLength().Should().Be(2);
+    }
+
+    [Test]
+    public async Task HandleTask_Create_WithoutUriOrFile_ReturnsInvalidParameterError()
+    {
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = await this.controller.TaskHandler(
+            api: "SYNO.DownloadStation.Task",
+            method: "create",
+            id: null!,
+            uri: null!,
+            url: null!,
+            destination: null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("success").GetBoolean().Should().BeFalse();
+        doc.RootElement.GetProperty("error").GetProperty("code").GetInt32().Should().Be(400);
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleTask_Create_WhenAddReturnsNull_ReturnsCreateFailedError()
+    {
+        var httpContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var magnet = "magnet:?xt=urn:btih:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        this.torrentService.AddFromMagnetAsync(magnet, null, null, false).Returns((Torrent)null!);
+
+        var result = await this.controller.TaskHandler(
+            api: "SYNO.DownloadStation.Task",
+            method: "create",
+            id: null!,
+            uri: magnet,
+            url: null!,
+            destination: null!);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("success").GetBoolean().Should().BeFalse();
+        doc.RootElement.GetProperty("error").GetProperty("code").GetInt32().Should().Be(403);
     }
 
     [Test]

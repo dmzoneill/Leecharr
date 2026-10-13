@@ -332,28 +332,41 @@ public class SynologyDownloadStationController : ControllerBase
                 var effectiveDest = !string.IsNullOrWhiteSpace(destination) ? destination : (!string.IsNullOrWhiteSpace(formDestination) ? formDestination : null);
                 var targetDest = effectiveDest;
 
+                var hasFileUpload = this.Request.HasFormContentType && this.Request.Form.Files.Count > 0;
+
+                if (string.IsNullOrWhiteSpace(effectiveUri) && !hasFileUpload)
+                {
+                    return this.Ok(new { success = false, error = new { code = 400 } });
+                }
+
+                Torrent added = null;
                 if (!string.IsNullOrWhiteSpace(effectiveUri))
                 {
                     if (effectiveUri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
-                        await this.torrentService.AddFromMagnetAsync(effectiveUri, null, targetDest, false);
+                        added = await this.torrentService.AddFromMagnetAsync(effectiveUri, null, targetDest, false);
                     }
                     else
                     {
                         var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
                         var bytes = await this.safeHttpClientService.DownloadBytesAsync(effectiveUri, maxSizeBytes: maxTorrentBytes);
                         var parsed = this.torrentFileParser.Parse(bytes);
-                        await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
+                        added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
                     }
                 }
-                else if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
+                else if (hasFileUpload)
                 {
                     var file = this.Request.Form.Files[0];
                     using var ms = new MemoryStream();
                     await file.CopyToAsync(ms);
                     var bytes = ms.ToArray();
                     var parsed = this.torrentFileParser.Parse(bytes);
-                    await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
+                    added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, targetDest, false, bytes);
+                }
+
+                if (added == null || added.Id <= 0)
+                {
+                    return this.Ok(new { success = false, error = new { code = hasFileUpload ? 404 : 403 } });
                 }
 
                 return this.Ok(new { success = true });
