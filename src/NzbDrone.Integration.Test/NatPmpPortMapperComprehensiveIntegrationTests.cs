@@ -957,7 +957,8 @@ public class NatPmpPortMapperComprehensiveIntegrationTests : IntegrationTestBase
         active.LocalIpAddress = IPAddress.Parse("10.99.99.99");
         active.NextRenewalUtc = DateTime.UtcNow.AddSeconds(-10); // Expired renewal
 
-        await service.CheckAndRenewMappingsAsync();
+        // Stay on the mapped gateway. Host route discovery is not part of this case.
+        await service.CheckAndRenewMappingsAsync(IPAddress.Loopback);
         await serverTask;
 
         service.GatewayEpochs.Should().ContainKey(IPAddress.Loopback);

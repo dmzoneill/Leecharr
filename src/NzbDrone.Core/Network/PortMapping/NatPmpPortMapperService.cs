@@ -951,7 +951,24 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
     }
 
-    internal async Task CheckAndRenewMappingsAsync()
+    internal static IPAddress SelectRenewalTargetGateway(
+        bool gatewayChanged,
+        IPAddress previousGateway,
+        IPAddress currentGateway,
+        IPAddress mappingGateway)
+    {
+        if (gatewayChanged &&
+            mappingGateway != null &&
+            previousGateway != null &&
+            mappingGateway.Equals(previousGateway))
+        {
+            return currentGateway;
+        }
+
+        return mappingGateway ?? currentGateway;
+    }
+
+    internal async Task CheckAndRenewMappingsAsync(IPAddress discoveredGateway = null)
     {
         if (this.isDisposed != 0 || this.isRunning == 0 || this.isSuspended != 0 || this.activeMappings.IsEmpty)
         {
@@ -991,7 +1008,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             }
 
             var now = DateTime.UtcNow;
-            var currentGateway = this.ResolveGateway();
+            var currentGateway = discoveredGateway ?? this.ResolveGateway();
 
             if (hasSpecificBound && failClosed && currentGateway == null)
             {
@@ -999,9 +1016,12 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return;
             }
 
+            // Compare against the gateway from before this assignment. Updating
+            // lastKnownGateway first hides the old address, so renewals stay there.
+            var previousGateway = this.lastKnownGateway;
             var gatewayChanged = currentGateway != null &&
-                                this.lastKnownGateway != null &&
-                                !currentGateway.Equals(this.lastKnownGateway);
+                                previousGateway != null &&
+                                !currentGateway.Equals(previousGateway);
 
             if (currentGateway != null)
             {
@@ -1045,7 +1065,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
 
                 var mapping = kvp.Value;
-                var targetGateway = (gatewayChanged && mapping.GatewayAddress != null && mapping.GatewayAddress.Equals(this.lastKnownGateway)) ? currentGateway : (mapping.GatewayAddress ?? currentGateway);
+                var targetGateway = SelectRenewalTargetGateway(
+                    gatewayChanged,
+                    previousGateway,
+                    currentGateway,
+                    mapping.GatewayAddress);
                 var currentLocalIp = this.GetLocalIpAddressForGateway(targetGateway);
                 var localIpChanged = currentLocalIp != null &&
                                     mapping.LocalIpAddress != null &&

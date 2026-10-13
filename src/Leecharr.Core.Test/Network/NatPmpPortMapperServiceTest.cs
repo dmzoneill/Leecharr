@@ -1111,6 +1111,110 @@ public class NatPmpPortMapperServiceTest
     }
 
     [Test]
+    public void SelectRenewalTargetGateway_WhenMappingWasOnPreviousGateway_UsesCurrentGateway()
+    {
+        var previous = IPAddress.Parse("10.0.0.1");
+        var current = IPAddress.Parse("10.8.0.1");
+
+        var selected = NatPmpPortMapperService.SelectRenewalTargetGateway(
+            gatewayChanged: true,
+            previousGateway: previous,
+            currentGateway: current,
+            mappingGateway: previous);
+
+        selected.Should().Be(current);
+    }
+
+    [Test]
+    public void SelectRenewalTargetGateway_WhenMappingIsOnAnotherGateway_KeepsThatGateway()
+    {
+        var previous = IPAddress.Parse("10.0.0.1");
+        var current = IPAddress.Parse("10.8.0.1");
+        var other = IPAddress.Parse("192.168.1.1");
+
+        NatPmpPortMapperService.SelectRenewalTargetGateway(
+            gatewayChanged: true,
+            previousGateway: previous,
+            currentGateway: current,
+            mappingGateway: other).Should().Be(other);
+
+        NatPmpPortMapperService.SelectRenewalTargetGateway(
+            gatewayChanged: false,
+            previousGateway: previous,
+            currentGateway: current,
+            mappingGateway: other).Should().Be(other);
+
+        NatPmpPortMapperService.SelectRenewalTargetGateway(
+            gatewayChanged: true,
+            previousGateway: previous,
+            currentGateway: current,
+            mappingGateway: null).Should().Be(current);
+    }
+
+    [Test]
+    public async Task CheckAndRenewMappingsAsync_WhenGatewayChanges_RenewsOnTheNewGateway()
+    {
+        using var oldGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)oldGateway.Client.LocalEndPoint).Port;
+        var newGatewayAddress = IPAddress.Parse("127.0.0.2");
+        using var newGateway = new UdpClient(new IPEndPoint(newGatewayAddress, mockPort));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var mapServerTask = Task.Run(async () =>
+        {
+            var received = await oldGateway.ReceiveAsync(cts.Token);
+            var req = received.Buffer;
+            var opcode = req[1];
+            var internalPort = BinaryPrimitives.ReadUInt16BigEndian(req.AsSpan(4, 2));
+
+            var resp = new byte[16];
+            resp[0] = 0x00;
+            resp[1] = (byte)(0x80 + opcode);
+            BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 0);
+            BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), 1000);
+            BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(8, 2), internalPort);
+            BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(10, 2), internalPort);
+            BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(12, 4), 3600);
+
+            await oldGateway.SendAsync(resp, resp.Length, received.RemoteEndPoint);
+        });
+
+        using var service = new NatPmpPortMapperService(mockPort);
+        var result = await service.MapPortAsync(51413, NatPmpProtocol.Tcp, suggestedExternalPort: 51413, lifetimeSeconds: 3600, gateway: IPAddress.Loopback, cancellationToken: cts.Token);
+        await mapServerTask;
+
+        result.Success.Should().BeTrue();
+        var active = service.ActiveMappings.First();
+        active.LocalIpAddress = null;
+        active.NextRenewalUtc = DateTime.UtcNow.AddHours(1);
+
+        var renewTask = Task.Run(async () =>
+        {
+            var received = await newGateway.ReceiveAsync(cts.Token);
+            var req = received.Buffer;
+            var lifetime = BinaryPrimitives.ReadUInt32BigEndian(req.AsSpan(8, 4));
+            lifetime.Should().Be(3600);
+
+            var resp = new byte[16];
+            resp[0] = 0x00;
+            resp[1] = (byte)(0x80 + req[1]);
+            BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 0);
+            BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), 1001);
+            BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(8, 2), 51413);
+            BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(10, 2), 51413);
+            BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(12, 4), 3600);
+            await newGateway.SendAsync(resp, resp.Length, received.RemoteEndPoint);
+        });
+
+        await service.CheckAndRenewMappingsAsync(newGatewayAddress);
+        await renewTask;
+
+        active.GatewayAddress.Should().Be(newGatewayAddress);
+        oldGateway.Available.Should().Be(0);
+    }
+
+    [Test]
     public async Task CheckAndRenewMappingsAsync_WhenLocalIpAddressChanges_DeletesObsoleteMappingAndRemaps()
     {
         using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
@@ -1182,7 +1286,8 @@ public class NatPmpPortMapperServiceTest
             await mockGateway.SendAsync(resp2, resp2.Length, received2.RemoteEndPoint);
         });
 
-        await service.CheckAndRenewMappingsAsync();
+        // Stay on the mapped gateway. Host route discovery is not part of this case.
+        await service.CheckAndRenewMappingsAsync(IPAddress.Loopback);
         await unmapAndRemapTask;
 
         active.LocalIpAddress.Should().Be(IPAddress.Loopback);
@@ -1245,7 +1350,8 @@ public class NatPmpPortMapperServiceTest
             await mockGateway.SendAsync(resp, resp.Length, received.RemoteEndPoint);
         });
 
-        await service.CheckAndRenewMappingsAsync();
+        // Stay on the mapped gateway. Host route discovery is not part of this case.
+        await service.CheckAndRenewMappingsAsync(IPAddress.Loopback);
         await epochPollTask;
 
         service.GatewayEpochs[IPAddress.Loopback].Should().Be(10);
