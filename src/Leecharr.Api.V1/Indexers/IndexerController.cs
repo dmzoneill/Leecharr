@@ -29,6 +29,7 @@ public class IndexerController : Controller
     private const int FreeleechSearchMaxRounds = 10;
     private const int FreeleechSearchBatchLimitMulti = 100;
     private const int FreeleechSearchBatchLimitSingle = 250;
+    private const int MultiIndexerFetchCap = 200;
     private static readonly TimeSpan ProwlarrProbeTimeout = TimeSpan.FromSeconds(15);
 
     private static readonly Regex MagnetBtihRegex = new(@"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
@@ -539,9 +540,9 @@ public class IndexerController : Controller
         var catId = parsedCategories.Count > 0 ? parsedCategories[0] : (int?)null;
         var isMulti = indexers.Count > 1;
         var fetchLimit = isMulti
-            ? (effectiveOffset > 0 && effectiveOffset < 100 ? Math.Min(effectiveOffset + effectiveLimit, 100) : Math.Min(effectiveLimit, 100))
+            ? (int)Math.Min((long)effectiveOffset + effectiveLimit, MultiIndexerFetchCap)
             : effectiveLimit;
-        var fetchOffset = isMulti && effectiveOffset < 100 ? 0 : effectiveOffset;
+        var fetchOffset = isMulti ? 0 : effectiveOffset;
         if (request.FreeleechOnly)
         {
             fetchOffset = 0;
@@ -730,7 +731,7 @@ public class IndexerController : Controller
             .ThenBy(r => r.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var paginatedResults = request.FreeleechOnly || (isMulti && fetchOffset == 0)
+        var paginatedResults = request.FreeleechOnly || isMulti
             ? sortedResults.Skip(effectiveOffset).Take(effectiveLimit).ToList()
             : sortedResults.Take(effectiveLimit).ToList();
 

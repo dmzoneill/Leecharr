@@ -1060,7 +1060,7 @@ public class IndexerControllerTest
     }
 
     [Test]
-    public async Task SearchGet_MultiIndexerSearchWithLargeLimit_CapsFetchLimitPerIndexerTo100()
+    public async Task SearchGet_MultiIndexerSearchWithLargeLimit_CapsFetchLimitPerIndexerTo200()
     {
         var indexer1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
         var indexer2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
@@ -1068,7 +1068,7 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer1,
-            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 100),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 200 && c.Offset == 0),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
@@ -1077,7 +1077,7 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer2,
-            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 100),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 200 && c.Offset == 0),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
@@ -1096,17 +1096,17 @@ public class IndexerControllerTest
 
         await this.torznabClient.Received(1).SearchAsync(
             indexer1,
-            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 100),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 200 && c.Offset == 0),
             Arg.Any<System.Threading.CancellationToken>());
 
         await this.torznabClient.Received(1).SearchAsync(
             indexer2,
-            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 100),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 200 && c.Offset == 0),
             Arg.Any<System.Threading.CancellationToken>());
     }
 
     [Test]
-    public async Task SearchGet_MultiIndexerDeepPaginationAtOffset500_QueriesIndexersAtOffset500AndPreservesResults()
+    public async Task SearchGet_MultiIndexerOffsetBeyondPerIndexerWindow_FetchesFromZeroAndPagesGlobally()
     {
         var indexer1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
         var indexer2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
@@ -1114,31 +1114,80 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer1,
-            Arg.Is<TorznabSearchCriteria>(c => c.Query == "deep search" && c.Limit == 50 && c.Offset == 500),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "deep search" && c.Limit == 200 && c.Offset == 0),
             Arg.Any<System.Threading.CancellationToken>())
-            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            .Returns(Task.FromResult(Enumerable.Range(0, 200).Select(i => new TorznabSearchResult
             {
-                new() { Title = "Deep Release Alpha", Seeders = 10, DownloadUrl = "http://dl-alpha" },
-            }));
+                Title = $"T1-{i}",
+                Seeders = 3000 - i,
+                DownloadUrl = $"http://dl-t1-{i}",
+            }).ToList()));
 
         this.torznabClient.SearchAsync(
             indexer2,
-            Arg.Is<TorznabSearchCriteria>(c => c.Query == "deep search" && c.Limit == 50 && c.Offset == 500),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "deep search" && c.Limit == 200 && c.Offset == 0),
             Arg.Any<System.Threading.CancellationToken>())
-            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            .Returns(Task.FromResult(Enumerable.Range(0, 200).Select(i => new TorznabSearchResult
             {
-                new() { Title = "Deep Release Beta", Seeders = 20, DownloadUrl = "http://dl-beta" },
-            }));
+                Title = $"T2-{i}",
+                Seeders = 2000 - i,
+                DownloadUrl = $"http://dl-t2-{i}",
+            }).ToList()));
 
-        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "deep search", Offset = 500, Limit = 50 });
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "deep search", Offset = 150, Limit = 50 });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)actionResult.Result!;
         var results = (List<ReleaseInfoResource>)okResult.Value!;
 
-        results.Should().HaveCount(2);
-        results[0].Title.Should().Be("Deep Release Beta");
-        results[1].Title.Should().Be("Deep Release Alpha");
+        results.Should().HaveCount(50);
+        results[0].Title.Should().Be("T1-150");
+        results[0].Seeders.Should().Be(2850);
+        results[49].Title.Should().Be("T1-199");
+        results[49].Seeders.Should().Be(2801);
+        results.Should().OnlyContain(r => r.IndexerName == "Tracker1");
+    }
+
+    [Test]
+    public async Task SearchGet_MultiIndexerOffsetPlusLimitUnderCap_FetchesFullWindowBeforeGlobalPage()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(
+            indexer1,
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "page two" && c.Limit == 130 && c.Offset == 0),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(Enumerable.Range(0, 130).Select(i => new TorznabSearchResult
+            {
+                Title = $"T1-{i}",
+                Seeders = 5000 - i,
+                DownloadUrl = $"http://dl-t1-{i}",
+            }).ToList()));
+
+        this.torznabClient.SearchAsync(
+            indexer2,
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "page two" && c.Limit == 130 && c.Offset == 0),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(Enumerable.Range(0, 130).Select(i => new TorznabSearchResult
+            {
+                Title = $"T2-{i}",
+                Seeders = 1000 - i,
+                DownloadUrl = $"http://dl-t2-{i}",
+            }).ToList()));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "page two", Offset = 80, Limit = 50 });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var results = (List<ReleaseInfoResource>)okResult.Value!;
+
+        results.Should().HaveCount(50);
+        results[0].Title.Should().Be("T1-80");
+        results[0].Seeders.Should().Be(4920);
+        results[49].Title.Should().Be("T1-129");
+        results[49].Seeders.Should().Be(4871);
     }
 
     [Test]
