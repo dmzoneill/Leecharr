@@ -172,7 +172,7 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
         return result;
     }
 
-    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)
+    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null, string mediaFilePath = null)
     {
         var provider = Volatile.Read(ref this.activeProvider);
         if (provider != null)
@@ -180,7 +180,7 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
             MediaMetadata result = null;
             try
             {
-                result = await provider.FetchMetadataAsync(title, category, year, infoHash);
+                result = await provider.FetchMetadataAsync(title, category, year, infoHash, mediaFilePath);
                 if (result != null &&
                     !string.IsNullOrEmpty(result.PosterUrl) &&
                     !string.IsNullOrEmpty(result.Overview))
@@ -197,7 +197,7 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
             {
                 try
                 {
-                    var fallbackResult = await fallback.FetchMetadataAsync(title, category, year, infoHash);
+                    var fallbackResult = await fallback.FetchMetadataAsync(title, category, year, infoHash, mediaFilePath);
                     if (HasEnrichedMetadata(fallbackResult))
                     {
                         if (result == null || IsEmptyPlaceholder(result))

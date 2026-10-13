@@ -10,7 +10,7 @@ public interface IMediaMetadataService
 
     string ActiveProviderId { get; }
 
-    Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null);
+    Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null, string mediaFilePath = null);
 
-    Task<MediaMetadata> GetMetadataAsync(string title, string category = null, int? year = null, string infoHash = null) => FetchMetadataAsync(title, category, year, infoHash);
+    Task<MediaMetadata> GetMetadataAsync(string title, string category = null, int? year = null, string infoHash = null, string mediaFilePath = null) => FetchMetadataAsync(title, category, year, infoHash, mediaFilePath);
 }

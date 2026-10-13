@@ -55,7 +55,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         });
     }
 
-    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)
+    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null, string mediaFilePath = null)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -81,8 +81,9 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             Overview = string.Empty,
         };
 
-        var mediaDirectory = this.LocateMediaDirectory(title);
-        var nfoFilePath = this.LocateNfoFile(title);
+        var lookupPath = !string.IsNullOrWhiteSpace(mediaFilePath) ? mediaFilePath : title;
+        var mediaDirectory = this.LocateMediaDirectory(lookupPath);
+        var nfoFilePath = this.LocateNfoFile(lookupPath);
         if (!string.IsNullOrWhiteSpace(nfoFilePath) && File.Exists(nfoFilePath))
         {
             try
@@ -130,7 +131,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                 var parentDir = Path.GetDirectoryName(existingPath);
                 if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir) && this.IsPathAllowed(parentDir))
                 {
-                    return FindNfoInDirectory(parentDir);
+                    return this.FindNfoInDirectoryTree(parentDir);
                 }
             }
 
@@ -301,6 +302,41 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         }
 
         return this.GetDownloadSearchRoots().Any(root => PackagePathTranslator.IsPathUnderDirectory(path, root));
+    }
+
+    private string FindNfoInDirectoryTree(string directory)
+    {
+        try
+        {
+            var current = directory;
+            while (!string.IsNullOrEmpty(current) && Directory.Exists(current))
+            {
+                if (!this.IsPathAllowed(current))
+                {
+                    break;
+                }
+
+                var found = FindNfoInDirectory(current);
+                if (found != null)
+                {
+                    return found;
+                }
+
+                var parent = Path.GetDirectoryName(current);
+                if (string.IsNullOrEmpty(parent) || string.Equals(parent, current, StringComparison.Ordinal))
+                {
+                    break;
+                }
+
+                current = parent;
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string FindNfoInDirectory(string directory)

@@ -88,7 +88,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         }
     }
 
-    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)
+    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null, string mediaFilePath = null)
     {
         if (string.IsNullOrWhiteSpace(title))
         {

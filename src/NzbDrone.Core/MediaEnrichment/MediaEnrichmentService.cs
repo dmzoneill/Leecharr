@@ -139,7 +139,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
         {
             try
             {
-                var dynamicMeta = await this.mediaMetadataService.GetMetadataAsync(torrent.Name, torrent.Category, null, torrent.InfoHash);
+                var dynamicMeta = await this.mediaMetadataService.GetMetadataAsync(torrent.Name, torrent.Category, null, torrent.InfoHash, filePath);
                 if (dynamicMeta != null)
                 {
                     if (!string.IsNullOrEmpty(dynamicMeta.Title))
