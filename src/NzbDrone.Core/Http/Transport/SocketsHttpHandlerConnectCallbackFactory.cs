@@ -5,10 +5,12 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Vpn;
 
@@ -32,7 +34,9 @@ internal static class SocketsHttpHandlerConnectCallbackFactory
             var iface = configService?.BindInterface;
             var host = context.DnsEndPoint.Host;
             var port = context.DnsEndPoint.Port;
-            IPAddress[] resolvedAddresses = null;
+            var allowPrivateNetworkRequests = configService?.AllowPrivateNetworkRequests ?? false;
+            var allowedSsrfSubnets = configService?.AllowedSsrfSubnets;
+            IPAddress[] resolvedAddresses;
 
             if (IPAddress.TryParse(host, out var parsedIp))
             {
@@ -44,73 +48,57 @@ internal static class SocketsHttpHandlerConnectCallbackFactory
                 {
                     resolvedAddresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
-                    logger?.Trace(ex, "DNS resolution failed for {0}, falling back to DnsEndPoint connect", host);
+                    logger?.Trace(ex, "DNS resolution failed for {0}; refusing connection without an address check", host);
+                    throw new SecurityException($"Unable to resolve IP address for host '{host}'.", ex);
                 }
             }
 
-            if (resolvedAddresses != null && resolvedAddresses.Length > 0)
+            SsrfAddressPolicy.EnsureConnectable(host, resolvedAddresses, allowPrivateNetworkRequests, allowedSsrfSubnets);
+
+            Exception lastError = null;
+            foreach (var address in resolvedAddresses)
             {
-                Exception lastError = null;
-                foreach (var address in resolvedAddresses)
+                var targetIp = address;
+                if (targetIp.IsIPv4MappedToIPv6)
                 {
-                    var targetIp = address;
-                    if (targetIp.IsIPv4MappedToIPv6)
-                    {
-                        targetIp = targetIp.MapToIPv4();
-                    }
-
-                    var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-                    if (!string.IsNullOrWhiteSpace(iface) && networkBindingService != null)
-                    {
-                        networkBindingService.BindSocket(socket, iface);
-                    }
-
-                    try
-                    {
-                        await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken);
-                        return new NetworkStream(socket, ownsSocket: true);
-                    }
-                    catch (Exception ex) when (ex is SocketException or IOException)
-                    {
-                        lastError = ex;
-                        socket.Dispose();
-                    }
-                    catch
-                    {
-                        socket.Dispose();
-                        throw;
-                    }
+                    targetIp = targetIp.MapToIPv4();
                 }
 
-                if (lastError != null)
+                var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                if (!string.IsNullOrWhiteSpace(iface) && networkBindingService != null)
                 {
-                    throw lastError;
+                    networkBindingService.BindSocket(socket, iface);
                 }
 
-                throw new SocketException((int)SocketError.HostUnreachable);
+                try
+                {
+                    await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch (Exception ex) when (ex is SocketException or IOException)
+                {
+                    lastError = ex;
+                    socket.Dispose();
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
             }
 
-            var fallbackSocket = context.DnsEndPoint.AddressFamily == AddressFamily.Unspecified
-                ? new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true }
-                : new Socket(context.DnsEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-
-            if (!string.IsNullOrWhiteSpace(iface) && networkBindingService != null)
+            if (lastError != null)
             {
-                networkBindingService.BindSocket(fallbackSocket, iface);
+                throw lastError;
             }
 
-            try
-            {
-                await fallbackSocket.ConnectAsync(context.DnsEndPoint, cancellationToken);
-                return new NetworkStream(fallbackSocket, ownsSocket: true);
-            }
-            catch
-            {
-                fallbackSocket.Dispose();
-                throw;
-            }
+            throw new SocketException((int)SocketError.HostUnreachable);
         };
     }
 }

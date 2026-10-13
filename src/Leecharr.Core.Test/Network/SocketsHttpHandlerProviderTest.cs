@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -64,6 +65,7 @@ public class SocketsHttpHandlerProviderTest
     public async Task ConnectCallback_WhenBindInterfaceConfigured_BindsSocket()
     {
         this.vpnKillSwitchService.IsFailClosedActive.Returns(false);
+        this.configService.AllowPrivateNetworkRequests.Returns(true);
         this.configService.BindInterface.Returns("tun0");
 
         var provider = new SocketsHttpHandlerProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
@@ -84,6 +86,7 @@ public class SocketsHttpHandlerProviderTest
     [Test]
     public async Task ConnectCallback_CurlImpersonate_WhenBindInterfaceConfigured_BindsSocket()
     {
+        this.configService.AllowPrivateNetworkRequests.Returns(true);
         this.configService.BindInterface.Returns("tun0");
 
         using var provider = new CurlImpersonateTransportProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
@@ -104,6 +107,7 @@ public class SocketsHttpHandlerProviderTest
     [Test]
     public async Task ConnectCallback_FlareSolverrFallback_WhenBindInterfaceConfigured_BindsSocket()
     {
+        this.configService.AllowPrivateNetworkRequests.Returns(true);
         this.configService.BindInterface.Returns("tun0");
 
         using var provider = new FlareSolverrTransportProvider(this.configService, networkBindingService: this.networkBindingService, vpnKillSwitchService: this.vpnKillSwitchService);
@@ -213,6 +217,76 @@ public class SocketsHttpHandlerProviderTest
         }
 
         this.networkBindingService.Received().BindSocket(Arg.Any<Socket>(), "tun0");
+    }
+
+    [TestCase("127.0.0.1")]
+    [TestCase("169.254.169.254")]
+    [TestCase("10.1.2.3")]
+    [TestCase("192.168.1.1")]
+    public async Task ConnectCallback_WhenPrivateNetworkDisabled_BlocksProhibitedAddress(string host)
+    {
+        this.configService.AllowPrivateNetworkRequests.Returns(false);
+        var provider = new SocketsHttpHandlerProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
+        var context = CreateConnectionContext(new DnsEndPoint(host, 9));
+
+        var act = async () => await provider.Handler.ConnectCallback!(context, CancellationToken.None);
+
+        await act.Should().ThrowAsync<SecurityException>()
+            .WithMessage("*SSRF blocked*");
+        this.networkBindingService.DidNotReceiveWithAnyArgs().BindSocket(default!, default!);
+    }
+
+    [Test]
+    public async Task ConnectCallback_WhenHostnameResolvesToLoopback_BlocksBeforeConnect()
+    {
+        this.configService.AllowPrivateNetworkRequests.Returns(false);
+        var provider = new SocketsHttpHandlerProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
+        var context = CreateConnectionContext(new DnsEndPoint("localhost", 9));
+
+        var act = async () => await provider.Handler.ConnectCallback!(context, CancellationToken.None);
+
+        await act.Should().ThrowAsync<SecurityException>()
+            .WithMessage("*SSRF blocked*");
+    }
+
+    [Test]
+    public async Task ConnectCallback_WhenPrivateNetworkEnabled_StillBlocksMetadataAddress()
+    {
+        this.configService.AllowPrivateNetworkRequests.Returns(true);
+        var provider = new SocketsHttpHandlerProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
+        var context = CreateConnectionContext(new DnsEndPoint("169.254.169.254", 80));
+
+        var act = async () => await provider.Handler.ConnectCallback!(context, CancellationToken.None);
+
+        await act.Should().ThrowAsync<SecurityException>()
+            .WithMessage("*SSRF blocked*");
+    }
+
+    [Test]
+    public async Task ConnectCallback_WhenPrivateNetworkEnabled_DoesNotBlockLoopback()
+    {
+        this.configService.AllowPrivateNetworkRequests.Returns(true);
+        var provider = new SocketsHttpHandlerProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
+        var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 1));
+
+        var act = async () => await provider.Handler.ConnectCallback!(context, CancellationToken.None);
+
+        var thrown = await act.Should().ThrowAsync<Exception>();
+        thrown.Which.Should().NotBeOfType<SecurityException>();
+    }
+
+    [Test]
+    public async Task ConnectCallback_WhenSubnetAllowlisted_DoesNotBlockThatAddress()
+    {
+        this.configService.AllowPrivateNetworkRequests.Returns(false);
+        this.configService.AllowedSsrfSubnets.Returns("127.0.0.1");
+        var provider = new SocketsHttpHandlerProvider(this.configService, this.networkBindingService, this.vpnKillSwitchService);
+        var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 1));
+
+        var act = async () => await provider.Handler.ConnectCallback!(context, CancellationToken.None);
+
+        var thrown = await act.Should().ThrowAsync<Exception>();
+        thrown.Which.Should().NotBeOfType<SecurityException>();
     }
 
     private static SocketsHttpConnectionContext CreateConnectionContext(DnsEndPoint endPoint)
