@@ -123,7 +123,9 @@ class LibTorrentManager:
         settings = {
             "listen_interfaces": listen_interfaces,
             "alert_mask": lt.alert.category_t.error_notification | lt.alert.category_t.status_notification,
-            "enable_dht": True,
+            # Off until set_settings. Otherwise the session announces on the
+            # clearnet before a configured proxy can be applied.
+            "enable_dht": False,
             "enable_lsd": True,
             "enable_upnp": True,
             "enable_natpmp": True,
@@ -486,6 +488,11 @@ class LibTorrentManager:
             settings["enable_dht"] = bool(params["enable_dht"])
         elif "dht_enabled" in params:
             settings["enable_dht"] = bool(params["dht_enabled"])
+
+        # DHT UDP leaves on the listen socket. proxy_peer_connections and
+        # force_proxy do not carry it, so a configured proxy keeps DHT off.
+        if settings.get("proxy_type") not in (None, 0):
+            settings["enable_dht"] = False
 
         if "dht_bootstrap_nodes" in params:
             nodes = params["dht_bootstrap_nodes"]

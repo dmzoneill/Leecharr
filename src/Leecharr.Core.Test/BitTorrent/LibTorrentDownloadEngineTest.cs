@@ -292,6 +292,76 @@ public class LibTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task ConfigureSessionSettingsAsync_WhenProxyConfigured_DisablesClearnetDht()
+    {
+        this.configService.ProxyType.Returns("socks5");
+        this.configService.ProxyHost.Returns("127.0.0.1");
+        this.configService.ProxyPort.Returns(1080);
+        this.configService.EnableDht.Returns(true);
+        this.configService.AnonymousMode.Returns(false);
+        this.configService.ForceProxy.Returns(false);
+        this.configService.DhtBootstrapNodes.Returns("router.bittorrent.com:6881");
+
+        string capturedBody = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult()!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"settings_applied\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        await engine.ConfigureSessionSettingsAsync();
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        var paramsObj = doc.RootElement.GetProperty("params");
+
+        paramsObj.GetProperty("enable_dht").GetBoolean().Should().BeFalse();
+        paramsObj.GetProperty("proxy_peer_connections").GetBoolean().Should().BeTrue();
+        paramsObj.GetProperty("force_proxy").GetBoolean().Should().BeFalse();
+        paramsObj.TryGetProperty("dht_bootstrap_nodes", out _).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ConfigureSessionSettingsAsync_WhenForceProxyEnabled_StillDisablesDht()
+    {
+        this.configService.ProxyType.Returns("http");
+        this.configService.ProxyHost.Returns("127.0.0.1");
+        this.configService.ProxyPort.Returns(8080);
+        this.configService.EnableDht.Returns(true);
+        this.configService.AnonymousMode.Returns(false);
+        this.configService.ForceProxy.Returns(true);
+
+        string capturedBody = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult()!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"settings_applied\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        await engine.ConfigureSessionSettingsAsync();
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        var paramsObj = doc.RootElement.GetProperty("params");
+
+        paramsObj.GetProperty("enable_dht").GetBoolean().Should().BeFalse();
+        paramsObj.GetProperty("force_proxy").GetBoolean().Should().BeTrue();
+        paramsObj.GetProperty("proxy_type").GetString().Should().Be("http");
+    }
+
+    [Test]
     public async Task RenameFileAsync_WhenDaemonRenamesFile_ReturnsTrue()
     {
         var rpcMethods = new List<string>();

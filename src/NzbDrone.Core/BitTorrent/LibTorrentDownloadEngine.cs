@@ -892,7 +892,10 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase);
 
         var isAnonymous = this.configService?.AnonymousMode ?? false;
-        var enableDht = (this.configService?.EnableDht ?? true) && !isAnonymous;
+
+        // DHT UDP is sent on the listen socket. libtorrent 1.2 and 2.1 do not
+        // carry those packets through proxy_peer_connections or force_proxy.
+        var enableDht = (this.configService?.EnableDht ?? true) && !isAnonymous && !proxyConfigured;
 
         var sessionArgs = new Dictionary<string, object>
         {
@@ -931,9 +934,16 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             sessionArgs["force_proxy"] = false;
         }
 
-        if (DhtPolicy.ShouldAutoBootstrap(this.configService) && !string.IsNullOrWhiteSpace(this.configService?.DhtBootstrapNodes))
+        if (enableDht
+            && DhtPolicy.ShouldAutoBootstrap(this.configService)
+            && !string.IsNullOrWhiteSpace(this.configService?.DhtBootstrapNodes))
         {
             sessionArgs["dht_bootstrap_nodes"] = this.configService.DhtBootstrapNodes;
+        }
+
+        if (proxyConfigured && !isAnonymous && (this.configService?.EnableDht ?? true))
+        {
+            this.logger.Info("Proxy leak prevention active: DHT disabled so announces stay off the clearnet.");
         }
 
         LibTorrentDhtSettingsMapper.ApplyToSessionArgs(this.configService, sessionArgs);
