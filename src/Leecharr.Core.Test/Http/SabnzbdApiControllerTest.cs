@@ -15,6 +15,7 @@ using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.Http;
@@ -28,6 +29,7 @@ public class SabnzbdApiControllerTest
     private IConfigService configService = null!;
     private IConfigFileProvider configFileProvider = null!;
     private IDiskProvider diskProvider = null!;
+    private ISafeHttpClientService safeHttpClientService = null!;
     private SabnzbdApiController controller = null!;
 
     [SetUp]
@@ -39,6 +41,7 @@ public class SabnzbdApiControllerTest
         this.configService = Substitute.For<IConfigService>();
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.diskProvider = Substitute.For<IDiskProvider>();
+        this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(false);
 
@@ -48,6 +51,7 @@ public class SabnzbdApiControllerTest
             this.categoryService,
             this.configService,
             this.configFileProvider,
+            safeHttpClientService: this.safeHttpClientService,
             diskProvider: this.diskProvider);
     }
 
@@ -252,6 +256,244 @@ public class SabnzbdApiControllerTest
             output: null);
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task HandleApi_AddUrl_WithEmptyName_DoesNotReportSuccess()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleApi(
+            mode: "addurl",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        AssertAddRejected(result);
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>());
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleApi_AddUrl_WhenMagnetAddReturnsNull_DoesNotReportSuccess()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var magnet = "magnet:?xt=urn:btih:missing";
+        this.torrentService
+            .AddFromMagnetAsync(magnet, "tv", null, false)
+            .Returns(Task.FromResult<Torrent>(null));
+
+        var result = await this.controller.HandleApi(
+            mode: "addurl",
+            name: magnet,
+            value: null,
+            cat: "tv",
+            priority: null,
+            output: null);
+
+        AssertAddRejected(result);
+        await this.torrentService.Received(1).AddFromMagnetAsync(magnet, "tv", null, false);
+    }
+
+    [Test]
+    public async Task HandleApi_AddUrl_WhenRemoteTorrentAddReturnsNull_DoesNotReportSuccess()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var url = "https://example.com/show.torrent";
+        var bytes = new byte[] { 1, 2, 3, 4 };
+        this.configService.MaxTorrentFileSizeBytes.Returns(250L * 1024 * 1024);
+        this.safeHttpClientService
+            .DownloadBytesAsync(url, 250L * 1024 * 1024)
+            .Returns(Task.FromResult(bytes));
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(new ParsedTorrent { Name = "Remote" });
+        this.torrentService
+            .AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), "movies", null, false, Arg.Any<byte[]>())
+            .Returns(Task.FromResult<Torrent>(null));
+
+        var result = await this.controller.HandleApi(
+            mode: "addurl",
+            name: url,
+            value: null,
+            cat: "movies",
+            priority: null,
+            output: null);
+
+        AssertAddRejected(result);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            "movies",
+            null,
+            false,
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleApi_AddUrl_WithMagnet_ReturnsInfoHashWhenTorrentIsAdded()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var magnet = "magnet:?xt=urn:btih:abc123";
+        var added = new Torrent { Id = 7, InfoHash = "abc123" };
+        this.torrentService.AddFromMagnetAsync(magnet, "tv", null, false).Returns(Task.FromResult(added));
+
+        var result = await this.controller.HandleApi(
+            mode: "addurl",
+            name: magnet,
+            value: null,
+            cat: "tv",
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("status").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("nzo_ids")[0].GetString().Should().Be("abc123");
+    }
+
+    [Test]
+    public async Task HandleApi_AddUrl_UsesFormNameWhenQueryNameIsEmpty()
+    {
+        var magnet = "magnet:?xt=urn:btih:formhash";
+        var context = new DefaultHttpContext();
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            { "name", magnet },
+            { "cat", "tv" },
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var added = new Torrent { Id = 8, InfoHash = "formhash" };
+        this.torrentService.AddFromMagnetAsync(magnet, "tv", null, false).Returns(Task.FromResult(added));
+
+        var result = await this.controller.HandleApi(
+            mode: "addurl",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("status").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("nzo_ids")[0].GetString().Should().Be("formhash");
+    }
+
+    [Test]
+    public async Task HandleApi_AddFile_WithoutUpload_DoesNotReportSuccess()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleApi(
+            mode: "addfile",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        AssertAddRejected(result);
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleApi_AddFile_WithEmptyForm_DoesNotReportSuccess()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.ContentType = "multipart/form-data";
+        context.Request.Form = new FormCollection(new Dictionary<string, StringValues>(), new FormFileCollection());
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleApi(
+            mode: "addfile",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        AssertAddRejected(result);
+    }
+
+    [Test]
+    public async Task HandleApi_AddFile_WhenAddReturnsNull_DoesNotReportSuccess()
+    {
+        var bytes = new byte[] { 1, 2, 3, 4 };
+        var context = this.CreateAddFileContext(bytes);
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(new ParsedTorrent { Name = "Upload" });
+        this.torrentService
+            .AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), "tv", null, false, Arg.Any<byte[]>())
+            .Returns(Task.FromResult<Torrent>(null));
+
+        var result = await this.controller.HandleApi(
+            mode: "addfile",
+            name: null,
+            value: null,
+            cat: "tv",
+            priority: null,
+            output: null);
+
+        AssertAddRejected(result);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            "tv",
+            null,
+            false,
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleApi_AddFile_WithUpload_ReturnsInfoHashWhenTorrentIsAdded()
+    {
+        var bytes = new byte[] { 1, 2, 3, 4 };
+        var context = this.CreateAddFileContext(bytes);
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(new ParsedTorrent { Name = "Upload" });
+        var added = new Torrent { Id = 11, InfoHash = "uploadhash" };
+        this.torrentService
+            .AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), "tv", null, false, Arg.Any<byte[]>())
+            .Returns(Task.FromResult(added));
+
+        var result = await this.controller.HandleApi(
+            mode: "addfile",
+            name: null,
+            value: null,
+            cat: "tv",
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var json = JsonSerializer.Serialize(((OkObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("status").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("nzo_ids")[0].GetString().Should().Be("uploadhash");
     }
 
     [Test]
@@ -1118,5 +1360,29 @@ public class SabnzbdApiControllerTest
         queueSlots.GetArrayLength().Should().Be(1);
         queueSlots[0].GetProperty("nzo_id").GetString().Should().Be("paused-partial");
         queueSlots[0].GetProperty("status").GetString().Should().Be("Paused");
+    }
+
+    private static void AssertAddRejected(IActionResult result)
+    {
+        result.Should().BeOfType<BadRequestObjectResult>();
+        var json = JsonSerializer.Serialize(((BadRequestObjectResult)result).Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("status").GetBoolean().Should().BeFalse();
+        doc.RootElement.TryGetProperty("nzo_ids", out _).Should().BeFalse();
+    }
+
+    private static DefaultHttpContext CreateAddFileContext(byte[] bytes)
+    {
+        var formFile = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "name", "upload.torrent")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "application/x-bittorrent",
+        };
+        var context = new DefaultHttpContext();
+        context.Request.ContentType = "multipart/form-data";
+        context.Request.Form = new FormCollection(
+            new Dictionary<string, StringValues>(),
+            new FormFileCollection { formFile });
+        return context;
     }
 }

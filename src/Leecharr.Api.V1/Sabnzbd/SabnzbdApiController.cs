@@ -496,34 +496,32 @@ public class SabnzbdApiController : ControllerBase
     {
         var targetUrl = !string.IsNullOrWhiteSpace(name) ? name : formName;
         var targetCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
-        var addedId = Guid.NewGuid().ToString("N");
 
-        if (!string.IsNullOrWhiteSpace(targetUrl))
+        if (string.IsNullOrWhiteSpace(targetUrl))
         {
-            if (targetUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-            {
-                var added = await this.torrentService.AddFromMagnetAsync(targetUrl, targetCat, null, false);
-                if (added != null)
-                {
-                    await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
-                    addedId = added.InfoHash;
-                }
-            }
-            else
-            {
-                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
-                var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUrl, maxSizeBytes: maxTorrentBytes);
-                var parsed = this.torrentFileParser.Parse(bytes);
-                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
-                if (added != null)
-                {
-                    await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
-                    addedId = added.InfoHash;
-                }
-            }
+            return this.BadRequest(new { status = false, error = "No URL entered." });
         }
 
-        return this.Ok(new { status = true, nzo_ids = new[] { addedId } });
+        Torrent added;
+        if (targetUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+        {
+            added = await this.torrentService.AddFromMagnetAsync(targetUrl, targetCat, null, false);
+        }
+        else
+        {
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
+            var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUrl, maxSizeBytes: maxTorrentBytes);
+            var parsed = this.torrentFileParser.Parse(bytes);
+            added = await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
+        }
+
+        if (added == null)
+        {
+            return this.BadRequest(new { status = false, error = "Failed to add URL." });
+        }
+
+        await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+        return this.Ok(new { status = true, nzo_ids = new[] { added.InfoHash } });
     }
 
     private async Task<IActionResult> HandleAddLocalFileModeAsync(
@@ -592,24 +590,25 @@ public class SabnzbdApiController : ControllerBase
         string formCat,
         string formPriority)
     {
-        if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
+        if (!this.Request.HasFormContentType || this.Request.Form.Files.Count == 0)
         {
-            var file = this.Request.Form.Files[0];
-            var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
-            using var ms = new MemoryStream();
-            await file.CopyToAsync(ms);
-            var bytes = ms.ToArray();
-            var parsed = this.torrentFileParser.Parse(bytes);
-            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
-            if (added != null)
-            {
-                await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
-            }
-
-            return this.Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
+            return this.BadRequest(new { status = false, error = "No file uploaded." });
         }
 
-        return this.Ok(new { status = true, nzo_ids = new[] { Guid.NewGuid().ToString("N") } });
+        var file = this.Request.Form.Files[0];
+        var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+        var parsed = this.torrentFileParser.Parse(bytes);
+        var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
+        if (added == null)
+        {
+            return this.BadRequest(new { status = false, error = "Failed to add file." });
+        }
+
+        await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+        return this.Ok(new { status = true, nzo_ids = new[] { added.InfoHash } });
     }
 
     private async Task<IActionResult> HandlePauseModeAsync(string value, string formValue)
