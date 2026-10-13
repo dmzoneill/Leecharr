@@ -1238,6 +1238,26 @@ public class BackupControllerTest
     }
 
     [Test]
+    public async Task RunPsqlRestore_PassesOnErrorStopAndSingleTransaction()
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var sqlPath = Path.Combine(this.testTempDir, "restore_flags.sql");
+        File.WriteAllText(sqlPath, "-- sql script");
+        var argsFile = Path.Combine(this.testTempDir, "psql_args.txt");
+
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? $"@echo off\r\necho %* > \"{argsFile}\"\r\nexit /b 0"
+            : $"#!/bin/sh\necho \"$@\" > \"{argsFile}\"\nexit 0\n");
+
+        var result = await controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", null, "db", sqlPath);
+
+        result.Should().BeTrue();
+        var args = File.ReadAllText(argsFile);
+        args.Should().Contain("ON_ERROR_STOP");
+        args.Should().Contain("single-transaction");
+    }
+
+    [Test]
     public void PruneOldBackups_WhenBackupsExceedMaxCount_PrunesOldestArchives()
     {
         var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");

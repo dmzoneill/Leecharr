@@ -947,6 +947,9 @@ public class BackupController : Controller
             psi.ArgumentList.Add(user);
             psi.ArgumentList.Add("-d");
             psi.ArgumentList.Add(dbName);
+            psi.ArgumentList.Add("-v");
+            psi.ArgumentList.Add("ON_ERROR_STOP=1");
+            psi.ArgumentList.Add("--single-transaction");
             psi.ArgumentList.Add("-f");
             psi.ArgumentList.Add(sqlScriptPath);
 
