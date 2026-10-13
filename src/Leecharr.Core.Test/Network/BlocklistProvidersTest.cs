@@ -101,6 +101,24 @@ public class BlocklistProvidersTest
     }
 
     [Test]
+    public async Task P2PDatBlocklistProvider_IPv6RangeWhoseStrippedEndEqualsStart_KeepsDecimalHextet()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        var rules = new List<string>
+        {
+            "2001:db8::1-2001:db8::1:10",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+
+        count.Should().Be(1);
+        provider.IsIpBlocked("2001:db8::1").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8::1:5").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8::1:10").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8::1:11").Should().BeFalse();
+    }
+
+    [Test]
     public async Task RadixTreeBlocklistProvider_IPv4MappedIPv6Cidr_ParsesAndMatchesCorrectly()
     {
         var provider = new RadixTreeBlocklistProvider();

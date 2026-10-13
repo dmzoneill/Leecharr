@@ -466,7 +466,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
 
                         if (TryParseStrictIp(candidate, out var parsedCandidate))
                         {
-                            if (startIp != null && startIp.AddressFamily == AddressFamily.InterNetworkV6 && CompareIpv6(startIp, parsedWithoutLevel) > 0)
+                            if (startIp != null && startIp.AddressFamily == AddressFamily.InterNetworkV6 && CompareIpv6(startIp, parsedWithoutLevel) >= 0)
                             {
                                 endIp = parsedCandidate;
                                 return true;
