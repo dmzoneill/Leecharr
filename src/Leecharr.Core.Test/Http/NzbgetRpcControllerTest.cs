@@ -260,6 +260,82 @@ public class NzbgetRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_Append_WithLocalNameAndEmptyContent_ReturnsZero()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[\"movie.nzb\", \"\", \"movies\", 0, false, false]");
+        var request = new NzbgetRequest
+        {
+            Method = "append",
+            Params = doc.RootElement,
+            Id = 15,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("result").GetInt32().Should().Be(0);
+        await this.torrentService.Received(0).AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        await this.torrentService.Received(0).AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleRpc_Append_WithTooFewParams_ReturnsZero()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("[\"movie.nzb\"]");
+        var request = new NzbgetRequest
+        {
+            Method = "append",
+            Params = doc.RootElement,
+            Id = 16,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("result").GetInt32().Should().Be(0);
+        await this.torrentService.Received(0).AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        await this.torrentService.Received(0).AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleRpc_Append_WhenAddReturnsNull_ReturnsZero()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var magnetUri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Missing";
+        this.torrentService.AddFromMagnetAsync(magnetUri, null, null, false).Returns(Task.FromResult<Torrent>(null));
+
+        using var doc = JsonDocument.Parse($"[\"{magnetUri}\", \"\"]");
+        var request = new NzbgetRequest
+        {
+            Method = "append",
+            Params = doc.RootElement,
+            Id = 17,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        resDoc.RootElement.GetProperty("result").GetInt32().Should().Be(0);
+    }
+
+    [Test]
     public async Task HandleXmlRpc_Version_ReturnsXmlRpcVersion()
     {
         var xml = "<?xml version=\"1.0\"?><methodCall><methodName>version</methodName></methodCall>";
@@ -335,6 +411,43 @@ public class NzbgetRpcControllerTest
         result.Should().BeOfType<ContentResult>();
         var contentResult = (ContentResult)result;
         contentResult.Content.Should().Contain("<value><int>77</int></value>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Append_WithLocalNameAndEmptyContent_ReturnsZero()
+    {
+        var xml = "<?xml version=\"1.0\"?><methodCall><methodName>append</methodName><params><param><value><string>movie.nzb</string></value></param><param><value><string></string></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><int>0</int></value>");
+        contentResult.Content.Should().NotContain("<value><int>1</int></value>");
+        await this.torrentService.Received(0).AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        await this.torrentService.Received(0).AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Append_WhenAddReturnsNull_ReturnsZero()
+    {
+        var magnetUri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Missing";
+        this.torrentService.AddFromMagnetAsync(magnetUri, "tv", null, false).Returns(Task.FromResult<Torrent>(null));
+
+        var xml = $"<?xml version=\"1.0\"?><methodCall><methodName>append</methodName><params><param><value><string>{System.Security.SecurityElement.Escape(magnetUri)}</string></value></param><param><value><string></string></value></param><param><value><string>tv</string></value></param></params></methodCall>";
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<value><int>0</int></value>");
+        contentResult.Content.Should().NotContain("<value><int>1</int></value>");
     }
 
     [Test]

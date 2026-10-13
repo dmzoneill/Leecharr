@@ -161,7 +161,7 @@ public class NzbgetRpcController : ControllerBase
                                 var bytes = Convert.FromBase64String(nzbContent);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
-                                return this.Ok(new { version = "1.1", result = added?.Id, id });
+                                return this.Ok(new { version = "1.1", result = added?.Id ?? 0, id });
                             }
                             catch (Exception ex)
                             {
@@ -176,7 +176,7 @@ public class NzbgetRpcController : ControllerBase
                                 try
                                 {
                                     var added = await this.torrentService.AddFromMagnetAsync(nzbName, category, null, isPaused);
-                                    return this.Ok(new { version = "1.1", result = added?.Id, id });
+                                    return this.Ok(new { version = "1.1", result = added?.Id ?? 0, id });
                                 }
                                 catch (Exception ex)
                                 {
@@ -194,7 +194,7 @@ public class NzbgetRpcController : ControllerBase
                                     var bytes = await this.safeHttpClientService.DownloadBytesAsync(nzbName, maxSizeBytes: maxTorrentBytes);
                                     var parsed = this.torrentFileParser.Parse(bytes);
                                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
-                                    return this.Ok(new { version = "1.1", result = added?.Id, id });
+                                    return this.Ok(new { version = "1.1", result = added?.Id ?? 0, id });
                                 }
                                 catch (Exception ex)
                                 {
@@ -205,7 +205,7 @@ public class NzbgetRpcController : ControllerBase
                         }
                     }
 
-                    return this.Ok(new { version = "1.1", result = 1, id });
+                    return this.Ok(new { version = "1.1", result = 0, id });
 
                 case "pause":
                 case "pauseall":
@@ -600,7 +600,7 @@ public class NzbgetRpcController : ControllerBase
             {
                 var parsed = this.torrentFileParser.Parse(bytes);
                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, bytes);
-                return added?.Id ?? 1;
+                return added?.Id ?? 0;
             }
 
             if (rawContent is string contentStr && !string.IsNullOrWhiteSpace(contentStr))
@@ -608,7 +608,7 @@ public class NzbgetRpcController : ControllerBase
                 var contentBytes = Convert.FromBase64String(contentStr);
                 var parsed = this.torrentFileParser.Parse(contentBytes);
                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, contentBytes);
-                return added?.Id ?? 1;
+                return added?.Id ?? 0;
             }
 
             if (!string.IsNullOrWhiteSpace(nzbName))
@@ -616,7 +616,7 @@ public class NzbgetRpcController : ControllerBase
                 if (nzbName.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
                     var added = await this.torrentService.AddFromMagnetAsync(nzbName, category, null, isPaused);
-                    return added?.Id ?? 1;
+                    return added?.Id ?? 0;
                 }
 
                 if (nzbName.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
@@ -626,12 +626,12 @@ public class NzbgetRpcController : ControllerBase
                     var urlBytes = await this.safeHttpClientService.DownloadBytesAsync(nzbName, maxSizeBytes: maxTorrentBytes);
                     var parsed = this.torrentFileParser.Parse(urlBytes);
                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, isPaused, urlBytes);
-                    return added?.Id ?? 1;
+                    return added?.Id ?? 0;
                 }
             }
         }
 
-        return 1;
+        return 0;
     }
 
     private async Task ExecuteEditQueueAsync(List<object> paramValues)
