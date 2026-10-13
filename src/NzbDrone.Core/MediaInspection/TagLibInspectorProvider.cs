@@ -2932,9 +2932,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 hasDvBox = true;
                 if (childOffset + 13 <= childLimit && childOffset + 13 <= data.Length)
                 {
+                    // DOVIDecoderConfigurationRecord packs profile(7), level(6), rpu, el, bl
+                    // into the 16 bits after the version. el_present_flag is bit 1 of that
+                    // low byte. Bit 0 is bl_present_flag. Compatibility id is the high 4 bits
+                    // of the following byte (FFmpeg ff_isom_parse_dvcc_dvvc).
                     dvProfile = (data[childOffset + 10] >> 1) & 0x7F;
-                    elPresent = (data[childOffset + 11] & 0x01) != 0;
-                    compatId = (data[childOffset + 12] >> 2) & 0x1F;
+                    elPresent = (data[childOffset + 11] & 0x02) != 0;
+                    compatId = (data[childOffset + 12] >> 4) & 0x0F;
                 }
             }
             else if (cType == "hvcC" || cType == "avcC")

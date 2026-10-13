@@ -1493,14 +1493,18 @@ public class TagLibInspectorProviderTest
     [TestCase(7, true, 6, "Dolby Vision (Profile 7 FEL)")]
     [TestCase(7, false, 6, "Dolby Vision (Profile 7 MEL)")]
     [TestCase(8, false, 1, "Dolby Vision / HDR10 (Profile 8.1)")]
+    [TestCase(8, false, 2, "Dolby Vision / SDR (Profile 8.2)")]
+    [TestCase(8, false, 4, "Dolby Vision / HLG (Profile 8.4)")]
     public void Inspect_Mp4_DvcCBox_ExtractsSpecificDolbyVisionProfiles(int profile, bool elPresent, int compatId, string expectedHdr)
     {
         var dvcCPayload = new byte[24];
         dvcCPayload[0] = 1; // major version
         dvcCPayload[1] = 0; // minor version
-        dvcCPayload[2] = (byte)(profile << 1);
-        dvcCPayload[3] = (byte)(0x02 | (elPresent ? 0x01 : 0));
-        dvcCPayload[4] = (byte)(compatId << 2);
+        // profile(7), level(6)=0, rpu=1, el, bl=1. Compatibility id is the high nibble.
+        // bl_present stays set so a Profile 7 MEL box is not read as FEL.
+        dvcCPayload[2] = (byte)((profile & 0x7F) << 1);
+        dvcCPayload[3] = (byte)(0x05 | (elPresent ? 0x02 : 0));
+        dvcCPayload[4] = (byte)((compatId & 0x0F) << 4);
 
         var dvcCBox = CreateMp4Box("dvcC", dvcCPayload);
         var sampleEntry = CreateVisualSampleEntryWithExtraBox("dvh1", 3840, 2160, dvcCBox);
