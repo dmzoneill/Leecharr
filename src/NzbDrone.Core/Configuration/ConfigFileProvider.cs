@@ -190,8 +190,46 @@ public class ConfigFileProvider : IConfigFileProvider
         }
 
         var xDoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), configElement);
-        xDoc.Save(this.configFile);
-        UnixPrivatePermissions.ApplyPrivateFileMode(this.configFile);
+
+        // XDocument.Save(path) opens with FileMode.Create, which truncates config.xml
+        // before the new document is written. A crash or full disk then leaves startup
+        // with an unreadable config. Finish the document in a sibling temp file and
+        // rename it over the live path so readers keep the previous complete file.
+        var directory = Path.GetDirectoryName(this.configFile) ?? ".";
+        var tempFile = Path.Combine(directory, $".{ConfigFileName}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            using (var stream = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                xDoc.Save(stream);
+                stream.Flush(true);
+            }
+
+            UnixPrivatePermissions.ApplyPrivateFileMode(tempFile);
+            File.Move(tempFile, this.configFile, overwrite: true);
+            UnixPrivatePermissions.ApplyPrivateFileMode(this.configFile);
+        }
+        catch
+        {
+            TryDeleteTempFile(tempFile);
+            throw;
+        }
+    }
+
+    private static void TryDeleteTempFile(string tempFile)
+    {
+        try
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort. A leftover temp file must not hide the original save error.
+        }
     }
 
     private static string FormatConfigValue(string key, object value)

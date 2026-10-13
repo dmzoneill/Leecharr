@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -174,6 +175,59 @@ public class ConfigFileProviderTest
         var provider = new ConfigFileProvider(this.appFolderInfo);
         Action act = () => provider.SaveConfigDictionary(null!);
         act.Should().NotThrow();
+    }
+
+    [Test]
+    public void SaveConfigDictionary_ReplacesConfigFileInsteadOfTruncatingTheLiveInode()
+    {
+        if (!UnixPrivatePermissions.IsUnixLike)
+        {
+            Assert.Ignore("Hard link replacement check requires a Unix filesystem.");
+        }
+
+        var configFile = Path.Combine(this.tempDir, "config.xml");
+        var preservedFile = Path.Combine(this.tempDir, "config.xml.preserved");
+        var original = new XDocument(
+            new XDeclaration("1.0", "utf-8", "yes"),
+            new XElement(
+                "Config",
+                new XElement("ApiKey", "preserve-me"),
+                new XElement("Port", "4242")));
+        original.Save(configFile);
+        CreateHardLink(configFile, preservedFile);
+
+        var provider = new ConfigFileProvider(this.appFolderInfo);
+        provider.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            { "Port", 5151 },
+        });
+
+        XDocument.Load(configFile).Root!.Element("Port")!.Value.Should().Be("5151");
+        XDocument.Load(preservedFile).Root!.Element("Port")!.Value.Should().Be("4242");
+        XDocument.Load(preservedFile).Root!.Element("ApiKey")!.Value.Should().Be("preserve-me");
+        provider.Port.Should().Be(5151);
+        provider.ApiKey.Should().Be("preserve-me");
+
+        foreach (var path in Directory.GetFiles(this.tempDir))
+        {
+            var name = Path.GetFileName(path);
+            (name is "config.xml" or "config.xml.preserved").Should().BeTrue($"unexpected file left behind: {name}");
+        }
+
+        File.GetUnixFileMode(configFile).Should().Be(UnixPrivatePermissions.PrivateFileMode);
+    }
+
+    private static void CreateHardLink(string source, string linkPath)
+    {
+        using var process = new Process();
+        process.StartInfo.FileName = "ln";
+        process.StartInfo.ArgumentList.Add(source);
+        process.StartInfo.ArgumentList.Add(linkPath);
+        process.StartInfo.RedirectStandardError = true;
+        process.StartInfo.UseShellExecute = false;
+        process.Start().Should().BeTrue();
+        process.WaitForExit();
+        process.ExitCode.Should().Be(0, process.StandardError.ReadToEnd());
     }
 
     [Test]
