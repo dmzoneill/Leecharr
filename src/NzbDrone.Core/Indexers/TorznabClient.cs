@@ -834,9 +834,11 @@ public class TorznabClient : ITorznabClient
                 }
                 else if (rawPeers.HasValue)
                 {
-                    seeders = 0;
-                    leechers = Math.Max(0, rawPeers.Value);
-                    peers = rawPeers.Value;
+                    // Peers is the only swarm count. Treat it as seeders so the
+                    // default MinSeeders filter and seeder ranking keep the release.
+                    seeders = Math.Max(0, rawPeers.Value);
+                    leechers = 0;
+                    peers = seeders;
                 }
                 else
                 {

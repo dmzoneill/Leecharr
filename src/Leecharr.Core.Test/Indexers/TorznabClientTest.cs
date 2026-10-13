@@ -492,6 +492,62 @@ public class TorznabClientTest
     }
 
     [Test]
+    public void ParseTorznabFeedXml_PeersOnly_UsesPeerCountAsSeedersAndHonorsMinSeeders()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+<channel>
+    <item>
+        <title>Peers.Only.Release</title>
+        <torznab:attr name=""peers"" value=""40""/>
+    </item>
+    <item>
+        <title>NumPeers.Element.Release</title>
+        <numpeers>8</numpeers>
+    </item>
+    <item>
+        <title>Peers.Below.MinSeeders</title>
+        <torznab:attr name=""numpeers"" value=""3""/>
+    </item>
+    <item>
+        <title>Zero.Peers.Release</title>
+        <torznab:attr name=""peers"" value=""0""/>
+    </item>
+    <item>
+        <title>Leechers.Only.Release</title>
+        <torznab:attr name=""leechers"" value=""12""/>
+    </item>
+</channel>
+</rss>";
+
+        var indexer = new IndexerDefinition { Name = "PeersOnlyTracker", MinSeeders = 5 };
+        var results = this.client.ParseTorznabFeedXml(xml, indexer);
+
+        results.Should().HaveCount(2);
+
+        results[0].Title.Should().Be("Peers.Only.Release");
+        results[0].Seeders.Should().Be(40);
+        results[0].Leechers.Should().Be(0);
+        results[0].Peers.Should().Be(40);
+
+        results[1].Title.Should().Be("NumPeers.Element.Release");
+        results[1].Seeders.Should().Be(8);
+        results[1].Leechers.Should().Be(0);
+        results[1].Peers.Should().Be(8);
+
+        var defaultIndexer = new IndexerDefinition { Name = "DefaultMinSeeders" };
+        var defaultResults = this.client.ParseTorznabFeedXml(xml, defaultIndexer);
+
+        defaultResults.Select(r => r.Title).Should().Equal(
+            "Peers.Only.Release",
+            "NumPeers.Element.Release",
+            "Peers.Below.MinSeeders");
+        defaultResults[2].Seeders.Should().Be(3);
+        defaultResults[2].Leechers.Should().Be(0);
+        defaultResults[2].Peers.Should().Be(3);
+    }
+
+    [Test]
     public void ParseTorznabFeedXml_AttributeOrderDoesNotAffectPeerAndLeecherCalculations()
     {
         var peersFirstXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>

@@ -1166,9 +1166,9 @@ public class TorznabClientComprehensiveIntegrationTests : IntegrationTestBase
         results[1].Leechers.Should().Be(7);
         results[1].Peers.Should().Be(7);
 
-        // Only peers: peers = 20, seeders = 0, leechers = 20
-        results[2].Seeders.Should().Be(0);
-        results[2].Leechers.Should().Be(20);
+        // Only peers: the peer count is the swarm size, counted as seeders
+        results[2].Seeders.Should().Be(20);
+        results[2].Leechers.Should().Be(0);
         results[2].Peers.Should().Be(20);
 
         // Leechers (5) and peers (15): seeders = 15 - 5 = 10
