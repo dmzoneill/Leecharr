@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Security;
@@ -98,6 +99,40 @@ public class CertificateManagerTest
         var cachedPwd = Path.Combine(this.tempDir, "leecharr-selfsigned.pwd");
         File.Exists(cachedPwd).Should().BeTrue();
         File.ReadAllText(cachedPwd).Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Test]
+    public void GetOrCreateCertificate_WhenSelfSignedKeyFilesAreWorldReadable_RestrictsThemToTheOwner()
+    {
+        if (!UnixPrivatePermissions.IsUnixLike)
+        {
+            Assert.Ignore("Unix file mode checks only apply on Linux/macOS/BSD.");
+        }
+
+        var cachedPfx = Path.Combine(this.tempDir, "leecharr-selfsigned.pfx");
+        var cachedPwd = Path.Combine(this.tempDir, "leecharr-selfsigned.pwd");
+        var worldReadable = UnixPrivatePermissions.PrivateFileMode | UnixFileMode.GroupRead | UnixFileMode.OtherRead;
+
+        File.WriteAllText(cachedPwd, "preexisting-secret");
+        File.WriteAllBytes(cachedPfx, new byte[] { 1, 2, 3 });
+        File.SetUnixFileMode(cachedPwd, worldReadable);
+        File.SetUnixFileMode(cachedPfx, worldReadable);
+
+        var cert = this.certificateManager.GetOrCreateCertificate(this.config);
+
+        cert.Should().NotBeNull();
+        cert.HasPrivateKey.Should().BeTrue();
+        File.GetUnixFileMode(cachedPfx).Should().Be(UnixPrivatePermissions.PrivateFileMode);
+        File.GetUnixFileMode(cachedPwd).Should().Be(UnixPrivatePermissions.PrivateFileMode);
+
+        File.SetUnixFileMode(cachedPfx, worldReadable);
+        File.SetUnixFileMode(cachedPwd, worldReadable);
+
+        var reused = this.certificateManager.GetOrCreateCertificate(this.config);
+
+        reused.Thumbprint.Should().Be(cert.Thumbprint);
+        File.GetUnixFileMode(cachedPfx).Should().Be(UnixPrivatePermissions.PrivateFileMode);
+        File.GetUnixFileMode(cachedPwd).Should().Be(UnixPrivatePermissions.PrivateFileMode);
     }
 
     [Test]

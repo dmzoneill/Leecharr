@@ -8,10 +8,15 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Principal;
+using System.Text;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
@@ -389,6 +394,7 @@ public class CertificateManager : ICertificateManager
 
                 if (DateTime.UtcNow < cached.NotAfter.ToUniversalTime().AddDays(-30))
                 {
+                    TryRestrictSecretFile(cachePath);
                     Logger.Info("Using existing cached self-signed SSL certificate: {0} (Expires: {1:yyyy-MM-dd})", cached.Subject, cached.NotAfter);
                     return cached;
                 }
@@ -418,6 +424,7 @@ public class CertificateManager : ICertificateManager
                 var storedPassword = File.ReadAllText(passwordPath).Trim();
                 if (!string.IsNullOrEmpty(storedPassword))
                 {
+                    TryRestrictSecretFile(passwordPath);
                     return storedPassword;
                 }
             }
@@ -432,13 +439,7 @@ public class CertificateManager : ICertificateManager
 
         try
         {
-            var dir = Path.GetDirectoryName(passwordPath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            File.WriteAllText(passwordPath, generatedPassword);
+            WritePrivateText(passwordPath, generatedPassword);
         }
         catch (Exception ex)
         {
@@ -530,13 +531,7 @@ public class CertificateManager : ICertificateManager
 
         try
         {
-            var dir = Path.GetDirectoryName(cachePath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            File.WriteAllBytes(cachePath, pfxBytes);
+            WritePrivateBytes(cachePath, pfxBytes);
             Logger.Info("Saved generated self-signed SSL certificate to '{0}'", cachePath);
         }
         catch (Exception ex)
@@ -548,6 +543,101 @@ public class CertificateManager : ICertificateManager
             pfxBytes,
             pfxPassword,
             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+    }
+
+    private static void WritePrivateText(string path, string content)
+    {
+        EnsureParentDirectory(path);
+        using (var stream = new FileStream(path, CreatePrivateFileStreamOptions()))
+        using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+        {
+            writer.Write(content);
+        }
+
+        RestrictSecretFile(path);
+    }
+
+    private static void WritePrivateBytes(string path, byte[] content)
+    {
+        EnsureParentDirectory(path);
+        using (var stream = new FileStream(path, CreatePrivateFileStreamOptions()))
+        {
+            stream.Write(content);
+        }
+
+        RestrictSecretFile(path);
+    }
+
+    private static void EnsureParentDirectory(string path)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+    }
+
+    private static FileStreamOptions CreatePrivateFileStreamOptions()
+    {
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Create,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+        };
+
+        if (UnixPrivatePermissions.IsUnixLike)
+        {
+            options.UnixCreateMode = UnixPrivatePermissions.PrivateFileMode;
+        }
+
+        return options;
+    }
+
+    private static void TryRestrictSecretFile(string path)
+    {
+        try
+        {
+            RestrictSecretFile(path);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn(ex, "Could not restrict permissions on '{0}'", path);
+        }
+    }
+
+    private static void RestrictSecretFile(string path)
+    {
+        UnixPrivatePermissions.ApplyPrivateFileMode(path);
+        if (OperatingSystem.IsWindows())
+        {
+            ApplyWindowsOwnerOnlyAcl(path);
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void ApplyWindowsOwnerOnlyAcl(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        var fileInfo = new FileInfo(path);
+        var security = fileInfo.GetAccessControl();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+
+        var existingRules = security.GetAccessRules(true, true, typeof(SecurityIdentifier));
+        foreach (FileSystemAccessRule rule in existingRules)
+        {
+            security.RemoveAccessRule(rule);
+        }
+
+        var currentUser = WindowsIdentity.GetCurrent().User
+            ?? throw new InvalidOperationException("Unable to resolve the current Windows user for the self-signed certificate files.");
+
+        security.AddAccessRule(new FileSystemAccessRule(currentUser, FileSystemRights.FullControl, AccessControlType.Allow));
+        fileInfo.SetAccessControl(security);
     }
 
     private sealed class DummySslConfig : IConfigFileProvider
