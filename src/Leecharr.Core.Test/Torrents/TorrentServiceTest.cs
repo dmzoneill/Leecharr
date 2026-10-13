@@ -1213,6 +1213,49 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task AddFromParsedTorrentAsync_WhenEngineAddFails_RollsBackAndThrows()
+    {
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "1234567890abcdef1234567890abcdef12345678",
+            Name = "FailedAdd",
+            PieceLength = 16384,
+            TotalSize = 100,
+            AnnounceUrl = "http://tracker.example/announce",
+            Files = new List<ParsedTorrentFile> { new() { Path = "a.txt", Size = 100 } },
+        };
+
+        this.downloadEngine
+            .AddTorrentAsync(Arg.Any<Torrent>(), Arg.Any<byte[]>(), Arg.Any<string>())
+            .Returns(Task.FromException<IDownloadTask>(new InvalidOperationException("add_torrent failed")));
+
+        var act = async () => await this.service.AddFromParsedTorrentAsync(parsed, "movies", "/downloads/movies", false, new byte[] { 1 });
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        this.torrentRepository.Received(1).Delete(1);
+        this.fileRepository.Received(1).DeleteByTorrentId(1);
+        this.trackerEntryRepository.Received(1).DeleteByTorrentId(1);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentAddedEvent>());
+    }
+
+    [Test]
+    public async Task AddFromMagnetAsync_WhenEngineAddFails_RollsBackAndThrows()
+    {
+        var magnetUri = "magnet:?xt=urn:btih:abcdef1234567890abcdef1234567890abcdef12&dn=FailedMagnet&tr=http%3A%2F%2Ftracker.example%2Fannounce";
+
+        this.downloadEngine
+            .AddTorrentAsync(Arg.Any<Torrent>(), Arg.Any<byte[]>(), Arg.Any<string>())
+            .Returns(Task.FromException<IDownloadTask>(new InvalidOperationException("add_torrent failed")));
+
+        var act = async () => await this.service.AddFromMagnetAsync(magnetUri, "tv", "/downloads/tv", false);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        this.torrentRepository.Received(1).Delete(1);
+        this.trackerEntryRepository.Received(1).DeleteByTorrentId(1);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentAddedEvent>());
+    }
+
+    [Test]
     public async Task ForceRecheckAsync_WhenTorrentExists_UpdatesStatusToCheckingAndPublishesEvent()
     {
         var torrent = new Torrent

@@ -422,12 +422,6 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
         var savePath = this.ResolveSavePath(torrent);
         var task = new LibTorrentDownloadTask(this, torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
-        this.tasks[torrent.Id] = task;
-        this.infoHashToId[torrent.InfoHash] = torrent.Id;
-        if (!string.IsNullOrWhiteSpace(torrent.V2InfoHash))
-        {
-            this.infoHashToId[torrent.V2InfoHash] = torrent.Id;
-        }
 
         try
         {
@@ -475,13 +469,25 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             task.IsSuperSeeding = torrent.InitialSeeding;
 
             await this.SendRpcRequestAsync("add_torrent", addArgs);
-            this.logger.Info("libtorrent: Ingested torrent {0} ({1}) to {2}", torrent.Name, torrent.InfoHash, savePath);
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to dispatch add_torrent to libtorrent for {0}. Ingested in local state.", torrent.Name);
+            this.logger.Warn(ex, "Failed to dispatch add_torrent to libtorrent for {0}.", torrent.Name);
+            throw;
         }
 
+        this.tasks[torrent.Id] = task;
+        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+        {
+            this.infoHashToId[torrent.InfoHash] = torrent.Id;
+        }
+
+        if (!string.IsNullOrWhiteSpace(torrent.V2InfoHash))
+        {
+            this.infoHashToId[torrent.V2InfoHash] = torrent.Id;
+        }
+
+        this.logger.Info("libtorrent: Ingested torrent {0} ({1}) to {2}", torrent.Name, torrent.InfoHash, savePath);
         return task;
     }
 

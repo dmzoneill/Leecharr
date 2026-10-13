@@ -425,7 +425,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Failed to start download engine task for torrent {0}", inserted.Name);
+            this.logger.Error(ex, "Failed to start download engine task for torrent {0}. Rolling back database records.", inserted.Name);
+            await this.RollbackFailedEngineAddAsync(inserted);
+            throw;
         }
 
         this.eventAggregator.PublishEvent(new TorrentAddedEvent { Torrent = inserted });
@@ -596,7 +598,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Failed to start download engine task for magnet {0}", inserted.Name);
+            this.logger.Error(ex, "Failed to start download engine task for magnet {0}. Rolling back database records.", inserted.Name);
+            await this.RollbackFailedEngineAddAsync(inserted);
+            throw;
         }
 
         this.eventAggregator.PublishEvent(new TorrentAddedEvent { Torrent = inserted });
@@ -707,6 +711,62 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         if (this.downloadEngine != null)
         {
             await this.downloadEngine.SetFirstLastPiecePriorityAsync(id, enabled).ConfigureAwait(false);
+        }
+    }
+
+    private async Task RollbackFailedEngineAddAsync(Torrent inserted)
+    {
+        if (inserted == null)
+        {
+            return;
+        }
+
+        if (this.downloadEngine != null)
+        {
+            try
+            {
+                await this.downloadEngine.RemoveTorrentAsync(inserted.Id, false);
+            }
+            catch (Exception engineEx)
+            {
+                this.logger.Warn(engineEx, "Failed to remove torrent {0} from download engine during rollback", inserted.Id);
+            }
+        }
+
+        try
+        {
+            this.trackerEntryRepository?.DeleteByTorrentId(inserted.Id);
+        }
+        catch (Exception trackerEx)
+        {
+            this.logger.Warn(trackerEx, "Failed to roll back tracker entries for torrent {0}", inserted.Id);
+        }
+
+        try
+        {
+            this.fileRepository?.DeleteByTorrentId(inserted.Id);
+        }
+        catch (Exception fileEx)
+        {
+            this.logger.Warn(fileEx, "Failed to roll back torrent files for torrent {0}", inserted.Id);
+        }
+
+        try
+        {
+            this.mediaEnrichmentService?.DeleteMetadata(inserted.Id);
+        }
+        catch (Exception metaEx)
+        {
+            this.logger.Warn(metaEx, "Failed to roll back media metadata for torrent {0}", inserted.Id);
+        }
+
+        try
+        {
+            this.torrentRepository?.Delete(inserted.Id);
+        }
+        catch (Exception torrentEx)
+        {
+            this.logger.Warn(torrentEx, "Failed to roll back torrent {0}", inserted.Id);
         }
     }
 

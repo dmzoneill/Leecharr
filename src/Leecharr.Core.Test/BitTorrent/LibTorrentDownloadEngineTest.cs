@@ -663,6 +663,48 @@ public class LibTorrentDownloadEngineTest
         paramsObj.GetProperty("announce_to_all_trackers").GetBoolean().Should().BeFalse();
     }
 
+    [Test]
+    public async Task AddTorrentAsync_WhenAddTorrentRpcFails_ThrowsAndDoesNotKeepTask()
+    {
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var doc = JsonDocument.Parse(body);
+            var method = doc.RootElement.GetProperty("method").GetString();
+            if (method == "add_torrent")
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                {
+                    Content = new StringContent("{\"error\":\"ValueError\"}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"ok\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns("/downloads");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>()).Returns("/downloads");
+
+        var torrent = new Torrent
+        {
+            Id = 9,
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+            V2InfoHash = "bbbbbb0123456789abcdef0123456789abcdef01",
+            Name = "failed-add",
+        };
+
+        var act = async () => await engine.AddTorrentAsync(torrent, new byte[] { 1, 2, 3 });
+
+        await act.Should().ThrowAsync<HttpRequestException>();
+        engine.GetTask(9).Should().BeNull();
+    }
+
     private async Task<string> DispatchForceAnnounceAsync(int torrentId)
     {
         string capturedBody = null!;
