@@ -437,6 +437,11 @@ public class FileBrowserService : IFileBrowserService
             return;
         }
 
+        if (this.IsRootOrSystemDirectory(sourceDir) || this.IsRootOrSystemDirectory(canonicalSource))
+        {
+            throw new InvalidOperationException($"Cannot copy root or system path '{sourceDir}'.");
+        }
+
         if (!this.diskProvider.FolderExists(targetDir))
         {
             this.diskProvider.CreateFolder(targetDir);
@@ -444,6 +449,11 @@ public class FileBrowserService : IFileBrowserService
 
         foreach (var file in this.diskProvider.GetFiles(sourceDir, false))
         {
+            if (this.IsRootOrSystemDirectory(file))
+            {
+                throw new InvalidOperationException($"Cannot copy root or system path '{file}'.");
+            }
+
             var fileName = Path.GetFileName(file);
             var destFile = Path.Combine(targetDir, fileName);
             if (this.diskProvider.FileExists(destFile))
@@ -546,9 +556,29 @@ public class FileBrowserService : IFileBrowserService
 
     public bool IsRootOrSystemDirectory(string path)
     {
+        return this.IsRootOrSystemDirectory(path, followLinks: true);
+    }
+
+    private bool IsRootOrSystemDirectory(string path, bool followLinks)
+    {
         if (string.IsNullOrWhiteSpace(path))
         {
             return true;
+        }
+
+        if (followLinks)
+        {
+            var canonical = ResolveCanonicalPath(path);
+            if (string.IsNullOrWhiteSpace(canonical))
+            {
+                return true;
+            }
+
+            if (!PathsEqual(path, canonical))
+            {
+                return this.IsRootOrSystemDirectory(path, followLinks: false)
+                    || this.IsRootOrSystemDirectory(canonical, followLinks: false);
+            }
         }
 
         if (this.IsRootPath(path))
@@ -711,6 +741,132 @@ public class FileBrowserService : IFileBrowserService
         }
 
         return false;
+    }
+
+    private static string ResolveCanonicalPath(string path)
+    {
+        return ResolveCanonicalPath(path, 0);
+    }
+
+    private static string ResolveCanonicalPath(string path, int depth)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        if (depth > 40)
+        {
+            return null;
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+        }
+        catch
+        {
+            return path;
+        }
+
+        var root = Path.GetPathRoot(fullPath) ?? string.Empty;
+        var current = root;
+        var relative = root.Length <= fullPath.Length ? fullPath.Substring(root.Length) : string.Empty;
+        var segments = relative.Split(
+            new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+            StringSplitOptions.RemoveEmptyEntries);
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var next = Path.Combine(current, segments[i]);
+            var resolved = ResolveSegmentLinkTarget(next);
+            if (!PathsEqual(resolved, next))
+            {
+                current = ResolveCanonicalPath(resolved, depth + 1);
+                if (string.IsNullOrWhiteSpace(current))
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                current = next;
+            }
+        }
+
+        return NormalizeComparablePath(current);
+    }
+
+    private static string ResolveSegmentLinkTarget(string currentPath)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(currentPath);
+            if ((attributes & FileAttributes.ReparsePoint) == 0)
+            {
+                return currentPath;
+            }
+
+            var target = File.ResolveLinkTarget(currentPath, returnFinalTarget: true)
+                ?? Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
+            if (target == null || string.IsNullOrWhiteSpace(target.FullName))
+            {
+                return currentPath;
+            }
+
+            var fullName = target.FullName;
+            if (!Path.IsPathRooted(fullName))
+            {
+                var linkDirectory = Path.GetDirectoryName(currentPath);
+                fullName = string.IsNullOrEmpty(linkDirectory)
+                    ? Path.GetFullPath(fullName)
+                    : Path.GetFullPath(fullName, linkDirectory);
+            }
+
+            return Path.GetFullPath(fullName);
+        }
+        catch
+        {
+            return currentPath;
+        }
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return string.Equals(NormalizeComparablePath(left), NormalizeComparablePath(right), comparison);
+    }
+
+    private static string NormalizeComparablePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        try
+        {
+            var full = Path.GetFullPath(path);
+            var root = Path.GetPathRoot(full);
+            if (!string.IsNullOrEmpty(root) &&
+                (string.Equals(full, root, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        Path.TrimEndingDirectorySeparator(full),
+                        Path.TrimEndingDirectorySeparator(root),
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                return full;
+            }
+
+            return Path.TrimEndingDirectorySeparator(full);
+        }
+        catch
+        {
+            return path;
+        }
     }
 
     public bool IsRootPath(string path)

@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.IO;
 using System.Security;
 using FluentAssertions;
 using NSubstitute;
@@ -600,5 +601,185 @@ public class FileBrowserServiceTest
         action.Should().Throw<InvalidOperationException>().WithMessage($"Source '{source}' does not exist.");
         this.diskProvider.DidNotReceive().CreateFolder(Arg.Any<string>());
         this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public void Copy_WhenSourceFileSymlinkTargetsProtectedFile_ThrowsWithoutCopying()
+    {
+        string protectedDir = null;
+        string linkDir = null;
+        try
+        {
+            protectedDir = CreateTempDirectory();
+            linkDir = CreateTempDirectory();
+            var secret = Path.Combine(protectedDir, "secret.txt");
+            File.WriteAllText(secret, "do-not-leak");
+            var link = Path.Combine(linkDir, "secret.txt");
+            File.CreateSymbolicLink(link, secret);
+
+            if (LexicalPathIsProtected(link))
+            {
+                Assert.Pass("Temp directory is inside a protected path.");
+            }
+
+            var diskProvider = Substitute.For<IDiskProvider>();
+            var service = CreateService(diskProvider, protectedDir);
+
+            service.IsRootOrSystemDirectory(link).Should().BeTrue();
+
+            var action = () => service.Copy(link, linkDir);
+
+            action.Should().Throw<InvalidOperationException>().WithMessage("*root or system path*");
+            diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            Assert.Pass("Symlink creation is not permitted in this environment.");
+        }
+        finally
+        {
+            DeleteTempDirectory(linkDir);
+            DeleteTempDirectory(protectedDir);
+        }
+    }
+
+    [Test]
+    public void Copy_WhenDirectoryContainsSymlinkToProtectedFile_ThrowsWithoutCopying()
+    {
+        string protectedDir = null;
+        string sourceDir = null;
+        string destDir = null;
+        try
+        {
+            protectedDir = CreateTempDirectory();
+            sourceDir = CreateTempDirectory();
+            destDir = CreateTempDirectory();
+            var secret = Path.Combine(protectedDir, "secret.txt");
+            File.WriteAllText(secret, "do-not-leak");
+            var link = Path.Combine(sourceDir, "secret.txt");
+            File.CreateSymbolicLink(link, secret);
+
+            if (LexicalPathIsProtected(sourceDir) || LexicalPathIsProtected(link))
+            {
+                Assert.Pass("Temp directory is inside a protected path.");
+            }
+
+            var diskProvider = Substitute.For<IDiskProvider>();
+            diskProvider.FolderExists(sourceDir).Returns(true);
+            diskProvider.FolderExists(destDir).Returns(true);
+            diskProvider.GetFiles(sourceDir, false).Returns(new[] { link });
+            diskProvider.GetDirectories(sourceDir).Returns(Array.Empty<string>());
+            var service = CreateService(diskProvider, protectedDir);
+
+            var action = () => service.Copy(sourceDir, destDir);
+
+            action.Should().Throw<InvalidOperationException>().WithMessage("*root or system path*");
+            diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            Assert.Pass("Symlink creation is not permitted in this environment.");
+        }
+        finally
+        {
+            DeleteTempDirectory(sourceDir);
+            DeleteTempDirectory(destDir);
+            DeleteTempDirectory(protectedDir);
+        }
+    }
+
+    [Test]
+    public void Move_WhenSourceDirectorySymlinkTargetsProtectedDirectory_ThrowsWithoutCopyOrDelete()
+    {
+        string protectedDir = null;
+        string linkDir = null;
+        string destDir = null;
+        try
+        {
+            protectedDir = CreateTempDirectory();
+            linkDir = CreateTempDirectory();
+            destDir = CreateTempDirectory();
+            File.WriteAllText(Path.Combine(protectedDir, "secret.txt"), "do-not-leak");
+            var directoryLink = Path.Combine(linkDir, "linked");
+            Directory.CreateSymbolicLink(directoryLink, protectedDir);
+
+            if (LexicalPathIsProtected(directoryLink))
+            {
+                Assert.Pass("Temp directory is inside a protected path.");
+            }
+
+            var diskProvider = Substitute.For<IDiskProvider>();
+            var service = CreateService(diskProvider, protectedDir);
+
+            var action = () => service.Move(directoryLink, destDir);
+
+            action.Should().Throw<InvalidOperationException>().WithMessage("*root or system path*");
+            diskProvider.DidNotReceive().MoveFolder(Arg.Any<string>(), Arg.Any<string>());
+            diskProvider.DidNotReceive().CopyFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+            diskProvider.DidNotReceive().DeleteFolder(Arg.Any<string>(), Arg.Any<bool>());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            Assert.Pass("Symlink creation is not permitted in this environment.");
+        }
+        finally
+        {
+            DeleteTempDirectory(linkDir);
+            DeleteTempDirectory(destDir);
+            DeleteTempDirectory(protectedDir);
+        }
+    }
+
+    private static bool LexicalPathIsProtected(string path)
+    {
+        var service = new FileBrowserService(Substitute.For<IDiskProvider>(), Substitute.For<IConfigService>());
+        return service.IsRootOrSystemDirectory(path);
+    }
+
+    private static FileBrowserService CreateService(IDiskProvider diskProvider, string protectedDirectory)
+    {
+        var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(protectedDirectory);
+        return new FileBrowserService(diskProvider, Substitute.For<IConfigService>(), appFolderInfo);
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var root = OperatingSystem.IsWindows() ? Path.GetTempPath() : "/tmp";
+        var directory = Path.Combine(root, "leecharr-fb-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
+    private static void DeleteTempDirectory(string directory)
+    {
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+        {
+            return;
+        }
+
+        if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+        {
+            Directory.Delete(directory, false);
+            return;
+        }
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+        {
+            var attributes = File.GetAttributes(entry);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    Directory.Delete(entry, false);
+                }
+                else
+                {
+                    File.Delete(entry);
+                }
+            }
+        }
+
+        Directory.Delete(directory, true);
     }
 }

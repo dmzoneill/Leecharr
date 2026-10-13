@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -10,6 +11,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.FileBrowser;
 
 namespace Leecharr.Core.Test.FileBrowser;
@@ -306,5 +310,144 @@ public class FileBrowserControllerTest
                 File.Delete(tempFile);
             }
         }
+    }
+
+    [Test]
+    public void ReadEndpoints_WhenSymlinkTargetsProtectedPath_ReturnBadRequest()
+    {
+        string protectedDir = null;
+        string linkDir = null;
+        try
+        {
+            protectedDir = CreateTempDirectory();
+            linkDir = CreateTempDirectory();
+            var secret = Path.Combine(protectedDir, "notes.txt");
+            File.WriteAllText(secret, "do-not-leak");
+
+            var fileLink = Path.Combine(linkDir, "notes.txt");
+            File.CreateSymbolicLink(fileLink, secret);
+
+            var directoryLink = Path.Combine(linkDir, "linked");
+            Directory.CreateSymbolicLink(directoryLink, protectedDir);
+            var throughLink = Path.Combine(directoryLink, "notes.txt");
+
+            if (LexicalPathIsProtected(fileLink) || LexicalPathIsProtected(throughLink))
+            {
+                Assert.Pass("Temp directory is inside a protected path.");
+            }
+
+            var controller = this.CreateController(protectedDir);
+
+            controller.Download(fileLink).Should().BeOfType<BadRequestObjectResult>();
+            controller.Stream(fileLink).Should().BeOfType<BadRequestObjectResult>();
+            controller.GetPreview(fileLink).Should().BeOfType<BadRequestObjectResult>();
+            controller.GetPlaylistM3u(fileLink).Should().BeOfType<BadRequestObjectResult>();
+            controller.Download(throughLink).Should().BeOfType<BadRequestObjectResult>();
+            controller.GetPreview(throughLink).Should().BeOfType<BadRequestObjectResult>();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            Assert.Pass("Symlink creation is not permitted in this environment.");
+        }
+        finally
+        {
+            DeleteTempDirectory(linkDir);
+            DeleteTempDirectory(protectedDir);
+        }
+    }
+
+    [Test]
+    public void Download_WhenSymlinkTargetsOrdinaryFile_ReturnsPhysicalFile()
+    {
+        string protectedDir = null;
+        string allowedDir = null;
+        string linkDir = null;
+        try
+        {
+            protectedDir = CreateTempDirectory();
+            allowedDir = CreateTempDirectory();
+            linkDir = CreateTempDirectory();
+            var allowedFile = Path.Combine(allowedDir, "song.mp3");
+            File.WriteAllText(allowedFile, "audio");
+
+            var fileLink = Path.Combine(linkDir, "song.mp3");
+            File.CreateSymbolicLink(fileLink, allowedFile);
+
+            if (LexicalPathIsProtected(fileLink))
+            {
+                Assert.Pass("Temp directory is inside a protected path.");
+            }
+
+            var controller = this.CreateController(protectedDir);
+
+            controller.Download(fileLink).Should().BeOfType<PhysicalFileResult>();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            Assert.Pass("Symlink creation is not permitted in this environment.");
+        }
+        finally
+        {
+            DeleteTempDirectory(linkDir);
+            DeleteTempDirectory(allowedDir);
+            DeleteTempDirectory(protectedDir);
+        }
+    }
+
+    private static bool LexicalPathIsProtected(string path)
+    {
+        var service = new FileBrowserService(Substitute.For<IDiskProvider>(), Substitute.For<IConfigService>());
+        return service.IsRootOrSystemDirectory(path);
+    }
+
+    private FileBrowserController CreateController(string protectedDirectory)
+    {
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns(protectedDirectory);
+        var service = new FileBrowserService(
+            Substitute.For<IDiskProvider>(),
+            Substitute.For<IConfigService>(),
+            appFolderInfo);
+        return new FileBrowserController(service);
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var root = OperatingSystem.IsWindows() ? Path.GetTempPath() : "/tmp";
+        var directory = Path.Combine(root, "leecharr-fb-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
+    private static void DeleteTempDirectory(string directory)
+    {
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+        {
+            return;
+        }
+
+        if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+        {
+            Directory.Delete(directory, false);
+            return;
+        }
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+        {
+            var attributes = File.GetAttributes(entry);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    Directory.Delete(entry, false);
+                }
+                else
+                {
+                    File.Delete(entry);
+                }
+            }
+        }
+
+        Directory.Delete(directory, true);
     }
 }
