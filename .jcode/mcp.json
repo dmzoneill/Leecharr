@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "slack": {
-      "enabled": false,
-      "disabled": true
-    }
-  }
-}
