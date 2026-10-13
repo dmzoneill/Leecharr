@@ -233,6 +233,7 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
     private async Task<HttpResponseMessage> SendInternalAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        this.ApplyFlareSolverrClearance(request);
 
         if (this.vpnKillSwitchService?.IsFailClosedActive == true)
         {
@@ -309,6 +310,17 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
         }
 
         return response;
+    }
+
+    private void ApplyFlareSolverrClearance(HttpRequestMessage request)
+    {
+        foreach (var provider in this.availableProviders)
+        {
+            if (provider is FlareSolverrTransportProvider flareSolverr)
+            {
+                flareSolverr.ApplyCachedClearance(request);
+            }
+        }
     }
 
     private static async Task<HttpRequestMessage> CloneHttpRequestMessageAsync(HttpRequestMessage req, CancellationToken cancellationToken = default)

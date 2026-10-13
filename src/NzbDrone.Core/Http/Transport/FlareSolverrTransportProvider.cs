@@ -31,6 +31,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<string, string> sessionPool = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, SemaphoreSlim> sessionCreationLocks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ClearanceState> clearanceByHost = new(StringComparer.OrdinalIgnoreCase);
     private bool disposed;
 
     public string ProviderId => "FlareSolverr";
@@ -279,6 +280,7 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        this.ApplyCachedClearance(request);
 
         if (!TryGetFlareSolverrCommand(request.Method, out _))
         {
@@ -339,6 +341,8 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
             payloadDict["postData"] = postData;
         }
 
+        this.AppendForwardedRequest(payloadDict, request, domain);
+
         var jsonContent = new StringContent(JsonSerializer.Serialize(payloadDict), Encoding.UTF8, "application/json");
         using var response = await this.solverHttpClient.PostAsync(endpoint, jsonContent, cancellationToken);
 
@@ -351,7 +355,9 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
             if (root.TryGetProperty("status", out var st) && st.GetString() == "ok")
             {
                 var solution = root.GetProperty("solution");
-                return BuildHttpResponseFromSolution(solution, request);
+                var httpResponse = BuildHttpResponseFromSolution(solution, request);
+                this.RememberClearance(domain, solution, httpResponse);
+                return httpResponse;
             }
 
             // If session expired / invalid on FlareSolverr side, clear session and retry once
@@ -399,6 +405,203 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
             RequestMessage = request,
             Content = new StringContent("FlareSolverr request failed"),
         };
+    }
+
+    internal void ApplyCachedClearance(HttpRequestMessage request)
+    {
+        var host = request.RequestUri?.Host?.ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(host) || !this.clearanceByHost.TryGetValue(host, out var clearance))
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(clearance.UserAgent))
+        {
+            request.Headers.Remove("User-Agent");
+            request.Headers.TryAddWithoutValidation("User-Agent", clearance.UserAgent);
+        }
+
+        if (clearance.Cookies.IsEmpty)
+        {
+            return;
+        }
+
+        var cookies = ParseCookieHeader(request);
+        foreach (var cookie in clearance.Cookies)
+        {
+            cookies[cookie.Key] = cookie.Value;
+        }
+
+        request.Headers.Remove("Cookie");
+        request.Headers.TryAddWithoutValidation("Cookie", FormatCookieHeader(cookies));
+    }
+
+    private void AppendForwardedRequest(Dictionary<string, object> payload, HttpRequestMessage request, string domain)
+    {
+        var cookies = ParseCookieHeader(request);
+        string userAgent = null;
+        if (this.clearanceByHost.TryGetValue(domain, out var clearance))
+        {
+            foreach (var cookie in clearance.Cookies)
+            {
+                cookies[cookie.Key] = cookie.Value;
+            }
+
+            if (!string.IsNullOrWhiteSpace(clearance.UserAgent))
+            {
+                userAgent = clearance.UserAgent;
+            }
+        }
+
+        if (cookies.Count > 0)
+        {
+            var cookiePayload = new List<Dictionary<string, string>>(cookies.Count);
+            foreach (var cookie in cookies)
+            {
+                cookiePayload.Add(new Dictionary<string, string>
+                {
+                    ["name"] = cookie.Key,
+                    ["value"] = cookie.Value,
+                });
+            }
+
+            payload["cookies"] = cookiePayload;
+        }
+
+        if (!string.IsNullOrWhiteSpace(userAgent))
+        {
+            payload["userAgent"] = userAgent;
+        }
+
+        var headers = new Dictionary<string, string>(StringComparer.Ordinal);
+        AddForwardedHeader(headers, request, "Cookie");
+        AddForwardedHeader(headers, request, "Authorization");
+        AddForwardedHeader(headers, request, "Referer");
+        if (headers.Count > 0)
+        {
+            payload["headers"] = headers;
+        }
+    }
+
+    private void RememberClearance(string domain, JsonElement solution, HttpResponseMessage response)
+    {
+        string userAgent = null;
+        if (solution.TryGetProperty("userAgent", out var userAgentElement) &&
+            userAgentElement.ValueKind == JsonValueKind.String)
+        {
+            userAgent = userAgentElement.GetString();
+            if (string.IsNullOrWhiteSpace(userAgent))
+            {
+                userAgent = null;
+            }
+        }
+
+        var cookies = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (solution.TryGetProperty("cookies", out var cookiesElement) &&
+            cookiesElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var cookie in cookiesElement.EnumerateArray())
+            {
+                if (!TryReadClearanceCookie(cookie, out var name, out var value))
+                {
+                    continue;
+                }
+
+                cookies[name] = value;
+                response.Headers.TryAddWithoutValidation("Set-Cookie", name + "=" + value);
+            }
+        }
+
+        if (userAgent == null && cookies.Count == 0)
+        {
+            return;
+        }
+
+        var state = this.clearanceByHost.GetOrAdd(domain, _ => new ClearanceState());
+        if (userAgent != null)
+        {
+            state.UserAgent = userAgent;
+        }
+
+        foreach (var cookie in cookies)
+        {
+            state.Cookies[cookie.Key] = cookie.Value;
+        }
+    }
+
+    private static void AddForwardedHeader(Dictionary<string, string> headers, HttpRequestMessage request, string name)
+    {
+        if (!request.Headers.TryGetValues(name, out var values))
+        {
+            return;
+        }
+
+        var value = string.Join(name == "Cookie" ? "; " : ", ", values);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            headers[name] = value;
+        }
+    }
+
+    private static Dictionary<string, string> ParseCookieHeader(HttpRequestMessage request)
+    {
+        var cookies = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!request.Headers.TryGetValues("Cookie", out var values))
+        {
+            return cookies;
+        }
+
+        foreach (var value in values)
+        {
+            foreach (var part in value.Split(';'))
+            {
+                var separator = part.IndexOf('=');
+                if (separator <= 0)
+                {
+                    continue;
+                }
+
+                var name = part[..separator].Trim();
+                var cookieValue = part[(separator + 1)..].Trim();
+                if (name.Length == 0)
+                {
+                    continue;
+                }
+
+                cookies[name] = cookieValue;
+            }
+        }
+
+        return cookies;
+    }
+
+    private static string FormatCookieHeader(Dictionary<string, string> cookies)
+    {
+        return string.Join("; ", cookies.Select(cookie => cookie.Key + "=" + cookie.Value));
+    }
+
+    private static bool TryReadClearanceCookie(JsonElement cookie, out string name, out string value)
+    {
+        name = null;
+        value = null;
+        if (cookie.ValueKind != JsonValueKind.Object ||
+            !cookie.TryGetProperty("name", out var nameElement) ||
+            nameElement.ValueKind != JsonValueKind.String ||
+            !cookie.TryGetProperty("value", out var valueElement) ||
+            valueElement.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        name = nameElement.GetString();
+        value = valueElement.GetString();
+        return !string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(value) && IsClearanceCookie(name);
+    }
+
+    private static bool IsClearanceCookie(string name)
+    {
+        return name.Equals("cf_clearance", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("__cf_bm", StringComparison.OrdinalIgnoreCase);
     }
 
     private static HttpResponseMessage BuildHttpResponseFromSolution(JsonElement solution, HttpRequestMessage request)
@@ -568,5 +771,12 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IHttpOutbou
                 this.fallbackHttpClient.Dispose();
             }
         }
+    }
+
+    private sealed class ClearanceState
+    {
+        public string UserAgent { get; set; }
+
+        public ConcurrentDictionary<string, string> Cookies { get; } = new(StringComparer.Ordinal);
     }
 }

@@ -281,6 +281,99 @@ public class DynamicHttpTransportProxyTest
     }
 
     [Test]
+    public async Task SwitchProviderAsync_WhenFlareSolverrIsDown_DoesNotActivateIt()
+    {
+        var sockets = Substitute.For<IHttpTransportProvider>();
+        sockets.ProviderId.Returns("SocketsHttpHandler");
+        sockets.DisplayName.Returns("Sockets");
+        sockets.ProbeHealthAsync().Returns(Task.FromResult(new HttpTransportHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
+
+        var config = Substitute.For<IConfigService>();
+        config.ActiveHttpTransportProvider.Returns("SocketsHttpHandler");
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:9/v1");
+
+        using var handler = new MockHttpMessageHandler(_ => throw new HttpRequestException("Connection refused"));
+        using var client = new HttpClient(handler);
+        using var flare = new FlareSolverrTransportProvider(config, client);
+        using var proxy = new DynamicHttpTransportProxy(
+            new IHttpTransportProvider[] { sockets, flare },
+            config,
+            this.eventAggregator);
+
+        var result = await proxy.SwitchProviderAsync("FlareSolverr");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("health check failed");
+        proxy.ActiveProviderId.Should().Be("SocketsHttpHandler");
+        proxy.ActiveProvider.Should().BeSameAs(sockets);
+        config.DidNotReceive().SaveConfigDictionary(Arg.Any<Dictionary<string, object>>());
+    }
+
+    [Test]
+    public async Task SendAsync_AppliesCachedFlareSolverrClearanceOnLaterRequests()
+    {
+        const string solvedUserAgent = "SolvedAgent/1.0";
+        var config = Substitute.For<IConfigService>();
+        config.ActiveHttpTransportProvider.Returns("SocketsHttpHandler");
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            if (body.Contains("sessions.create"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"session\":\"sess_proxy\"}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"status\":\"ok\",\"solution\":{" +
+                    "\"status\":200,\"response\":\"<html>solved</html>\"," +
+                    "\"userAgent\":\"" + solvedUserAgent + "\"," +
+                    "\"cookies\":[" +
+                    "{\"name\":\"cf_clearance\",\"value\":\"clearance-token\"}," +
+                    "{\"name\":\"__cf_bm\",\"value\":\"bm-token\"}]}}"),
+            };
+        });
+        using var client = new HttpClient(handler);
+        using var flare = new FlareSolverrTransportProvider(config, client);
+
+        using (var solve = new HttpRequestMessage(HttpMethod.Get, "https://tracker.example/challenge"))
+        {
+            var solved = await flare.SendAsync(solve);
+            solved.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        var sockets = Substitute.For<IHttpTransportProvider>();
+        sockets.ProviderId.Returns("SocketsHttpHandler");
+        sockets.DisplayName.Returns("Sockets");
+        sockets.SendAsync(Arg.Any<HttpRequestMessage>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                RequestMessage = callInfo.Arg<HttpRequestMessage>(),
+            }));
+
+        using var proxy = new DynamicHttpTransportProxy(
+            new IHttpTransportProvider[] { sockets, flare },
+            config,
+            this.eventAggregator);
+
+        using var later = new HttpRequestMessage(HttpMethod.Get, "https://tracker.example/file.torrent");
+        later.Headers.TryAddWithoutValidation("User-Agent", "Leecharr/1.0");
+        await proxy.SendAsync(later);
+
+        later.Headers.GetValues("User-Agent").Should().ContainSingle().Which.Should().Be(solvedUserAgent);
+        var cookie = string.Join("; ", later.Headers.GetValues("Cookie"));
+        cookie.Should().Contain("cf_clearance=clearance-token");
+        cookie.Should().Contain("__cf_bm=bm-token");
+        await sockets.Received(1).SendAsync(later, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task Delegation_ForwardsSendAsyncToActiveProvider()
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com");

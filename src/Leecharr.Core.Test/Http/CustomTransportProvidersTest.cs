@@ -126,6 +126,22 @@ public class CustomTransportProvidersTest
     }
 
     [Test]
+    public async Task ProbeHealthAsync_FlareSolverr_WhenEndpointIsDown_ReturnsUnhealthy()
+    {
+        var mockHandler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+
+        using var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var provider = new FlareSolverrTransportProvider(config, httpClient);
+        var health = await provider.ProbeHealthAsync();
+
+        health.IsHealthy.Should().BeFalse();
+        health.StatusMessage.Should().Contain("offline or unreachable");
+    }
+
+    [Test]
     public void FlareSolverr_ProxyConfiguration_BypassesOutboundProxyForSolverClient()
     {
         var config = Substitute.For<IConfigService>();
@@ -493,6 +509,153 @@ public class CustomTransportProvidersTest
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var content = await response.Content.ReadAsStringAsync();
         content.Should().Contain("Cookie Authenticated");
+        receivedPostData.Should().Contain("uid");
+        receivedPostData.Should().Contain("12345");
+        receivedPostData.Should().Contain("pass");
+        receivedPostData.Should().Contain("abcde");
+    }
+
+    [Test]
+    public async Task SendAsync_FlareSolverr_ReusesSolutionUserAgentAndClearanceCookies()
+    {
+        var requestBodies = new List<string>();
+        const string solvedUserAgent = "SolvedAgent/1.0";
+
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            requestBodies.Add(body);
+
+            if (body.Contains("sessions.create"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"session\":\"sess_clearance\"}"),
+                };
+            }
+
+            if (body.Contains("request.get"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        "{\"status\":\"ok\",\"solution\":{" +
+                        "\"status\":200,\"response\":\"<html>solved</html>\"," +
+                        "\"userAgent\":\"" + solvedUserAgent + "\"," +
+                        "\"cookies\":[" +
+                        "{\"name\":\"cf_clearance\",\"value\":\"clearance-token\"}," +
+                        "{\"name\":\"__cf_bm\",\"value\":\"bm-token\"}," +
+                        "{\"name\":\"other\",\"value\":\"ignore-me\"}]}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var provider = new FlareSolverrTransportProvider(config, httpClient);
+        using var first = new HttpRequestMessage(HttpMethod.Get, "https://tracker.example/challenge");
+        var firstResponse = await provider.SendAsync(first);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var second = new HttpRequestMessage(HttpMethod.Get, "https://tracker.example/download.torrent");
+        second.Headers.TryAddWithoutValidation("User-Agent", "Leecharr/1.0");
+        second.Headers.TryAddWithoutValidation("Cookie", "cf_clearance=stale; uid=1");
+
+        await provider.SendAsync(second);
+
+        second.Headers.GetValues("User-Agent").Should().ContainSingle().Which.Should().Be(solvedUserAgent);
+        var cookie = string.Join("; ", second.Headers.GetValues("Cookie"));
+        cookie.Should().Contain("cf_clearance=clearance-token");
+        cookie.Should().Contain("__cf_bm=bm-token");
+        cookie.Should().Contain("uid=1");
+        cookie.Should().NotContain("stale");
+        cookie.Should().NotContain("ignore-me");
+
+        var solvedRequests = requestBodies.Where(body => body.Contains("request.get")).ToList();
+        solvedRequests.Should().HaveCount(2);
+        solvedRequests[1].Should().Contain(solvedUserAgent);
+        solvedRequests[1].Should().Contain("cf_clearance");
+        solvedRequests[1].Should().Contain("clearance-token");
+        solvedRequests[1].Should().Contain("__cf_bm");
+        solvedRequests[1].Should().Contain("bm-token");
+        solvedRequests[1].Should().NotContain("stale");
+        solvedRequests[1].Should().NotContain("ignore-me");
+    }
+
+    [Test]
+    public async Task SendAsync_FlareSolverr_ForwardsHeadersAndContentWithoutForcingHtml()
+    {
+        var requestBodies = new List<string>();
+
+        var mockHandler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            requestBodies.Add(body);
+
+            if (body.Contains("sessions.create"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"session\":\"sess_forward\"}"),
+                };
+            }
+
+            if (body.Contains("request.post"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"solution\":{\"status\":200,\"response\":\"{\\\"ok\\\":true}\"}}"),
+                };
+            }
+
+            if (body.Contains("request.get"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"status\":\"ok\",\"solution\":{\"status\":200,\"response\":\"<?xml version=\\\"1.0\\\"?><rss><channel></channel></rss>\"}}"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var httpClient = new HttpClient(mockHandler);
+        var config = Substitute.For<IConfigService>();
+        config.GetValue("FlareSolverrUrl", Arg.Any<string>()).Returns("http://127.0.0.1:8191/v1");
+
+        using var provider = new FlareSolverrTransportProvider(config, httpClient);
+        using var post = new HttpRequestMessage(HttpMethod.Post, "https://tracker.example/api")
+        {
+            Content = new StringContent("username=alice&password=secret", Encoding.UTF8, "application/x-www-form-urlencoded"),
+        };
+        post.Headers.TryAddWithoutValidation("Cookie", "uid=12345");
+        post.Headers.TryAddWithoutValidation("Authorization", "Bearer token-1");
+        post.Headers.TryAddWithoutValidation("Referer", "https://tracker.example/login");
+
+        var postResponse = await provider.SendAsync(post);
+        var postType = postResponse.Content.Headers.ContentType?.MediaType;
+        postType.Should().Be("application/json");
+        postType.Should().NotBe("text/html");
+
+        using var get = new HttpRequestMessage(HttpMethod.Get, "https://tracker.example/feed");
+        var getResponse = await provider.SendAsync(get);
+        var getType = getResponse.Content.Headers.ContentType?.MediaType;
+        getType.Should().Be("application/rss+xml");
+        getType.Should().NotBe("text/html");
+
+        var forwarded = requestBodies.Single(body => body.Contains("request.post"));
+        forwarded.Should().Contain("username=alice");
+        forwarded.Should().Contain("password=secret");
+        forwarded.Should().Contain("uid");
+        forwarded.Should().Contain("12345");
+        forwarded.Should().Contain("Authorization");
+        forwarded.Should().Contain("Bearer token-1");
+        forwarded.Should().Contain("Referer");
+        forwarded.Should().Contain("https://tracker.example/login");
     }
 
     [Test]
