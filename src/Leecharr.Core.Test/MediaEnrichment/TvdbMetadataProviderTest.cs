@@ -135,8 +135,8 @@ public class TvdbMetadataProviderTest
                 ""score"": 9.5,
                 ""image"": ""https://artworks.thetvdb.com/banners/posters/81189-extended.jpg"",
                 ""artworks"": [
-                    { ""type"": 1, ""image"": ""https://artworks.thetvdb.com/banners/fanart/81189-bg.jpg"" },
-                    { ""type"": 3, ""image"": ""https://artworks.thetvdb.com/banners/banners/81189-banner.jpg"" }
+                    { ""type"": 1, ""image"": ""https://artworks.thetvdb.com/banners/banners/81189-banner.jpg"" },
+                    { ""type"": 3, ""image"": ""https://artworks.thetvdb.com/banners/fanart/81189-bg.jpg"" }
                 ],
                 ""genres"": [
                     { ""name"": ""Crime"" },

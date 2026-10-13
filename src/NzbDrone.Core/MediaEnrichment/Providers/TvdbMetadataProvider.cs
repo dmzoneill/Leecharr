@@ -452,17 +452,17 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
                                 if (!string.IsNullOrWhiteSpace(artImage))
                                 {
                                     var fullUrl = NormalizeTvdbUrl(artImage);
-                                    if (artType == 1 && string.IsNullOrEmpty(meta.BackdropUrl))
+                                    if (artType == 1 && string.IsNullOrEmpty(meta.BannerUrl))
                                     {
-                                        meta.BackdropUrl = fullUrl;
+                                        meta.BannerUrl = fullUrl;
                                     }
                                     else if (artType == 2 && string.IsNullOrEmpty(meta.PosterUrl))
                                     {
                                         meta.PosterUrl = fullUrl;
                                     }
-                                    else if ((artType == 3 || artType == 7) && string.IsNullOrEmpty(meta.BannerUrl))
+                                    else if (artType == 3 && string.IsNullOrEmpty(meta.BackdropUrl))
                                     {
-                                        meta.BannerUrl = fullUrl;
+                                        meta.BackdropUrl = fullUrl;
                                     }
                                 }
                             }
