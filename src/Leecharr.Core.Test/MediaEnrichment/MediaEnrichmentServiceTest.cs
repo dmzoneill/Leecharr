@@ -182,6 +182,45 @@ public class MediaEnrichmentServiceTest
     }
 
     [Test]
+    public async Task EnrichTorrentAsync_WhenLocalFilePathProvided_PassesPathToMetadataService()
+    {
+        var mediaFile = Path.Combine(this.tempDirectory, "Severance.S01E01.mkv");
+        await File.WriteAllBytesAsync(mediaFile, new byte[16]);
+
+        var metadataService = Substitute.For<IMediaMetadataService>();
+        metadataService
+            .GetMetadataAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult<MediaMetadata>(null!));
+
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            mediaMetadataService: metadataService);
+
+        var torrent = new Torrent
+        {
+            Id = 8,
+            Name = "Severance.S01E01.1080p.WEB-DL.x265",
+            Category = "tv",
+            InfoHash = "ABC123",
+        };
+
+        this.repository.GetByTorrentId(8).Returns((TorrentMediaMetadata)null!);
+
+        await customService.EnrichTorrentAsync(torrent, mediaFile);
+
+        await metadataService.Received(1).GetMetadataAsync(
+            "Severance.S01E01.1080p.WEB-DL.x265",
+            "tv",
+            Arg.Any<int?>(),
+            "ABC123",
+            mediaFile);
+    }
+
+    [Test]
     public async Task EnrichTorrentAsync_WhenInspectFileThrows_PublishesMediaInspectionFailedEvent()
     {
         var mediaFile = Path.Combine(this.tempDirectory, "broken_movie.mkv");
@@ -890,7 +929,7 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
         result.TvdbId.Should().Be("371980");
         result.ArrType.Should().Be("TV");
 
-        await metadataService.Received(1).GetMetadataAsync("Severance.S02E01.1080p.WEB-DL.x265", "tv", Arg.Any<int?>());
+        await metadataService.Received(1).GetMetadataAsync("Severance.S02E01.1080p.WEB-DL.x265", "tv", Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<string>());
     }
 
     [Test]
