@@ -23,6 +23,8 @@ namespace Leecharr.Api.V1.System;
 [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA3001:Review SQL queries for security vulnerabilities", Justification = "Admin SQL explorer intentionally executes user-supplied and schema introspection SQL queries.")]
 public class SystemDatabaseController : Controller
 {
+    private const string ReadOnlyMutationMessage = "Query contains write/mutation statements (INSERT, UPDATE, DELETE, DROP, BEGIN, etc.) but Safe Mode (Read-Only) is enabled.";
+
     private static readonly Regex WritePattern = new(
         @"^\s*(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|VACUUM|ATTACH|DETACH|REINDEX)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
@@ -567,13 +569,14 @@ public class SystemDatabaseController : Controller
             cmd.CommandTimeout = 30;
 
             // Check if query produces a result set (SELECT, PRAGMA, EXPLAIN, etc.)
-            var isWrite = WritePattern.IsMatch(trimmedQuery);
+            var statementText = SqlTextForKeywordGuard(trimmedQuery);
+            var isWrite = WritePattern.IsMatch(statementText);
 
             if (isWrite && !request.ReadOnly)
             {
                 int affected;
 
-                if (NonTransactionPattern.IsMatch(trimmedQuery))
+                if (NonTransactionPattern.IsMatch(statementText))
                 {
                     affected = cmd.ExecuteNonQuery();
                 }
@@ -725,9 +728,15 @@ public class SystemDatabaseController : Controller
 
     private static bool IsReadOnlySafeQuery(string query, out string errorMessage)
     {
-        if (ReadOnlyDisallowedStartPattern.IsMatch(query))
+        if (!TryClassifyStatement(query, out var classified))
         {
-            errorMessage = "Query contains write/mutation statements (INSERT, UPDATE, DELETE, DROP, BEGIN, etc.) but Safe Mode (Read-Only) is enabled.";
+            errorMessage = ReadOnlyMutationMessage;
+            return false;
+        }
+
+        if (ReadOnlyDisallowedStartPattern.IsMatch(classified))
+        {
+            errorMessage = ReadOnlyMutationMessage;
             return false;
         }
 
@@ -737,7 +746,7 @@ public class SystemDatabaseController : Controller
             return false;
         }
 
-        if (MutatingPragmaPattern.IsMatch(query) || PragmaHasAssignment(query))
+        if (MutatingPragmaPattern.IsMatch(classified) || PragmaHasAssignment(classified))
         {
             errorMessage = "Query contains a mutating PRAGMA but Safe Mode (Read-Only) is enabled.";
             return false;
@@ -745,6 +754,383 @@ public class SystemDatabaseController : Controller
 
         errorMessage = string.Empty;
         return true;
+    }
+
+    private static string SqlTextForKeywordGuard(string query)
+    {
+        TryClassifyStatement(query, out var statement);
+        return statement;
+    }
+
+    private static bool TryClassifyStatement(string query, out string statement)
+    {
+        var stripped = StripSqlComments(query).TrimStart();
+        statement = stripped;
+        if (!TryConsumeKeyword(stripped, 0, "WITH", out var afterWith))
+        {
+            return true;
+        }
+
+        if (!TrySkipCteList(stripped, afterWith, out var afterCtes))
+        {
+            return false;
+        }
+
+        statement = stripped.Substring(afterCtes).TrimStart();
+        return true;
+    }
+
+    private static string StripSqlComments(string query)
+    {
+        var builder = new StringBuilder(query.Length);
+        var inSingleQuote = false;
+        var inDoubleQuote = false;
+        var i = 0;
+
+        while (i < query.Length)
+        {
+            var c = query[i];
+            var next = i + 1 < query.Length ? query[i + 1] : '\0';
+
+            if (!inSingleQuote && !inDoubleQuote && c == '-' && next == '-')
+            {
+                builder.Append(' ');
+                i += 2;
+                while (i < query.Length && query[i] != '\n')
+                {
+                    i++;
+                }
+
+                continue;
+            }
+
+            if (!inSingleQuote && !inDoubleQuote && c == '/' && next == '*')
+            {
+                builder.Append(' ');
+                i += 2;
+                while (i + 1 < query.Length && !(query[i] == '*' && query[i + 1] == '/'))
+                {
+                    i++;
+                }
+
+                i = i + 1 < query.Length ? i + 2 : query.Length;
+                continue;
+            }
+
+            builder.Append(c);
+
+            if (c == '\'' && !inDoubleQuote)
+            {
+                if (inSingleQuote && next == '\'')
+                {
+                    builder.Append(next);
+                    i += 2;
+                    continue;
+                }
+
+                inSingleQuote = !inSingleQuote;
+            }
+            else if (c == '"' && !inSingleQuote)
+            {
+                if (inDoubleQuote && next == '"')
+                {
+                    builder.Append(next);
+                    i += 2;
+                    continue;
+                }
+
+                inDoubleQuote = !inDoubleQuote;
+            }
+
+            i++;
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool TrySkipCteList(string sql, int index, out int next)
+    {
+        index = SkipWhitespace(sql, index);
+        if (TryConsumeKeyword(sql, index, "RECURSIVE", out var afterRecursive))
+        {
+            index = afterRecursive;
+        }
+
+        while (true)
+        {
+            index = SkipWhitespace(sql, index);
+            if (!TryConsumeIdentifier(sql, index, out index))
+            {
+                next = index;
+                return false;
+            }
+
+            index = SkipWhitespace(sql, index);
+            if (index < sql.Length && sql[index] == '(')
+            {
+                if (!TrySkipBalancedParentheses(sql, index, out index))
+                {
+                    next = index;
+                    return false;
+                }
+
+                index = SkipWhitespace(sql, index);
+            }
+
+            if (!TryConsumeKeyword(sql, index, "AS", out index))
+            {
+                next = index;
+                return false;
+            }
+
+            index = SkipWhitespace(sql, index);
+            if (TryConsumeKeyword(sql, index, "NOT", out var afterNot))
+            {
+                var materializedAt = SkipWhitespace(sql, afterNot);
+                if (!TryConsumeKeyword(sql, materializedAt, "MATERIALIZED", out index))
+                {
+                    next = index;
+                    return false;
+                }
+            }
+            else if (TryConsumeKeyword(sql, index, "MATERIALIZED", out var afterMaterialized))
+            {
+                index = afterMaterialized;
+            }
+
+            index = SkipWhitespace(sql, index);
+            if (!TrySkipBalancedParentheses(sql, index, out index))
+            {
+                next = index;
+                return false;
+            }
+
+            index = SkipWhitespace(sql, index);
+            if (index < sql.Length && sql[index] == ',')
+            {
+                index++;
+                continue;
+            }
+
+            next = index;
+            return true;
+        }
+    }
+
+    private static bool TrySkipBalancedParentheses(string sql, int index, out int next)
+    {
+        next = index;
+        if (index >= sql.Length || sql[index] != '(')
+        {
+            return false;
+        }
+
+        var depth = 0;
+        var inSingle = false;
+        var inDouble = false;
+        var inBracket = false;
+        var inBacktick = false;
+
+        for (var i = index; i < sql.Length; i++)
+        {
+            var c = sql[i];
+            var nextChar = i + 1 < sql.Length ? sql[i + 1] : '\0';
+
+            if (inSingle)
+            {
+                if (c == '\'' && nextChar == '\'')
+                {
+                    i++;
+                }
+                else if (c == '\'')
+                {
+                    inSingle = false;
+                }
+
+                continue;
+            }
+
+            if (inDouble)
+            {
+                if (c == '"' && nextChar == '"')
+                {
+                    i++;
+                }
+                else if (c == '"')
+                {
+                    inDouble = false;
+                }
+
+                continue;
+            }
+
+            if (inBracket)
+            {
+                if (c == ']')
+                {
+                    inBracket = false;
+                }
+
+                continue;
+            }
+
+            if (inBacktick)
+            {
+                if (c == '`' && nextChar == '`')
+                {
+                    i++;
+                }
+                else if (c == '`')
+                {
+                    inBacktick = false;
+                }
+
+                continue;
+            }
+
+            if (c == '\'')
+            {
+                inSingle = true;
+                continue;
+            }
+
+            if (c == '"')
+            {
+                inDouble = true;
+                continue;
+            }
+
+            if (c == '[')
+            {
+                inBracket = true;
+                continue;
+            }
+
+            if (c == '`')
+            {
+                inBacktick = true;
+                continue;
+            }
+
+            if (c == '(')
+            {
+                depth++;
+                continue;
+            }
+
+            if (c == ')')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    next = i + 1;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryConsumeKeyword(string sql, int index, string keyword, out int next)
+    {
+        next = index;
+        if (index + keyword.Length > sql.Length)
+        {
+            return false;
+        }
+
+        if (!sql.AsSpan(index, keyword.Length).Equals(keyword, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var end = index + keyword.Length;
+        if (end < sql.Length && IsIdentifierChar(sql[end]))
+        {
+            return false;
+        }
+
+        next = end;
+        return true;
+    }
+
+    private static bool TryConsumeIdentifier(string sql, int index, out int next)
+    {
+        next = index;
+        if (index >= sql.Length)
+        {
+            return false;
+        }
+
+        var c = sql[index];
+        if (c == '"' || c == '`')
+        {
+            return TryConsumeQuoted(sql, index, c, out next);
+        }
+
+        if (c == '[')
+        {
+            return TryConsumeQuoted(sql, index, ']', out next);
+        }
+
+        if (!IsIdentifierStart(c))
+        {
+            return false;
+        }
+
+        var end = index + 1;
+        while (end < sql.Length && IsIdentifierChar(sql[end]))
+        {
+            end++;
+        }
+
+        next = end;
+        return true;
+    }
+
+    private static bool TryConsumeQuoted(string sql, int index, char closer, out int next)
+    {
+        next = index;
+        var opener = sql[index];
+        for (var i = index + 1; i < sql.Length; i++)
+        {
+            if (sql[i] != closer)
+            {
+                continue;
+            }
+
+            if (opener == closer && i + 1 < sql.Length && sql[i + 1] == closer)
+            {
+                i++;
+                continue;
+            }
+
+            next = i + 1;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static int SkipWhitespace(string sql, int index)
+    {
+        while (index < sql.Length && char.IsWhiteSpace(sql[index]))
+        {
+            index++;
+        }
+
+        return index;
+    }
+
+    private static bool IsIdentifierStart(char c)
+    {
+        return c == '_' || char.IsLetter(c);
+    }
+
+    private static bool IsIdentifierChar(char c)
+    {
+        return c == '_' || char.IsLetterOrDigit(c);
     }
 
     private static bool PragmaHasAssignment(string query)
