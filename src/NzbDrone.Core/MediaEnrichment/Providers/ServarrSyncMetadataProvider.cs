@@ -287,15 +287,32 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                 return null;
             }
 
+            // Hash identity wins over an earlier cleaned-title row. A remake or same-name
+            // series can share a cleaned title and must not hide the record that carries infoHash.
+            var titleMatches = new List<JsonElement>();
             foreach (var record in records)
             {
-                if (IsRecordMatch(record, infoHash, rawTitle, cleanTitle))
+                var match = ClassifyRecordMatch(record, infoHash, rawTitle, cleanTitle);
+                if (match.IsHash)
                 {
                     var meta = await this.ExtractMetadataFromRecordAsync(conn, record);
                     if (meta != null)
                     {
                         return meta;
                     }
+                }
+                else if (match.IsTitle)
+                {
+                    titleMatches.Add(record);
+                }
+            }
+
+            foreach (var record in titleMatches)
+            {
+                var meta = await this.ExtractMetadataFromRecordAsync(conn, record);
+                if (meta != null)
+                {
+                    return meta;
                 }
             }
         }
@@ -307,74 +324,122 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         return null;
     }
 
-    private static bool IsRecordMatch(JsonElement record, string infoHash, string rawTitle, string cleanTitle)
+    private readonly struct RecordMatch
+    {
+        public RecordMatch(bool isHash, bool isTitle)
+        {
+            this.IsHash = isHash;
+            this.IsTitle = isTitle;
+        }
+
+        public bool IsHash { get; }
+
+        public bool IsTitle { get; }
+    }
+
+    private static RecordMatch ClassifyRecordMatch(JsonElement record, string infoHash, string rawTitle, string cleanTitle)
     {
         if (record.ValueKind != JsonValueKind.Object)
         {
-            return false;
+            return default;
         }
 
-        // Match on downloadId / hash
+        var hashMatched = false;
         if (!string.IsNullOrWhiteSpace(infoHash))
         {
-            if (record.TryGetProperty("downloadId", out var dIdElem) &&
-                dIdElem.ValueKind == JsonValueKind.String &&
-                string.Equals(dIdElem.GetString(), infoHash, StringComparison.OrdinalIgnoreCase))
+            if (record.TryGetProperty("downloadId", out var hashDownloadId) &&
+                hashDownloadId.ValueKind == JsonValueKind.String &&
+                string.Equals(hashDownloadId.GetString(), infoHash, StringComparison.OrdinalIgnoreCase))
             {
-                return true;
+                hashMatched = true;
             }
 
-            if (record.TryGetProperty("data", out var dataElem) && dataElem.ValueKind == JsonValueKind.Object)
+            if (!hashMatched &&
+                record.TryGetProperty("data", out var dataElem) &&
+                dataElem.ValueKind == JsonValueKind.Object)
             {
-                if (dataElem.TryGetProperty("downloadId", out var dataDId) &&
-                    dataDId.ValueKind == JsonValueKind.String &&
-                    string.Equals(dataDId.GetString(), infoHash, StringComparison.OrdinalIgnoreCase))
+                if (dataElem.TryGetProperty("downloadId", out var dataDownloadId) &&
+                    dataDownloadId.ValueKind == JsonValueKind.String &&
+                    string.Equals(dataDownloadId.GetString(), infoHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    return true;
+                    hashMatched = true;
                 }
 
-                if (dataElem.TryGetProperty("guid", out var guid) &&
+                if (!hashMatched &&
+                    dataElem.TryGetProperty("guid", out var guid) &&
                     guid.ValueKind == JsonValueKind.String &&
                     guid.GetString() != null &&
                     guid.GetString().Contains(infoHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    return true;
+                    hashMatched = true;
                 }
             }
         }
 
-        // Match on rawTitle against downloadId
-        if (!string.IsNullOrWhiteSpace(rawTitle))
+        var titleMatched = false;
+        if (!string.IsNullOrWhiteSpace(rawTitle) &&
+            record.TryGetProperty("downloadId", out var rawDownloadId) &&
+            rawDownloadId.ValueKind == JsonValueKind.String &&
+            string.Equals(rawDownloadId.GetString(), rawTitle, StringComparison.OrdinalIgnoreCase))
         {
-            if (record.TryGetProperty("downloadId", out var dIdElem) &&
-                dIdElem.ValueKind == JsonValueKind.String &&
-                string.Equals(dIdElem.GetString(), rawTitle, StringComparison.OrdinalIgnoreCase))
+            titleMatched = true;
+        }
+
+        var recordTitle = record.TryGetProperty("title", out var titleElem) && titleElem.ValueKind == JsonValueKind.String ? titleElem.GetString() : null;
+        var recordSourceTitle = record.TryGetProperty("sourceTitle", out var sourceTitleElem) && sourceTitleElem.ValueKind == JsonValueKind.String ? sourceTitleElem.GetString() : null;
+        var rejectCleanTitle = HasConflictingDownloadId(record, infoHash);
+
+        foreach (var candidate in new[] { recordTitle, recordSourceTitle })
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
             {
-                return true;
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(rawTitle) && string.Equals(candidate, rawTitle, StringComparison.OrdinalIgnoreCase))
+            {
+                titleMatched = true;
+            }
+
+            if (!rejectCleanTitle &&
+                !string.IsNullOrWhiteSpace(cleanTitle) &&
+                string.Equals(CleanTitle(candidate), cleanTitle, StringComparison.OrdinalIgnoreCase))
+            {
+                titleMatched = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(infoHash) && candidate.Contains(infoHash, StringComparison.OrdinalIgnoreCase))
+            {
+                hashMatched = true;
             }
         }
 
-        // Match on title or sourceTitle
-        var recordTitle = record.TryGetProperty("title", out var tElem) && tElem.ValueKind == JsonValueKind.String ? tElem.GetString() : null;
-        var recordSourceTitle = record.TryGetProperty("sourceTitle", out var stElem) && stElem.ValueKind == JsonValueKind.String ? stElem.GetString() : null;
+        return new RecordMatch(hashMatched, titleMatched);
+    }
 
-        var candidateTitles = new[] { recordTitle, recordSourceTitle }.Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
-        foreach (var t in candidateTitles)
+    private static bool HasConflictingDownloadId(JsonElement record, string infoHash)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
         {
-            if (!string.IsNullOrWhiteSpace(rawTitle) && string.Equals(t, rawTitle, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return false;
+        }
 
-            if (!string.IsNullOrWhiteSpace(cleanTitle) && string.Equals(CleanTitle(t), cleanTitle, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+        if (record.TryGetProperty("downloadId", out var downloadId) &&
+            downloadId.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(downloadId.GetString()) &&
+            !string.Equals(downloadId.GetString(), infoHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
 
-            if (!string.IsNullOrWhiteSpace(infoHash) && t.Contains(infoHash, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+        if (record.TryGetProperty("data", out var dataElem) &&
+            dataElem.ValueKind == JsonValueKind.Object &&
+            dataElem.TryGetProperty("downloadId", out var nestedDownloadId) &&
+            nestedDownloadId.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(nestedDownloadId.GetString()) &&
+            !string.Equals(nestedDownloadId.GetString(), infoHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
         }
 
         return false;

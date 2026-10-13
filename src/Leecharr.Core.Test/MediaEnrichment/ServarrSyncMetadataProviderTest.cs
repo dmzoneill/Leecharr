@@ -408,6 +408,193 @@ public class ServarrSyncMetadataProviderTest
     }
 
     [Test]
+    public async Task FetchMetadataAsync_WhenEarlierCleanedTitleHasDifferentHash_UsesLaterHashMatch()
+    {
+        var queueJson = @"{
+            ""records"": [
+                {
+                    ""downloadId"": ""DUNE2021HASH"",
+                    ""title"": ""Dune.2021.1080p"",
+                    ""movie"": {
+                        ""id"": 11,
+                        ""title"": ""Dune"",
+                        ""year"": 2021,
+                        ""overview"": ""Wrong remake"",
+                        ""tmdbId"": 438631
+                    }
+                },
+                {
+                    ""title"": ""Dune.1984.2160p"",
+                    ""data"": { ""downloadId"": ""DUNE1984HASH"" },
+                    ""movie"": {
+                        ""id"": 84,
+                        ""title"": ""Dune"",
+                        ""year"": 1984,
+                        ""overview"": ""The spice must flow"",
+                        ""tmdbId"": 841
+                    }
+                }
+            ]
+        }";
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v3/queue"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(queueJson, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new ServarrSyncMetadataProvider(this.arrRepository, httpClient);
+
+        var conn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Radarr",
+            ArrType = "Radarr",
+            Url = "http://127.0.0.1:7878",
+            ApiKey = "radarr-key",
+            Enable = true,
+        };
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition> { conn });
+
+        var result = await provider.FetchMetadataAsync("Dune.1984.2160p", "movies", 1984, "DUNE1984HASH");
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("Dune");
+        result.Year.Should().Be(1984);
+        result.ArrMediaId.Should().Be(84);
+        result.TmdbId.Should().Be("841");
+        result.Overview.Should().Be("The spice must flow");
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WhenEarlierCleanedTitleHasNoHash_StillPrefersLaterHashMatch()
+    {
+        var queueJson = @"{
+            ""records"": [
+                {
+                    ""title"": ""The.Office.S02E01.720p"",
+                    ""series"": {
+                        ""id"": 2005,
+                        ""title"": ""The Office"",
+                        ""year"": 2005,
+                        ""overview"": ""US mockumentary""
+                    }
+                },
+                {
+                    ""downloadId"": ""OFFICE2001HASH"",
+                    ""title"": ""The.Office.S01E01.720p"",
+                    ""series"": {
+                        ""id"": 2001,
+                        ""title"": ""The Office"",
+                        ""year"": 2001,
+                        ""overview"": ""UK mockumentary""
+                    }
+                }
+            ]
+        }";
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v3/queue"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(queueJson, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new ServarrSyncMetadataProvider(this.arrRepository, httpClient);
+
+        var conn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://127.0.0.1:8989",
+            ApiKey = "sonarr-key",
+            Enable = true,
+        };
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition> { conn });
+
+        var result = await provider.FetchMetadataAsync("The.Office.S01E01.720p", "tv", 2001, "OFFICE2001HASH");
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("The Office");
+        result.Year.Should().Be(2001);
+        result.ArrMediaId.Should().Be(2001);
+        result.Overview.Should().Be("UK mockumentary");
+        result.MediaType.Should().Be("TV");
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WhenOnlyCleanedTitleHasDifferentHash_DoesNotBindThatRecord()
+    {
+        var queueJson = @"{
+            ""records"": [
+                {
+                    ""downloadId"": ""DUNE2021HASH"",
+                    ""title"": ""Dune.2021.1080p"",
+                    ""movie"": {
+                        ""id"": 11,
+                        ""title"": ""Dune"",
+                        ""year"": 2021,
+                        ""overview"": ""Wrong remake"",
+                        ""tmdbId"": 438631
+                    }
+                }
+            ]
+        }";
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v3/queue") ||
+                req.RequestUri.AbsolutePath.Contains("/api/v3/history"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(queueJson, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new ServarrSyncMetadataProvider(this.arrRepository, httpClient);
+
+        var conn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Radarr",
+            ArrType = "Radarr",
+            Url = "http://127.0.0.1:7878",
+            ApiKey = "radarr-key",
+            Enable = true,
+        };
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition> { conn });
+
+        var result = await provider.FetchMetadataAsync("Dune.1984.2160p", "movies", 1984, "DUNE1984HASH");
+
+        result.Should().NotBeNull();
+        result!.Year.Should().Be(1984);
+        result.ArrMediaId.Should().Be(0);
+        result.Overview.Should().BeEmpty();
+        result.TmdbId.Should().BeNull();
+    }
+
+    [Test]
     public async Task FetchMetadataAsync_WhenCorrelatingFromSonarrQueue_RequestsFullPageAndUnknownSeriesItems()
     {
         string queueUri = null!;
