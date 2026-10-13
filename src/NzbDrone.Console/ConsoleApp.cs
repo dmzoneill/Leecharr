@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Common.Instrumentation;
+using NzbDrone.Core.Update;
 using NzbDrone.Host;
 
 namespace NzbDrone.Console;
@@ -40,9 +41,11 @@ public static class ConsoleApp
             NzbDroneLogger.Register(startupContext, appFolderInfo);
 
             var runtimeInfo = new RuntimeInfo();
+            var updateInstallService = new UpdateInstallService(appFolderInfo);
             do
             {
                 runtimeInfo.RestartPending = false;
+                updateInstallService.ApplyPendingUpdate();
                 Logger.Info("Starting Leecharr Console - {0}", BuildInfo.Version);
                 Bootstrap.Start(startupContext);
             }

@@ -19,15 +19,18 @@ namespace Leecharr.Api.V1.Update;
 public class UpdateController : Controller
 {
     private readonly IUpdateCheckService updateCheckService;
+    private readonly IUpdateInstallService updateInstallService;
     private readonly IRuntimeInfo runtimeInfo;
     private readonly IHostApplicationLifetime hostApplicationLifetime;
 
     public UpdateController(
         IUpdateCheckService updateCheckService = null,
+        IUpdateInstallService updateInstallService = null,
         IRuntimeInfo runtimeInfo = null,
         IHostApplicationLifetime hostApplicationLifetime = null)
     {
         this.updateCheckService = updateCheckService;
+        this.updateInstallService = updateInstallService;
         this.runtimeInfo = runtimeInfo;
         this.hostApplicationLifetime = hostApplicationLifetime;
     }
@@ -74,6 +77,36 @@ public class UpdateController : Controller
             ? packages?.FirstOrDefault(u => string.Equals(u.Version, package.Version, StringComparison.OrdinalIgnoreCase))
             : packages?.FirstOrDefault(u => u.Latest || !u.Installed);
 
+        if (targetPackage == null)
+        {
+            return this.BadRequest(new { message = "No matching update package was found." });
+        }
+
+        if (targetPackage.Installed)
+        {
+            return this.BadRequest(new { message = "The selected version is already installed." });
+        }
+
+        if (OsInfo.IsContainer)
+        {
+            return this.BadRequest(new { message = "In-container installs are not supported. Update the container image instead." });
+        }
+
+        var installService = this.updateInstallService;
+        if (installService == null)
+        {
+            return this.StatusCode(503, new { message = "Update installation is not available in this host configuration." });
+        }
+
+        try
+        {
+            await installService.PrepareUpdateAsync(targetPackage, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return this.StatusCode(500, new { message = $"Failed to prepare update: {ex.Message}" });
+        }
+
         if (this.runtimeInfo != null)
         {
             this.runtimeInfo.RestartPending = true;
@@ -87,8 +120,8 @@ public class UpdateController : Controller
 
         return this.Ok(new
         {
-            message = "Update initiated. Restarting Leecharr...",
-            version = targetPackage?.Version ?? package?.Version ?? BuildInfo.Version?.ToString(),
+            message = "Update downloaded. Restarting Leecharr to apply...",
+            version = targetPackage.Version ?? package?.Version ?? BuildInfo.Version?.ToString(),
             restartPending = true,
         });
     }

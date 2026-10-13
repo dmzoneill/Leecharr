@@ -93,6 +93,17 @@ public class UpdateCheckService : IUpdateCheckService
         return fallbackFileName;
     }
 
+    public static string BuildGitHubAssetDownloadUrl(string tagName, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(tagName) || string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var encodedFileName = Uri.EscapeDataString(fileName);
+        return $"https://github.com/dmzoneill/Leecharr/releases/download/{tagName.Trim()}/{encodedFileName}";
+    }
+
     public async Task<List<UpdatePackage>> GetAvailableUpdatesAsync(CancellationToken cancellationToken = default)
     {
         await this.cacheLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -189,6 +200,7 @@ public class UpdateCheckService : IUpdateCheckService
                 var platformIdentifier = GetPackagePlatformIdentifier();
                 var packageExtension = GetPackageExtension();
                 var fileName = GetPackageFileName(cleanVersion);
+                string downloadUrl = null;
 
                 if (elem.TryGetProperty("assets", out var assetsProp) && assetsProp.ValueKind == JsonValueKind.Array)
                 {
@@ -206,7 +218,32 @@ public class UpdateCheckService : IUpdateCheckService
                     }
 
                     fileName = SelectPackageAssetFileName(assetNames, platformIdentifier, packageExtension, fileName);
+
+                    var expectedSuffix = platformIdentifier + packageExtension;
+                    foreach (var asset in assetsProp.EnumerateArray())
+                    {
+                        if (!asset.TryGetProperty("name", out var nameProp))
+                        {
+                            continue;
+                        }
+
+                        var assetName = nameProp.GetString();
+                        if (string.IsNullOrWhiteSpace(assetName) ||
+                            !assetName.EndsWith(expectedSuffix, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        if (asset.TryGetProperty("browser_download_url", out var downloadProp))
+                        {
+                            downloadUrl = downloadProp.GetString();
+                        }
+
+                        break;
+                    }
                 }
+
+                downloadUrl ??= BuildGitHubAssetDownloadUrl(tagName, fileName);
 
                 var isInstalled = string.Equals(cleanVersion, currentVer, StringComparison.OrdinalIgnoreCase) ||
                                     cleanVersion.StartsWith(currentVer, StringComparison.OrdinalIgnoreCase);
@@ -217,6 +254,7 @@ public class UpdateCheckService : IUpdateCheckService
                     ReleaseDate = publishedAt,
                     FileName = fileName,
                     Url = htmlUrl ?? "https://github.com/dmzoneill/Leecharr/releases",
+                    DownloadUrl = downloadUrl,
                     Installed = isInstalled,
                     Latest = false,
                     Changes = ParseChanges(body),

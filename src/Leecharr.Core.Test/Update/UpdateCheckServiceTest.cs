@@ -59,7 +59,8 @@ public class UpdateCheckServiceTest
     ""body"": ""## New Features\n* Added advanced network proxy\n## Bug Fixes\n* Fixed crash in download engine"",
     ""assets"": [
         {
-        ""name"": ""Leecharr.1.4.3.linux-x64.tar.gz""
+        ""name"": ""Leecharr.1.4.3.linux-x64.tar.gz"",
+        ""browser_download_url"": ""https://github.com/dmzoneill/Leecharr/releases/download/v1.4.3/Leecharr.1.4.3.linux-x64.tar.gz""
         }
     ]
     },
@@ -91,6 +92,7 @@ public class UpdateCheckServiceTest
         latest.Version.Should().Be("1.4.3");
         latest.Latest.Should().BeTrue();
         latest.FileName.Should().Be("Leecharr.1.4.3.linux-x64.tar.gz");
+        latest.DownloadUrl.Should().Be("https://github.com/dmzoneill/Leecharr/releases/download/v1.4.3/Leecharr.1.4.3.linux-x64.tar.gz");
         latest.Changes.New.Should().Contain("Added advanced network proxy");
         latest.Changes.Fixed.Should().Contain("Fixed crash in download engine");
 
@@ -316,6 +318,7 @@ public class UpdateCheckServiceTest
         var runtimeInfo = Substitute.For<IRuntimeInfo>();
         var lifetime = Substitute.For<IHostApplicationLifetime>();
         var updateCheckService = Substitute.For<IUpdateCheckService>();
+        var updateInstallService = Substitute.For<IUpdateInstallService>();
 
         updateCheckService.GetAvailableUpdatesAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new List<UpdatePackage>
@@ -324,17 +327,25 @@ public class UpdateCheckServiceTest
                 {
                     Version = "1.5.0",
                     Latest = true,
+                    Installed = false,
                     FileName = "Leecharr.1.5.0.linux-x64.tar.gz",
+                    DownloadUrl = "https://github.com/dmzoneill/Leecharr/releases/download/v1.5.0/Leecharr.1.5.0.linux-x64.tar.gz",
                 },
             }));
 
-        var controller = new UpdateController(updateCheckService, runtimeInfo, lifetime);
+        updateInstallService.PrepareUpdateAsync(Arg.Any<UpdatePackage>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var controller = new UpdateController(updateCheckService, updateInstallService, runtimeInfo, lifetime);
 
         var result = await controller.InstallUpdate(new UpdateResource { Version = "1.5.0" });
 
         var okResult = result as OkObjectResult;
         okResult.Should().NotBeNull();
         runtimeInfo.RestartPending.Should().BeTrue();
+        await updateInstallService.Received(1).PrepareUpdateAsync(
+            Arg.Is<UpdatePackage>(p => p.Version == "1.5.0"),
+            Arg.Any<CancellationToken>());
 
         await Task.Delay(600);
         lifetime.Received(1).StopApplication();

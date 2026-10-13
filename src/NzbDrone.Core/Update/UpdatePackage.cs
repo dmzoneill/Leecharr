@@ -22,6 +22,8 @@ public class UpdatePackage
 
     public string Url { get; set; }
 
+    public string DownloadUrl { get; set; }
+
     public bool Installed { get; set; }
 
     public bool Latest { get; set; }
