@@ -133,6 +133,48 @@ def announce_settings_from_params(params):
     return settings
 
 
+def _append_info_hash(hashes, value):
+    if value is None:
+        return
+    text = str(value).strip()
+    if text and text not in hashes:
+        hashes.append(text)
+
+
+def _collect_info_hash_strings(status, handle=None):
+    """Return v1 and v2 info hashes.
+
+    Fall back to the legacy hash only when neither versioned hash is set.
+    A v2-only torrent exposes a truncated sha1 through info_hash. That value is
+    not the 64-hex btmh hash Leecharr stores, so it must not replace info_hashes.v2.
+    """
+    hashes = []
+    info_hashes = getattr(status, "info_hashes", None)
+    if info_hashes is not None:
+        if hasattr(info_hashes, "has_v1") and info_hashes.has_v1():
+            _append_info_hash(hashes, info_hashes.v1)
+        if hasattr(info_hashes, "has_v2") and info_hashes.has_v2():
+            _append_info_hash(hashes, info_hashes.v2)
+    if hashes:
+        return hashes
+
+    if hasattr(status, "info_hash"):
+        _append_info_hash(hashes, status.info_hash)
+    elif handle is not None:
+        _append_info_hash(hashes, handle.info_hash())
+    return hashes
+
+
+def _primary_info_hash(status, handle=None):
+    hashes = _collect_info_hash_strings(status, handle)
+    for item in hashes:
+        if len(item) == 40:
+            return item
+    if hashes:
+        return hashes[0]
+    return ""
+
+
 class LibTorrentManager:
     def __init__(self, listen_interfaces="0.0.0.0:6882", version_target="2.1.1"):
         self.lock = threading.Lock()
@@ -159,15 +201,9 @@ class LibTorrentManager:
                 if not h.is_valid():
                     continue
                 st = h.status()
-                ih = ""
-                if hasattr(st, "info_hashes") and st.info_hashes.has_v1():
-                    ih = str(st.info_hashes.v1)
-                elif hasattr(st, "info_hash"):
-                    ih = str(st.info_hash)
-                else:
-                    ih = str(h.info_hash())
-                if ih.lower() == target:
-                    return h
+                for candidate in _collect_info_hash_strings(st, h):
+                    if candidate.lower() == target:
+                        return h
         return None
 
     def get_session_status(self):
@@ -246,7 +282,7 @@ class LibTorrentManager:
                 self._set_super_seeding_on_handle(h, bool(params["super_seeding"]))
 
             st = h.status()
-            ih = str(st.info_hashes.v1) if hasattr(st, "info_hashes") and st.info_hashes.has_v1() else str(st.info_hash)
+            ih = _primary_info_hash(st, h)
             return {"status": "added", "info_hash": ih}
 
     def remove_torrent(self, params):
@@ -723,13 +759,7 @@ class LibTorrentManager:
                 if not h.is_valid():
                     continue
                 st = h.status()
-                ih = ""
-                if hasattr(st, "info_hashes") and st.info_hashes.has_v1():
-                    ih = str(st.info_hashes.v1)
-                elif hasattr(st, "info_hash"):
-                    ih = str(st.info_hash)
-                else:
-                    ih = str(h.info_hash())
+                ih = _primary_info_hash(st, h)
 
                 peer_list = []
                 try:
