@@ -35,7 +35,6 @@ public class BlocklistController : Controller
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public ActionResult<BlocklistResource> GetBlocklist()
     {
         return this.Ok(this.BuildResource());

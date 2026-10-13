@@ -2,10 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Blocklist;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
@@ -52,6 +54,14 @@ public class BlocklistControllerTest
             this.blocklistService,
             this.updateService,
             this.syncState);
+    }
+
+    [Test]
+    public void GetBlocklist_DoesNotAllowAnonymousAccess()
+    {
+        var getMethod = typeof(BlocklistController).GetMethod(nameof(BlocklistController.GetBlocklist));
+        getMethod.Should().NotBeNull();
+        getMethod!.GetCustomAttribute<AllowAnonymousAttribute>().Should().BeNull();
     }
 
     [Test]

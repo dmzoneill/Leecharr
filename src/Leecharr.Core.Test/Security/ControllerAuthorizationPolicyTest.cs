@@ -7,6 +7,7 @@ using Leecharr.Api.V1.ArrIntegration;
 using Leecharr.Api.V1.Automation;
 using Leecharr.Api.V1.Backup;
 using Leecharr.Api.V1.BitTorrent;
+using Leecharr.Api.V1.Blocklist;
 using Leecharr.Api.V1.Categories;
 using Leecharr.Api.V1.Config;
 using Leecharr.Api.V1.DownloadClients;
@@ -53,6 +54,7 @@ public class ControllerAuthorizationPolicyTest
         authAttr!.Policy.Should().Be(expectedPolicy);
     }
 
+    [TestCase(typeof(BlocklistController), "RequireOperator")]
     [TestCase(typeof(TorrentController), "RequireOperator")]
     [TestCase(typeof(CategoryController), "RequireOperator")]
     [TestCase(typeof(DownloadClientController), "RequireOperator")]
