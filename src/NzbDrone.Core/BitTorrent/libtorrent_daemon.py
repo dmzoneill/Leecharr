@@ -104,6 +104,23 @@ def _coerce_bool(value):
     return bool(value)
 
 
+def _status_is_paused(status):
+    # Since libtorrent 1.2, paused is not a torrent_status.state value.
+    try:
+        paused = getattr(status, "paused", None)
+        if isinstance(paused, bool):
+            return paused
+    except Exception:
+        pass
+
+    try:
+        flags = int(getattr(status, "flags", 0))
+        paused_flag = int(lt.torrent_flags.paused)
+        return bool(flags & paused_flag)
+    except Exception:
+        return False
+
+
 def announce_settings_from_params(params):
     if not isinstance(params, dict):
         return {}
@@ -250,6 +267,12 @@ class LibTorrentManager:
         h = self.find_handle(params.get("info_hash"))
         if h:
             with self.lock:
+                # An auto-managed torrent is resumed by the session after pause().
+                try:
+                    if hasattr(h, "auto_managed"):
+                        h.auto_managed(False)
+                except Exception:
+                    pass
                 h.pause()
             return {"status": "paused"}
         return {"status": "not_found"}
@@ -758,6 +781,7 @@ class LibTorrentManager:
                 state_str = str(st.state).lower()
                 if "." in state_str:
                     state_str = state_str.split(".")[-1]
+                paused = _status_is_paused(st)
 
                 prog = float(getattr(st, "progress", 0.0))
                 if math.isclose(prog, 0.0, abs_tol=1e-7):
@@ -780,6 +804,7 @@ class LibTorrentManager:
                         "total_done": int(st.total_done),
                         "total_uploaded": int(st.total_upload),
                         "state": state_str,
+                        "paused": paused,
                         "num_seeds": int(st.num_seeds),
                         "num_peers": int(st.num_peers),
                         "super_seeding": bool(getattr(st, "super_seeding", False)),

@@ -301,6 +301,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     if (this.downloadEngine != null)
                                     {
                                         await this.downloadEngine.PauseTorrentAsync(torrent.Id);
+                                        if (this.downloadEngine.GetTask(torrent.Id) is BaseDaemonDownloadTask heldTask)
+                                        {
+                                            heldTask.Status = TorrentStatus.Queued;
+                                        }
                                     }
 
                                     torrent.Status = TorrentStatus.Queued;
@@ -438,6 +442,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     if (this.downloadEngine != null)
                                     {
                                         await this.downloadEngine.PauseTorrentAsync(torrent.Id);
+                                        if (this.downloadEngine.GetTask(torrent.Id) is BaseDaemonDownloadTask heldTask)
+                                        {
+                                            heldTask.Status = TorrentStatus.Queued;
+                                        }
                                     }
 
                                     torrent.Status = TorrentStatus.Queued;

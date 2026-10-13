@@ -1300,7 +1300,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                             }
 
                             var state = item.TryGetProperty("state", out var s) ? s.GetString() : string.Empty;
-                            task.Status = MapDaemonTorrentState(state, task.Progress);
+                            var daemonPaused = IsDaemonTorrentPaused(item);
+                            var keepKillSwitchHalt = this.isHaltedByKillSwitch && task.Status == TorrentStatus.Paused;
+                            task.Status = MapDaemonTorrentState(state, task.Progress, daemonPaused || keepKillSwitchHalt, task.Status);
 
                             if (item.TryGetProperty("super_seeding", out var superSeeding) &&
                                 (superSeeding.ValueKind == JsonValueKind.True || superSeeding.ValueKind == JsonValueKind.False))
@@ -1717,8 +1719,37 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         return Math.Max(0, numPeers - numSeeds);
     }
 
-    internal static TorrentStatus MapDaemonTorrentState(string state, double progress)
+    internal static bool IsDaemonTorrentPaused(JsonElement item)
     {
+        if (!item.TryGetProperty("paused", out var paused))
+        {
+            return false;
+        }
+
+        return paused.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Number => paused.TryGetInt64(out var number) && number != 0,
+            JsonValueKind.String => bool.TryParse(paused.GetString(), out var parsed) && parsed,
+            _ => false,
+        };
+    }
+
+    internal static TorrentStatus MapDaemonTorrentState(string state, double progress, bool paused = false, TorrentStatus? currentStatus = null)
+    {
+        // Queue and stop holds are local. A status poll must not promote them back to downloading.
+        if (currentStatus is TorrentStatus.Queued or TorrentStatus.Stopped or TorrentStatus.QueuedForChecking)
+        {
+            return currentStatus.Value;
+        }
+
+        // libtorrent 1.2+ keeps downloading or seeding in torrent_status.state while paused.
+        if (paused)
+        {
+            return TorrentStatus.Paused;
+        }
+
         var normalized = state?.ToLowerInvariant() ?? string.Empty;
         return normalized switch
         {

@@ -1,6 +1,7 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -199,6 +200,48 @@ public class EngineResourceMetricsTest
     public void MapDaemonTorrentState_UnknownState_MapsToError()
     {
         LibTorrentDownloadEngine.MapDaemonTorrentState("torrent_status::error", 1.0).Should().Be(TorrentStatus.Error);
+    }
+
+    [Test]
+    public void MapDaemonTorrentState_DownloadingWhilePaused_MapsToPaused()
+    {
+        LibTorrentDownloadEngine.MapDaemonTorrentState("downloading", 0.4, paused: true)
+            .Should().Be(TorrentStatus.Paused);
+    }
+
+    [Test]
+    public void MapDaemonTorrentState_SeedingWhilePaused_MapsToPaused()
+    {
+        LibTorrentDownloadEngine.MapDaemonTorrentState("seeding", 1.0, paused: true)
+            .Should().Be(TorrentStatus.Paused);
+    }
+
+    [Test]
+    public void MapDaemonTorrentState_PausedFlag_PreservesQueuedDemotion()
+    {
+        LibTorrentDownloadEngine.MapDaemonTorrentState("downloading", 0.2, paused: true, currentStatus: TorrentStatus.Queued)
+            .Should().Be(TorrentStatus.Queued);
+        LibTorrentDownloadEngine.MapDaemonTorrentState("seeding", 1.0, paused: false, currentStatus: TorrentStatus.Queued)
+            .Should().Be(TorrentStatus.Queued);
+    }
+
+    [Test]
+    public void MapDaemonTorrentState_ClearedPauseFlag_ReplacesLocalPausedWithState()
+    {
+        LibTorrentDownloadEngine.MapDaemonTorrentState("downloading", 0.2, paused: false, currentStatus: TorrentStatus.Paused)
+            .Should().Be(TorrentStatus.Downloading);
+    }
+
+    [Test]
+    public void IsDaemonTorrentPaused_ReadsPausedFlagNotState()
+    {
+        using var pausedWhileDownloading = JsonDocument.Parse("{\"state\":\"downloading\",\"paused\":true}");
+        using var active = JsonDocument.Parse("{\"state\":\"paused\",\"paused\":false}");
+        using var missing = JsonDocument.Parse("{\"state\":\"downloading\"}");
+
+        LibTorrentDownloadEngine.IsDaemonTorrentPaused(pausedWhileDownloading.RootElement).Should().BeTrue();
+        LibTorrentDownloadEngine.IsDaemonTorrentPaused(active.RootElement).Should().BeFalse();
+        LibTorrentDownloadEngine.IsDaemonTorrentPaused(missing.RootElement).Should().BeFalse();
     }
 
     [Test]
