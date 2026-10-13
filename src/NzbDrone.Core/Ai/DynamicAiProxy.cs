@@ -258,21 +258,27 @@ public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, 
     public async Task<AiMalwareRiskAssessment> AnalyzeMalwareRiskAsync(string torrentName, IReadOnlyList<TorrentFile> files)
     {
         var provider = Volatile.Read(ref this.activeProvider);
+        var result = default(AiMalwareRiskAssessment);
         try
         {
-            var result = await provider.AnalyzeMalwareRiskAsync(torrentName, files);
-            if (result != null)
-            {
-                return this.ApplyMalwareRiskPolicy(result);
-            }
+            result = await provider.AnalyzeMalwareRiskAsync(torrentName, files);
         }
         catch (Exception ex)
         {
             this.logger.Debug(ex, "Active AI provider '{0}' failed to analyze malware risk, falling back to heuristic engine.", provider.ProviderId);
         }
 
-        var fallbackResult = await this.defaultFallback.AnalyzeMalwareRiskAsync(torrentName, files);
-        return this.ApplyMalwareRiskPolicy(fallbackResult);
+        var providerIsHeuristic = string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase);
+        if (result == null || !providerIsHeuristic)
+        {
+            var heuristic = await this.defaultFallback.AnalyzeMalwareRiskAsync(torrentName, files);
+            if (result == null || (heuristic != null && heuristic.RiskScore > result.RiskScore))
+            {
+                result = heuristic;
+            }
+        }
+
+        return this.ApplyMalwareRiskPolicy(result);
     }
 
     private AiMalwareRiskAssessment ApplyMalwareRiskPolicy(AiMalwareRiskAssessment assessment)

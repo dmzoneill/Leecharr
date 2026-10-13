@@ -270,6 +270,52 @@ public class DynamicAiProxyTest
     }
 
     [Test]
+    public async Task AnalyzeMalwareRiskAsync_WhenProviderReturnsSafe_StillUsesHeuristicForDangerousFiles()
+    {
+        var switched = await this.proxy.SwitchProviderAsync("Ollama");
+        switched.Should().BeTrue();
+        this.ollamaProvider.AnalyzeMalwareRiskAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<TorrentFile>>())
+            .Returns(Task.FromResult(new AiMalwareRiskAssessment
+            {
+                TorrentName = "Movie.2024.1080p.WEB-DL",
+                RiskScore = 0,
+                RiskLevel = "Safe",
+                IsSuspicious = false,
+            }));
+
+        var files = new List<TorrentFile>
+        {
+            new() { Path = "Movie.2024.1080p/Movie.mp4.exe", Size = 150000 },
+        };
+
+        var assessment = await this.proxy.AnalyzeMalwareRiskAsync("Movie.2024.1080p.WEB-DL", files);
+        assessment.RiskLevel.Should().BeOneOf("High", "Critical");
+        assessment.RiskScore.Should().BeGreaterThan(0.5);
+        assessment.IsSuspicious.Should().BeTrue();
+        assessment.ThreatReasons.Should().NotBeEmpty();
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_WhenProviderScoreExceedsHeuristic_KeepsProviderAssessment()
+    {
+        var switched = await this.proxy.SwitchProviderAsync("Ollama");
+        switched.Should().BeTrue();
+        this.ollamaProvider.AnalyzeMalwareRiskAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<TorrentFile>>())
+            .Returns(Task.FromResult(new AiMalwareRiskAssessment
+            {
+                TorrentName = "CleanRelease.1080p",
+                RiskScore = 0.95,
+                RiskLevel = "HighRisk",
+                IsSuspicious = true,
+            }));
+
+        var assessment = await this.proxy.AnalyzeMalwareRiskAsync("CleanRelease.1080p", new List<TorrentFile>());
+        assessment.RiskLevel.Should().Be("HighRisk");
+        assessment.RiskScore.Should().Be(0.95);
+        assessment.IsSuspicious.Should().BeTrue();
+    }
+
+    [Test]
     public async Task GenerateChatResponseAsync_DelegatesToActiveProvider()
     {
         var response = await this.proxy.GenerateChatResponseAsync("How do I improve seed ratio?");

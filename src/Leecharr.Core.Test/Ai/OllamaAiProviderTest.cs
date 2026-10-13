@@ -593,6 +593,73 @@ public class OllamaAiProviderTest
     }
 
     [Test]
+    public async Task AnalyzeMalwareRiskAsync_WhenRiskFieldsMissing_UsesHeuristicInsteadOfSafe()
+    {
+        var responseJson = OllamaTextResponse("{\"summary\":\"ok\"}");
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+        var files = new[]
+        {
+            new NzbDrone.Core.Torrents.TorrentFile { Path = "Movie.2024.1080p/Movie.mp4.exe", Size = 150000 },
+        };
+
+        var assessment = await provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p.WEB-DL", files);
+        assessment.RiskLevel.Should().BeOneOf("High", "Critical");
+        assessment.RiskScore.Should().BeGreaterThan(0.5);
+        assessment.IsSuspicious.Should().BeTrue();
+        assessment.ThreatReasons.Should().NotBeEmpty();
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_WhenModelSaysSafeButHeuristicIsHigher_UsesHeuristic()
+    {
+        var innerJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            riskLevel = "Safe",
+            riskScore = 0.0,
+            isSuspicious = false,
+        });
+        var responseJson = OllamaTextResponse(innerJson);
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+        var files = new[]
+        {
+            new NzbDrone.Core.Torrents.TorrentFile { Path = "Movie.2024.1080p/Movie.mp4.exe", Size = 150000 },
+        };
+
+        var assessment = await provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p.WEB-DL", files);
+        assessment.RiskLevel.Should().BeOneOf("High", "Critical");
+        assessment.RiskScore.Should().BeGreaterThan(0.5);
+        assessment.ThreatReasons.Should().NotBeEmpty();
+    }
+
+    private static string OllamaTextResponse(string text)
+    {
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            model = "llama3.2",
+            response = text,
+            done = true,
+        });
+    }
+
+    [Test]
     public async Task Prompts_EncapsulateUntrustedInputsInXmlTags()
     {
         var capturedPrompts = new System.Collections.Generic.List<string>();

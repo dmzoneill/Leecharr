@@ -571,6 +571,83 @@ public class CloudGeminiAiProviderTest
     }
 
     [Test]
+    public async Task AnalyzeMalwareRiskAsync_WhenRiskFieldsMissing_UsesHeuristicInsteadOfSafe()
+    {
+        var responseJson = GeminiTextResponse("{\"summary\":\"ok\"}");
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+        var files = new[]
+        {
+            new NzbDrone.Core.Torrents.TorrentFile { Path = "Movie.2024.1080p/Movie.mp4.exe", Size = 150000 },
+        };
+
+        var assessment = await provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p.WEB-DL", files);
+        assessment.RiskLevel.Should().BeOneOf("High", "Critical");
+        assessment.RiskScore.Should().BeGreaterThan(0.5);
+        assessment.IsSuspicious.Should().BeTrue();
+        assessment.ThreatReasons.Should().NotBeEmpty();
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_WhenModelSaysSafeButHeuristicIsHigher_UsesHeuristic()
+    {
+        var innerJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            riskLevel = "Safe",
+            riskScore = 0.0,
+            isSuspicious = false,
+        });
+        var responseJson = GeminiTextResponse(innerJson);
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+        var files = new[]
+        {
+            new NzbDrone.Core.Torrents.TorrentFile { Path = "Movie.2024.1080p/Movie.mp4.exe", Size = 150000 },
+        };
+
+        var assessment = await provider.AnalyzeMalwareRiskAsync("Movie.2024.1080p.WEB-DL", files);
+        assessment.RiskLevel.Should().BeOneOf("High", "Critical");
+        assessment.RiskScore.Should().BeGreaterThan(0.5);
+        assessment.ThreatReasons.Should().NotBeEmpty();
+    }
+
+    private static string GeminiTextResponse(string text)
+    {
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            candidates = new[]
+            {
+                new
+                {
+                    content = new
+                    {
+                        parts = new[]
+                        {
+                            new { text },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    [Test]
     public async Task ParseReleaseAsync_WhenGeminiFailsAndReleaseContainsJson_UsesHeuristicParserNotEmbeddedJson()
     {
         var handler = new MockHttpMessageHandler((req, ct) =>

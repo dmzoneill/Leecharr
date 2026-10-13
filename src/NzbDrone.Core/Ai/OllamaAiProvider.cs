@@ -585,49 +585,60 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                 {
                     using var doc = JsonDocument.Parse(cleanJson);
                     var root = doc.RootElement;
-                    var riskLevel = root.TryGetProperty("riskLevel", out var rl) ? rl.GetString() ?? "Safe" : "Safe";
-                    var riskScore = root.TryGetProperty("riskScore", out var rs) && rs.TryGetDouble(out var rsVal) ? rsVal : 0.0;
-                    var isSuspicious = root.TryGetProperty("isSuspicious", out var susp) ? SafeGetBoolean(susp, riskScore > 0.3) : (riskScore > 0.3);
-
-                    var suspiciousFiles = new List<string>();
-                    if (root.TryGetProperty("suspiciousFiles", out var sfArr) && sfArr.ValueKind == JsonValueKind.Array)
+                    if (TryGetCompleteMalwareRisk(root, out var riskLevel, out var riskScore))
                     {
-                        foreach (var item in sfArr.EnumerateArray())
+                        var isSuspicious = root.TryGetProperty("isSuspicious", out var susp) ? SafeGetBoolean(susp, riskScore > 0.3) : (riskScore > 0.3);
+
+                        var suspiciousFiles = new List<string>();
+                        if (root.TryGetProperty("suspiciousFiles", out var sfArr) && sfArr.ValueKind == JsonValueKind.Array)
                         {
-                            suspiciousFiles.Add(item.GetString() ?? string.Empty);
+                            foreach (var item in sfArr.EnumerateArray())
+                            {
+                                suspiciousFiles.Add(item.GetString() ?? string.Empty);
+                            }
                         }
+
+                        var threatReasons = new List<string>();
+                        if (root.TryGetProperty("threatReasons", out var trArr) && trArr.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in trArr.EnumerateArray())
+                            {
+                                threatReasons.Add(item.GetString() ?? string.Empty);
+                            }
+                        }
+
+                        var recommendations = new List<string>();
+                        if (root.TryGetProperty("recommendations", out var recArr) && recArr.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in recArr.EnumerateArray())
+                            {
+                                recommendations.Add(item.GetString() ?? string.Empty);
+                            }
+                        }
+
+                        var assessment = new AiMalwareRiskAssessment
+                        {
+                            TorrentName = torrentName ?? string.Empty,
+                            RiskLevel = riskLevel,
+                            RiskScore = riskScore,
+                            IsSuspicious = isSuspicious,
+                            AnalyzedFilesCount = files?.Count ?? 0,
+                            SuspiciousFileNames = suspiciousFiles,
+                            ThreatReasons = threatReasons,
+                            Recommendations = recommendations,
+                            AssessedAt = DateTime.UtcNow,
+                        };
+
+                        var heuristic = await this.fallbackProvider.AnalyzeMalwareRiskAsync(torrentName, files);
+                        if (ShouldDeferMalwareRiskToHeuristic(assessment, heuristic))
+                        {
+                            return heuristic;
+                        }
+
+                        return assessment;
                     }
 
-                    var threatReasons = new List<string>();
-                    if (root.TryGetProperty("threatReasons", out var trArr) && trArr.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var item in trArr.EnumerateArray())
-                        {
-                            threatReasons.Add(item.GetString() ?? string.Empty);
-                        }
-                    }
-
-                    var recommendations = new List<string>();
-                    if (root.TryGetProperty("recommendations", out var recArr) && recArr.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var item in recArr.EnumerateArray())
-                        {
-                            recommendations.Add(item.GetString() ?? string.Empty);
-                        }
-                    }
-
-                    return new AiMalwareRiskAssessment
-                    {
-                        TorrentName = torrentName ?? string.Empty,
-                        RiskLevel = riskLevel,
-                        RiskScore = riskScore,
-                        IsSuspicious = isSuspicious,
-                        AnalyzedFilesCount = files?.Count ?? 0,
-                        SuspiciousFileNames = suspiciousFiles,
-                        ThreatReasons = threatReasons,
-                        Recommendations = recommendations,
-                        AssessedAt = DateTime.UtcNow,
-                    };
+                    Logger.Debug("Ollama malware assessment omitted riskLevel or riskScore. Falling back to heuristic engine.");
                 }
             }
         }
@@ -687,6 +698,32 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
     {
         AiChatFallbackContext.SetLastChatUsedFallback(value);
         this.lastObservedChatUsedFallback = value;
+    }
+
+    private static bool TryGetCompleteMalwareRisk(JsonElement root, out string riskLevel, out double riskScore)
+    {
+        riskLevel = null;
+        riskScore = 0;
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("riskLevel", out var riskLevelElement)
+            || riskLevelElement.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        riskLevel = riskLevelElement.GetString();
+        if (string.IsNullOrWhiteSpace(riskLevel))
+        {
+            return false;
+        }
+
+        return root.TryGetProperty("riskScore", out var riskScoreElement)
+            && riskScoreElement.TryGetDouble(out riskScore);
+    }
+
+    private static bool ShouldDeferMalwareRiskToHeuristic(AiMalwareRiskAssessment model, AiMalwareRiskAssessment heuristic)
+    {
+        return heuristic != null && heuristic.RiskScore > model.RiskScore;
     }
 
     private static bool ShouldDeferReleaseParseToHeuristic(AiParsedRelease ollama, AiParsedRelease heuristic)
