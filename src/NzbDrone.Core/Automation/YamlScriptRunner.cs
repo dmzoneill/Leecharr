@@ -13,6 +13,8 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using NLog;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Network.PortMapping;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Torrents;
 using YamlDotNet.Serialization;
@@ -36,11 +38,18 @@ public class YamlScriptRunner : IScriptRunner
     private static readonly char[] GreaterThanOperator = ['>'];
     private static readonly char[] LessThanOperator = ['<'];
     private readonly IManageCommandQueue? _commandQueue;
+    private readonly IVpnKillSwitchService? _vpnKillSwitchService;
+    private readonly INatPmpPortMapperService? _natPmpPortMapperService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
-    public YamlScriptRunner(IManageCommandQueue? commandQueue = null)
+    public YamlScriptRunner(
+        IManageCommandQueue? commandQueue = null,
+        IVpnKillSwitchService? vpnKillSwitchService = null,
+        INatPmpPortMapperService? natPmpPortMapperService = null)
     {
         _commandQueue = commandQueue;
+        _vpnKillSwitchService = vpnKillSwitchService;
+        _natPmpPortMapperService = natPmpPortMapperService;
     }
 
     public AutomationExecutionResult Execute(
@@ -53,7 +62,12 @@ public class YamlScriptRunner : IScriptRunner
         var result = new AutomationExecutionResult();
         var logBuilder = new StringBuilder();
         var sw = Stopwatch.StartNew();
-        var systemContext = new ScriptSystemContext(_commandQueue, result, dryRun: dryRun);
+        var systemContext = new ScriptSystemContext(
+            _commandQueue,
+            result,
+            dryRun: dryRun,
+            vpnKillSwitchService: _vpnKillSwitchService,
+            natPmpPortMapperService: _natPmpPortMapperService);
 
         try
         {
@@ -172,8 +186,8 @@ public class YamlScriptRunner : IScriptRunner
 
             variableContext["system.diskFreeSpace"] = diskFreeSpace;
             variableContext["system.diskTotalSpace"] = diskTotalSpace;
-            variableContext["system.vpnActive"] = true;
-            variableContext["system.isPortForwarded"] = true;
+            variableContext["system.vpnActive"] = systemContext.vpnActive;
+            variableContext["system.isPortForwarded"] = systemContext.isPortForwarded;
 
             using var httpClient = new ScriptHttpContext();
 

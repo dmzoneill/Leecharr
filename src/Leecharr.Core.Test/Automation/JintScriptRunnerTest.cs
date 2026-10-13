@@ -1,5 +1,8 @@
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Automation;
+using NzbDrone.Core.Network.PortMapping;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Test.Automation;
@@ -186,5 +189,80 @@ console.log('Command queued:', cmd);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.OutputLog, Does.Contain("Command queued: null"));
+    }
+
+    [Test]
+    public void ShouldReportVpnAndPortForwardInactiveWhenStatusIsUnknown()
+    {
+        var result = _runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.TagsToAdd, Does.Contain("vpn-false"));
+        Assert.That(result.TagsToAdd, Does.Contain("pf-false"));
+        Assert.That(result.TagsToAdd, Does.Not.Contain("vpn-true"));
+        Assert.That(result.TagsToAdd, Does.Not.Contain("pf-true"));
+    }
+
+    [Test]
+    public void ShouldReportVpnAndPortForwardActiveFromLiveStatus()
+    {
+        var vpn = Substitute.For<IVpnKillSwitchService>();
+        vpn.IsKillSwitchEnabled.Returns(true);
+        vpn.VpnInterfaceName.Returns("tun0");
+        vpn.IsVpnInterfaceUp.Returns(true);
+        vpn.IsFailClosedActive.Returns(false);
+        var mapper = Substitute.For<INatPmpPortMapperService>();
+        mapper.ActiveMappings.Returns(new[]
+        {
+            new ActivePortMapping { InternalPort = 51413, ExternalPort = 51413 },
+        });
+        var runner = new JintScriptRunner(vpnKillSwitchService: vpn, natPmpPortMapperService: mapper);
+
+        var result = runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.TagsToAdd, Does.Contain("vpn-true"));
+        Assert.That(result.TagsToAdd, Does.Contain("pf-true"));
+        Assert.That(result.TagsToAdd, Does.Not.Contain("vpn-false"));
+        Assert.That(result.TagsToAdd, Does.Not.Contain("pf-false"));
+    }
+
+    [Test]
+    public void ShouldReportVpnInactiveWhenKillSwitchHasFailedClosed()
+    {
+        var vpn = Substitute.For<IVpnKillSwitchService>();
+        vpn.IsKillSwitchEnabled.Returns(true);
+        vpn.VpnInterfaceName.Returns("tun0");
+        vpn.IsVpnInterfaceUp.Returns(false);
+        vpn.IsFailClosedActive.Returns(true);
+        var runner = new JintScriptRunner(vpnKillSwitchService: vpn);
+
+        var result = runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.TagsToAdd, Does.Contain("vpn-false"));
+        Assert.That(result.TagsToAdd, Does.Not.Contain("vpn-true"));
+    }
+
+    private static AutomationScript NetworkFlagScript()
+    {
+        return new AutomationScript
+        {
+            Name = "Network flags",
+            Language = AutomationLanguage.JavaScript,
+            Code = @"
+if (system.vpnActive) { torrent.addTag('vpn-true'); } else { torrent.addTag('vpn-false'); }
+if (system.isPortForwarded) { torrent.addTag('pf-true'); } else { torrent.addTag('pf-false'); }
+",
+        };
+    }
+
+    private static Torrent GateTorrent()
+    {
+        return new Torrent
+        {
+            Id = 9,
+            Name = "Gate",
+        };
     }
 }

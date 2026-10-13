@@ -11,6 +11,8 @@ using Jint.Runtime;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Network.PortMapping;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Automation;
@@ -26,12 +28,20 @@ public class JintScriptRunner : IScriptRunner
 
     private readonly IManageCommandQueue? _commandQueue;
     private readonly IConfigFileProvider? _configFileProvider;
+    private readonly IVpnKillSwitchService? _vpnKillSwitchService;
+    private readonly INatPmpPortMapperService? _natPmpPortMapperService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
-    public JintScriptRunner(IManageCommandQueue? commandQueue = null, IConfigFileProvider? configFileProvider = null)
+    public JintScriptRunner(
+        IManageCommandQueue? commandQueue = null,
+        IConfigFileProvider? configFileProvider = null,
+        IVpnKillSwitchService? vpnKillSwitchService = null,
+        INatPmpPortMapperService? natPmpPortMapperService = null)
     {
         _commandQueue = commandQueue;
         _configFileProvider = configFileProvider;
+        _vpnKillSwitchService = vpnKillSwitchService;
+        _natPmpPortMapperService = natPmpPortMapperService;
     }
 
     public AutomationExecutionResult Execute(
@@ -68,7 +78,14 @@ public class JintScriptRunner : IScriptRunner
             engine.SetValue("api", apiContext);
 
             // System / Command context
-            var systemContext = new ScriptSystemContext(_commandQueue, result, executionBudget, abortScriptOnStop: true, dryRun: dryRun);
+            var systemContext = new ScriptSystemContext(
+                _commandQueue,
+                result,
+                executionBudget,
+                abortScriptOnStop: true,
+                dryRun: dryRun,
+                vpnKillSwitchService: _vpnKillSwitchService,
+                natPmpPortMapperService: _natPmpPortMapperService);
             engine.SetValue("system", systemContext);
 
             // HTML context

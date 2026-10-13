@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Threading;
 using NLog;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Network.PortMapping;
+using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Automation;
 
@@ -16,6 +18,8 @@ public class ScriptSystemContext
     private readonly ScriptExecutionBudget? _executionBudget;
     private readonly bool _abortScriptOnStop;
     private readonly bool _dryRun;
+    private readonly IVpnKillSwitchService? _vpnKillSwitchService;
+    private readonly INatPmpPortMapperService? _natPmpPortMapperService;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
     public ScriptSystemContext(
@@ -23,13 +27,17 @@ public class ScriptSystemContext
         AutomationExecutionResult? result = null,
         ScriptExecutionBudget? executionBudget = null,
         bool abortScriptOnStop = false,
-        bool dryRun = false)
+        bool dryRun = false,
+        IVpnKillSwitchService? vpnKillSwitchService = null,
+        INatPmpPortMapperService? natPmpPortMapperService = null)
     {
         _commandQueue = commandQueue;
         _result = result;
         _executionBudget = executionBudget;
         _abortScriptOnStop = abortScriptOnStop;
         _dryRun = dryRun;
+        _vpnKillSwitchService = vpnKillSwitchService;
+        _natPmpPortMapperService = natPmpPortMapperService;
     }
 
     public static long diskFreeSpace
@@ -64,9 +72,54 @@ public class ScriptSystemContext
         }
     }
 
-    public static bool vpnActive => true;
+    public bool vpnActive => IsVpnActive(_vpnKillSwitchService);
 
-    public static bool isPortForwarded => true;
+    public bool isPortForwarded => IsPortForwarded(_natPmpPortMapperService);
+
+    private static bool IsVpnActive(IVpnKillSwitchService? vpnKillSwitchService)
+    {
+        try
+        {
+            if (vpnKillSwitchService == null
+                || !vpnKillSwitchService.IsKillSwitchEnabled
+                || vpnKillSwitchService.IsFailClosedActive)
+            {
+                return false;
+            }
+
+            var iface = vpnKillSwitchService.VpnInterfaceName?.Trim();
+            if (!IsConcreteVpnInterface(iface))
+            {
+                return false;
+            }
+
+            return vpnKillSwitchService.IsVpnInterfaceUp;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsPortForwarded(INatPmpPortMapperService? natPmpPortMapperService)
+    {
+        try
+        {
+            var mappings = natPmpPortMapperService?.ActiveMappings;
+            return mappings != null && mappings.Count > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsConcreteVpnInterface(string? iface)
+    {
+        return !string.IsNullOrWhiteSpace(iface)
+            && !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+    }
 
     public static long getDiskFreeSpace(string? path = null)
     {

@@ -11,6 +11,8 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Automation;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Network.PortMapping;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Test.Automation;
@@ -1174,7 +1176,7 @@ public class YamlScriptRunnerTest
         result.TagsToAdd.Should().Contain("Label-FLAC");
         result.TagsToAdd.Should().Contain("Input-CustomVal");
         result.TagsToAdd.Should().Contain("Secret-TopSecret");
-        result.TagsToAdd.Should().Contain("SystemVpn-True");
+        result.TagsToAdd.Should().Contain("SystemVpn-False");
     }
 
     [Test]
@@ -1754,6 +1756,173 @@ public class YamlScriptRunnerTest
         {
             listener.Stop();
         }
+    }
+
+    [Test]
+    public void NetworkFlags_WhenUnset_ReportInactiveAndSkipProtectedSteps()
+    {
+        var result = _runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("SystemVpn-False");
+        result.TagsToAdd.Should().Contain("SystemPf-False");
+        result.TagsToAdd.Should().Contain("vpn-false");
+        result.TagsToAdd.Should().Contain("pf-false");
+        result.TagsToAdd.Should().NotContain("vpn-true");
+        result.TagsToAdd.Should().NotContain("pf-true");
+    }
+
+    [Test]
+    public void NetworkFlags_WhenVpnUpAndMappingExists_RunProtectedStepsOnly()
+    {
+        var runner = new YamlScriptRunner(
+            vpnKillSwitchService: Vpn("tun0", interfaceUp: true, failClosed: false),
+            natPmpPortMapperService: Mapper(new ActivePortMapping { InternalPort = 51413, ExternalPort = 51413 }));
+
+        var result = runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("SystemVpn-True");
+        result.TagsToAdd.Should().Contain("SystemPf-True");
+        result.TagsToAdd.Should().Contain("vpn-true");
+        result.TagsToAdd.Should().Contain("pf-true");
+        result.TagsToAdd.Should().NotContain("vpn-false");
+        result.TagsToAdd.Should().NotContain("pf-false");
+    }
+
+    [Test]
+    public void NetworkFlags_WhenFailClosed_SkipsVpnStepEvenIfInterfaceCheckSaysUp()
+    {
+        var runner = new YamlScriptRunner(
+            vpnKillSwitchService: Vpn("tun0", interfaceUp: true, failClosed: true),
+            natPmpPortMapperService: Mapper(new ActivePortMapping { InternalPort = 51413, ExternalPort = 51413 }));
+
+        var result = runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("vpn-false");
+        result.TagsToAdd.Should().Contain("pf-true");
+        result.TagsToAdd.Should().NotContain("vpn-true");
+        result.TagsToAdd.Should().NotContain("pf-false");
+    }
+
+    [Test]
+    public void NetworkFlags_WhenKillSwitchDisabled_DoesNotTreatInterfaceAsVpn()
+    {
+        var runner = new YamlScriptRunner(
+            vpnKillSwitchService: Vpn("tun0", interfaceUp: true, failClosed: false, killSwitchEnabled: false),
+            natPmpPortMapperService: Mapper());
+
+        var result = runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("vpn-false");
+        result.TagsToAdd.Should().Contain("pf-false");
+        result.TagsToAdd.Should().NotContain("vpn-true");
+    }
+
+    [Test]
+    public void NetworkFlags_WhenInterfaceIsDown_SkipsVpnStep()
+    {
+        var runner = new YamlScriptRunner(
+            vpnKillSwitchService: Vpn("tun0", interfaceUp: false, failClosed: false));
+
+        var result = runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("vpn-false");
+        result.TagsToAdd.Should().NotContain("vpn-true");
+    }
+
+    [TestCase("Any")]
+    [TestCase("all")]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void NetworkFlags_WhenInterfaceIsUnbound_DoesNotReportVpnActive(string interfaceName)
+    {
+        var runner = new YamlScriptRunner(
+            vpnKillSwitchService: Vpn(interfaceName, interfaceUp: true, failClosed: false));
+
+        var result = runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("vpn-false");
+        result.TagsToAdd.Should().NotContain("vpn-true");
+    }
+
+    [Test]
+    public void NetworkFlags_WhenStatusProbeThrows_FailsClosed()
+    {
+        var vpn = Substitute.For<IVpnKillSwitchService>();
+        vpn.IsKillSwitchEnabled.Returns(_ => throw new InvalidOperationException("vpn"));
+        var mapper = Substitute.For<INatPmpPortMapperService>();
+        mapper.ActiveMappings.Returns(_ => throw new InvalidOperationException("mapper"));
+        var runner = new YamlScriptRunner(vpnKillSwitchService: vpn, natPmpPortMapperService: mapper);
+
+        var result = runner.Execute(NetworkFlagScript(), GateTorrent());
+
+        result.Success.Should().BeTrue();
+        result.TagsToAdd.Should().Contain("vpn-false");
+        result.TagsToAdd.Should().Contain("pf-false");
+        result.TagsToAdd.Should().NotContain("vpn-true");
+        result.TagsToAdd.Should().NotContain("pf-true");
+    }
+
+    private static AutomationScript NetworkFlagScript()
+    {
+        return new AutomationScript
+        {
+            Name = "Network flags",
+            Language = AutomationLanguage.Yaml,
+            Code = "name: 'Network flags'\n" +
+                "steps:\n" +
+                "  - name: 'Record'\n" +
+                "    actions:\n" +
+                "      - addTag: 'SystemVpn-${system.vpnActive}'\n" +
+                "      - addTag: 'SystemPf-${system.isPortForwarded}'\n" +
+                "  - name: 'When VPN up'\n" +
+                "    condition: '${system.vpnActive} == true'\n" +
+                "    actions:\n" +
+                "      - addTag: 'vpn-true'\n" +
+                "  - name: 'When VPN down'\n" +
+                "    condition: '${system.vpnActive} == false'\n" +
+                "    actions:\n" +
+                "      - addTag: 'vpn-false'\n" +
+                "  - name: 'When forwarded'\n" +
+                "    condition: '${system.isPortForwarded} == true'\n" +
+                "    actions:\n" +
+                "      - addTag: 'pf-true'\n" +
+                "  - name: 'When not forwarded'\n" +
+                "    condition: '${system.isPortForwarded} == false'\n" +
+                "    actions:\n" +
+                "      - addTag: 'pf-false'\n",
+        };
+    }
+
+    private static Torrent GateTorrent()
+    {
+        return new Torrent
+        {
+            Id = 9,
+            Name = "Gate",
+        };
+    }
+
+    private static IVpnKillSwitchService Vpn(string interfaceName, bool interfaceUp, bool failClosed, bool killSwitchEnabled = true)
+    {
+        var vpn = Substitute.For<IVpnKillSwitchService>();
+        vpn.IsKillSwitchEnabled.Returns(killSwitchEnabled);
+        vpn.VpnInterfaceName.Returns(interfaceName);
+        vpn.IsVpnInterfaceUp.Returns(interfaceUp);
+        vpn.IsFailClosedActive.Returns(failClosed);
+        return vpn;
+    }
+
+    private static INatPmpPortMapperService Mapper(params ActivePortMapping[] mappings)
+    {
+        var mapper = Substitute.For<INatPmpPortMapperService>();
+        mapper.ActiveMappings.Returns(mappings);
+        return mapper;
     }
 
     private static int GetFreePort()

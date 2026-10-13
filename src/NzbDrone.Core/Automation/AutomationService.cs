@@ -18,6 +18,8 @@ using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Blocklist;
+using NzbDrone.Core.Network.PortMapping;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
@@ -74,7 +76,9 @@ public class AutomationService : IAutomationService
         ITorrentService? torrentService = null,
         ITrackerEntryRepository? trackerEntryRepository = null,
         ITorrentFileService? torrentFileService = null,
-        IAppFolderInfo? appFolderInfo = null)
+        IAppFolderInfo? appFolderInfo = null,
+        IVpnKillSwitchService? vpnKillSwitchService = null,
+        INatPmpPortMapperService? natPmpPortMapperService = null)
     {
         _scriptRepository = scriptRepository;
         _torrentRepository = torrentRepository;
@@ -95,8 +99,8 @@ public class AutomationService : IAutomationService
         _torrentFileService = torrentFileService;
         _appFolderInfo = appFolderInfo;
         _logger = LogManager.GetCurrentClassLogger();
-        _jintRunner = new JintScriptRunner(commandQueue, configFileProvider);
-        _yamlRunner = new YamlScriptRunner(commandQueue);
+        _jintRunner = new JintScriptRunner(commandQueue, configFileProvider, vpnKillSwitchService, natPmpPortMapperService);
+        _yamlRunner = new YamlScriptRunner(commandQueue, vpnKillSwitchService, natPmpPortMapperService);
     }
 
     public List<AutomationScript> GetAll()
