@@ -102,7 +102,7 @@ public class NetworkController : Controller
                 TimeSpan.FromSeconds(5),
                 cts.Token);
 
-            if (!string.IsNullOrWhiteSpace(response) && (response.Trim() == "1" || response.Contains('1')))
+            if (response?.Trim() == "1")
             {
                 isOpen = true;
                 message = $"Port {port} is open and reachable from the internet.";

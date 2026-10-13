@@ -108,6 +108,49 @@ public class NetworkStatusServiceTest
         status.PortOpen.Should().BeTrue();
     }
 
+    [TestCase("Error 1000")]
+    [TestCase("closed: 1")]
+    [TestCase("HTTP/1.1 200 OK")]
+    [TestCase("10")]
+    public void GetStatus_WhenPortCheckBodyContainsDigitButIsNotExactlyOne_SetsPortOpenFalse(string body)
+    {
+        this.natPmpPortMapperService.ActiveMappings.Returns(new List<ActivePortMapping>());
+        this.safeHttpClientService
+            .DownloadStringDirectAsync("https://portcheck.transmissionbt.com/51413", Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(body));
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
+
+        var status = service.GetStatus();
+
+        status.PortOpen.Should().BeFalse();
+    }
+
+    [Test]
+    public void GetStatus_WhenPortCheckBodyIsWhitespacePaddedOne_SetsPortOpenTrue()
+    {
+        this.natPmpPortMapperService.ActiveMappings.Returns(new List<ActivePortMapping>());
+        this.safeHttpClientService
+            .DownloadStringDirectAsync("https://portcheck.transmissionbt.com/51413", Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(" 1\n"));
+
+        var service = new NetworkStatusService(
+            this.externalIpService,
+            this.configFileProvider,
+            this.configService,
+            this.natPmpPortMapperService,
+            safeHttpClientService: this.safeHttpClientService);
+
+        var status = service.GetStatus();
+
+        status.PortOpen.Should().BeTrue();
+    }
+
     [Test]
     public void GetStatus_WhenUpnpEnabledInConfig_DoesNotForceUpnpAvailableTrue()
     {

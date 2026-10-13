@@ -242,6 +242,49 @@ public class NetworkControllerTest
         result.Message.Should().Contain("closed");
     }
 
+    [TestCase("Error 1000")]
+    [TestCase("closed: 1")]
+    [TestCase("HTTP/1.1 200 OK")]
+    [TestCase("10")]
+    public async Task TestPort_WhenBodyContainsDigitButIsNotExactlyOne_ReturnsClosed(string body)
+    {
+        this.safeHttpClientService.DownloadStringDirectAsync(
+            Arg.Is<string>(url => url.Contains("51413")),
+            Arg.Any<TimeSpan>(),
+            Arg.Any<CancellationToken>())
+            .Returns(body);
+
+        var actionResult = await this.controller.TestPort(new PortTestRequest { Port = 51413 });
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var result = okResult!.Value as PortTestResult;
+        result.Should().NotBeNull();
+        result!.IsOpen.Should().BeFalse();
+        result.Message.Should().Contain("closed");
+    }
+
+    [Test]
+    public async Task TestPort_WhenBodyIsWhitespacePaddedOne_ReturnsOpen()
+    {
+        this.safeHttpClientService.DownloadStringDirectAsync(
+            Arg.Is<string>(url => url.Contains("51413")),
+            Arg.Any<TimeSpan>(),
+            Arg.Any<CancellationToken>())
+            .Returns(" 1\n");
+
+        var actionResult = await this.controller.TestPort(new PortTestRequest { Port = 51413 });
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var result = okResult!.Value as PortTestResult;
+        result.Should().NotBeNull();
+        result!.IsOpen.Should().BeTrue();
+        result.Message.Should().Contain("open");
+    }
+
     [Test]
     public async Task TestPort_WhenCustomPortProvided_TestsSpecifiedPort()
     {

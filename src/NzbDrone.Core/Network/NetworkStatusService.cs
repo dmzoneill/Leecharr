@@ -169,7 +169,7 @@ public class NetworkStatusService : INetworkStatusService
                 TimeSpan.FromSeconds(5),
                 cts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
 
-            return !string.IsNullOrWhiteSpace(response) && (response.Trim() == "1" || response.Contains('1'));
+            return response?.Trim() == "1";
         }
         catch (Exception ex)
         {
