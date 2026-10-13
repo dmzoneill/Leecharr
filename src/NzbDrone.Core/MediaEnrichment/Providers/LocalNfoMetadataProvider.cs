@@ -641,7 +641,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
 
     private static void ApplyNfoIdentifiersFromRegex(string xmlContent, MediaMetadata meta)
     {
-        const string uniqueIdPattern = @"<uniqueid[^>]*\btype\s*=\s*(?:\"|')([^\"']+)(?:\"|')[^>]*>(.*?)</uniqueid>";
+        const string uniqueIdPattern = @"<uniqueid[^>]*\btype\s*=\s*(?:""|')([^""']+)(?:""|')[^>]*>(.*?)</uniqueid>";
         var uniqueIdMatches = Regex.Matches(
             xmlContent,
             uniqueIdPattern,

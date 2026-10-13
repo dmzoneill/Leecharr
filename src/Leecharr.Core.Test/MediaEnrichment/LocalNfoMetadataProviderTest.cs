@@ -179,8 +179,10 @@ public class LocalNfoMetadataProviderTest
     <year>2022</year>
     <plot>Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.</plot>
     <rating>8.7</rating>
-    <id>tt11280740</id>
-    <tmdbid>95396</tmdbid>
+    <uniqueid type=""tvdb"" default=""true"">371980</uniqueid>
+    <uniqueid type=""imdb"">tt11280740</uniqueid>
+    <uniqueid type=""tmdb"">95396</uniqueid>
+    <id>371980</id>
     <actor>
         <name>Adam Scott</name>
         <role>Mark Scout</role>
@@ -206,6 +208,7 @@ public class LocalNfoMetadataProviderTest
             metadata.Overview.Should().Contain("surgically divided");
             metadata.Rating.Should().Be(8.7);
             metadata.ImdbId.Should().Be("tt11280740");
+            metadata.TvdbId.Should().Be("371980");
             metadata.TmdbId.Should().Be("95396");
             metadata.PosterUrl.Should().Be(posterPath);
             metadata.BackdropUrl.Should().Be(fanartPath);
