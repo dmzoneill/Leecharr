@@ -4,12 +4,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -19,9 +21,11 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Developer;
 using NzbDrone.Core.Jobs;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Tags;
 
 namespace NzbDrone.Core.Developer.Testing;
@@ -41,6 +45,8 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     private readonly IAppFolderInfo? appFolderInfo;
     private readonly ICategoryService? categoryService;
     private readonly ITagRepository? tagRepository;
+    private readonly IDeveloperEventStore? developerEventStore;
+    private readonly IVpnKillSwitchService? vpnKillSwitch;
     private readonly Logger logger;
     private readonly ConcurrentQueue<DeveloperTestResult> recentResults = new();
 
@@ -538,7 +544,9 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         IConfigFileProvider? configFileProvider = null,
         IAppFolderInfo? appFolderInfo = null,
         ICategoryService? categoryService = null,
-        ITagRepository? tagRepository = null)
+        ITagRepository? tagRepository = null,
+        IDeveloperEventStore? developerEventStore = null,
+        IVpnKillSwitchService? vpnKillSwitch = null)
     {
         this.mainDatabase = mainDatabase;
         this.diskProvider = diskProvider;
@@ -551,6 +559,8 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         this.appFolderInfo = appFolderInfo;
         this.categoryService = categoryService;
         this.tagRepository = tagRepository;
+        this.developerEventStore = developerEventStore;
+        this.vpnKillSwitch = vpnKillSwitch;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -643,13 +653,13 @@ public class DeveloperTestRunner : IDeveloperTestRunner
                     result.Output = this.ExecuteEngineDhtStateCheck();
                     break;
                 case "engine-encryption":
-                    result.Output = ExecuteEngineEncryptionCheck();
+                    result.Output = this.ExecuteEngineEncryptionCheck();
                     break;
                 case "engine-ports":
-                    result.Output = ExecuteEnginePortsCheck();
+                    result.Output = this.ExecuteEnginePortsCheck();
                     break;
                 case "engine-capabilities":
-                    result.Output = ExecuteEngineCapabilitiesCheck();
+                    result.Output = this.ExecuteEngineCapabilitiesCheck();
                     break;
 
                 // 4. Network
@@ -672,7 +682,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
                     result.Output = ExecuteNetworkHttpClientCheck();
                     break;
                 case "network-vpn-binding":
-                    result.Output = ExecuteNetworkVpnBindingCheck();
+                    result.Output = this.ExecuteNetworkVpnBindingCheck();
                     break;
 
                 // 5. Scheduler
@@ -703,7 +713,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
                     result.Output = this.ExecuteEventBusCheck();
                     break;
                 case "event-wiretap":
-                    result.Output = ExecuteEventWiretapCheck();
+                    result.Output = this.ExecuteEventWiretapCheck();
                     break;
                 case "command-queue":
                     result.Output = this.ExecuteCommandQueueCheck();
@@ -767,7 +777,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
                     break;
             }
 
-            if (result.Status != "Skipped")
+            if (result.Status != "Skipped" && result.Status != "Failed")
             {
                 result.Status = "Passed";
             }
@@ -776,6 +786,11 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         {
             result.Status = "Failed";
             result.ErrorMessage = ex.Message;
+            if (string.IsNullOrEmpty(result.Output))
+            {
+                result.Output = ex.Message;
+            }
+
             result.ErrorDetails = ex.StackTrace ?? string.Empty;
             this.logger.Warn(ex, "Developer test '{0}' failed", testId);
         }
@@ -878,11 +893,23 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     // 1. DATABASE IMPLEMENTATIONS
     // ==========================================
 
+    private static int ReadSqlitePragma(IDbCommand command, string pragma)
+    {
+        command.CommandText = pragma;
+        var value = command.ExecuteScalar();
+        if (value == null || value is DBNull)
+        {
+            throw new InvalidOperationException($"SQLite pragma returned no value: {pragma}");
+        }
+
+        return Convert.ToInt32(value);
+    }
+
     private async Task<string> ExecuteDbIntegrityCheckAsync()
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered (in-memory mode).";
+            throw new InvalidOperationException("Main database service is not registered (in-memory mode).");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -891,7 +918,12 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         if (this.mainDatabase.DatabaseType == DatabaseType.SQLite)
         {
             cmd.CommandText = "PRAGMA quick_check(10);";
-            var res = cmd.ExecuteScalar()?.ToString() ?? "ok";
+            var res = cmd.ExecuteScalar()?.ToString()?.Trim() ?? string.Empty;
+            if (!string.Equals(res, "ok", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"SQLite Quick Check failed: '{res}' (Version: {this.mainDatabase.Version})");
+            }
+
             return $"SQLite Quick Check passed: '{res}' (Version: {this.mainDatabase.Version})";
         }
 
@@ -904,7 +936,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -919,7 +951,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -934,7 +966,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -954,7 +986,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -970,7 +1002,12 @@ public class DeveloperTestRunner : IDeveloperTestRunner
                 violations++;
             }
 
-            return $"Foreign key check complete. Found {violations} constraint violations.";
+            if (violations > 0)
+            {
+                throw new InvalidOperationException($"Foreign key check failed. Found {violations} constraint violations.");
+            }
+
+            return "Foreign key check complete. Found 0 constraint violations.";
         }
 
         return "PostgreSQL foreign keys active.";
@@ -980,7 +1017,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -990,13 +1027,21 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         {
             cmd.CommandText = "PRAGMA wal_checkpoint(PASSIVE);";
             using var reader = cmd.ExecuteReader();
-            if (reader.Read())
+            if (!reader.Read())
             {
-                var busy = reader.GetInt32(0);
-                var log = reader.GetInt32(1);
-                var checkpointed = reader.GetInt32(2);
-                return $"WAL Checkpoint: busy={busy}, logPages={log}, checkpointedPages={checkpointed}.";
+                throw new InvalidOperationException("WAL checkpoint returned no result.");
             }
+
+            var busy = reader.GetInt32(0);
+            var log = reader.GetInt32(1);
+            var checkpointed = reader.GetInt32(2);
+            var message = $"WAL Checkpoint: busy={busy}, logPages={log}, checkpointedPages={checkpointed}.";
+            if (busy != 0)
+            {
+                throw new InvalidOperationException(message);
+            }
+
+            return message;
         }
 
         return "PostgreSQL WAL active.";
@@ -1006,7 +1051,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -1026,7 +1071,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -1034,15 +1079,15 @@ public class DeveloperTestRunner : IDeveloperTestRunner
 
         if (this.mainDatabase.DatabaseType == DatabaseType.SQLite)
         {
-            cmd.CommandText = "PRAGMA page_size; PRAGMA page_count; PRAGMA freelist_count;";
-            using var reader = cmd.ExecuteReader();
-            var pageSize = 4096;
-            if (reader.Read())
+            var pageSize = ReadSqlitePragma(cmd, "PRAGMA page_size;");
+            var pageCount = ReadSqlitePragma(cmd, "PRAGMA page_count;");
+            var freelist = ReadSqlitePragma(cmd, "PRAGMA freelist_count;");
+            if (pageSize <= 0 || pageCount < 0 || freelist < 0)
             {
-                pageSize = reader.GetInt32(0);
+                throw new InvalidOperationException($"Database allocation check failed: PageSize={pageSize}, PageCount={pageCount}, Freelist={freelist}.");
             }
 
-            return $"Database allocation: PageSize={pageSize} bytes. SQLite allocation verified.";
+            return $"Database allocation: PageSize={pageSize} bytes, PageCount={pageCount}, Freelist={freelist}.";
         }
 
         return "PostgreSQL page allocation verified.";
@@ -1115,9 +1160,9 @@ public class DeveloperTestRunner : IDeveloperTestRunner
             Directory.Delete(renamedDir, true);
             return "Storage directory create, rename, and delete permissions verified.";
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return $"Permission check notice: {ex.Message}";
+            throw new InvalidOperationException($"Permission check failed: {ex.Message}", ex);
         }
     }
 
@@ -1167,7 +1212,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.downloadEngine == null)
         {
-            return "Download engine is not registered or currently initializing.";
+            throw new InvalidOperationException("Download engine is not registered or currently initializing.");
         }
 
         var dhtNodes = this.downloadEngine.DhtNodeCount;
@@ -1179,7 +1224,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.downloadEngine == null)
         {
-            return Task.FromResult("Download engine is not registered.");
+            throw new InvalidOperationException("Download engine is not registered.");
         }
 
         var supportsDynamic = this.downloadEngine is ITorrentEngine torrentEngine
@@ -1200,7 +1245,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.downloadEngine == null)
         {
-            return "Download engine is not registered.";
+            throw new InvalidOperationException("Download engine is not registered.");
         }
 
         var metrics = this.downloadEngine.GetEngineMetrics();
@@ -1209,6 +1254,11 @@ public class DeveloperTestRunner : IDeveloperTestRunner
 
     private string ExecuteEnginePiecePickerCheck()
     {
+        if (this.downloadEngine == null)
+        {
+            throw new InvalidOperationException("Download engine is not registered.");
+        }
+
         if (this.downloadEngine is ITorrentEngine torrentEngine)
         {
             var caps = torrentEngine.Capabilities;
@@ -1220,23 +1270,56 @@ public class DeveloperTestRunner : IDeveloperTestRunner
 
     private string ExecuteEngineDhtStateCheck()
     {
-        var dhtNodes = this.downloadEngine?.DhtNodeCount ?? 0;
+        if (this.downloadEngine == null)
+        {
+            throw new InvalidOperationException("Download engine is not registered.");
+        }
+
+        var dhtNodes = this.downloadEngine.DhtNodeCount;
         return $"DHT engine state: {dhtNodes} active node contacts.";
     }
 
-    private static string ExecuteEngineEncryptionCheck()
+    private string ExecuteEngineEncryptionCheck()
     {
-        return "Peer wire protocol encryption: PreferEncryption enabled.";
+        if (this.downloadEngine is not ITorrentEngine torrentEngine || torrentEngine.Capabilities == null)
+        {
+            throw new InvalidOperationException("Download engine does not expose encryption capabilities.");
+        }
+
+        var mode = this.configService?.EncryptionMode;
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            throw new InvalidOperationException("Encryption mode is not configured.");
+        }
+
+        return $"Peer wire protocol encryption: Mode={mode}, SupportsEncryptionToggle={torrentEngine.Capabilities.SupportsEncryptionToggle}.";
     }
 
-    private static string ExecuteEnginePortsCheck()
+    private string ExecuteEnginePortsCheck()
     {
-        return "BitTorrent listening port: Bound on TCP/UDP 6881-6889.";
+        if (this.configService == null)
+        {
+            throw new InvalidOperationException("Configuration service is not registered.");
+        }
+
+        var port = this.configService.ListeningPort;
+        if (port < 1 || port > 65535)
+        {
+            throw new InvalidOperationException($"BitTorrent listening port is not configured (ListeningPort={port}).");
+        }
+
+        return $"BitTorrent listening port: configured TCP/UDP {port}.";
     }
 
-    private static string ExecuteEngineCapabilitiesCheck()
+    private string ExecuteEngineCapabilitiesCheck()
     {
-        return "Engine capabilities: SequentialDownload=True, FastResume=True, DynamicLimits=True.";
+        if (this.downloadEngine is not ITorrentEngine torrentEngine || torrentEngine.Capabilities == null)
+        {
+            throw new InvalidOperationException("Download engine does not expose torrent capabilities.");
+        }
+
+        var caps = torrentEngine.Capabilities;
+        return $"Engine capabilities: SequentialDownload={caps.SupportsSequentialDownload}, FastResume={caps.SupportsFastResume}, DynamicLimits={caps.SupportsDynamicRateLimits}.";
     }
 
     // ==========================================
@@ -1253,7 +1336,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         }
         catch (Exception ex)
         {
-            return $"DNS check completed with notice: {ex.Message}";
+            throw new InvalidOperationException($"DNS check failed: {ex.Message}", ex);
         }
     }
 
@@ -1300,9 +1383,29 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"System HttpClient instantiated successfully (Timeout: {client.Timeout.TotalSeconds}s).";
     }
 
-    private static string ExecuteNetworkVpnBindingCheck()
+    private string ExecuteNetworkVpnBindingCheck()
     {
-        return "VPN interface binding: Direct adapter policy active.";
+        if (this.vpnKillSwitch == null)
+        {
+            throw new InvalidOperationException("VPN kill switch service is not registered.");
+        }
+
+        var enabled = this.vpnKillSwitch.IsKillSwitchEnabled;
+        var interfaceName = this.vpnKillSwitch.VpnInterfaceName ?? string.Empty;
+        var interfaceUp = this.vpnKillSwitch.IsVpnInterfaceUp;
+        var failClosed = this.vpnKillSwitch.IsFailClosedActive;
+        if (enabled && string.IsNullOrWhiteSpace(interfaceName))
+        {
+            throw new InvalidOperationException("VPN kill switch is enabled but no interface is bound.");
+        }
+
+        if (enabled && !interfaceUp)
+        {
+            throw new InvalidOperationException($"VPN interface '{interfaceName}' is down while the kill switch is enabled. FailClosed={failClosed}.");
+        }
+
+        var policy = enabled ? $"Bound to '{interfaceName}'" : "Direct adapter policy";
+        return $"VPN interface binding: {policy}. KillSwitch={enabled}, InterfaceUp={interfaceUp}, FailClosed={failClosed}.";
     }
 
     // ==========================================
@@ -1313,10 +1416,10 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.taskManager == null)
         {
-            return "Task manager service is not registered.";
+            throw new InvalidOperationException("Task manager service is not registered.");
         }
 
-        var tasks = this.taskManager.GetAll().ToList();
+        var tasks = this.taskManager.GetAll()?.ToList() ?? new List<ScheduledTask>();
         return $"Task manager verified. Registered tasks count: {tasks.Count}";
     }
 
@@ -1324,42 +1427,65 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.taskManager == null)
         {
-            return "Task manager service is not registered.";
+            throw new InvalidOperationException("Task manager service is not registered.");
         }
 
-        var tasks = this.taskManager.GetAll().ToList();
+        var tasks = this.taskManager.GetAll()?.ToList() ?? new List<ScheduledTask>();
         var withExecution = tasks.Count(t => t.LastExecution != default);
         return $"Task scheduler history: {withExecution}/{tasks.Count} tasks have recorded executions.";
     }
 
     private string ExecuteSchedulerIntervalsCheck()
     {
-        var tasks = this.taskManager?.GetAll().ToList() ?? new List<ScheduledTask>();
+        if (this.taskManager == null)
+        {
+            throw new InvalidOperationException("Task manager service is not registered.");
+        }
+
+        var tasks = this.taskManager.GetAll()?.ToList() ?? new List<ScheduledTask>();
+        if (tasks.Count == 0)
+        {
+            throw new InvalidOperationException("Task scheduler intervals: no active timer schedules are registered.");
+        }
+
         return $"Task scheduler intervals: {tasks.Count} active timer schedules verified.";
     }
 
     private string ExecuteSchedulerWatchFolderCheck()
     {
-        var exists = this.taskManager?.GetAll().Any(t => t.TypeName.Contains("WatchFolder")) ?? true;
-        return $"Watch folder automated task: Active={exists}.";
+        return this.ExecuteScheduledTaskPresenceCheck("WatchFolder", "Watch folder automated task");
     }
 
     private string ExecuteSchedulerRssCheck()
     {
-        var exists = this.taskManager?.GetAll().Any(t => t.TypeName.Contains("Rss")) ?? true;
-        return $"RSS feed sync scheduled task: Active={exists}.";
+        return this.ExecuteScheduledTaskPresenceCheck("Rss", "RSS feed sync scheduled task");
     }
 
     private string ExecuteSchedulerCleanupCheck()
     {
-        var exists = this.taskManager?.GetAll().Any(t => t.TypeName.Contains("Cleanup")) ?? true;
-        return $"Data store cleanup scheduled task: Active={exists}.";
+        return this.ExecuteScheduledTaskPresenceCheck("Cleanup", "Data store cleanup scheduled task");
     }
 
     private string ExecuteSchedulerBackupCheck()
     {
-        var exists = this.taskManager?.GetAll().Any(t => t.TypeName.Contains("Backup")) ?? true;
-        return $"Automated database backup scheduled task: Active={exists}.";
+        return this.ExecuteScheduledTaskPresenceCheck("Backup", "Automated database backup scheduled task");
+    }
+
+    private string ExecuteScheduledTaskPresenceCheck(string typeFragment, string label)
+    {
+        if (this.taskManager == null)
+        {
+            throw new InvalidOperationException("Task manager service is not registered.");
+        }
+
+        var tasks = this.taskManager.GetAll() ?? new List<ScheduledTask>();
+        var exists = tasks.Any(t => t.TypeName != null && t.TypeName.Contains(typeFragment, StringComparison.Ordinal));
+        if (!exists)
+        {
+            throw new InvalidOperationException($"{label}: Active=False.");
+        }
+
+        return $"{label}: Active=True.";
     }
 
     // ==========================================
@@ -1370,23 +1496,29 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.eventAggregator == null)
         {
-            return "Event aggregator is not registered.";
+            throw new InvalidOperationException("Event aggregator is not registered.");
         }
 
         this.eventAggregator.PublishEvent(new DeveloperEventBusSmokeTestEvent());
         return "Dispatched DeveloperEventBusSmokeTestEvent verification payload successfully.";
     }
 
-    private static string ExecuteEventWiretapCheck()
+    private string ExecuteEventWiretapCheck()
     {
-        return "Developer event store wiretap: In-memory ring buffer operational.";
+        if (this.developerEventStore == null)
+        {
+            throw new InvalidOperationException("Developer event store is not registered.");
+        }
+
+        var recorded = this.developerEventStore.GetRecordedCount();
+        return $"Developer event store wiretap: in-memory buffer operational. RecordedEvents={recorded}.";
     }
 
     private string ExecuteCommandQueueCheck()
     {
         if (this.commandQueue == null)
         {
-            return "Command queue manager is not registered.";
+            throw new InvalidOperationException("Command queue manager is not registered.");
         }
 
         return "Command queue manager instance is active and ready for work dispatch.";
@@ -1405,7 +1537,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -1417,12 +1549,62 @@ public class DeveloperTestRunner : IDeveloperTestRunner
 
     private static string ExecuteSignalRHubCheck()
     {
-        return "SignalR real-time event broadcasting pipeline initialized.";
+        Assembly assembly;
+        try
+        {
+            assembly = AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(candidate => string.Equals(candidate.GetName().Name, "Leecharr.SignalR", StringComparison.Ordinal))
+                ?? Assembly.Load("Leecharr.SignalR");
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or FileLoadException or BadImageFormatException)
+        {
+            throw new InvalidOperationException("SignalR MessageHub assembly is not available.", ex);
+        }
+
+        var hubType = assembly.GetType("NzbDrone.SignalR.MessageHub");
+        if (hubType == null)
+        {
+            throw new InvalidOperationException("SignalR MessageHub type was not found.");
+        }
+
+        var connected = hubType.GetProperty("IsConnected", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+        if (connected == null)
+        {
+            throw new InvalidOperationException("SignalR MessageHub does not expose a connection status.");
+        }
+
+        return $"SignalR MessageHub loaded. Connected={connected}.";
     }
 
     private static string ExecuteEventHandlersCheck()
     {
-        return "Event aggregator subscriber pipeline active.";
+        var handlers = CountEventHandlers();
+        if (handlers == 0)
+        {
+            throw new InvalidOperationException("Event aggregator subscriber pipeline has no IHandle registrations.");
+        }
+
+        return $"Event aggregator subscriber pipeline active. Found {handlers} IHandle implementations.";
+    }
+
+    private static int CountEventHandlers()
+    {
+        Type[] types;
+        try
+        {
+            types = typeof(DeveloperTestRunner).Assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            types = ex.Types.OfType<Type>().ToArray();
+        }
+
+        return types.Count(type => type is { IsClass: true, IsAbstract: false } && type.GetInterfaces().Any(IsEventHandlerInterface));
+    }
+
+    private static bool IsEventHandlerInterface(Type type)
+    {
+        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IHandle<>);
     }
 
     // ==========================================
@@ -1492,7 +1674,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -1506,7 +1688,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -1520,7 +1702,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
@@ -1534,7 +1716,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     {
         if (this.mainDatabase == null)
         {
-            return "Main database service is not registered.";
+            throw new InvalidOperationException("Main database service is not registered.");
         }
 
         using var conn = this.mainDatabase.OpenConnection();
