@@ -3104,6 +3104,49 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task Handle_TorrentMetadataReceivedEvent_AppliesPendingSubfolderLayout()
+    {
+        var torrent = new Torrent
+        {
+            Id = 107610,
+            Name = "aabbccddeeff00112233445566778899aabbccdd",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            TotalSize = 0,
+        };
+
+        this.torrentRepository.Get(107610).Returns(torrent);
+        this.fileRepository.GetByTorrentId(107610).Returns(new List<TorrentFile>());
+        this.downloadEngine.RenameFileAsync(107610, "video.mp4", "ResolvedMovie/video.mp4").Returns(true);
+        PendingTorrentContentLayout.Remember(107610, TorrentContentLayout.Subfolder);
+
+        try
+        {
+            var metadataFiles = new List<TorrentFile>
+            {
+                new() { TorrentId = 107610, Path = "video.mp4", Size = 5000000 },
+            };
+
+            this.service.Handle(new TorrentMetadataReceivedEvent
+            {
+                TorrentId = 107610,
+                InfoHash = torrent.InfoHash,
+                Name = "ResolvedMovie",
+                TotalSize = 5000000,
+                PieceCount = 1,
+                PieceLength = 524288,
+                Files = metadataFiles,
+            });
+
+            await this.downloadEngine.Received(1).RenameFileAsync(107610, "video.mp4", "ResolvedMovie/video.mp4");
+            PendingTorrentContentLayout.TryTake(107610, out _).Should().BeFalse();
+        }
+        finally
+        {
+            PendingTorrentContentLayout.TryTake(107610, out _);
+        }
+    }
+
+    [Test]
     public void SyncWithEngine_UsesProgressTimesTotalSizeInsteadOfSessionBytes()
     {
         var torrent = new Torrent

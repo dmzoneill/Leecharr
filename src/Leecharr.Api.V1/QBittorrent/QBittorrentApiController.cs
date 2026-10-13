@@ -856,7 +856,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             {
                 if (trimmed.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
-                    var added = await this.torrentService.AddFromMagnetAsync(trimmed, request.Category, request.EffectiveSavePath, request.IsPaused);
+                    var added = await this.torrentService.AddFromMagnetAsync(trimmed, request.Category, request.SavePathForAdd, request.IsPaused);
                     if (added != null)
                     {
                         await this.ApplyTorrentRequestOptionsAsync(added, request);
@@ -929,7 +929,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 return false;
             }
 
-            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.EffectiveSavePath, request.IsPaused, bytes);
+            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePathForAdd, request.IsPaused, bytes);
             if (added != null)
             {
                 await this.ApplyTorrentRequestOptionsAsync(added, request);
@@ -986,7 +986,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     continue;
                 }
 
-                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.EffectiveSavePath, request.IsPaused, bytes);
+                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePathForAdd, request.IsPaused, bytes);
                 if (added != null)
                 {
                     await this.ApplyTorrentRequestOptionsAsync(added, request);
@@ -1002,12 +1002,64 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return addedCount;
     }
 
+    private async Task ApplyRequestedContentLayoutAsync(Torrent added, QBitAddTorrentsRequest request)
+    {
+        var layout = request?.EffectiveContentLayout;
+        if (added == null || added.Id <= 0 || !layout.HasValue || layout.Value == TorrentContentLayout.Original)
+        {
+            return;
+        }
+
+        PendingTorrentContentLayout.Remember(added.Id, layout.Value);
+
+        List<TorrentFile> files = null;
+        try
+        {
+            files = this.torrentFileService?.GetFiles(added.Id)?.Where(file => !string.IsNullOrWhiteSpace(file?.Path)).ToList();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to load files while applying content layout for torrent {0}", added.Id);
+            return;
+        }
+
+        if (files == null || files.Count == 0)
+        {
+            return;
+        }
+
+        if (!PendingTorrentContentLayout.TryTake(added.Id, out var pending) || pending == TorrentContentLayout.Original)
+        {
+            return;
+        }
+
+        var plan = TorrentContentLayoutPlanner.Plan(pending, added.Name, files.Select(file => file.Path));
+        foreach (var (oldPath, newPath) in plan)
+        {
+            if (string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            try
+            {
+                await this.torrentService.RenameFileAsync(added.Id, oldPath, newPath);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to apply content layout for torrent {0}: {1} -> {2}", added.Id, oldPath, newPath);
+            }
+        }
+    }
+
     private async Task ApplyTorrentRequestOptionsAsync(Torrent added, QBitAddTorrentsRequest request)
     {
         if (added == null || request == null)
         {
             return;
         }
+
+        await this.ApplyRequestedContentLayoutAsync(added, request);
 
         var needsUpdate = false;
         if (!string.IsNullOrWhiteSpace(request.Rename))

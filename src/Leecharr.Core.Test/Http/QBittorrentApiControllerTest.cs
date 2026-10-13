@@ -3322,6 +3322,236 @@ public class QBittorrentApiControllerTest
         req3.IsSkipChecking.Should().BeFalse();
         req3.IsAutoTMM.Should().BeFalse();
         req3.IsRootFolder.Should().BeFalse();
+
+        var layoutReq = new QBitAddTorrentsRequest
+        {
+            ContentLayout = "NoSubfolder",
+            Root_folder = "true",
+            AutoTMM = "true",
+            Savepath = "/explicit",
+        };
+        layoutReq.EffectiveContentLayout.Should().Be(TorrentContentLayout.NoSubfolder);
+        layoutReq.SavePathForAdd.Should().BeNull();
+
+        var rootFalse = new QBitAddTorrentsRequest { Root_folder = "0", Savepath = "/explicit" };
+        rootFalse.EffectiveContentLayout.Should().Be(TorrentContentLayout.NoSubfolder);
+        rootFalse.SavePathForAdd.Should().Be("/explicit");
+
+        var unset = new QBitAddTorrentsRequest { Savepath = "/explicit" };
+        unset.EffectiveContentLayout.Should().BeNull();
+        unset.SavePathForAdd.Should().Be("/explicit");
+    }
+
+    [Test]
+    public async Task AddTorrents_WithAutoTmmTrue_IgnoresExplicitSavePath()
+    {
+        var addedTorrent = new Torrent { Id = 107601, InfoHash = "hash1", Name = "ShowName" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            Category = "tv",
+            Savepath = "/manual/save",
+            AutoTMM = "true",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "tv", null, false);
+        PendingTorrentContentLayout.TryTake(107601, out _).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrents_WithAutoTmmFalse_KeepsExplicitSavePath()
+    {
+        var addedTorrent = new Torrent { Id = 107602, InfoHash = "hash1", Name = "ShowName" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            Category = "tv",
+            Savepath = "/manual/save",
+            AutoTMM = "false",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "tv", "/manual/save", false);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithContentLayoutSubfolder_RenamesFlatFilesUnderTorrentName()
+    {
+        var addedTorrent = new Torrent { Id = 107603, InfoHash = "hash1", Name = "ShowName" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+        this.torrentFileService.GetFiles(107603).Returns(new List<TorrentFile>
+        {
+            new() { Path = "episode.mkv" },
+            new() { Path = "episode.nfo" },
+        });
+        this.torrentService.RenameFileAsync(107603, "episode.mkv", "ShowName/episode.mkv").Returns(true);
+        this.torrentService.RenameFileAsync(107603, "episode.nfo", "ShowName/episode.nfo").Returns(true);
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            Category = "tv",
+            ContentLayout = "Subfolder",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).RenameFileAsync(107603, "episode.mkv", "ShowName/episode.mkv");
+        await this.torrentService.Received(1).RenameFileAsync(107603, "episode.nfo", "ShowName/episode.nfo");
+        PendingTorrentContentLayout.TryTake(107603, out _).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrents_WithContentLayoutNoSubfolder_StripsSharedRoot()
+    {
+        var addedTorrent = new Torrent { Id = 107604, InfoHash = "hash1", Name = "ShowName" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+        this.torrentFileService.GetFiles(107604).Returns(new List<TorrentFile>
+        {
+            new() { Path = "ShowName/episode.mkv" },
+        });
+        this.torrentService.RenameFileAsync(107604, "ShowName/episode.mkv", "episode.mkv").Returns(true);
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            ContentLayout = "nosubfolder",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).RenameFileAsync(107604, "ShowName/episode.mkv", "episode.mkv");
+    }
+
+    [Test]
+    public async Task AddTorrents_WithRootFolderFalse_StripsSharedRoot()
+    {
+        var addedTorrent = new Torrent { Id = 107605, InfoHash = "hash1", Name = "ShowName" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+        this.torrentFileService.GetFiles(107605).Returns(new List<TorrentFile>
+        {
+            new() { Path = "Season/episode.mkv" },
+        });
+        this.torrentService.RenameFileAsync(107605, "Season/episode.mkv", "episode.mkv").Returns(true);
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            Root_folder = "false",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).RenameFileAsync(107605, "Season/episode.mkv", "episode.mkv");
+    }
+
+    [Test]
+    public async Task AddTorrents_WithContentLayoutOriginal_DoesNotRenameFiles()
+    {
+        var addedTorrent = new Torrent { Id = 107606, InfoHash = "hash1", Name = "ShowName" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+        this.torrentFileService.GetFiles(107606).Returns(new List<TorrentFile>
+        {
+            new() { Path = "episode.mkv" },
+        });
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            ContentLayout = "Original",
+            Root_folder = "true",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.DidNotReceiveWithAnyArgs().RenameFileAsync(default, default, default);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithSubfolderAndExistingRoot_DoesNotRenameFiles()
+    {
+        var addedTorrent = new Torrent { Id = 107607, InfoHash = "hash1", Name = "ShowName" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+        this.torrentFileService.GetFiles(107607).Returns(new List<TorrentFile>
+        {
+            new() { Path = "ShowName/episode.mkv" },
+        });
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            ContentLayout = "Subfolder",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.DidNotReceiveWithAnyArgs().RenameFileAsync(default, default, default);
+        PendingTorrentContentLayout.TryTake(107607, out _).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrents_WithSubfolderAndNoFilesYet_RemembersLayoutForMetadata()
+    {
+        var addedTorrent = new Torrent { Id = 107608, InfoHash = "hash1", Name = "ShowName" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+
+        try
+        {
+            var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+            {
+                Urls = "magnet:?xt=urn:btih:hash1",
+                ContentLayout = "Subfolder",
+            });
+
+            result.Should().BeOfType<ContentResult>();
+            PendingTorrentContentLayout.TryTake(107608, out var layout).Should().BeTrue();
+            layout.Should().Be(TorrentContentLayout.Subfolder);
+            await this.torrentService.DidNotReceiveWithAnyArgs().RenameFileAsync(default, default, default);
+        }
+        finally
+        {
+            PendingTorrentContentLayout.TryTake(107608, out _);
+        }
+    }
+
+    [Test]
+    public async Task AddTorrents_WithHttpUrlAutoTmmAndNoSubfolder_UsesCategoryPathAndStripsRoot()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3 };
+        var parsed = new ParsedTorrent { InfoHash = "hash1", Name = "ShowName" };
+        var addedTorrent = new Torrent { Id = 107609, InfoHash = "hash1", Name = "ShowName" };
+
+        this.safeHttpClientService.DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(dummyBytes);
+        this.torrentFileParser.Parse(dummyBytes).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, "movies", null, false, dummyBytes)
+            .Returns(addedTorrent);
+        this.torrentFileService.GetFiles(107609).Returns(new List<TorrentFile>
+        {
+            new() { Path = "Movie/movie.mkv" },
+        });
+        this.torrentService.RenameFileAsync(107609, "Movie/movie.mkv", "movie.mkv").Returns(true);
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "https://tracker.example.com/movie.torrent",
+            Category = "movies",
+            Savepath = "/manual/movies",
+            AutoTMM = "1",
+            ContentLayout = "NoSubfolder",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "movies", null, false, dummyBytes);
+        await this.torrentService.Received(1).RenameFileAsync(107609, "Movie/movie.mkv", "movie.mkv");
     }
 
     [Test]

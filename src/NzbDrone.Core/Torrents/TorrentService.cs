@@ -2343,6 +2343,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             if (existingFiles == null || !existingFiles.Any())
             {
                 this.fileRepository.InsertMany(message.Files.ToList());
+                this.ApplyPendingContentLayout(torrent, message.Files);
             }
         }
 
@@ -2360,6 +2361,37 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     this.logger.Warn(ex, "Background media enrichment failed for resolved magnet {0}", torrent.Id);
                 }
             }, CancellationToken.None);
+        }
+    }
+
+    private void ApplyPendingContentLayout(Torrent torrent, IReadOnlyList<TorrentFile> files)
+    {
+        if (torrent == null || files == null || files.Count == 0)
+        {
+            return;
+        }
+
+        if (!PendingTorrentContentLayout.TryTake(torrent.Id, out var layout) || layout == TorrentContentLayout.Original)
+        {
+            return;
+        }
+
+        var plan = TorrentContentLayoutPlanner.Plan(layout, torrent.Name, files.Select(file => file.Path));
+        foreach (var (oldPath, newPath) in plan)
+        {
+            if (string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            try
+            {
+                this.RenameFileAsync(torrent.Id, oldPath, newPath).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to apply content layout for torrent {0}: {1} -> {2}", torrent.Id, oldPath, newPath);
+            }
         }
     }
 

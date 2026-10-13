@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.QBittorrent;
 
@@ -103,4 +104,47 @@ public class QBitAddTorrentsRequest
         string.Equals(this.Root_folder, "1", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(this.RootFolder, "true", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(this.RootFolder, "1", StringComparison.OrdinalIgnoreCase);
+
+    public string SavePathForAdd => this.IsAutoTMM ? null : this.EffectiveSavePath;
+
+    public TorrentContentLayout? EffectiveContentLayout
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(this.ContentLayout))
+            {
+                if (string.Equals(this.ContentLayout.Trim(), "Subfolder", StringComparison.OrdinalIgnoreCase))
+                {
+                    return TorrentContentLayout.Subfolder;
+                }
+
+                if (string.Equals(this.ContentLayout.Trim(), "NoSubfolder", StringComparison.OrdinalIgnoreCase))
+                {
+                    return TorrentContentLayout.NoSubfolder;
+                }
+
+                return TorrentContentLayout.Original;
+            }
+
+            if (IsExplicitBoolean(this.Root_folder) || IsExplicitBoolean(this.RootFolder))
+            {
+                return this.IsRootFolder ? TorrentContentLayout.Subfolder : TorrentContentLayout.NoSubfolder;
+            }
+
+            return null;
+        }
+    }
+
+    private static bool IsExplicitBoolean(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "false", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "0", StringComparison.OrdinalIgnoreCase);
+    }
 }
