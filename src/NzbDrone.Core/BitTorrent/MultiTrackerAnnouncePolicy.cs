@@ -33,6 +33,24 @@ public static class MultiTrackerAnnouncePolicy
         return MultiTrackerAnnounceScope.Default;
     }
 
+    public static (bool AnnounceToAllTiers, bool AnnounceToAllTrackers) ResolveLibTorrentAnnounceSettings(IConfigService config)
+    {
+        var scope = ResolveAnnounceScope(config);
+        if (scope == MultiTrackerAnnounceScope.AllInTier)
+        {
+            // Every tracker in every tier. libtorrent only does that when both
+            // announce_to_all_tiers and announce_to_all_trackers are enabled.
+            return (true, true);
+        }
+
+        if (scope == MultiTrackerAnnounceScope.AllTiers)
+        {
+            return (true, false);
+        }
+
+        return (false, false);
+    }
+
     public static bool IsFailoverEnabled(IConfigService config)
     {
         return config != null && config.MultiTrackerEnabled && config.MultiTrackerFailoverEnabled;

@@ -516,6 +516,118 @@ public class LibTorrentDownloadEngineTest
         task.GetPeers().Should().BeEmpty();
     }
 
+    [Test]
+    public async Task ForceAnnounceAsync_WhenAnnounceToAllInTier_SendsBothLibtorrentFlags()
+    {
+        this.configService.MultiTrackerEnabled.Returns(true);
+        this.configService.AnnounceToAllInTier.Returns(true);
+        this.configService.AnnounceToAllTiers.Returns(false);
+
+        var capturedBody = await this.DispatchForceAnnounceAsync(21);
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        var paramsObj = doc.RootElement.GetProperty("params");
+        paramsObj.GetProperty("announce_to_all_tiers").GetBoolean().Should().BeTrue();
+        paramsObj.GetProperty("announce_to_all_trackers").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ForceAnnounceAsync_WhenAnnounceToAllTiers_SendsTierFlagOnly()
+    {
+        this.configService.MultiTrackerEnabled.Returns(true);
+        this.configService.AnnounceToAllInTier.Returns(false);
+        this.configService.AnnounceToAllTiers.Returns(true);
+
+        var capturedBody = await this.DispatchForceAnnounceAsync(22);
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        var paramsObj = doc.RootElement.GetProperty("params");
+        paramsObj.GetProperty("announce_to_all_tiers").GetBoolean().Should().BeTrue();
+        paramsObj.GetProperty("announce_to_all_trackers").GetBoolean().Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ForceAnnounceAsync_WhenMultiTrackerDisabled_SendsAnnounceFlagsFalse()
+    {
+        this.configService.MultiTrackerEnabled.Returns(false);
+        this.configService.AnnounceToAllInTier.Returns(true);
+        this.configService.AnnounceToAllTiers.Returns(true);
+
+        var capturedBody = await this.DispatchForceAnnounceAsync(23);
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        var paramsObj = doc.RootElement.GetProperty("params");
+        paramsObj.GetProperty("announce_to_all_tiers").GetBoolean().Should().BeFalse();
+        paramsObj.GetProperty("announce_to_all_trackers").GetBoolean().Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ConfigureSessionSettingsAsync_DispatchesLibtorrentAnnounceFlags()
+    {
+        this.configService.MultiTrackerEnabled.Returns(true);
+        this.configService.AnnounceToAllInTier.Returns(false);
+        this.configService.AnnounceToAllTiers.Returns(true);
+
+        string capturedBody = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult()!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"settings_applied\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        await engine.ConfigureSessionSettingsAsync();
+
+        capturedBody.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(capturedBody);
+        var paramsObj = doc.RootElement.GetProperty("params");
+        paramsObj.GetProperty("announce_to_all_tiers").GetBoolean().Should().BeTrue();
+        paramsObj.GetProperty("announce_to_all_trackers").GetBoolean().Should().BeFalse();
+    }
+
+    private async Task<string> DispatchForceAnnounceAsync(int torrentId)
+    {
+        string capturedBody = null!;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty;
+            using var peek = JsonDocument.Parse(body);
+            if (peek.RootElement.TryGetProperty("method", out var method) && method.GetString() == "force_reannounce")
+            {
+                capturedBody = body;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"ok\"}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns("/downloads");
+        this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>()).Returns("/downloads");
+
+        var torrent = new Torrent
+        {
+            Id = torrentId,
+            InfoHash = "abcdef0123456789abcdef0123456789abcdef01",
+            Name = "force-announce",
+        };
+        await engine.AddTorrentAsync(torrent);
+        await engine.ForceAnnounceAsync(torrentId);
+        return capturedBody;
+    }
+
     private LibTorrentDownloadEngine CreateEngine(HttpClient client = null)
     {
         return new LibTorrentDownloadEngine(

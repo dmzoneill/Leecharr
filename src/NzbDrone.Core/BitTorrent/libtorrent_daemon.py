@@ -94,6 +94,28 @@ def _apply_first_last_piece_priority(handle, enabled):
     return True
 
 
+def _coerce_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    if isinstance(value, (int, float)):
+        return value != 0
+    return bool(value)
+
+
+def announce_settings_from_params(params):
+    if not isinstance(params, dict):
+        return {}
+
+    settings = {}
+    if "announce_to_all_tiers" in params:
+        settings["announce_to_all_tiers"] = _coerce_bool(params.get("announce_to_all_tiers"))
+    if "announce_to_all_trackers" in params:
+        settings["announce_to_all_trackers"] = _coerce_bool(params.get("announce_to_all_trackers"))
+    return settings
+
+
 class LibTorrentManager:
     def __init__(self, listen_interfaces="0.0.0.0:6882", version_target="2.1.1"):
         self.lock = threading.Lock()
@@ -270,11 +292,26 @@ class LibTorrentManager:
 
     def force_reannounce(self, params):
         h = self.find_handle(params.get("info_hash"))
-        if h:
-            with self.lock:
+        if not h:
+            return {"status": "not_found"}
+
+        announce_settings = announce_settings_from_params(params)
+        with self.lock:
+            if announce_settings:
+                try:
+                    self.session.apply_settings(announce_settings)
+                except Exception:
+                    pass
+
+            # tracker_idx -1 schedules every tracker. libtorrent then keeps only
+            # the trackers allowed by announce_to_all_tiers and
+            # announce_to_all_trackers. Both default to false, so a bare
+            # force_reannounce() hits only the current tracker.
+            try:
+                h.force_reannounce(0, -1)
+            except TypeError:
                 h.force_reannounce()
-            return {"status": "reannounced"}
-        return {"status": "not_found"}
+        return {"status": "reannounced"}
 
     def disconnect_peer(self, params):
         h = self.find_handle(params.get("info_hash"))
@@ -487,6 +524,8 @@ class LibTorrentManager:
 
         if "enable_lsd" in params:
             settings["enable_lsd"] = bool(params["enable_lsd"])
+
+        settings.update(announce_settings_from_params(params))
 
         dht_applied = self._apply_dht_settings(params)
 

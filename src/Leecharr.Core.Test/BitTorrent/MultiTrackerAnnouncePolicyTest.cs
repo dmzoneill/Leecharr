@@ -32,6 +32,62 @@ public class MultiTrackerAnnouncePolicyTest
     }
 
     [Test]
+    public void ResolveLibTorrentAnnounceSettings_WhenAllInTier_EnablesBothFlags()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.MultiTrackerEnabled.Returns(true);
+        config.AnnounceToAllInTier.Returns(true);
+        config.AnnounceToAllTiers.Returns(false);
+
+        var (announceToAllTiers, announceToAllTrackers) = MultiTrackerAnnouncePolicy.ResolveLibTorrentAnnounceSettings(config);
+
+        announceToAllTiers.Should().BeTrue();
+        announceToAllTrackers.Should().BeTrue();
+    }
+
+    [Test]
+    public void ResolveLibTorrentAnnounceSettings_WhenAllTiersOnly_EnablesTierFlagOnly()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.MultiTrackerEnabled.Returns(true);
+        config.AnnounceToAllInTier.Returns(false);
+        config.AnnounceToAllTiers.Returns(true);
+
+        var (announceToAllTiers, announceToAllTrackers) = MultiTrackerAnnouncePolicy.ResolveLibTorrentAnnounceSettings(config);
+
+        announceToAllTiers.Should().BeTrue();
+        announceToAllTrackers.Should().BeFalse();
+    }
+
+    [Test]
+    public void ResolveLibTorrentAnnounceSettings_WhenMultiTrackerDisabled_DisablesBothFlags()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.MultiTrackerEnabled.Returns(false);
+        config.AnnounceToAllInTier.Returns(true);
+        config.AnnounceToAllTiers.Returns(true);
+
+        var (announceToAllTiers, announceToAllTrackers) = MultiTrackerAnnouncePolicy.ResolveLibTorrentAnnounceSettings(config);
+
+        announceToAllTiers.Should().BeFalse();
+        announceToAllTrackers.Should().BeFalse();
+    }
+
+    [Test]
+    public void ResolveLibTorrentAnnounceSettings_WhenFlagsOff_DisablesBothFlags()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.MultiTrackerEnabled.Returns(true);
+        config.AnnounceToAllInTier.Returns(false);
+        config.AnnounceToAllTiers.Returns(false);
+
+        var (announceToAllTiers, announceToAllTrackers) = MultiTrackerAnnouncePolicy.ResolveLibTorrentAnnounceSettings(config);
+
+        announceToAllTiers.Should().BeFalse();
+        announceToAllTrackers.Should().BeFalse();
+    }
+
+    [Test]
     public void ComputeBackoffSeconds_DoublesUntilCapped()
     {
         MultiTrackerAnnouncePolicy.ComputeBackoffSeconds(1, 30, 1800).Should().Be(30);

@@ -716,10 +716,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         {
             try
             {
-                await this.SendRpcRequestAsync("force_reannounce", new Dictionary<string, object>
+                var args = new Dictionary<string, object>
                 {
                     ["info_hash"] = task.InfoHash,
-                });
+                };
+                AddLibTorrentAnnounceSettings(this.configService, args);
+                await this.SendRpcRequestAsync("force_reannounce", args);
             }
             catch (Exception ex)
             {
@@ -857,6 +859,13 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
+    private static void AddLibTorrentAnnounceSettings(IConfigService config, IDictionary<string, object> args)
+    {
+        var (announceToAllTiers, announceToAllTrackers) = MultiTrackerAnnouncePolicy.ResolveLibTorrentAnnounceSettings(config);
+        args["announce_to_all_tiers"] = announceToAllTiers;
+        args["announce_to_all_trackers"] = announceToAllTrackers;
+    }
+
     public async Task<Dictionary<string, object>> ConfigureSessionSettingsAsync()
     {
         var boundIp = this.ResolveBoundIpv4Address();
@@ -895,6 +904,8 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             ["anonymous_mode"] = isAnonymous,
             ["enable_upnp"] = (this.configService?.UpnpEnabled ?? false) && !isAnonymous,
         };
+
+        AddLibTorrentAnnounceSettings(this.configService, sessionArgs);
 
         if (proxyConfigured)
         {
