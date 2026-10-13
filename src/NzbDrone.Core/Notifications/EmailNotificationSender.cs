@@ -250,9 +250,9 @@ public static class EmailNotificationSender
             throw new InvalidOperationException("Recipient email address ('to') is required.");
         }
 
-        if (RequiresImplicitSsl(ssl, port) && smtpSenderAsync == null)
+        if (smtpSenderAsync == null && (RequiresImplicitSsl(ssl, port) || (ssl && ignoreSslErrors)))
         {
-            await SendWithImplicitSslAsync(host, port, user, pass, ignoreSslErrors, mail).ConfigureAwait(false);
+            await SendWithMailKitAsync(host, port, ssl, user, pass, ignoreSslErrors, mail).ConfigureAwait(false);
             return;
         }
 
@@ -267,59 +267,53 @@ public static class EmailNotificationSender
             client.Credentials = new NetworkCredential(user, pass);
         }
 
-#pragma warning disable SYSLIB0014
-        RemoteCertificateValidationCallback previousCallback = null;
-        if (ignoreSslErrors)
+        if (smtpSenderAsync != null)
         {
-            previousCallback = ServicePointManager.ServerCertificateValidationCallback;
-            ServicePointManager.ServerCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) =>
-            {
-                if (sslPolicyErrors == SslPolicyErrors.None)
-                {
-                    return true;
-                }
-
-                return ignoreSslErrors;
-            };
+            await smtpSenderAsync(client, mail).ConfigureAwait(false);
         }
-
-        try
+        else
         {
-            if (smtpSenderAsync != null)
-            {
-                await smtpSenderAsync(client, mail).ConfigureAwait(false);
-            }
-            else
-            {
-                await client.SendMailAsync(mail).ConfigureAwait(false);
-            }
+            await client.SendMailAsync(mail).ConfigureAwait(false);
         }
-        finally
-        {
-            if (ignoreSslErrors)
-            {
-                ServicePointManager.ServerCertificateValidationCallback = previousCallback;
-            }
-        }
-#pragma warning restore SYSLIB0014
     }
 
-    private static async Task SendWithImplicitSslAsync(
+    internal static RemoteCertificateValidationCallback CreateSmtpCertificateValidationCallback(bool ignoreSslErrors)
+    {
+        if (!ignoreSslErrors)
+        {
+            return null;
+        }
+
+        return static (_, _, _, _) => true;
+    }
+
+    private static async Task SendWithMailKitAsync(
         string host,
         int port,
+        bool useSsl,
         string user,
         string pass,
         bool ignoreSslErrors,
         MailMessage mail)
     {
         using var client = new MailKit.Net.Smtp.SmtpClient();
-        if (ignoreSslErrors)
+        var certificateCallback = CreateSmtpCertificateValidationCallback(ignoreSslErrors);
+        if (certificateCallback != null)
         {
-            client.ServerCertificateValidationCallback = (_, _, _, sslPolicyErrors) =>
-                sslPolicyErrors == SslPolicyErrors.None || ignoreSslErrors;
+            client.ServerCertificateValidationCallback = certificateCallback;
         }
 
-        await client.ConnectAsync(host, port, SecureSocketOptions.SslOnConnect).ConfigureAwait(false);
+        var socketOptions = SecureSocketOptions.None;
+        if (RequiresImplicitSsl(useSsl, port))
+        {
+            socketOptions = SecureSocketOptions.SslOnConnect;
+        }
+        else if (useSsl)
+        {
+            socketOptions = SecureSocketOptions.StartTls;
+        }
+
+        await client.ConnectAsync(host, port, socketOptions).ConfigureAwait(false);
 
         if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
         {

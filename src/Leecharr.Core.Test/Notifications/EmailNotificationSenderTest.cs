@@ -3,7 +3,6 @@
 using System;
 using System.Net.Mail;
 using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
@@ -125,62 +124,115 @@ public class EmailNotificationSenderTest
         interceptedMail.To[3].Address.Should().Be("fourth@test.com");
     }
 
-    [Test]
-    public async Task SendEmailNotificationAsync_WhenIgnoreSslErrorsIsTrueInJson_OverridesAndRestoresCertificateValidation()
+    [TestCase("{\"server\":\"relay.internal\",\"port\":587,\"ssl\":true,\"ignoreSslErrors\":true,\"to\":\"dest@example.com\"}")]
+    [TestCase("server=relay.internal&port=587&ssl=true&validateCertificate=false&to=dest@example.com")]
+    [TestCase("{\"server\":\"relay.internal\",\"port\":587,\"ssl\":true,\"ignoreCertificateErrors\":true,\"to\":\"dest@example.com\"}")]
+    [TestCase("server=relay.internal&port=587&ssl=true&allowInvalidCertificates=true&to=dest@example.com")]
+    public async Task SendEmailNotificationAsync_WhenCertificateChecksAreDisabled_LeavesProcessCertificateValidationUnchanged(string settings)
     {
-        var settings = "{\"server\":\"relay.internal\",\"port\":587,\"ssl\":true,\"ignoreSslErrors\":true,\"to\":\"dest@example.com\"}";
 #pragma warning disable SYSLIB0014
         var originalCallback = System.Net.ServicePointManager.ServerCertificateValidationCallback;
-        bool? callbackActiveDuringSend = null;
+        RemoteCertificateValidationCallback sentinel = (_, _, _, _) => false;
+        System.Net.ServicePointManager.ServerCertificateValidationCallback = sentinel;
+        try
+        {
+            RemoteCertificateValidationCallback callbackDuringSend = null;
 
-        await EmailNotificationSender.SendEmailNotificationAsync(
-            settings,
-            "Test",
-            null,
-            null,
-            new { Message = "Test SSL" },
-            (client, mail) =>
-            {
-                var callback = System.Net.ServicePointManager.ServerCertificateValidationCallback;
-                if (callback != null)
+            await EmailNotificationSender.SendEmailNotificationAsync(
+                settings,
+                "Test",
+                null,
+                null,
+                new { Message = "Test SSL" },
+                (client, mail) =>
                 {
-                    callbackActiveDuringSend = callback(client, (X509Certificate)null!, (X509Chain)null!, SslPolicyErrors.RemoteCertificateChainErrors);
-                }
+                    callbackDuringSend = System.Net.ServicePointManager.ServerCertificateValidationCallback;
+                    return Task.CompletedTask;
+                });
 
-                return Task.CompletedTask;
-            });
-
-        callbackActiveDuringSend.Should().BeTrue();
-        System.Net.ServicePointManager.ServerCertificateValidationCallback.Should().Be(originalCallback);
+            callbackDuringSend.Should().BeSameAs(sentinel);
+            System.Net.ServicePointManager.ServerCertificateValidationCallback.Should().BeSameAs(sentinel);
+        }
+        finally
+        {
+            System.Net.ServicePointManager.ServerCertificateValidationCallback = originalCallback;
+        }
 #pragma warning restore SYSLIB0014
     }
 
     [Test]
-    public void SendEmailNotification_WhenValidateCertificateIsFalseInQueryString_OverridesAndRestoresCertificateValidation()
+    public async Task SendEmailNotificationAsync_WhenIgnoreSslErrorsOverlaps_DoesNotReplaceProcessCertificateValidation()
     {
-        var settings = "server=relay.internal&port=587&ssl=true&validateCertificate=false&to=dest@example.com";
+        var settings = "{\"server\":\"relay.internal\",\"port\":587,\"ssl\":true,\"ignoreSslErrors\":true,\"to\":\"dest@example.com\"}";
 #pragma warning disable SYSLIB0014
         var originalCallback = System.Net.ServicePointManager.ServerCertificateValidationCallback;
-        bool? callbackActiveDuringSend = null;
+        RemoteCertificateValidationCallback sentinel = (_, _, _, _) => false;
+        System.Net.ServicePointManager.ServerCertificateValidationCallback = sentinel;
+        try
+        {
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        EmailNotificationSender.SendEmailNotification(
-            settings,
-            "Test",
-            null,
-            null,
-            new { Message = "Test SSL Query" },
-            (client, mail) =>
-            {
-                var callback = System.Net.ServicePointManager.ServerCertificateValidationCallback;
-                if (callback != null)
+            var first = EmailNotificationSender.SendEmailNotificationAsync(
+                settings,
+                "Test",
+                null,
+                null,
+                new { Message = "Test SSL overlap" },
+                async (client, mail) =>
                 {
-                    callbackActiveDuringSend = callback(client, (X509Certificate)null!, (X509Chain)null!, SslPolicyErrors.RemoteCertificateNameMismatch);
-                }
-            });
+                    started.TrySetResult();
+                    await release.Task.ConfigureAwait(false);
+                    System.Net.ServicePointManager.ServerCertificateValidationCallback.Should().BeSameAs(sentinel);
+                });
 
-        callbackActiveDuringSend.Should().BeTrue();
-        System.Net.ServicePointManager.ServerCertificateValidationCallback.Should().Be(originalCallback);
+            try
+            {
+                await started.Task.ConfigureAwait(false);
+
+                await EmailNotificationSender.SendEmailNotificationAsync(
+                    settings,
+                    "Test",
+                    null,
+                    null,
+                    new { Message = "Test SSL overlap" },
+                    (client, mail) =>
+                    {
+                        System.Net.ServicePointManager.ServerCertificateValidationCallback.Should().BeSameAs(sentinel);
+                        return Task.CompletedTask;
+                    }).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult();
+            }
+
+            await first.ConfigureAwait(false);
+            System.Net.ServicePointManager.ServerCertificateValidationCallback.Should().BeSameAs(sentinel);
+        }
+        finally
+        {
+            System.Net.ServicePointManager.ServerCertificateValidationCallback = originalCallback;
+        }
 #pragma warning restore SYSLIB0014
+    }
+
+    [Test]
+    public void CreateSmtpCertificateValidationCallback_WhenIgnoreSslErrorsIsFalse_ReturnsNull()
+    {
+        EmailNotificationSender.CreateSmtpCertificateValidationCallback(false).Should().BeNull();
+    }
+
+    [TestCase(SslPolicyErrors.None)]
+    [TestCase(SslPolicyErrors.RemoteCertificateChainErrors)]
+    [TestCase(SslPolicyErrors.RemoteCertificateNameMismatch)]
+    [TestCase(SslPolicyErrors.RemoteCertificateNotAvailable)]
+    public void CreateSmtpCertificateValidationCallback_WhenIgnoreSslErrorsIsTrue_AcceptsCertificateErrors(SslPolicyErrors errors)
+    {
+        var callback = EmailNotificationSender.CreateSmtpCertificateValidationCallback(true);
+
+        callback.Should().NotBeNull();
+        callback(null, null, null, errors).Should().BeTrue();
     }
 
     [Test]
