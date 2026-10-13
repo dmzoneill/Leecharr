@@ -1890,7 +1890,7 @@ public class TorznabClientTest
     }
 
     [Test]
-    public async Task SearchAsync_WithEpWithoutSeason_DoesNotAppendEpParameter()
+    public async Task SearchAsync_WithEpWithoutSeason_AppendsEpParameter()
     {
         Uri capturedUri = null!;
         var handler = new TestHttpMessageHandler(req =>
@@ -1920,7 +1920,12 @@ public class TorznabClientTest
 
         await customClient.SearchAsync(indexer, criteria);
         capturedUri.Query.Should().Contain("t=tvsearch");
-        capturedUri.Query.Should().NotContain("ep=");
+        capturedUri.Query.Should().Contain("ep=5");
+        capturedUri.Query.Should().NotContain("season=");
+
+        await customClient.SearchAsync(indexer, query: "Show Title", ep: 5);
+        capturedUri.Query.Should().Contain("t=tvsearch");
+        capturedUri.Query.Should().Contain("ep=5");
         capturedUri.Query.Should().NotContain("season=");
     }
 

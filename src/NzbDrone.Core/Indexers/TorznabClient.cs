@@ -379,7 +379,7 @@ public class TorznabClient : ITorznabClient
                 queryParams += $"&season={criteria.Season.Value}";
             }
 
-            if (criteria.Season.HasValue && criteria.Ep.HasValue)
+            if (criteria.Ep.HasValue)
             {
                 queryParams += $"&ep={criteria.Ep.Value}";
             }
