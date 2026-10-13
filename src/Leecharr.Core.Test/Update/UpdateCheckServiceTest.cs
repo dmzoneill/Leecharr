@@ -151,6 +151,69 @@ public class UpdateCheckServiceTest
         updates.Single(u => u.Version == "1.4.2").Latest.Should().BeFalse();
     }
 
+    [TestCase("1.2.30", "1.2.3", false)]
+    [TestCase("1.0.20", "1.0.2", false)]
+    [TestCase("1.0.2.1", "1.0.2", false)]
+    [TestCase("1.0.1", "1.0", false)]
+    [TestCase("1.2.3", "1.2.30", false)]
+    [TestCase("1.2.3", "1.2.3", true)]
+    [TestCase("1.2.3.0", "1.2.3", false)]
+    [TestCase("2.0.0-beta.1", "2.0.0", false)]
+    [TestCase("2.0.0-beta.1", "2.0.0-beta.1", true)]
+    public void IsInstalledRelease_MatchesOnlyTheSameVersion(string releaseVersion, string runningVersion, bool expected)
+    {
+        UpdateCheckService.IsInstalledRelease(releaseVersion, runningVersion).Should().Be(expected);
+    }
+
+    [Test]
+    public async Task GetAvailableUpdatesAsync_WhenTagOnlySharesVersionPrefix_DoesNotMarkItInstalled()
+    {
+        var current = BuildInfo.Version.ToString();
+        var prefixed = current + "1";
+        var extended = current + ".1";
+        var jsonResponse =
+            "[\n" +
+            "  {\n" +
+            "    \"tag_name\": \"v" + prefixed + "\",\n" +
+            "    \"published_at\": \"2026-10-01T00:00:00Z\",\n" +
+            "    \"html_url\": \"https://github.com/dmzoneill/Leecharr/releases/tag/v" + prefixed + "\",\n" +
+            "    \"body\": \"* Prefix\",\n" +
+            "    \"assets\": []\n" +
+            "  },\n" +
+            "  {\n" +
+            "    \"tag_name\": \"v" + current + "\",\n" +
+            "    \"published_at\": \"2026-09-01T00:00:00Z\",\n" +
+            "    \"html_url\": \"https://github.com/dmzoneill/Leecharr/releases/tag/v" + current + "\",\n" +
+            "    \"body\": \"* Current\",\n" +
+            "    \"assets\": []\n" +
+            "  },\n" +
+            "  {\n" +
+            "    \"tag_name\": \"v" + extended + "\",\n" +
+            "    \"published_at\": \"2026-08-01T00:00:00Z\",\n" +
+            "    \"html_url\": \"https://github.com/dmzoneill/Leecharr/releases/tag/v" + extended + "\",\n" +
+            "    \"body\": \"* Extended\",\n" +
+            "    \"assets\": []\n" +
+            "  }\n" +
+            "]";
+
+        var handler = new MockHttpMessageHandler
+        {
+            ResponseHandler = _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(jsonResponse, Encoding.UTF8, "application/json"),
+            },
+        };
+        var httpClient = new HttpClient(handler);
+        var service = new UpdateCheckService(httpClient);
+
+        var updates = await service.GetAvailableUpdatesAsync();
+
+        updates.Should().HaveCount(3);
+        updates.Single(u => u.Version == prefixed).Installed.Should().BeFalse();
+        updates.Single(u => u.Version == current).Installed.Should().BeTrue();
+        updates.Single(u => u.Version == extended).Installed.Should().BeFalse();
+    }
+
     [Test]
     public async Task GetAvailableUpdatesAsync_WhenGitHubFailsOrReturnsError_ReturnsEmptyList()
     {

@@ -104,6 +104,22 @@ public class UpdateCheckService : IUpdateCheckService
         return $"https://github.com/dmzoneill/Leecharr/releases/download/{tagName.Trim()}/{encodedFileName}";
     }
 
+    public static bool IsInstalledRelease(string releaseVersion, string runningVersion)
+    {
+        if (string.IsNullOrWhiteSpace(releaseVersion) || string.IsNullOrWhiteSpace(runningVersion))
+        {
+            return false;
+        }
+
+        if (Version.TryParse(releaseVersion, out var parsedRelease) &&
+            Version.TryParse(runningVersion, out var parsedRunning))
+        {
+            return parsedRelease == parsedRunning;
+        }
+
+        return string.Equals(releaseVersion, runningVersion, StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task<List<UpdatePackage>> GetAvailableUpdatesAsync(CancellationToken cancellationToken = default)
     {
         await this.cacheLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -245,8 +261,7 @@ public class UpdateCheckService : IUpdateCheckService
 
                 downloadUrl ??= BuildGitHubAssetDownloadUrl(tagName, fileName);
 
-                var isInstalled = string.Equals(cleanVersion, currentVer, StringComparison.OrdinalIgnoreCase) ||
-                                    cleanVersion.StartsWith(currentVer, StringComparison.OrdinalIgnoreCase);
+                var isInstalled = IsInstalledRelease(cleanVersion, currentVer);
 
                 result.Add(new UpdatePackage
                 {
