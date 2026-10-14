@@ -470,7 +470,12 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOut
 
     internal static string CreatePrivateTempFile()
     {
-        var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var directory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "leecharr",
+            "curl");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, Path.GetRandomFileName());
         using (new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
         {
         }

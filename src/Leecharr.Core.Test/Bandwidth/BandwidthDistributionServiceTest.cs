@@ -108,4 +108,21 @@ public class BandwidthDistributionServiceTest
 
         stopped.Count.Should().BeLessThanOrEqualTo(1);
     }
+
+    [Test]
+    public void Constructor_UsesTheCryptographicRollByDefault()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.UploadStoppedMinPercentage.Returns(0);
+        config.UploadStoppedMaxPercentage.Returns(0);
+
+        var selection = new BandwidthStopSelection(config);
+        var stopped = selection.SelectUploadStoppedIndices(new List<Torrent>
+        {
+            new() { Id = 1, ForceStart = false },
+            new() { Id = 2, ForceStart = false },
+        });
+
+        stopped.Should().BeEmpty();
+    }
 }
