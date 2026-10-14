@@ -198,122 +198,116 @@ public class DeveloperUmlService : IDeveloperUmlService
 
     private static DeveloperUmlDiagramResult GenerateStateDiagram(string subsystem)
     {
-        var transitions = subsystem switch
+        var body = subsystem switch
         {
-            "trackers" => new[]
-            {
-                "[*] --> Unknown",
-                "Unknown --> Announcing: Initial Announce",
-                "Announcing --> Working: HTTP/UDP 200 Received",
-                "Announcing --> Failed: Timeout / Connection Refused",
-                "Working --> Announcing: Interval Reached",
-                "Working --> Scraping: Scrape Cycle",
-                "Scraping --> Working: Seeders/Leechers Updated",
-                "Failed --> Announcing: Retry Backoff Interval",
-                "Working --> Disabled: User Toggled Off",
-                "Disabled --> Announcing: User Enabled"
-            },
-            "torrents" => new[]
-            {
-                "[*] --> Queued: Download Queued / Link Added",
-                "Queued --> Downloading: Engine Allocates Stream",
-                "Downloading --> Checking: Pieces Verification",
-                "Checking --> Seeding: Hash Integrity Passed",
-                "Downloading --> Paused: User Pause / Speed Schedule",
-                "Paused --> Downloading: User Resume",
-                "Downloading --> Error: Disk Fault / Transport Failure",
-                "Error --> Queued: Auto-Retry Recovered",
-                "Seeding --> Stopped: Complete",
-                "Stopped --> [*]: Removed"
-            },
-            "indexers" => new[]
-            {
-                "[*] --> Idle",
-                "Idle --> Fetching: RSS / Torznab Poll",
-                "Fetching --> Parsing: HTTP 200",
-                "Fetching --> Backoff: Timeout / 429",
-                "Parsing --> Ready: Releases Indexed",
-                "Parsing --> Backoff: Parse Error",
-                "Backoff --> Fetching: Cooldown Elapsed",
-                "Ready --> Fetching: Sync Interval",
-                "Ready --> Disabled: User Disabled",
-                "Disabled --> Idle: Re-enabled"
-            },
-            "authentication" => new[]
-            {
-                "[*] --> Anonymous",
-                "Anonymous --> Authenticating: Login / API Key",
-                "Authenticating --> Authenticated: Credentials Valid",
-                "Authenticating --> Failed: Invalid Credentials",
-                "Failed --> Authenticating: Retry",
-                "Authenticated --> Expired: Session TTL",
-                "Expired --> Authenticating: Refresh Token",
-                "Authenticated --> Anonymous: Logout",
-                "Failed --> Locked: Brute Force Threshold",
-                "Locked --> Anonymous: Admin Unlock"
-            },
-            "automation" => new[]
-            {
-                "[*] --> Idle",
-                "Idle --> Armed: Script Enabled",
-                "Armed --> Executing: Torrent Event Fired",
-                "Executing --> Completed: Script Exit 0",
-                "Executing --> Failed: Script Error / Timeout",
-                "Failed --> Armed: Manual Reset",
-                "Completed --> Armed: Next Event",
-                "Armed --> Idle: Script Disabled"
-            },
-            "notifications" => new[]
-            {
-                "[*] --> Queued",
-                "Queued --> Rendering: Template Build",
-                "Rendering --> Sending: Provider Dispatch",
-                "Sending --> Delivered: HTTP 2xx",
-                "Sending --> Retrying: Transient Failure",
-                "Retrying --> Sending: Backoff Elapsed",
-                "Sending --> Failed: Max Retries",
-                "Failed --> Queued: Manual Resend",
-                "Delivered --> [*]"
-            },
-            "network" => new[]
-            {
-                "[*] --> Offline",
-                "Offline --> Resolving: DNS Lookup",
-                "Resolving --> Connecting: Socket Open",
-                "Connecting --> Online: TLS / Handshake OK",
-                "Connecting --> Blocked: Firewall / BIND Deny",
-                "Online --> Throttled: Rate Limit",
-                "Throttled --> Online: Window Reset",
-                "Online --> Offline: Interface Down",
-                "Blocked --> Offline: Policy Reset"
-            },
-            "storage" => new[]
-            {
-                "[*] --> Scanning",
-                "Scanning --> Available: Free Space OK",
-                "Scanning --> LowSpace: Threshold Crossed",
-                "LowSpace --> Critical: Quota Exceeded",
-                "Critical --> Quarantine: Auto-Quarantine",
-                "Available --> Relocating: Path Migration",
-                "Relocating --> Available: Move Complete",
-                "LowSpace --> Available: Cleanup Freed Space",
-                "Critical --> Available: Emergency Purge",
-                "Quarantine --> Available: Manual Release"
-            },
-            "all" => new[]
-            {
-                "[*] --> Bootstrapping",
-                "Bootstrapping --> Running: Host Started",
-                "Running --> Degraded: Subsystem Fault",
-                "Degraded --> Running: Recovery",
-                "Running --> Maintenance: Config Reload",
-                "Maintenance --> Running: Reload Complete",
-                "Running --> ShuttingDown: Stop Signal",
-                "ShuttingDown --> [*]"
-            },
-            _ => Array.Empty<string>()
+            "trackers" => """
+                [*] --> Unknown
+                Unknown --> Announcing: Initial Announce
+                Announcing --> Working: HTTP/UDP 200 Received
+                Announcing --> Failed: Timeout / Connection Refused
+                Working --> Announcing: Interval Reached
+                Working --> Scraping: Scrape Cycle
+                Scraping --> Working: Seeders/Leechers Updated
+                Failed --> Announcing: Retry Backoff Interval
+                Working --> Disabled: User Toggled Off
+                Disabled --> Announcing: User Enabled
+                """,
+            "torrents" => """
+                [*] --> Queued: Download Queued / Link Added
+                Queued --> Downloading: Engine Allocates Stream
+                Downloading --> Checking: Pieces Verification
+                Checking --> Seeding: Hash Integrity Passed
+                Downloading --> Paused: User Pause / Speed Schedule
+                Paused --> Downloading: User Resume
+                Downloading --> Error: Disk Fault / Transport Failure
+                Error --> Queued: Auto-Retry Recovered
+                Seeding --> Stopped: Complete
+                Stopped --> [*]: Removed
+                """,
+            "indexers" => """
+                [*] --> Idle
+                Idle --> Fetching: RSS / Torznab Poll
+                Fetching --> Parsing: HTTP 200
+                Fetching --> Backoff: Timeout / 429
+                Parsing --> Ready: Releases Indexed
+                Parsing --> Backoff: Parse Error
+                Backoff --> Fetching: Cooldown Elapsed
+                Ready --> Fetching: Sync Interval
+                Ready --> Disabled: User Disabled
+                Disabled --> Idle: Re-enabled
+                """,
+            "authentication" => """
+                [*] --> Anonymous
+                Anonymous --> Authenticating: Login / API Key
+                Authenticating --> Authenticated: Credentials Valid
+                Authenticating --> Failed: Invalid Credentials
+                Failed --> Authenticating: Retry
+                Authenticated --> Expired: Session TTL
+                Expired --> Authenticating: Refresh Token
+                Authenticated --> Anonymous: Logout
+                Failed --> Locked: Brute Force Threshold
+                Locked --> Anonymous: Admin Unlock
+                """,
+            "automation" => """
+                [*] --> Idle
+                Idle --> Armed: Script Enabled
+                Armed --> Executing: Torrent Event Fired
+                Executing --> Completed: Script Exit 0
+                Executing --> Failed: Script Error / Timeout
+                Failed --> Armed: Manual Reset
+                Completed --> Armed: Next Event
+                Armed --> Idle: Script Disabled
+                """,
+            "notifications" => """
+                [*] --> Queued
+                Queued --> Rendering: Template Build
+                Rendering --> Sending: Provider Dispatch
+                Sending --> Delivered: HTTP 2xx
+                Sending --> Retrying: Transient Failure
+                Retrying --> Sending: Backoff Elapsed
+                Sending --> Failed: Max Retries
+                Failed --> Queued: Manual Resend
+                Delivered --> [*]
+                """,
+            "network" => """
+                [*] --> Offline
+                Offline --> Resolving: DNS Lookup
+                Resolving --> Connecting: Socket Open
+                Connecting --> Online: TLS / Handshake OK
+                Connecting --> Blocked: Firewall / BIND Deny
+                Online --> Throttled: Rate Limit
+                Throttled --> Online: Window Reset
+                Online --> Offline: Interface Down
+                Blocked --> Offline: Policy Reset
+                """,
+            "storage" => """
+                [*] --> Scanning
+                Scanning --> Available: Free Space OK
+                Scanning --> LowSpace: Threshold Crossed
+                LowSpace --> Critical: Quota Exceeded
+                Critical --> Quarantine: Auto-Quarantine
+                Available --> Relocating: Path Migration
+                Relocating --> Available: Move Complete
+                LowSpace --> Available: Cleanup Freed Space
+                Critical --> Available: Emergency Purge
+                Quarantine --> Available: Manual Release
+                """,
+            "all" => """
+                [*] --> Bootstrapping
+                Bootstrapping --> Running: Host Started
+                Running --> Degraded: Subsystem Fault
+                Degraded --> Running: Recovery
+                Running --> Maintenance: Config Reload
+                Maintenance --> Running: Reload Complete
+                Running --> ShuttingDown: Stop Signal
+                ShuttingDown --> [*]
+                """,
+            _ => string.Empty
         };
 
+        var transitions = string.IsNullOrEmpty(body)
+            ? Array.Empty<string>()
+            : body.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return BuildStateDiagramResult(subsystem, transitions);
     }
 

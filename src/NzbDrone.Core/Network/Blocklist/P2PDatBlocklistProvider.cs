@@ -281,8 +281,8 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             var leftCandidate = line[..hyphenIdx].Trim();
             var rightCandidate = line[(hyphenIdx + 1)..].Trim();
 
-            if (!TryExtractStartIp(leftCandidate, out var startIp, out var name) ||
-                !TryExtractEndIp(rightCandidate, startIp, out var endIp))
+            if (!BlocklistIpText.TryExtractStartIp(leftCandidate, out var startIp, out var name) ||
+                !BlocklistIpText.TryExtractEndIp(rightCandidate, startIp, out var endIp, includeEqualIpv6: true))
             {
                 continue;
             }
@@ -399,95 +399,6 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         return false;
     }
 
-    private static bool TryExtractStartIp(string candidate, out IPAddress startIp, out string name)
-    {
-        startIp = null;
-        name = string.Empty;
-
-        candidate = candidate.Trim();
-        if (string.IsNullOrEmpty(candidate))
-        {
-            return false;
-        }
-
-        if (TryParseStrictIp(candidate, out startIp))
-        {
-            return true;
-        }
-
-        for (var i = 0; i < candidate.Length; i++)
-        {
-            if (candidate[i] == ':')
-            {
-                var subCandidate = candidate[(i + 1)..].Trim();
-                if (TryParseStrictIp(subCandidate, out startIp))
-                {
-                    name = candidate[..i].Trim();
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static bool TryExtractEndIp(string candidate, IPAddress startIp, out IPAddress endIp)
-    {
-        endIp = null;
-
-        candidate = candidate.Trim();
-        if (string.IsNullOrEmpty(candidate))
-        {
-            return false;
-        }
-
-        var lastColon = candidate.LastIndexOf(':');
-        if (lastColon >= 0 && lastColon < candidate.Length - 1)
-        {
-            var levelStr = candidate[(lastColon + 1)..].Trim();
-            if (int.TryParse(levelStr, out _) && !levelStr.Contains('.') && !candidate[..lastColon].EndsWith(':'))
-            {
-                var withoutLevel = candidate[..lastColon].Trim();
-                if (TryParseStrictIp(withoutLevel, out var parsedWithoutLevel))
-                {
-                    if (parsedWithoutLevel.AddressFamily == AddressFamily.InterNetwork)
-                    {
-                        endIp = parsedWithoutLevel;
-                        return true;
-                    }
-
-                    if (parsedWithoutLevel.AddressFamily == AddressFamily.InterNetworkV6)
-                    {
-                        if (candidate.StartsWith('['))
-                        {
-                            endIp = parsedWithoutLevel;
-                            return true;
-                        }
-
-                        if (TryParseStrictIp(candidate, out var parsedCandidate))
-                        {
-                            if (startIp != null && startIp.AddressFamily == AddressFamily.InterNetworkV6 && CompareIpv6(startIp, parsedWithoutLevel) >= 0)
-                            {
-                                endIp = parsedCandidate;
-                                return true;
-                            }
-                        }
-
-                        endIp = parsedWithoutLevel;
-                        return true;
-                    }
-                }
-            }
-        }
-
-        if (TryParseStrictIp(candidate, out endIp))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
     private static bool TryExtractIpOrCidr(string candidate, out IPAddress ip, out int prefixLength, out string name)
     {
         ip = null;
@@ -530,20 +441,6 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         return false;
     }
 
-    private static int CompareIpv6(IPAddress ip1, IPAddress ip2)
-    {
-        Span<byte> b1 = stackalloc byte[16];
-        Span<byte> b2 = stackalloc byte[16];
-        if (ip1.TryWriteBytes(b1, out _) && ip2.TryWriteBytes(b2, out _))
-        {
-            var u1 = BinaryPrimitives.ReadUInt128BigEndian(b1);
-            var u2 = BinaryPrimitives.ReadUInt128BigEndian(b2);
-            return u1.CompareTo(u2);
-        }
-
-        return 0;
-    }
-
     private static bool TryExtractIpOrCidrCore(string candidate, out IPAddress ip, out int prefixLength, out string name)
     {
         ip = null;
@@ -577,30 +474,6 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         return false;
     }
 
-    private static bool TryParseStrictIp(string str, out IPAddress ip)
-    {
-        ip = null;
-        if (string.IsNullOrWhiteSpace(str))
-        {
-            return false;
-        }
-
-        if (IPAddress.TryParse(str, out ip))
-        {
-            if (ip.AddressFamily == AddressFamily.InterNetwork && str.Contains('.'))
-            {
-                return true;
-            }
-
-            if (ip.AddressFamily == AddressFamily.InterNetworkV6 && str.Contains(':'))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static bool TryParseCidrOrIp(string str, out IPAddress ip, out int prefixLength)
     {
         ip = null;
@@ -617,7 +490,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             var ipStr = str[..slashIdx].Trim();
             var lenStr = str[(slashIdx + 1)..].Trim();
 
-            if (TryParseStrictIp(ipStr, out ip) && int.TryParse(lenStr, out prefixLength))
+            if (BlocklistIpText.TryParseStrictIp(ipStr, out ip) && int.TryParse(lenStr, out prefixLength))
             {
                 if (ip.IsIPv4MappedToIPv6)
                 {
@@ -635,7 +508,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             return false;
         }
 
-        if (TryParseStrictIp(str, out ip))
+        if (BlocklistIpText.TryParseStrictIp(str, out ip))
         {
             if (ip.IsIPv4MappedToIPv6)
             {

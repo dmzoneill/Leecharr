@@ -43,36 +43,6 @@ public class PowerLawDistributor : ISpeedDistributor
             totalWeight += weights[i];
         }
 
-        if (totalWeight <= 0.0)
-        {
-            return speeds;
-        }
-
-        if (totalBytesPerSecond >= torrentCount)
-        {
-            var remainingBandwidth = totalBytesPerSecond - torrentCount;
-            var allocated = 0L;
-
-            for (var i = 0; i < torrentCount; i++)
-            {
-                speeds[i] = 1L + (long)(remainingBandwidth * (weights[i] / totalWeight));
-                allocated += speeds[i];
-            }
-
-            var remainder = totalBytesPerSecond - allocated;
-            for (var i = 0; i < remainder && i < torrentCount; i++)
-            {
-                speeds[i]++;
-            }
-        }
-        else
-        {
-            for (var i = 0; i < totalBytesPerSecond; i++)
-            {
-                speeds[i] = 1L;
-            }
-        }
-
-        return speeds;
+        return WeightedSpeedAllocator.Allocate(totalBytesPerSecond, torrentCount, weights, totalWeight);
     }
 }

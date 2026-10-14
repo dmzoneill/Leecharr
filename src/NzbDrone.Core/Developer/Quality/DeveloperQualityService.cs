@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -372,10 +373,10 @@ public class DeveloperQualityService : IDeveloperQualityService
             return true;
         }
 
-        foreach (var r in runs.EnumerateArray())
+        var latestRun = runs.EnumerateArray().FirstOrDefault();
+        if (latestRun.ValueKind != JsonValueKind.Undefined)
         {
-            report.RecentPipelines.Add(ParseWorkflowRun(r));
-            break;
+            report.RecentPipelines.Add(ParseWorkflowRun(latestRun));
         }
 
         return true;

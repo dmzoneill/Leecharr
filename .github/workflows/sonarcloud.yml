@@ -71,11 +71,14 @@ jobs:
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY || vars.SONAR_PROJECT_KEY || format('{0}_{1}', github.repository_owner, github.event.repository.name) }}
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION || vars.SONAR_ORGANIZATION || github.repository_owner }}
         run: |
+          VERSION=$(sed -n 's/^version=//p' version)
           dotnet-sonarscanner begin \
             /k:"$SONAR_PROJECT_KEY" \
             /o:"$SONAR_ORGANIZATION" \
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.projectVersion="$VERSION" \
+            /d:sonar.qualitygate.wait=true \
             /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.cs.roslyn.ignoreIssues=false \
             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml,**/coverage.opencover.xml,src/**/coverage.opencover.xml" \
@@ -136,7 +139,6 @@ jobs:
 
       - name: End SonarCloud Scanner
         if: steps.check_token.outputs.has_token == 'true'
-        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
