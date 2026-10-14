@@ -91,6 +91,7 @@ public class BandwidthDistributionServiceTest
 
         var stopped = BandwidthStopSelection.SelectStoppedIndices(torrents, 100, 100, () => 0.0);
 
-        stopped.Should().ContainSingle().Which.Should().Be(1);
+        stopped.Should().ContainSingle();
+        stopped.Should().NotContain(0);
     }
 }

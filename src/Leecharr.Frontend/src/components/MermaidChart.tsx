@@ -129,8 +129,8 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
         let vbWidth = 0;
         let vbHeight = 0;
         if (vbMatch) {
-          vbWidth = parseFloat(vbMatch[3]);
-          vbHeight = parseFloat(vbMatch[4]);
+          vbWidth = Number.parseFloat(vbMatch[3]);
+          vbHeight = Number.parseFloat(vbMatch[4]);
         }
         vbWidthRef.current = vbWidth;
         vbHeightRef.current = vbHeight;
@@ -227,11 +227,30 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
       }
     };
 
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isDraggingRef.current || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - dragStartRef.current.x;
+      const dy = touch.clientY - dragStartRef.current.y;
+      const newPan = {
+        x: panStartRef.current.x + dx,
+        y: panStartRef.current.y + dy,
+      };
+      panRef.current = newPan;
+      setPan(newPan);
+    };
+
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onMouseUp);
+    window.addEventListener("touchcancel", onMouseUp);
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onMouseUp);
+      window.removeEventListener("touchcancel", onMouseUp);
     };
   }, []);
 
@@ -300,6 +319,47 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
     const nextPanY = centerY - (centerY - currentPan.y) * (nextZoom / currentZoom);
     setZoom(nextZoom);
     setPan({ x: nextPanX, y: nextPanY });
+  };
+
+  const nudgePan = (dx: number, dy: number) => {
+    const next = { x: panRef.current.x + dx, y: panRef.current.y + dy };
+    panRef.current = next;
+    setPan(next);
+  };
+
+  const handleViewportKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = 40;
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      nudgePan(step, 0);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      nudgePan(-step, 0);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      nudgePan(0, step);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      nudgePan(0, -step);
+    } else if (e.key === "+" || e.key === "=") {
+      e.preventDefault();
+      handleZoomIn();
+    } else if (e.key === "-" || e.key === "_") {
+      e.preventDefault();
+      handleZoomOut();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      handleDoubleClick();
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    dragStartRef.current = { x: touch.clientX, y: touch.clientY };
+    panStartRef.current = { ...panRef.current };
   };
 
   const handleCopy = () => {
@@ -473,7 +533,12 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
           <div
             ref={viewportRef}
             className="mermaid-viewport"
+            role="application"
+            tabIndex={0}
+            aria-label="Diagram viewport"
             onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onKeyDown={handleViewportKeyDown}
             onDoubleClick={handleDoubleClick}
             style={{
               position: "relative",

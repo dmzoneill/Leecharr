@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
 
@@ -22,7 +23,7 @@ public class BandwidthStopSelection : IBandwidthStopSelection
     public BandwidthStopSelection(IConfigService configService, Func<double> randomRollProvider = null)
     {
         this.configService = configService;
-        this.randomRollProvider = randomRollProvider ?? (() => Random.Shared.NextDouble());
+        this.randomRollProvider = randomRollProvider ?? RandomUnitInterval;
     }
 
     public HashSet<int> SelectUploadStoppedIndices(IReadOnlyList<Torrent> torrents)
@@ -44,7 +45,7 @@ public class BandwidthStopSelection : IBandwidthStopSelection
     public static HashSet<int> SelectStoppedIndices(IReadOnlyList<Torrent> torrents, double minPct, double maxPct, Func<double> randomRoll = null)
     {
         var useInjectedRandom = randomRoll != null;
-        randomRoll ??= () => Random.Shared.NextDouble();
+        randomRoll ??= RandomUnitInterval;
         var torrentCount = torrents?.Count ?? 0;
         if (maxPct <= 0 || torrentCount == 0)
         {
@@ -74,10 +75,10 @@ public class BandwidthStopSelection : IBandwidthStopSelection
             return new HashSet<int>();
         }
 
-        var shuffleRandom = useInjectedRandom ? new Random(0) : null;
+        var seededState = 1u;
         for (var j = eligibleIndices.Count - 1; j > 0; j--)
         {
-            var k = shuffleRandom?.Next(j + 1) ?? Random.Shared.Next(j + 1);
+            var k = useInjectedRandom ? NextSeeded(ref seededState, j + 1) : RandomNumberGenerator.GetInt32(j + 1);
             (eligibleIndices[j], eligibleIndices[k]) = (eligibleIndices[k], eligibleIndices[j]);
         }
 
@@ -88,5 +89,16 @@ public class BandwidthStopSelection : IBandwidthStopSelection
         }
 
         return stopped;
+    }
+
+    private static double RandomUnitInterval()
+    {
+        return RandomNumberGenerator.GetInt32(0, int.MaxValue) / (double)int.MaxValue;
+    }
+
+    private static int NextSeeded(ref uint state, int exclusiveMax)
+    {
+        state = unchecked((state * 1664525u) + 1013904223u);
+        return (int)(state % (uint)exclusiveMax);
     }
 }

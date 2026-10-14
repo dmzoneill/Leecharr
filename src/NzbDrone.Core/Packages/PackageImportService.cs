@@ -69,7 +69,7 @@ public class PackageImportService : IPackageImportService
         }
 
         var canonicalTargetRoot = Path.GetFullPath(targetRootDir);
-        if (!canonicalTargetRoot.StartsWith(canonicalAppData + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        if (!PackagePathTranslator.IsStrictlyInsideDirectory(canonicalTargetRoot, canonicalAppData))
         {
             throw new InvalidOperationException("Import directory must stay inside the application data folder.");
         }

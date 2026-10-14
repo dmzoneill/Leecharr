@@ -78,6 +78,18 @@ public static class PackagePathTranslator
         return next == Path.DirectorySeparatorChar || next == Path.AltDirectorySeparatorChar;
     }
 
+    public static bool IsStrictlyInsideDirectory(string path, string directory)
+    {
+        if (!IsPathUnderDirectory(path, directory))
+        {
+            return false;
+        }
+
+        var fullPath = Path.GetFullPath(path);
+        var fullDirectory = Path.GetFullPath(directory);
+        return fullPath.Length > fullDirectory.Length;
+    }
+
     public static string TranslatePath(
         string path,
         string sourcePrefix = null,

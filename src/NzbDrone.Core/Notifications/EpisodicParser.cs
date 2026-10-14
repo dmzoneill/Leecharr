@@ -156,7 +156,7 @@ public class EpisodicParser : IEpisodicParser
 
         if (epTailGroup.Success)
         {
-            var tailExtractor = Regex.IsMatch(epTailGroup.Value, @"(?i)^(?:E|EP)\d")
+            var tailExtractor = Regex.IsMatch(epTailGroup.Value, @"(?i)^(?:E|EP)\d", RegexOptions.None, TimeSpan.FromMilliseconds(250))
                 ? EpTailEpisodeRegex
                 : EpTailAltEpisodeRegex;
             return BuildEpisodeListFromEpTail(epStart, epTailGroup.Value, tailExtractor);

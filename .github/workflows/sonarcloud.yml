@@ -16,7 +16,7 @@ jobs:
   sonar:
     name: SonarCloud Scan
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -127,6 +127,19 @@ jobs:
           set -e
           if [ "$CORE_TEST_RC" -ne 0 ]; then
             echo "::warning::Leecharr.Core.Test failed (exit=$CORE_TEST_RC); continuing Sonar upload for partial coverage."
+          fi
+
+          set +e
+          dotnet test src/NzbDrone.Integration.Test/Leecharr.Integration.Test.csproj \
+            --configuration Release \
+            --no-build \
+            --settings .runsettings \
+            --results-directory "${{ github.workspace }}/TestResults" \
+            --collect:"XPlat Code Coverage;Format=opencover"
+          INTEGRATION_TEST_RC=$?
+          set -e
+          if [ "$INTEGRATION_TEST_RC" -ne 0 ]; then
+            echo "::warning::Leecharr.Integration.Test failed (exit=$INTEGRATION_TEST_RC); continuing Sonar upload for partial coverage."
           fi
 
           find "${{ github.workspace }}/TestResults" -name 'coverage.opencover.xml' -print || true

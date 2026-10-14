@@ -169,8 +169,8 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOut
 
     private async Task<HttpResponseMessage> SendViaCurlAsync(HttpRequestMessage request, string binaryPath, CancellationToken cancellationToken)
     {
-        var headerFile = Path.GetTempFileName();
-        var bodyFile = Path.GetTempFileName();
+        var headerFile = CreatePrivateTempFile();
+        var bodyFile = CreatePrivateTempFile();
         string requestBodyFile = null;
 
         try
@@ -305,7 +305,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOut
             var contentBytes = request.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
             if (contentBytes.Length > 0)
             {
-                requestBodyFile = Path.GetTempFileName();
+                requestBodyFile = CreatePrivateTempFile();
                 File.WriteAllBytes(requestBodyFile, contentBytes);
                 startInfo.ArgumentList.Add("--data-binary");
                 startInfo.ArgumentList.Add("@" + requestBodyFile);
@@ -466,6 +466,16 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOut
             || name.Equals("TE", StringComparison.OrdinalIgnoreCase)
             || name.Equals("Trailer", StringComparison.OrdinalIgnoreCase)
             || name.Equals("Upgrade", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string CreatePrivateTempFile()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        using (new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+        }
+
+        return path;
     }
 
     private static void TryDeleteTempFile(string path)

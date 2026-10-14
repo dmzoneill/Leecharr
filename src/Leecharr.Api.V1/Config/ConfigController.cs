@@ -64,7 +64,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
         }
 
         if (resource.SslCertPassword != null &&
-            resource.SslCertPassword == GeneralConfigResourceMapper.MaskedSslCertPasswordPlaceholder)
+            resource.SslCertPassword == GeneralConfigResourceMapper.MaskedSslCertSecretPlaceholder)
         {
             resource.SslCertPassword = this.configFileProvider.SslCertPassword;
         }
@@ -164,7 +164,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
 
         var password = request.SslCertPassword;
         if (password != null &&
-            password == GeneralConfigResourceMapper.MaskedSslCertPasswordPlaceholder)
+            password == GeneralConfigResourceMapper.MaskedSslCertSecretPlaceholder)
         {
             password = this.configFileProvider.SslCertPassword;
         }

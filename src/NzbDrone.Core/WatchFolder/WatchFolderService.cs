@@ -749,7 +749,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             return false;
         }
 
-        var tokens = Regex.Split(name, @"[^A-Za-z0-9]+");
+        var tokens = Regex.Split(name, @"[^A-Za-z0-9]+", RegexOptions.None, TimeSpan.FromMilliseconds(250));
         return tokens.Any(token => string.Equals(token, word, StringComparison.OrdinalIgnoreCase));
     }
 }
