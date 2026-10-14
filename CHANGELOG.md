@@ -6,6 +6,2737 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.0](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.0) - 2026-10-14
+
+### ✨ Features
+- feat: intelligent initialFit for wide UML diagrams defaulting to readable scale
+- feat: add interactive pan, zoom, fit, and fullscreen controls to Mermaid UML viewer
+- feat(developer): add UML diagrams (Mermaid), GitHub PRs/issues, and Quality metrics UI in Leecharr
+- feat(developer): implement UML diagrams, GitHub PRs/issues, and Quality metrics in Leecharr backend
+- Add or update GitHub Actions workflows
+- Add or update GitHub Actions workflows
+- Add or update GitHub Actions workflows
+- Add or update GitHub Actions workflows
+- Add Codacy security scan workflow
+- feat(auth): wire AuthenticationRequiredType to ConfigFileProvider and auth pipeline (#797)
+- feat(torrents): support initial tags, limits, and sequential download in AddTorrentForm (#1016)
+- feat(arr): add syncCategories, category, savePath, and path mappings in ConnectionsTab (#1043)
+- feat(arr): add syncCategories, category, savePath, and path mappings in ConnectionsTab (#1043)
+- feat(ai): add Malware Risk Threshold slider and Auto-Quarantine toggle in AiTab (#1047)
+- feat(speed): add download distribution spread control in SpeedSettingsTab (#952)
+- feat(system): add Check for Updates and Install Update controls in SystemUpdates (#967)
+- feat(system): add Restart Server and Shutdown Leecharr controls to SystemStatus (#969)
+- feat(indexers): add bulk delete endpoint and multi-selection UI in IndexersTab (#989)
+- feat(protocols): render NumberInputs for failover backoff parameters in ProtocolsSettingsTab (#973)
+- feat(notifications): add CustomScript template, preserve script settings, and add tag selection in NotificationsTab (#984)
+- feat(settings): add directory browsing and manual scan trigger to WatchFolderSettingsTab and CustomScriptsTab (#986)
+- feat(indexers): add manual Sync Prowlarr control and sync on Prowlarr update in IndexersTab (#988)
+- feat(network): add test port endpoint, interface selection, and bindInterface synchronization (#1013)
+- feat(host): add branch selection control and backend configuration for update channel (#1000)
+- feat(logging): add diagnostic test log dispatch endpoint and UI trigger button (#1046)
+- feat(developer): expand command dispatcher to 24+ commands and webhook sandbox to 34 templates
+- feat(developer): expand in-app developer test suite to 56 comprehensive diagnostic tests
+- feat(debugger): add dynamic file selector, source preview with line numbers, and click-to-break gutter
+- feat(developer): expand diagnostic tests to 24 and add 16 webhook templates, presets, and tracepoints
+- feat(frontend): add Developer Testing, REPL, and Web Debugger UI pages
+- feat(developer): add in-app test runner, diagnostics inspector, REPL, and web debugger
+- feat(ui): add mobile off-canvas navigation drawer and responsive styling
+- feat(developer): add Event Bus, Command Console, Network Wiretap, Webhooks, and Config suite
+- feat(developer): add Developer tools section, storage treemap, and query plan DAG
+- feat: add SQLite database explorer with interactive ERD visualizer and Arr webhook integration tests
+- feat(filebrowser): add distinct icons and badges for media, text, nfo, archives, and executables
+- feat(filebrowser): add play, stream, m3u, and preview actions to toolbar and context menu
+- feat(filebrowser): add media playback, M3U streaming, and file preview to file manager and context menu
+- feat(api): add HttpHead attribute to streaming, download, and playlist endpoints
+- feat(media): add M3U playlist endpoints, multi-folder stream resolution, and external player setup tab
+- feat(ui): add torrent engine version selection and hot-swap controls
+- feat(engine): add multi-version torrent engine architecture and LibTorrent 1.2 and 2.1 support with unit and integration tests
+- feat(test): add AI, Organizer, WatchFolder, and DownloadClients test suites
+- feat(logging): track automatic state changes and reasons in state machine and event logs
+- feat(parity): implement Workpackage 12 interactive calendar matrix, touch painting, and range toolbar parity
+- feat(parity): workpackage 11 - tracker telemetry, embedded server swarms & peer inspection
+- feat(parity): implement Workpackage 10 package import/export and health check parity
+- feat(parity): implement Workpackage 09 filtering and blocklist security parity
+- feat(parity): complete Workpackage 08 test automation parity
+- feat(parity): implement Workpackage 07 Code Quality, Linters & CI/CD Pipelines Parity
+- feat(parity): implement Workpackage 06 Notifications and Servarr Integrations Parity
+- feat(parity): implement Workpackage 05 SignalR Real-Time Protocol and Store Lifecycle Parity
+- feat(parity): implement Workpackage 04 PieceMap visualizer color modes and file boundaries
+- feat(api): achieve Workpackage 03 backend REST API parity with Seedarr
+- feat(modals): align BulkTagModal and DeleteTorrentModal with RBAC permissions and modal provider stack
+- feat(a11y): expand keyboard controls, fix modal traps, and add topbar shortcuts button
+- feat(telemetry): wire global unhandled exception tracking and backend 5xx error telemetry
+- feat(telemetry): wire round 3 interaction telemetry for indexers, search, preview, tags, categories, queue, and theme
+- feat(telemetry): wire round 2 qualitative interaction analytics
+- feat(telemetry): wire qualitative interaction analytics suite across UI
+- feat(analytics): track user settings adoption, engine configurations, and client interactions
+- feat(analytics): add privacy opt-out toggle, URL/media sanitization, and high-value event tracking
+- feat(ui): add BulkTagModal, AriaLiveAnnouncer, and clipboard utility
+- feat(ui): add tracker server, tracker metrics, tags management, and media player modal
+- feat(auth): implement idle session lock and screen saver with multi-tab sync
+- feat(ui): align column customizer button placement and view modal with seedarr
+- feat(analytics): configure GA4 with persistent installation instanceUuid and expose in SystemStatus
+- feat(ui): relocate Pause all and Resume all next to Add Torrent and move torrent count above table
+- feat(i18n): update toolbar button labels to Pause all and Resume all across all 20 locales
+- feat(ui): add queue reordering buttons to bulk toolbar and context menu
+- feat(ui): make right-click context menu selection-aware with batch indicators and actions
+- feat(bittorrent): add embedded libtorrent-rasterbar daemon supervisor for automatic hot-swap lifecycle
+- feat(analytics): integrate Google Analytics (GA4) G-86X994W6SL
+- feat(engine): dynamically update piece picker and piece priorities in SetSequentialDownloadAsync and SetFirstLastPiecePriorityAsync (fixes #712)
+- feat(update): add console restart loop, system restart/shutdown endpoints, and platform asset matching (fixes #790)
+- feat(deluge): implement granular core.set_torrent_* RPC mutators and options (fixes #649)
+- feat(qbittorrent): implement addPeers endpoint and support batch hashes in tracker management (fixes #746)
+- feat(auth): support AuthenticationRequiredType bypass for local and LAN addresses (fixes #797)
+- feat(rpc): implement qBittorrent /api/v2/log/main and /api/v2/log/peers endpoints (fixes #924)
+- feat(ui): clean up free space storage badge to show disk icon, progress bar and tooltip only
+- feat(ui): remove upload and download speed indicators from top toolbar
+- feat(logging): add comprehensive state machine transition logging across engine, service, and queue manager
+- feat(torrent): update context menu and engine to support asking tracker for more peers and scrape
+- feat(stack): add seedarr service and full arr cross-orchestration to compose stack
+- feat(compose): use leecharr as dedicated download client in podman compose stack
+- feat(ci): add deterministic podman-compose stack with fixed API keys and relative volume paths
+- feat(automation): audit and wire automation metrics and domain event propagation
+- feat: category save directory auto-creation and settings UI controls (#715, #721)
+- Implement History, Tasks, Backup, Shortcuts & Media Previews (fixes #720, #723, #736, #710, #713, #716)
+- feat(files): add video and audio preview/content-type streaming support in FileBrowserController
+- feat(peers): implement dynamic PiecePicker switching, telemetry flags, and Azureus client decoding (fixes #712, #733)
+- feat(api): add atomic bulk torrent action and torrent preview endpoints
+- feat(ui): add command palette, global shortcuts, table range select, folder browser, and tracker countdowns in leecharr
+- feat(i18n): comprehensively internationalize 100% of automation page strings and catalog
+- feat(i18n): comprehensively internationalize 100% of automation page strings and catalog
+- feat(i18n): internationalize entire automation pipeline page and synchronize all 20 language catalogs
+- feat(automation): add media, swarm, rich webhook, and flow control step actions
+- feat(ui): expand automation action library, step reordering, parameter widgets, and dry-run simulator
+- feat(automation): implement full suite of step actions across backend runners and visual builder
+- feat(automation): add type-aware condition builder with boolean, enum, and lazy custom matchers
+- feat(automation): expand subscription triggers and alert events across lifecycle
+- feat(ui): add visual pipeline editor, point-and-click step builder, and run history viewer
+- feat(automation): add DSL scripting engine, marketplace, expanded event triggers, and system/api contexts
+- feat(engine): track and report active chunk verification scan progress percentage during Hashing state
+- feat(download,storage): add auto-recheck on completion setting, fix force-recheck completed path alignment, and prevent sparse completion move
+- feat(ui): match torrents filter panel header, search placeholder, and filter button with seedarr
+- feat(ui): use vector HeartIcon with 14px size in topbar
+- feat(ui): align topbar right side to circular avatar, sun/moon icons, and clean language selector
+- feat(ui): remove vertical divider before topbar user profile
+- feat(ui): update statusbar height and font size to 0.85rem
+- feat(frontend): implement slim icon sidebar and user profile dropdown menu
+- feat(frontend): transition to monochromatic slate-blue theme and align topbar actions (#704, #705)
+- feat(api): implement missing qbittorrent endpoints for reannounce, sequential download, piece priority, and rename (fixes #391)
+- feat(engine): complete Transmission and LibTorrent download engine backends
+- feat(torrent): report dynamic hash recheck progress in engine and UI
+- feat(torrent): implement TorrentLogService and record tracker announce events
+- feat(security): add TerminalAccessEnabled config and security toggle
+- feat(i18n): complete end-to-end UI localization and high-fidelity 20-language translation sync
+- feat(i18n): smart incremental translation memory and complete UI localization
+- feat(i18n): complete exhaustive codebase audit and internationalization across all components, pages, modals, settings, and utilities for top 20 languages
+- feat(i18n): support top 20 global languages with dynamic RTL, language selector, and cubone file manager localization
+- feat(filebrowser): add full context menu operations (cut, copy, paste, upload, download, move)
+- feat(filebrowser): integrate @cubone/react-file-manager with dark theme and rich controls
+- feat(file-browser): add full file browser with PWD context to main menu and torrent panes
+- feat(terminal): restore interactive terminal CLI in main menu and torrent details pane
+- feat(categories): add category management ui with create edit delete and save paths (fixes #100)
+- feat(frontend): deconstruct monolithic components, align DTOs, and canvas piecemap (fixes #25)
+- feat(indexers): implement Torznab capabilities XML parsing and Prowlarr category sync (fixes #60)
+- feat: add PtyTerminalService and TerminalWebSocketHandler
+- feat: add ITerminalSession and NativePty abstractions
+- feat: implement qBittorrent parity features (tasks 1-17 in GAP_TRACKING)
+- Add or update GitHub Actions workflows
+- Add or update GitHub Actions workflows
+- feat: add workflow_dispatch to ai-responder.yml
+- Add or update GitHub Actions workflows
+- feat(bep27): robust private torrent enforcement with toggle options and UI indicators
+- feat(telemetry): add non-blocking engine & subsystem real-time metrics and system resources dashboard
+- feat: add Tracker Boost swarm optimization, SSL certificate support, OpenAPI/Swagger docs, and theme engine
+- feat(ci,hooks): add pre-commit and pre-push git hooks, make lint/format targets, and fix stylelint ignore
+- feat(ui): add collapsible Quick Settings drawer and toolbar controls to Torrents view
+- feat(core): complete comprehensive codebase audit remediation across all subsystems
+- feat(core): implement complete codebase audit remediation and dynamic sidebar sizing
+- Implement SAML 2.0, OAuth 2.0, Social Logins, and Reverse-Proxy Auth (Authentik, Keycloak, Authelia, Google, GitHub, Apple, Facebook)
+- feat(api): add comprehensive download client compatibility adapters for rTorrent, Aria2, Flood, uTorrent, Hadouken, Synology Download Station, Freebox, SABnzbd, NZBGet, and NZBVortex
+- feat(api): implement missing core controllers, background handlers, and RPC endpoints
+- feat(peers): add PeerConnectionLogController, /api/v1/peerlog/graph, and torrent peers endpoints
+- feat(ui): add TorrentToolbar, TorrentFilterPanel, album art thumbnails, and fix detail panel tab styling
+- feat(ui): place Activity before Torrents and add Add Torrent sub-item under Activity
+- feat(torrents): implement complete torrent management with context menu, custom columns, 9-tab details drawer, and MonoTorrent engine integration
+- feat: add AddTorrentPage, dynamic Indexers sub-navigation and scoped search, fix Connected Ecosystem statuses
+- feat: add Torrents > History and Activity sub-navigation with DownloadHistory service and UI
+- feat(setup): add setup guidance walkthrough for Prowlarr, Sonarr, Radarr, Lidarr and health checks
+- Enable docker build in GitHub Actions workflow
+- feat(network): support nested data.ip extraction in ExternalIpService for leecharr.net/ip and seedarr.net/ip endpoints
+- feat(network): implement ExternalIpService with leecharr.net/ip and wire real live data to StatusBar
+- feat(settings): implement full suite of 15 settings tabs, system views, activity, and statistics
+- feat(ui): replicate full Seedarr dashboard, topbar, status bar, and sidebar styling
+- feat(ui): add full Servarr sidebar navigation with Settings and System submenus
+- feat(ui): add Seedarr logo-pulse animation to skull emblem
+- feat(logo): reproduce Seedarr skull in #F8F4ED and text logo in Storm Gust font ('Leech' in #C7C5D3, 'arr' in #b5443a)
+- feat(ui): add PieceMap canvas visualizer, Swarm Inspector, Files tree, and Indexer Discovery search
+- feat(indexers): implement Torznab client, Freeleech parser, Prowlarr sync, and RSS grabber
+- feat(parity): implement WatchFolder, Webhooks, Scripts, 24x7 Scheduler, Extractor, and VPN Kill Switch
+- feat(api): implement Deluge JSON-RPC (/json) and Transmission RPC (/transmission/rpc) adapters with integration tests
+- feat(media): implement MediaEnrichmentService unit tests and correlation specs
+- feat(engine): implement MonoTorrentDownloadEngine and PiecePicker unit test suite
+- feat(container): add multi-stage Containerfile, docker-entrypoint.sh, and MonoTorrentDownloadEngine
+- feat(storage): implement Phase 2 data migrations (008-010), StoragePathService, IDiskProvider, and unit/integration test suites
+- feat(frontend): implement React 18 / TypeScript 5 frontend SPA and production build
+- feat(api): implement native REST API v1, qBittorrent WebAPI v2 adapter, SignalR hub, and console host
+- feat(core): implement MediaEnrichmentService, CategoryService, TorrentService, and TorrentFileService
+- feat(core): implement PiecePicker, IDownloadEngine, and pure C# MediaContainerInspector with unit tests
+- feat(core): implement messaging system, config service, torrent/magnet parser, and unit tests
+- feat(core): implement core datastore, migrations 001-007, and domain entities
+- feat: initialize Leecharr project scaffolding and architecture documentation
+
+### 🐛 Bug Fixes
+- fix(ci): repair unit failures that do not need a live daemon
+- fix(ci): clear the lint failure and the tests it was blocking
+- fix(rpc): apply aria2 changeUri edits to the download (fixes #1099)
+- fix(network): wire subsystem binding into the MonoTorrent engine (fixes #231)
+- fix(network): stop NAT-PMP leaking past the VPN kill switch (fixes #798)
+- fix(bittorrent): route block requests through PiecePicker (fixes #855)
+- fix(ai): stop labeling regex heuristics as ONNX or Ollama (fixes #238)
+- fix(backup): reject postgres connection fields that inject pg_dump flags (fixes #292)
+- fix(bittorrent): drop unauthenticated UDP tracker replies (fixes #891)
+- fix(auth): reject SAML assertions for the wrong recipient or audience (fixes #291)
+- fix(deluge): persist set_torrent mutators without relocating on move_completed_path (fixes #649)
+- fix(prowlarr): prune managed indexers when Prowlarr returns an empty or disabled set (fixes #637)
+- fix(http): keep FlareSolverr clearance and reject a dead solver (fixes #652)
+- fix(indexers): page multi-indexer search after a global seeder sort (fixes #665)
+- fix(arr-webhooks): match torrents by exact name or normalized path only (fixes #814)
+- fix(host): publish tracker stalls and speed-limit edges from the automation watchdog (fixes #709)
+- fix(notifications): mask Pushover user keys and webhook URLs on GET (fixes #283)
+- fix(blocklist): keep IPv6 range ends when a decimal hextet matches the start (fixes #813)
+- fix(media-inspection): parse dvcC el and compatibility bits from real boxes (fixes #867)
+- fix(bittorrent): forward category updates to the active engine (fixes #826)
+- fix(notifications): escape Telegram parentheses and drop fallback backslashes (fixes #314)
+- fix(terminal): keep native PTY shells on the sanitized environment allowlist (fixes #638)
+- fix(indexers): fetch Prowlarr sync through the safe HTTP client (fixes #1082)
+- fix(diskspace): disable alerts when the low disk space threshold is not positive (fixes #889)
+- fix(bittorrent): fail libtorrent add_torrent instead of leaving an active task (fixes #1075)
+- fix(developer): fail smoke tests when a check reports a problem (fixes #1093)
+- fix(storage): keep completed moves from overwriting or leaking partial copies (fixes #820)
+- fix(bittorrent): match v2-only info hashes in the libtorrent daemon (fixes #1064)
+- fix(blocklist): keep IPv4-mapped prefixes of 32 or less in ipset (fixes #1057)
+- fix(search): map qBittorrent PC game and Mac aliases to Newznab ids (fixes #1061)
+- fix(bittorrent): keep libtorrent pause from resuming and showing as downloading
+- fix(datastore): keep applied SQLite restore when backup cleanup fails (fixes #1072)
+- fix(webhooks): pin connect addresses and fail closed on DNS (fixes #865)
+- fix(search): honor qBittorrent plugin enable and install state
+- fix(http): keep SOCKS HTTP traffic on the configured proxy (fixes #858)
+- fix(bittorrent): disable libtorrent DHT while a proxy is configured
+- fix(filebrowser): unfreeze download folders under service paths (fixes #1062)
+- fix(indexers): count Torznab peers-only releases as seeders (fixes #1079)
+- fix(rpc): honor NZBGet GroupMoveOffset magnitude on JSON and XML
+- fix(http): enforce SSRF checks on the production connect path (fixes #1070)
+- fix(ai): do not treat incomplete malware JSON as Safe (fixes #1087)
+- fix(history): require an operator to re-add and enrich downloads (fixes #1096)
+- fix(bittorrent): honor announce-all flags on libtorrent force announce (fixes #1078)
+- fix(arr): register Deluge with the API key, SSL, and url base
+- fix(inspection): map 7-channel audio to 6.1 in FFprobe and MediaInfo
+- fix(subsystems): require an operator to switch, probe, and update providers (fixes #1094)
+- fix(build): compile Release test-setup after the SMTP cert opt-in
+- fix(automation): report live vpn and port-forward status to scripts (fixes #1056)
+- fix(network): renew NAT-PMP mappings on the new default gateway (fixes #1059)
+- fix(qbittorrent): honor contentLayout, root_folder, and autoTMM on torrents/add (fixes #1076)
+- fix(extraction): fail SharpCompress when no files are written (fixes #1053)
+- fix(filebrowser): reject symlink targets outside the checked path (fixes #1083)
+- fix(subtitles): require the same series title when pairing episode codes (fixes #1080)
+- fix(developer): stop treating Sonar and GitHub failures as a passing quality gate (fixes #1095)
+- fix(network): treat a port as open only when the checker body is exactly 1 (fixes #1073)
+- fix(enrichment): prefer a later info hash over an earlier cleaned title (fixes #1100)
+- fix(ai): flag executables hidden by a trailing dot or space (fixes #1090)
+- fix(indexers): keep the Torznab episode filter when season is unset (fixes #1052)
+- fix(auth): keep a bound external subject on same-provider JIT match (fixes #1069)
+- fix(blocklist): require an operator to read the blocklist URL (fixes #1071)
+- fix(packages): compare import compression ratio to archive bytes read (fixes #1060)
+- fix(database): reject comment-prefixed writes in the read-only SQL console (fixes #1074)
+- fix(notifications): keep ignoreSslErrors on the SMTP client (fixes #1055)
+- fix(update): treat only the same release version as installed (fixes #1054)
+- fix(transmission): open port-test only when the trimmed checker body is exactly 1 (fixes #1088)
+- fix(config): replace config.xml atomically so a failed save cannot truncate it
+- fix(sabnzbd): fail addurl and addfile when no download is queued (fixes #1089)
+- fix(nzbget): return 0 when append adds no download (fixes #1091)
+- fix(ci): remove duplicated methods that failed the last build
+- fix(security): keep self-signed TLS key files owner-only (fixes #1086)
+- fix(backup): fail when a SQLite snapshot cannot be taken (fixes #1084)
+- fix(media-enrichment): map Sonarr tvshow.nfo uniqueid fields correctly (#1102)
+- fix(enrichment): request full Servarr queue page for hash correlation (fixes #1101)
+- fix(synology): return error when Download Station create adds no task (fixes #1103)
+- fix(developer): stop inventing GitHub PRs/issues on API failure (fixes #1104)
+- fix(media-enrichment): pass completed file path to metadata providers (#1106)
+- fix(media-enrichment): confine local NFO lookup to download roots (#1105)
+- fix(media-enrichment): map TVDB artwork types 1 and 3 to correct slots (#1107)
+- fix(developer): redact cookies and URL secrets in HTTP traffic log (#1108)
+- fix(telemetry): report killSwitchArmed from EnableVpnKillSwitch (#1109)
+- fix(backup): fail psql restore on SQL errors (#1111)
+- Fix masked-secret detection when values contain asterisks.
+- fix(update): download and apply release packages on install (#1110)
+- fix(backup): resolve restore paths by exact zip name only (fixes #1116)
+- fix(config): validate general settings before writing config.xml (Closes #1113)
+- fix(backup): clear stale SQLite restore when archive has no database (Closes #1115)
+- fix(download): keep slash-only torrent names under completed dir (#1117)
+- fix(healthcheck): align timeout alert source with check probes (Closes #1118)
+- fix(geoip): invalidate lookup cache after database reload (#1119)
+- fix(geoip): read IP2Location country name from separate column offset
+- fix(linux): keep sleep inhibition in sync with systemd-inhibit process
+- fix(geoip): require MaxMind marker for MMDB validation (#1120)
+- fix(system): SetSleepInhibited(false) only releases manual lease (fixes #1125)
+- fix(bandwidth): track torrents that start during scheduler pause (fixes #1122)
+- fix(health): report unhealthy when BitTorrent engine is stopped
+- fix: remove duplicate type registrations
+- fix(ai): escape markup in untrusted prompt XML elements
+- fix(ai,test): restore XML tag prompts and stabilize network binding init tests
+- fix(ai): strip trailing media extension from release group capture
+- fix(ai): keep LastChatUsedFallback readable after await
+- fix(ai): unblock config-driven provider switches and chat fallback reads
+- fix(ai): tighten release group parsing and Ollama NL search tests
+- fix(media-inspection): tighten 1440p tier and repair unit CI regressions
+- fix(ci): unblock Linux Release build and restore FileBrowser API
+- fix(extraction): harden SharpCompress rollback backups (fixes #1202)
+- fix(notifications): harden webhook redirect follow-ups (fixes #1407)
+- fix(watch-folder): match category synonyms by exact name only (#1128)
+- fix(organizer): use anime format when absolute episode numbers exist (#1127)
+- fix(watch-folder): map nested category folders hierarchically (#1129)
+- fix(organizer): enforce maxPathChars after path truncation floors (#1131)
+- fix(watch-folder): stop Dual Audio alone from forcing anime (#1130)
+- fix(categories): retarget RSS rules to default category on delete (#1133)
+- fix(security): guard API key comparison when UTF-8 lengths differ (fixes #1135)
+- fix(host): resolve hostname BindAddress instead of 0.0.0.0 (#1134)
+- fix(host): block auto-shutdown while torrents remain queued or checking (#1141)
+- fix(trackers): return newest metric snapshots when history hits limit (#1137)
+- fix(trackers): redact more tracker URL credential shapes (#1136)
+- fix(build): compile with ImplicitUsings disabled
+- fix(host): fire TorrentStalledEvent after sustained zero download speed (#1145)
+- fix(trackers): apply zero swarm counts on announce and scrape (#1138)
+- fix(trackers): reset tracker metrics without replaying lifetime bytes (#1139)
+- fix(trackers): include current hour in hourly traffic summary
+- fix(trackers): seed metric byte baselines from torrent counters (#1143)
+- fix(host): encode UrlBase in index.html injection (#1146)
+- fix(auth): resolve client IP from trusted proxy X-Forwarded-For chain (fixes #1147)
+- fix(auth): use stable OIDC external subject instead of random GUID (fixes #1148)
+- fix(automation): apply removeTracker, setFilePriority, and exportTorrent (#1150)
+- fix(auth): reject cookie sessions when stored roles are invalid (#1149)
+- fix(automation): banPeer appends blocklist rules and disconnects peer (#1151)
+- fix(automation): apply addTracker via download engine (fixes #1152)
+- fix(automation): move script save path via SetLocationAsync (fixes #1153)
+- fix(automation): treat unparseable YAML comparisons as false (#1156)
+- fix(automation): push limit and category changes to download engine (fixes #1154)
+- fix(blocklist): parse P2P ranges when description contains hyphens
+- fix(disk-space): detect read-only mounts via FolderWritable (fixes #1191)
+- fix(blocklist): keep live rules when a feed parses to zero (fixes #1160)
+- fix(disk): bound disk space probes on stale network mounts (fixes #1193)
+- fix(disk-space): only monitor configured download paths (fixes #1192)
+- fix(commands): bound CommandWorker shutdown drain for stuck handlers (fixes #1194)
+- fix(trackerboost): allow v2 info hashes in tracker scrapes
+- fix(extraction): match global receipt by exact file name line (fixes #1197)
+- fix(packages): resolve export metainfo from AppData/Torrents (fixes #1196)
+- fix(automation): serialize list and nested HTTP request bodies (fixes #1198)
+- fix(automation): parse JSON array HTTP responses and send structured bodies (fixes #1198)
+- fix(extraction): restore pre-existing files when SharpCompress rollback runs (#1909)
+- fix(automation): honor YAML HTTP timeout, TLS, and continueOnError (fixes #1199) (#1911)
+- fix(extraction): match archive volumes for disk space check (fixes #1200)
+- Fix runScript YAML args variable substitution (#1201)
+- fix(extraction): restore pre-existing files after native extract rollback (fixes #1203) (#1910)
+- fix(automation): post JSON for sendDiscordWebhook and honor HTTP result (fixes #1204)
+- fix(automation): apply setFilePermissions on Windows via ACLs (fixes #1206)
+- fix(automation): escape Telegram markdown and honor sendMessage HTTP result (fixes #1205)
+- fix(arr): reload connections on webhook startup retry (fixes #1207)
+- fix(subtitles): match generic same-folder subs in episode directories (fixes #1209)
+- fix(automation): deserialize structured script InputsJson to CLR values (fixes #1208)
+- fix(commands): claim queued rows before running handlers (fixes #1212)
+- fix(subtitles): honor MicroDVD {0}{0} frame-rate header (fixes #1211)
+- fix(subtitles): match hyphenated pt-br language tags (fixes #1210)
+- fix(network): fail closed when direct bind interface has no IP (#1214)
+- fix(network): honor bind interface and IPv6 for network status LocalIp (fixes #1213)
+- fix(config): align unset download and seed queue alias defaults (fixes #1215)
+- fix(http): run curl-impersonate for TLS fingerprinting (fixes #1218)
+- fix(webhooks): require operator role for Arr webhook endpoints (fixes #1220)
+- fix(filebrowser): serve SVG streams as attachment (fixes #1221)
+- fix(webhooks): do not treat numeric download ids as torrent primary keys (fixes #1219)
+- fix(filebrowser): reject existing move targets and limit EXDEV fallback (fixes #1222)
+- fix(http): keep full FlareSolverr session ids for long tracker hosts (fixes #1224)
+- Fix update package asset selection for current platform (#1223)
+- fix(http): avoid anti-bot false positives on HTTP 200 (fixes #1227)
+- fix(telemetry): report live extractor, blocklist, and GeoIP subsystem metrics (fixes #1226)
+- fix(security): require matching thumbprint in certificate TLS probe (fixes #1225)
+- fix(http): honor BindInterface on curl-impersonate and FlareSolverr fallback (fixes #1230)
+- fix(update): surface failed GitHub release checks instead of fake up-to-date (fixes #1229)
+- fix(http): resolve allowlisted hosts before SSRF IP checks (fixes #1231)
+- fix(datastore): build Postgres connection string with NpgsqlConnectionStringBuilder
+- fix(security): do not fall back to self-signed when custom SSL fails (fixes #1235)
+- fix(build): complete IDataProtector wiring and rTorrent file IO
+- fix(bittorrent): fail closed when UDP tracker bind address is unparsed (fixes #1232)
+- fix(transmission): fail closed on daemon start and torrent-add (fixes #1234)
+- fix(bittorrent): fail engine switch when version is unsupported (fixes #1233)
+- fix(nzbvortex): validate login nonce hash against API key (fixes #1239)
+- fix(nzbvortex): return error when add creates no download (fixes #1236)
+- fix(transmission): count connected peers from poll peers list (fixes #1238)
+- fix(nzbvortex): return queue item on GET instead of deleting (fixes #1237)
+- fix(filebrowser): reject copy/move when source path is missing (fixes #1240)
+- fix(freebox): return failure when downloads/add creates no task (fixes #1241)
+- fix(transmission): match SetFilePriority file paths exactly (fixes #1242)
+- fix(rtorrent): d.delete_tied removes metafile only, not torrent data (fixes #1245)
+- fix(hadouken): return RPC errors when add torrent fails or params invalid (fixes #1244)
+- fix(update): mark Latest from highest stable GitHub release (fixes #1243)
+- fix(rtorrent): convert global max_rate byte RPC to KB storage (fixes #1247)
+- fix(bittorrent): do not pause queued or stalled torrents on engine rehydrate (fixes #1246)
+- fix(rtorrent): treat unknown d.multicall2 views as non-matching (fixes #1248)
+- fix(tracker): cap UDP rate-limit table and prune on every packet (fixes #1249)
+- fix(webhooks): do not treat Arr rename events as imports (fixes #1250)
+- fix(bittorrent): honor engine probe version argument (fixes #1252)
+- fix(webhooks): do not store album or book id in ArrMediaId (fixes #1251)
+- fix(http): route only GET/POST through FlareSolverr (fixes #1254)
+- fix(filebrowser): reject copy and upload when destination exists (fixes #1253)
+- fix(auth): grant bootstrap admin only to lowest user id (fixes #1257)
+- fix(auth): fail IdP connection test when URL is not configured (fixes #1255)
+- fix(download): only rewrite configured incomplete dir in NormalizeCompletedSavePath (fixes #1256)
+- fix(api): honor partial torrent PUT updates (fixes #1260)
+- fix(auth): do not treat link-local addresses as local auth bypass (fixes #1258)
+- fix(http): serialize FlareSolverr session create per domain (fixes #1259)
+- fix(download-clients): pass IDataProtector for remote query and torrent actions (fixes #1261)
+- fix(torrents): resolve symlinks in torrent file stream paths (fixes #1263)
+- fix(download-clients): recreate qBittorrent form body on pause/resume fallback (fixes #1262)
+- fix(download-clients): fail connection test when API probe fails (fixes #1266)
+- fix(auth): require admin for log and logfile API endpoints (fixes #1264)
+- fix(peers): require operator role for peer connection log API (fixes #1265)
+- fix(flood): fail add-urls and add-files when no torrent is added (fixes #1269)
+- fix(rtorrent): fault load.* RPC when torrent add fails (fixes #1268)
+- fix(download-clients): honor Deluge JSON-RPC errors on torrent actions (fixes #1267)
+- fix(flood): emit JSON Patch activity-stream diffs with torrent removals (fixes #1273)
+- fix(rtorrent): d.open must not resume torrents (fixes #1271)
+- fix(rpc): keep load.verbose torrents stopped like rTorrent (#1270)
+- fix(rpc): encode uTorrent/Hadouken webui.list availability from swarm metrics (fixes #1272)
+- fix(flood): align bytesDone and ETA with verified progress (#1275)
+- fix(health): validate PostgreSQL schema in DatabaseIntegrityCheck (fixes #1277)
+- fix(hadouken): emit QueuePosition in webui.list torrent rows (fixes #1274)
+- fix(config): restart trackers only after tracker server save succeeds (fixes #1276)
+- fix(transmission): scope VPN kill-switch stop RPC and order restore (fixes #1282)
+- fix(health): publish disk space alerts only on state transitions (fixes #1278)
+- fix(config): save BitTorrent bind interface only after validation (fixes #1279)
+- fix(auth): keep SAML assertion replay cache until NotOnOrAfter (fixes #1280)
+- fix(auth): keep active login lockouts during IP table eviction (fixes #1281)
+- fix(auth): build SAML ACS URLs from configured public base, not Host header (fixes #1284)
+- fix(auth): prune expired SAML pending requests and assertion cache (fixes #1285)
+- fix(config): mask secrets in config save responses (fixes #1283)
+- fix(deluge): report actual save_path in RPC status (fixes #1287)
+- fix(config): validate SAML providers and skip OIDC scheme registration (fixes #1286)
+- fix(deluge): expose byte offsets in file RPC responses (fixes #1288)
+- fix(utorrent): apply setprio to each repeated f file index (fixes #1289)
+- fix(deluge): persist plugin RPC settings for scheduler, autoadd, blocklist, extractor, and execute (fixes #1293)
+- fix(health): stop forced GC on memory health check (fixes #1290)
+- fix(health): warn when file descriptor limits cannot be read (fixes #1292)
+- fix(health): fail DiskSpace check when no usable disks (fixes #1291)
+- fix(deluge): persist seed_time_limit in seconds for Deluge RPC (fixes #1294)
+- fix(deluge): keep max_active_downloading separate from max_active_limit (fixes #1295)
+- fix(common): read version file only from app base directory (fixes #1296)
+- fix(auth): stop leaking SAML callback exception details to anonymous clients (fixes #1297)
+- fix(tags): apply stored seeding policies and rate limits on torrents (fixes #1298)
+- fix(tags): rewrite torrent labels when a tag is renamed (fixes #1299)
+- fix(commands): order queued commands by priority and queue time (fixes #1300)
+- fix(commands): include running commands in GetAll history (fixes #1302)
+- fix(subsystems): report blocklist update failure when no rules load (fixes #1303)
+- fix(commands): continue FailStaleCommands after per-command update failures (fixes #1309)
+- fix(tags): cascade tag references before deleting row (fixes #1308)
+- fix(tags): cascade tag references before deleting row (fixes #1308)
+- fix(arr): add missing System using for LastSyncUtc
+- fix(commands): cache unknown command lookups without null cache values (fixes #1312)
+- fix(arr): honor SyncEnabled and sync interval during Arr sync (fixes #1310)
+- fix(tags): use throw ex after unique constraint race in GetOrCreate
+- fix(health): serialize overlapping health check passes (fixes #1311)
+- fix(indexers): stop treating Torznab URLs as Prowlarr on 9696 substring (fixes #1314)
+- fix(arr): reject unresolved Arr URLs and disable redirect following (fixes #1313)
+- fix(tags): enforce case-insensitive label uniqueness on create (fixes #1317)
+- fix(indexers): require path boundary for Prowlarr instance URL matching (fixes #1316)
+- fix(build): restore net10 compile for core and API projects
+- fix(seeding): fail start/stop APIs when torrent state cannot change (fixes #1326)
+- fix(torrents): validate and escape info hash in BuildMagnetUri (fixes #1319)
+- fix(torrents): preserve plus signs in magnet query decoding (fixes #1318)
+- fix(torrents): merge persisted logs with in-memory cache in GetLogs (fixes #1320) (#1906)
+- fix(security): require Operator role for automation API (fixes #1323)
+- fix(signalr): restrict notification and torrent hub broadcasts to server (fixes #1325)
+- fix(automation): dry-run YAML test script filesystem actions (fixes #1324)
+- fix(terminal): validate private temp directory ownership before reuse (fixes #1327)
+- fix(packages): fail export when any requested torrent is missing (fixes #1491)
+- fix(packages): honor query includePayload when POST body omits it (fixes #1489)
+- fix(torrents): hash raw info dictionary bytes for info-hash (fixes #1501)
+- fix(torrents): ignore out-of-range creation date when parsing torrents (fixes #1502)
+- fix(security): require Operator role for package import and export (fixes #1492)
+- fix(tracker-boost): make boost history tracker sets thread-safe (fixes #1506)
+- fix(security): resolve symlinks in torrent creation path checks (fixes #1516)
+- fix(torrents): detect dotted output directories without HasExtension (fixes #1517)
+- fix(download-history): do not store pause/seed reasons as removal (fixes #1524)
+- fix(libtorrent): derive connected leechers from total peers minus seeds (fixes #1558)
+- fix(bittorrent): wire super seeding for LibTorrent and Transmission (fixes #1549)
+- fix(queue): do not treat stale DateCompleted as complete (fixes #1321)
+- fix(libtorrent): use correct move_storage flags (fixes #1559)
+- fix(terminal): signal Linux PTY process group and retry read on EINTR (fixes #1322)
+- fix(media-inspection): align Matroska sample rate and bit depth with winning audio track (fixes #1380)
+- fix(datastore): use integrity_check for pending restore validation (fixes #1391)
+- fix(hadouken): apply label and save_path in torrents.set_props (fixes #1378)
+- fix(freebox): map download list status and error fields (fixes #1374)
+- fix(nzbvortex): restore normal priority when unignoring files (fixes #1377)
+- fix(hadouken): map Completed, Stalled, QueuedForChecking in webui.list (fixes #1375)
+- fix(nzbvortex): map Completed torrents to done state in GetNzbs (fixes #1376)
+- fix(rpc): treat SQLite torrent timestamps as UTC in Freebox and Hadouken (fixes #1372)
+- fix(freebox): accept JSON challenge-response login sessions (fixes #1373)
+- fix(tracker): default omitted compact to dictionary peers (fixes #1371)
+- fix(tracker): do not treat omitted announce left as seeder (fixes #1370)
+- fix(notifications): honor saved Gotify priority in outbound payloads (fixes #1368)
+- fix(notifications): parse numeric Telegram chat_id in provider settings (fixes #1369)
+- fix(notifications): use BuildInfo.Version in webhook payloads (fixes #1367)
+- fix(notifications): honor AllowPrivateNetworkRequests in webhook SSRF checks (fixes #1365)
+- fix(notifications): redact webhook target URLs in dispatch logs (fixes #1364)
+- fix(logging): apply saved file levels at startup and keep CLI trace (fixes #1366)
+- fix(qbittorrent): persist preference fields dropped by setPreferences (fixes #1363)
+- fix(search): merge duplicate torrents by stored info hash (fixes #1362)
+- fix(qbittorrent): apply torrents/info filters using live engine metrics (fixes #1358)
+- fix(common): honor explicit executable paths in CliProcessDiscovery (fixes #1361)
+- fix(qbittorrent): return empty pieceHashes when metadata is unavailable (fixes #1360)
+- fix(qbittorrent): apply global speed limits immediately after API save (fixes #1359)
+- fix(auth): use stable forward-auth subject from proxy headers (fixes #1356)
+- fix(auth): run PBKDF2 for unknown users during password login (fixes #1355)
+- fix(auth): stop persisting IdP tokens in OIDC auth cookie (fixes #1354)
+- fix(qbittorrent): include Completed torrents in paused/stopped filters (fixes #1352)
+- fix(auth): preserve active lockouts during AuthRateLimiter capacity trim (fixes #1351)
+- fix(auth): fail OIDC sign-in when UserSession cannot be persisted (fixes #1350)
+- fix(security): do not emit HSTS for spoofed X-Forwarded-Proto (fixes #1348)
+- fix(disk): use case-sensitive mount matching on Linux (fixes #1349)
+- fix(auth): skip admin group fallback when role rules are configured (fixes #1347)
+- fix(packages): honor SkipDuplicates on package import (fixes #1344)
+- fix(auth): prefer proxy Remote-User over spoofable forward-auth headers (fixes #1346)
+- fix(packages): surface per-torrent import failures in API and UI (fixes #1345)
+- fix(http): refresh outbound proxy on config save (fixes #1342)
+- fix(http): try all resolved DNS addresses in SocketsHttpHandler connect (fixes #1343)
+- fix(http): preserve FlareSolverr solution bytes and headers (fixes #1340)
+- fix(tracker): register BEP 7 ipv6 on public announces (fixes #1339)
+- fix(http): route FlareSolverr API calls outside outbound proxy (fixes #1341)
+- fix(auth): consume SAML InResponseTo only after signature verifies (fixes #1337)
+- fix(health): always check AppData/Backups permissions (fixes #1338)
+- fix(qbittorrent): compute torrents/info ETA from live task speed (fixes #1336)
+- fix(qbittorrent): full-update torrentPeers when rid is stale (fixes #1334)
+- fix(qbittorrent): preserve setShareLimits -1/-2 and inactive seeding time (fixes #1332)
+- fix(qbittorrent): stop double-decoding tracker URLs on add/remove (fixes #1335)
+- fix(qbittorrent): align torrents/tags with sync tag list (fixes #1333)
+- fix(qbittorrent): return per-torrent speed limits in bytes/s (fixes #1331)
+- fix(qbittorrent): require Operator or Admin for /api/v2 sessions (fixes #1329)
+- fix(qbittorrent): keep save path when setDownloadPath runs (fixes #1330)
+- fix(terminal): retry PTY short writes on native and python paths (fixes #1328)
+- fix(auth): return false when API key compare lengths differ (fixes #1353)
+- fix(notifications): keep health reason on torrent alerts (fixes #1158)
+- fix(qbittorrent): stable completion_on when DateCompleted is null (fixes #1357)
+- fix(rpc): enforce MaxTorrentFileSizeBytes on compatibility upload paths (fixes #1379)
+- fix(notifications): escape Slack mrkdwn in torrent names (fixes #1157)
+- fix(bittorrent): wire libtorrent sequential and first/last piece priority (fixes #1067)
+- fix(trackers): record live announce and scrape tracker metrics (fixes #1144)
+- fix(bittorrent): inject manual peers into MonoTorrent swarm (fixes #1066)
+- fix(commands): stop disposing container-resolved command handlers (fixes #1068)
+- fix(indexers): fail Torznab RSS/search on anti-bot challenge pages (fixes #1081)
+- fix(auth): require admin for shutdown, SQL, and developer system APIs (fixes #1065)
+- fix(network): do not report full encryption when peer query fails (fixes #1305)
+- fix(organizer): escape dotted DOS device names in sanitizer (fixes #1132)
+- fix(bittorrent): apply first/last piece priority at piece level only (fixes #1562)
+- fix(mediainsp): skip cover video tracks for primary dimensions (fixes #1097)
+- fix(tracker-boost): persist tracker rows only after successful inject (fixes #1643)
+- fix(tracker-boost): require live peers for verification and ranking (#1644)
+- fix(bittorrent): honor HandshakeTimeoutSeconds for inbound peers (fixes #1535)
+- fix(media-enrichment): omit episode year from TMDB TV search filter (#1902)
+- fix(http,ai): roll back provider switch when config save fails (#1388) (#1897)
+- fix(media-inspection): label 1440p/QHD frames correctly (fixes #1381) (#1905)
+- fix(test): assert read-only ExecuteQuery via API result
+- fix(test): mirror Arr publicUrl JSON and stabilize DB read-only test
+- fix(ai): defer Ollama NL search before heuristic enrichment
+- fix(test): stabilize AI and multi-tracker unit tests for CI
+- fix(ai): indent season/episode heuristics for csharp linter
+- fix(ai): align Ollama health mocks and release group parsing with CI
+- fix(ci): repair unit tests after health probes and SQLite Guid reads
+- fix(media-inspection): use FormatAudioChannels for AVI strf audio (#1903)
+- fix(media-enrichment): require episode in Snn TV heuristics (fixes #1384) (#1901)
+- fix(media-enrichment): omit episode year from TMDB TV search filter
+- fix(media-inspection): probe health outside switch lock
+- fix(media-inspection): skip superseded ConfigSavedEvent switches
+- fix(media-inspection): honor latest config on queued inspector switch
+- fix(subtitles): detect UTF-16 without BOM for non-ASCII text (fixes #1385) (#1900)
+- fix(datastore): abort startup when restore rollback leaves no leecharr.db (fixes #1392) (#1892)
+- fix(arr): align webhook helper indentation for editorconfig
+- fix(tracker): reserve swarm slots atomically under concurrent announces (#1898)
+- fix(integration): stabilize tracker, arr webhook, and transmission RPC tests
+- fix(datastore): abort startup when restore rollback leaves no leecharr.db (fixes #1392)
+- fix(seeding): return 404 when deleting missing speed schedule (fixes #1397)
+- fix(torrents): sum per-file pieces for v2-only torrent layout (fixes #1389)
+- fix(ci): repair integration failures after tracker HTTP port policy
+- fix(seeding): return 404 when deleting missing speed schedule (fixes #1397)
+- fix(tracker): clamp negative announce left to seeder (fixes #1390)
+- fix(torrents): reject rooted save paths outside download allow-list (fixes #1393)
+- fix(seeding): report full status counts in GetStats (fixes #1398)
+- fix(signalr): preserve guaranteed event order when channel is full (fixes #1394) (#1890)
+- fix(config): parse config doubles with invariant culture (fixes #1396) (#1888)
+- fix(backup): fail PostgreSQL restore without psql and fix Delete errors (fixes #1395)
+- fix(packages): harden import tags, payload paths, and overwrites (fixes #1399)
+- fix(api): honor import request category, path, and paused flag (fixes #1401) (#1884)
+- fix(notifications): only fire OnHealthRestored on real recovery (#1882)
+- fix(queue): do not count slots when resume fails (fixes #1400)
+- fix(http): bracket IPv6 hosts in WebProxy URIs (fixes #1402) (#1883)
+- fix(ai): defer partial Ollama release JSON to heuristic (fixes #1403)
+- fix(notifications): preserve Apprise config-key and service URLs (fixes #1406)
+- fix(test): accept debugger metadata outline in CI integration test
+- fix(torrents): stop MonoTorrent SwarmAvailability stack overflow
+- fix(nzbvortex): expose category IsDefault in group list (fixes #1409)
+- fix(test): assert sh interpreter args with Contain on string
+- fix(hadouken): handle stop, unpause, forcestart, and queue in webui.perform
+- fix(notifications): send SMTP port 465 with implicit TLS via MailKit (fixes #1408)
+- fix(notifications): surface custom script non-zero exit failures (fixes #1411)
+- fix(notifications): honor shebang when launching .sh custom scripts (fixes #1410)
+- fix(freebox): map numeric queue_pos to 0-based MoveQueue index (fixes #1413) (#1877)
+- fix(extraction): sum sibling RAR and ZIP volumes for size estimates (fixes #1416)
+- fix(config): accept 1 and 0 for boolean env and config settings (fixes #1412)
+- fix(extraction): propagate cancellation instead of SharpCompress fallback (fixes #1417)
+- fix(datastore): purge rollback journal during pending restore (fixes #1415)
+- fix(hadouken): separate connected and swarm peer counts in webui.list
+- fix(extraction): recheck disk space after semaphore in extractor proxy (fixes #1418)
+- fix(config): show config.xml CORS and SSRF allowlists in general settings (#1421)
+- fix(packages): require directory boundary for path remaps (#1420)
+- fix(config): align network and BitTorrent bind interface mapping (fixes #1423)
+- fix(config): stop defaulting BitTorrent DownloadDir to /downloads in API mapper
+- fix(aria2): return RPC errors instead of fake GIDs (#1432)
+- fix(notifications): parse hyphenated episode lists as explicit packs (fixes #1424)
+- fix(geoip): stop labeling private MaxMind lookups as city Localhost (fixes #1426)
+- fix(geoip): load GeoLite2-ASN and populate MaxMind lookups (fixes #1427)
+- fix(aria2): correct purgeDownloadResult and removeDownloadResult RPC (fixes #1433)
+- fix(network): roll back binding provider switch when config save fails (fixes #1425)
+- fix(trackers): sanitize tracker URLs in metric API responses (fixes #1428)
+- fix(extraction): roll back archive extractor switch when config save fails (fixes #1419)
+- fix(aria2): align tell* buckets and status with aria2 semantics (fixes #1431)
+- fix(transmission): do not apply RPC to all torrents when ids resolve empty (fixes #1429)
+- fix(synology): map force_complete delete flag per Download Station API (fixes #1430)
+- fix(notifications): parse repeated SxxEyy tokens in release names (fixes #1440)
+- fix(aria2): validate JSONP callback names before script responses (fixes #1434)
+- fix(download-clients): honor remote name and paused state on sync (fixes #1436)
+- fix(transmission): honor file selection on torrent-add (fixes #1435)
+- fix(notifications): ignore resolution tokens after episode hyphen (fixes #1439)
+- fix(geoip): hold MaxMind reader lock during lookup and reload (fixes #1443)
+- fix(download-clients): surface remote query failures in sync (fixes #1437)
+- fix(api): show live torrent telemetry when saved status lags (fixes #1438)
+- fix(notifications): format torrent ETAs beyond 100 days (fixes #1441)
+- fix(network): skip IPv6 unique-local addresses when binding sockets (fixes #1442)
+- fix(geoip): search directories before database filenames (fixes #1444)
+- fix(trackers): report 0% announce success when no announces (fixes #1445)
+- fix(nzbget): report queue pause in status and resume only queue-paused torrents (fixes #1447)
+- fix(sabnzbd): put completed paused downloads in history, not queue (fixes #1451)
+- fix(indexers): return 500 when RSS sync fails server-side (fixes #1446)
+- fix(sabnzbd): use category SavePath for category dir in get_config (fixes #1450)
+- fix(nzbget): map listfiles and listgroups status from real file progress (fixes #1448)
+- fix(indexers): redact Torznab apikey from debug log URIs (fixes #1456)
+- fix(nzbget): use category SavePath for Category DestDir in config (fixes #1449)
+- fix(http): dispose FlareSolverr solver HttpResponseMessage (fixes #1458)
+- fix(sabnzbd): pause downloads when priority is Paused (fixes #1452)
+- fix(rtorrent): correct file priority scale and d.priority.set handling (fixes #1453)
+- fix(http): bound anti-bot challenge body probing (fixes #1457)
+- fix(watch-folder): preserve relative paths in loaded/failed archives
+- fix(indexers): dispose Torznab caps and search responses in connection test (fixes #1459)
+- fix(rtorrent): persist d.custom2 through d.custom5 on torrent rows (fixes #1455)
+- fix(indexers): do not cache invalid Torznab caps responses (#1460)
+- fix(indexers): honor HTTP 429 Retry-After for indexer backoff (fixes #1461)
+- fix(http): destroy FlareSolverr sessions on transport dispose (fixes #1462)
+- fix(media-inspection): read Matroska OutputSamplingFrequency (0x78B5)
+- fix(download history): escape LIKE wildcards and support Unicode search on SQLite (fixes #1463)
+- fix(torrents): prevent duplicate queue positions on re-add (fixes #1464)
+- fix(subtitles): preserve X-TIMESTAMP-MAP in WebVTT normalization (fixes #1467)
+- fix(nat-pmp): resolve VPN gateway from route table (fixes #1468)
+- fix(disk): skip directory symlinks in recursive file enumeration
+- fix(network): enforce NetworkSettings singleton (fixes #1469)
+- fix(arr): report Arr manual sync failure when no connection succeeds (fixes #1474)
+- fix(history): delete cached torrent files on prune and clear-all
+- fix(auth): reject IPv4-mapped trusted-proxy CIDRs with prefix below /96
+- fix(arr): normalize /api suffix for test, sync, and registration (fixes #1475)
+- fix(ai): preserve pasted file sizes for malware check (#1486)
+- fix(subtitles): match numeric track ids by TrackId only (#1485)
+- fix(arr): set movieCategory when registering Whisparr download client (fixes #1479)
+- fix(torrents): match category torrents case-insensitively (fixes #1472)
+- fix(arr): parse Arr URL host for loopback detection (#1476)
+- fix(arr): preserve webhook URL port and bracket IPv6 hosts (fixes #1477)
+- fix(blocklist): preserve update interval hours on settings save
+- fix(ci): restore SonarCloud coverage by repairing Core.Test build
+- fix(history): skip live torrents when pruning download history (fixes #1481)
+- fix(trackers): preserve IPv6 brackets in sanitized tracker URLs (fixes #1483)
+- fix(torrents): prune TorrentEventLogs past 250 rows per torrent (fixes #1482)
+- fix(logging): honor all --log-level values at startup (fixes #1480)
+- fix(categories): make default category updates atomic (fixes #1484)
+- fix(ai): return 404 from malware-check when torrent id is missing (fixes #1487)
+- fix(blocklist): report real last sync and scheduled update times (fixes #1495)
+- fix(peers): assign peer event ids inside lock (fixes #1488)
+- fix(packages): stream export to response instead of MemoryStream (fixes #1493)
+- fix(logging): assign ring buffer ids inside lock (fixes #1490)
+- fix(composition): skip unloadable assemblies during startup (fixes #1498)
+- fix(blocklist): report separate IPv4 and IPv6 rule counts in API
+- fix(blocklist): start update loop when enabled after config save (fixes #1496)
+- fix(ai): merge request fileNames into malware check when torrent has DB files (fixes #1494)
+- fix(blocklist): return skipped sync when blocklist is disabled (fixes #1499)
+- fix(torrents): sanitize embedded names when creating torrents (fixes #1518)
+- fix(torrents): preserve v1 file path parts without trimming (fixes #1503)
+- fix(arr): match Leecharr webhooks by URL and implementation only (fixes #1500)
+- fix(bittorrent): honor IPv6 bind literals in torrent engines (fixes #1504)
+- fix(rss): fallback to infohash magnet on NZB/XML payloads (fixes #1511)
+- fix(system): format task and command durations with total hours
+- fix(torrents): validate batch file priorities before applying updates (fixes #1507)
+- fix(rss): do not backoff indexers on cancel or post-grab errors (fixes #1510)
+- fix(torrents): reject overflowing v2 file length totals in TorrentFileParser (fixes #1508)
+- fix(commands): treat empty PushRaw bodies as default command payloads (fixes #1509)
+- fix(rss): stop rule fallthrough when grab fails (fixes #1512)
+- fix(webhooks): treat Sonarr and Radarr Download as import events (fixes #1514)
+- fix(automation): require full progress for script isComplete (fixes #1513)
+- fix(trackers): use long for hourly peer aggregates (fixes #1515)
+- fix(torrents): fall back to flat trackers when tier URLs are blank (fixes #1519)
+- fix(bittorrent): derive user agent from peer-id version digits (fixes #1520)
+- fix(logs): reject unrecognized level filter on GET /api/v1/log (fixes #1523)
+- fix(developer): honor subsystem in UML state and API diagrams (fixes #1521)
+- fix(ai): ignore stale ConfigSavedEvent provider switches (fixes #1522)
+- fix(bittorrent): apply saved DHT table, timeout, and rate settings (fixes #1536)
+- fix(download history): index V2 info hash for hybrid lookups (fixes #1525)
+- fix(trackers): serialize metric seed with announce lock (fixes #1526)
+- fix(extraction): skip 7-Zip rollback when destination snapshot fails (fixes #1528)
+- fix(extraction): parse ArchivePasswords with backslash escapes (fixes #1529)
+- fix(jobs): persist dispatch start without overwriting LastExecution (fixes #1527)
+- fix(media-inspection): score MediaInfo AC-3 and E-AC-3 format tokens (fixes #1531)
+- fix(categories): prevent clearing the only default on update (fixes #1530)
+- fix(bittorrent): apply ut_metadata, ut_pex, and PEX limit protocol settings (fixes #1537)
+- fix(download-history): prevent duplicate rows for the same info hash (fixes #1533)
+- fix(config): align unset Ollama model default with runtime (fixes #1534)
+- fix(bandwidth): apply swarm distribution settings to per-torrent limits (fixes #1538)
+- fix(bittorrent): apply multi-tracker failover protocol settings (fixes #1541)
+- fix(extraction): stop sweeping shared .leecharr.tmp on extract failure (fixes #1532)
+- fix(developer): stop engine-ratelimits smoke test from clearing caps (fixes #1543)
+- fix(bittorrent): apply client behavior and swarm simulation config (fixes #1540)
+- fix(developer): use dedicated event for event-bus smoke test (fixes #1545)
+- fix(bittorrent): apply private flag in LibTorrent and Transmission engines (fixes #1551)
+- fix(ai): apply malware threshold config and auto-quarantine (fixes #1539)
+- fix(developer): return newest test history runs first (fixes #1546)
+- fix(database): tolerate expression indexes in schema listing (fixes #1550)
+- fix(auth): return 401 for NZBGet path keys and xmlrpc (fixes #1553)
+- fix(developer): report process uptime from process start time (fixes #1547)
+- fix(developer): mark debugger outlines as non-existent source (fixes #1548)
+- fix(categories): block inherited save path traversal via category segments
+- fix(trackerboost): guard hash boost when remote torrent is private (fixes #1647)
+- fix(developer): skip bad ProcessThread rows instead of fake thread (fixes #1554)
+- fix(trackerboost): validate Transmission RPC result on tracker inject (fixes #1645)
+- fix(trackerboost): return 400 for invalid manual tracker URLs (fixes #1630)
+- fix(trackerboost): align UDP scrape timeout with BEP 15 retry budget (fixes #1646)
+- fix(ai): defer partial Ollama natural-language search JSON to heuristic (fixes #1631)
+- fix(trackerboost): skip missing-tracker recovery when auto-boost is off (fixes #1648)
+- fix(ai): keep language words in movie titles from cutting parse (fixes #1613)
+- fix(trackerboost): keep optimization loop alive after settings read failures (fixes #1649)
+- fix(test): repair nested Torznab caps XML verbatim literals
+- fix(ai): normalize schemeless OLLAMA_HOST base URL (fixes #1632)
+- fix(tests): escape attribute quotes in nested caps XML fixture
+- fix(ai): recognize dotted WEB and BluRay source tags (fixes #1614)
+- fix(indexers): parse nested Newznab category elements in caps (fixes #1611)
+- fix(trackerboost): dispose HTTP responses in download-client injection (fixes #1650)
+- fix(ai): skip JSON extraction when Gemini chat uses heuristic fallback (fixes #1634)
+- fix(trackerboost): count only newly inserted trackers in harvest (fixes #1658)
+- fix(ai): fall back when Ollama chat response is empty (fixes #1633)
+- fix(ai): score tiny-file malware risk on video extensions only (fixes #1637)
+- fix(ai): flag dangerous torrent names using DangerousExtensions (fixes #1635)
+- fix(ai): parse 1x02 episode tokens in natural language search (fixes #1636)
+- fix(ai): dispose Gemini health probe HttpResponseMessage (fixes #1638)
+- fix(ai): verify Ollama model via /api/tags in health probe (fixes #1639)
+- fix(trackerboost): canonicalize announce URLs in FindByUrl and add path (fixes #1657)
+- fix(datastore): promote PostgreSQL timestamp columns to timestamptz (fixes #1651)
+- fix(ai): scope Ollama chat fallback flag per async flow (fixes #1640)
+- fix(trackerboost): send dynamic tiers to Deluge add_torrent_trackers (fixes #1660)
+- fix(bittorrent): implement rename on LibTorrent and Transmission engines (fixes #1557)
+- fix(trackerboost): bracket IPv6 download-client hosts for inject (fixes #1661)
+- fix(build): restore Leecharr.Core compile under analyzers
+- fix(datastore): backfill DownloadHistory.IsPrivate from torrents (fixes #1653)
+- fix(datastore): keep Arr webhooks and auto-add opt-in for existing connections (fixes #1654)
+- fix(ai): harden Ollama swarm diagnostic prompt against torrent-name injection (fixes #1641)
+- fix(datastore): backfill IsImported so legacy torrents are not deferred (fixes #1655)
+- fix(bittorrent): implement daemon peer disconnect and honor API result (fixes #1556)
+- fix(datastore): backfill ShareLimitAction so global setting applies (fixes #1656)
+- fix(ai): extract balanced JSON object from Ollama replies (fixes #1642)
+- fix(tracker-boost): treat HEAD 404/405 as alive HTTP tracker probes (fixes #1662)
+- fix(auth): return 403 for forbidden API paths instead of login redirect (fixes #1555)
+- fix(database): harden safe-mode SQL console against batches and mutating PRAGMAs (fixes #1552)
+- fix(bittorrent): apply Transmission port, limits, and discovery on config save (fixes #1561)
+- fix(bittorrent): decode libtorrent peer flags for choke and interest (fixes #1560)
+- fix(bittorrent): restore first/last piece priority on engine rehydrate (fixes #1564)
+- fix(bittorrent): skip low-disk pause during hashing and error (fixes #1565)
+- fix(bittorrent): map libtorrent finished state to Completed not Seeding (fixes #1563)
+- fix(transmission): read form-urlencoded RPC JSON from raw body on Kestrel (fixes #1566)
+- fix(bittorrent): report daemon swarm availability from piece data (fixes #1567)
+- fix(media): stop leaking Arr API keys in media artwork URLs (fixes #1570)
+- fix(indexers): merge flattened fields into saved settings (fixes #1568)
+- fix(media-enrichment): store cast as JSON to preserve commas in names (fixes #1573)
+- fix(media-enrichment): read nested Radarr movie ratings (fixes #1569)
+- fix(media-enrichment): scan local artwork when no NFO exists (fixes #1571)
+- fix(media-enrichment): merge fallbacks when active provider returns poster only
+- fix(media): parse Kodi NFO genres and nested rating values (fixes #1572)
+- fix(media-enrichment): classify audiobook categories as Readarr (fixes #1575)
+- fix(sabnzbd): treat mode=pause value as queue pause minutes (fixes #1589)
+- fix(transmission): only send integer ids in trackerRemove RPC
+- fix(transmission): persist script hook enabled flags in session-set
+- fix(tracker): accept BEP-52 v2 info hashes on embedded announce/scrape
+- fix(download-clients): map priority on API read and write (fixes #1577)
+- fix(database): report full TotalRows when SQL console truncates (fixes #1588)
+- fix(qbittorrent): apply web login lockout to auth/login (fixes #1586)
+- fix(media-enrichment): dispose Servarr lookup HttpResponseMessage instances (fixes #1576)
+- fix(arr): preserve connection metadata and env-only public URLs on save (fixes #1578)
+- fix(indexers): flatten nested category arrays and skip objects (fixes #1580)
+- fix(datastore): fail BasicRepository updates when no row is written (fixes #1585)
+- fix(indexers): accept scalar and comma-separated ids in bulk delete (fixes #1581)
+- fix(commands): honor CompactLargeObjectHeap in ForceGarbageCollection (fixes #1579)
+- fix(terminal): use python PTY when only /usr/local/bin/python3 exists (fixes #1582)
+- fix(tracker): honor TrackerHttpEnabled and TrackerHttpPort for HTTP announces (fixes #1593)
+- fix(auth): enforce unique user emails and deterministic JIT email lookup (fixes #1584)
+- fix(security): restrict app data directory and config.xml to owner-only (fixes #1583)
+- fix(indexers): route grabs to indexer download client (fixes #1607)
+- fix(tracker): log peer announce queries when TrackerLogAnnounces is enabled (fixes #1594)
+- fix(tracker): apply per-IP rate limit to HTTP announce and scrape (fixes #1597)
+- fix(automation): honor stopPipeline across trigger scripts and in JS (fixes #1595)
+- fix(tracker): honor TrackerBindAddress for HTTP announce and scrape (fixes #1598)
+- fix(flood): clear category when SetTags omits category name (fixes #1596)
+- fix(terminal): size UTF-8 decode char buffer from GetCharCount (fixes #1602)
+- fix(config): persist only JSON-supplied config properties on save (fixes #1599)
+- fix(terminal): kill PTY session before awaiting disconnect tasks (fixes #1603)
+- fix(terminal): cap WebSocket input reassembly at 10MB (fixes #1604)
+- fix(indexers): honor Torznab search mode caps when building queries (fixes #1609)
+- fix(terminal): apply COLUMNS/LINES in fallback shell session (fixes #1605)
+- fix(indexers): send cookie and user-agent on Torznab HTTP requests (fixes #1608)
+- fix(automation): use per-call HtmlParser in ScriptHtmlContext (fixes #1600)
+- fix(indexers): URI-encode Torznab search type before query merge (fixes #1612)
+- fix(ai): parse bare S01 season pack tokens in release and NL search (fixes #1615)
+- fix(trackers): default announce interval on tracker replace (fixes #1610)
+- fix(ai): parse dotted release groups and trailing media extensions (fixes #1616)
+- fix(ai): escape untrusted XML in Gemini and Ollama prompts (fixes #1619)
+- fix(trackers): tolerate duplicate tracker URLs in DB and announce lists (fixes #1622)
+- fix(ai): parse dotted DTS.HD.MA and DD.5.1 audio tags (fixes #1617)
+- fix(ai): skip Gemini label on diagnostic chat fallback (fixes #1620)
+- fix(ai): ignore trailing .ts container in quality parsing (fixes #1618)
+- fix(build): unblock analyzer errors on main branch
+- fix(auth): enforce case-insensitive identity provider ids (fixes #1626)
+- fix(deluge): surface TrackerEntry errors and next announce in status (fixes #1623)
+- fix(indexers): honor EnableSearch when selecting search indexers (fixes #1621)
+- fix(trackerboost): coordinate dispose with in-flight scrape and health probes (fixes #1659)
+- fix(trackers): scope DeleteTracker to route torrent id (fixes #1624)
+- fix(bittorrent): pause LibTorrent and Transmission on speed schedule (fixes #1542)
+- fix(health): surface VPN kill switch in engine health check
+- fix(system): marshal Windows sleep inhibition on a dedicated thread (fixes #1665)
+- fix(developer): quote Config table in developer config dump for PostgreSQL (fixes #1672)
+- fix(system): tear down Linux sleep inhibitor when Leecharr exits (fixes #1666)
+- fix(tracker-boost): reject Prowlarr site and proxy URLs in harvest (fixes #1663)
+- fix(developer): report buffer totals for event and HTTP traffic APIs (fixes #1671)
+- fix(system): set macOS hibernatemode before sleepnow (fixes #1667)
+- fix(host): allow anonymous SPA fallback so /login is reachable (fixes #1670)
+- fix(developer): mask TvdbPin in developer config response (fixes #1673)
+- fix(bandwidth): resume scheduler-paused torrents after engine sync writes Paused (fixes #1686)
+- fix(developer): stop indexer failure webhooks from running Prowlarr sync (fixes #1676)
+- fix(developer): show config-file values when database row is blank (fixes #1674)
+- fix(system): disable command timeout for maintenance VACUUM (fixes #1677)
+- fix(developer): fail webhook simulation when pipeline dispatch unavailable (fixes #1678)
+- fix(developer): preserve null workflow conclusion for in-progress runs (fixes #1681)
+- fix(developer): map Sonar project duplication from measures (#1682)
+- fix(developer): apply Sonar alert_status when gate API omits status (fixes #1683)
+- fix(system): require directory boundary for profile path redaction (fixes #1628)
+- fix(developer): guard GitHub cache against slower fallback races (fixes #1684)
+- fix(torrents): keep case-distinct Linux paths in creation allow-list (fixes #1629)
+- fix(developer): paginate GitHub issues past pull requests (#1680)
+- fix(developer): parse PR comment count and branch refs (fixes #1679)
+- fix(developer): rely on publish guard for quality cache races (fixes #1685)
+- fix(developer): apply quality cache coalescing and publish guard (fixes #1685)
+- fix(developer): guard quality report cache against slower overwrites (fixes #1685)
+- fix(bandwidth): break speed schedule priority ties by Id (fixes #1690)
+- fix(health): probe media metadata providers for real reachability (fixes #1691)
+- fix(health): surface VPN kill switch in HTTP transport health probe
+- fix(terminal): reject cross-origin WebSocket handshakes (fixes #1601)
+- fix(network): surface VPN kill switch in binding health probe
+- fix(auth): propagate session purge failures to command executor (#1627)
+- fix(di): restore singleton interface mapping and bootstrap Replace
+- fix(datastore): drop unsupported Sqlite DateTimeKind connection keyword
+- fix(di): resolve duplicate DryIoc factories for download engine and proxies
+- fix(developer): fetch latest run per quality workflow (#1688)
+- fix(trackers): decouple scrape success from announce health (fixes #1140)
+- fix(blocklist): restore UInt128-safe log2 for IPv6 CIDR (CS1503)
+- fix(blocklist): use UInt128-safe log2 for IPv6 CIDR prefix length
+- fix(automation): require extension match for cleanExtensions size limit (fixes #1155)
+- fix(proxy): require SOCKS5 user/pass when credentials configured (fixes #1161)
+- fix(network): keep external IP lookup on proxy when bind is set (fixes #1162)
+- fix(network): treat APIPA IPv4 as unusable for VPN bind (fixes #1165)
+- fix(geoip): keep literal IPv6 in online API URL path (fixes #1163)
+- fix(torrents): do not treat re-add as seeding from title path alone
+- fix(automation): pass torrent into MediaEnriched scripts (fixes #1168)
+- fix(jobs): seed new scheduled tasks with MinValue LastExecution (fixes #1190)
+- fix(network): persist cleared bind interface and honor repository value (fixes #1164)
+- fix(commands): serialize command trigger before queue body (fixes #1189)
+- fix(blocklist): parse PeerGuardian ranges in RadixTree provider (fixes #1166)
+- fix(automation): send API key from script api and http helpers (fixes #1167)
+- fix(jobs): sync watch-folder and blocklist scheduler intervals from config
+- fix(commands): wire CoreSystemCommandHandler to real services (fixes #1178)
+- fix(indexers): throw on malformed Torznab XML parse (fixes #1186)
+- fix(jobs): resolve case-variant scheduled task names without re-inserting
+- fix(automation): route sendNotification to email and custom scripts (fixes #1176)
+- fix(automation): run health scripts for torrent-id HealthIssueEvents
+- fix(automation): run scheduled scripts via AutomationScheduledTask
+- fix(network): probe BitTorrent port and omit fabricated NAT mappings
+- fix(network): use Linux SOL_SOCKET for SO_BINDTODEVICE (fixes #1170)
+- fix(aria2): stable session id, apply dir and sub-KiB limits in changeOption (fixes #1590)
+- fix(notifications): send Pushover device, retry, expire, and priority from settings
+- fix(automation): fire SeedingTimeReached scripts on seed-time goals (#1175)
+- fix(commands): cancel running commands via linked execution token (fixes #1179)
+- fix(system): pass UTF-16 to macOS CFString for sleep assertions
+- fix(torrents): treat daemon upload counters as lifetime totals (fixes #1183)
+- fix(indexers): treat missing RSS pubDate as unknown for MaxAgeDays (fixes #1185)
+- fix(developer): detect Whisparr in webhook simulator movie payloads (fixes #1675)
+- fix(torrents): keep skipped files at 0% when seeding (#1188)
+- fix(host): redirect HTTP to HTTPS before serving UI shell
+- fix(torrents): abort delete when download engine remove fails (fixes #1187)
+- fix(host): bind localhost on IPv4 and IPv6 loopback
+- fix(synology): map Stalled and QueuedForChecking in Download Station task API (fixes #1704)
+- fix(bandwidth): defer scheduler pause bookkeeping until snapshot succeeds (#1695)
+- fix(bandwidth): apply rate limits before scheduler resume (fixes #1693)
+- fix(synology): guard auth helpers when HttpContext.Request is absent (#1703)
+- fix(synology): honor auth.cgi method=logout and revoke sid (#1703)
+- fix(uTorrent): set ForceStart on forcestart action
+- fix(auth): honor cancellation in expired session prune
+- fix(synology): align FileStation share path with DownloadDir (#1705)
+- fix(indexers): prefer torrent download URL over magnet on grab (#1701)
+- fix(indexers): do not backoff indexers when search is cancelled (#1707)
+- fix(indexers): sum multi-indexer search totals and honor freeleech filter
+- fix(utorrent): surface torrent ErrorMessage in WebUI list (#1700)
+- fix(indexers): do not default Prowlarr sync URL to localhost (#1706)
+- fix(indexers): require valid Prowlarr indexer JSON on test (#1710)
+- fix(indexers): distinguish backoff from zero configured indexers on search
+- fix(indexers): expose search errors in JSON and sanitize header values
+- fix(indexers): stop leaking HttpClient on every indexer request (#1712)
+- fix(bandwidth): retry scheduler resume when engine refuses (#1713)
+- fix(bandwidth): reject null speed schedule times without throwing (#1714)
+- fix(categories): block parent delete when default subcategory exists
+- fix(categories): block delete when a default subcategory would be orphaned (#1715)
+- fix(categories): cascade rename when only case changes
+- fix(categories): validate cascaded names before parent rename (#1717)
+- fix(indexers): keep dedup download factor aligned with download URL (#1720)
+- fix(indexers): do not add infohash magnet when grab is cancelled (#1721)
+- fix(categories): coerce null save path to empty string for NOT NULL column
+- fix(indexers): keep saved fields when testing existing indexer
+- fix(indexers): only attach indexer secrets for same-host grabs (#1722)
+- fix(indexers): paginate freeleech search over deeper Torznab fetches (#1723)
+- fix(indexers): stop borrowing infohash by title and size in dedup
+- fix(indexers): report Prowlarr system/status code when both probes fail (#1726)
+- fix(indexers): do not backoff saved indexer on unsaved test probe (#1725)
+- fix(download-clients): return 400 for invalid hosts and bracket IPv6 URLs
+- fix(bandwidth): skip queued torrents on scheduler resume (#1727)
+- fix(download-clients): include remote name in import magnet links
+- fix(api): surface download client query failures in GetAllItems (#1735)
+- fix(developer-testing): return camelCase JSON from RunSingleTest
+- fix(download-clients): enforce 5s timeout on connection tests (fixes #1730)
+- fix(ci): normalize indentation for editorconfig after PR cherry-picks
+- fix(download-clients): route connection tests through safe HTTP handler
+- fix(ci): restore green build after landing stale PR fixes on main
+- fix(backup): publish BackupCompletedEvent when archive creation succeeds (#1808)
+- fix(network): resolve kernel interface name for SO_BINDTODEVICE
+- fix(network): honor EnableVpnKillSwitch in DynamicNetworkBindingProxy
+- fix(network): probe provider health at DynamicNetworkBindingProxy startup
+- fix(network): block metadata IPs after DNS on direct proxy connect
+- fix(network): honor ProxyAuthEnabled in proxy tunnel handshakes
+- fix(system): queue manual backup type from Run Now (#1789)
+- fix(media-inspection): swap dimensions for ffprobe video rotation
+- fix(api): populate switch Error for geoip, blocklist, and AI
+- fix(download-clients): return 400 for invalid single-import hash
+- fix(api): dispose HTTP responses in download client connection test
+- fix(download-clients): continue sync when one torrent import fails
+- fix(api): only import torrents returned by download client
+- fix(api): return camelCase JSON from diagnostics threads endpoint
+- fix(torrents): keep PUT field edits when save path moves
+- fix(api): omit default announce interval on torrent partial PUT (#1739)
+- fix(api): mask tracker secrets in download history responses
+- fix(api): allow private tracker URLs on private torrents (#1742)
+- fix(torrents): sanitize trackerUrl on torrent detail response
+- fix(api): page download history enrich-all and reconcile through full table
+- fix(api): stop GetLogs from fabricating torrent log entries
+- fix(download-clients): do not copy qBittorrent tags into Category
+- fix(api): use case-sensitive save path check for torrent file reads (#1747)
+- fix(download-clients): honor Transmission RPC result field (#1748)
+- fix(download-clients): pass Deluge pause/resume ids as a list
+- fix(download-clients): use 8s remote query timeout during sync
+- fix(download-clients): isolate remote login cookie jars
+- fix(download-clients): reject unsafe qBittorrent torrent hash actions
+- fix(download-clients): dispose remote HTTP responses (#1751)
+- fix(organizer): preserve extension when basename is only a dot
+- fix(organizer): normalize Windows paths for original filename token
+- fix(organizer): fall back when clean title list is all blank
+- fix(organizer): use min/max for multi-episode Extend and Range (#1757)
+- fix(organizer): keep surrogate pairs intact when truncating paths
+- fix(organizer): reject date-style formats on integer naming tokens
+- fix(organizer): strip control chars in baseline filename safety
+- fix(organizer): prefer anime format when absolute episodes have air date
+- fix(network): port test uses direct egress, not proxy (#1767)
+- fix(network): route external IP lookup through SOCKS4 proxy
+- fix(network): refresh stale external IP on status API
+- fix(network): try all resolved addresses for bound external IP lookup
+- fix(network): release external IP fetch lock on proxy setup failure
+- fix(network): align ActiveInterface with NetworkInterfaceBinding (#1766)
+- fix(network): honor ProxyAuthEnabled for external IP proxy credentials
+- fix(network): continue local address scan when one adapter throws
+- fix(automation): materialize HTTP JSON for script engines (#1770)
+- fix(automation): cap script sleep and HTTP to Jint execution budget (fixes #1772)
+- fix(automation): repair media categorizer YAML template (#1774)
+- fix(automation): measure disk space for the path mount, not Linux /
+- fix(automation): enforce script memory limit on HTTP response bodies
+- fix(automation): build script api URLs from bind address and SSL config (#1773)
+- fix(automation): parse contentType before StringContent (fixes #1775)
+- fix(automation): wait for in-flight async script HTTP before dispose (#1777)
+- fix(system-tasks): preserve last duration while a scheduled task runs (#1779)
+- fix(inspection): take switchLock before already-active fast path
+- fix(media-inspection): score PCM lossless in FFprobe audio ranking (Fixes #1781)
+- fix(datastore): read SQLite timestamps as UTC (#1780)
+- fix(media-inspection): prefer multi-channel audio when codec scores tie (#1784)
+- fix(media-inspection): map ffprobe audio profile for DTS-HD and Atmos
+- fix(media-inspection): reset ffprobe audio fields when track wins (#1783)
+- fix(datastore): dispose connection when OpenConnection setup fails
+- fix(media-inspection): skip ffprobe commentary audio for main track (#1785)
+- fix(media-inspection): run ffprobe -version in ProbeHealthAsync (fixes #1787)
+- fix(api): expose command failure message on system command API (#1790)
+- fix(api): report command duration only after start (#1791)
+- fix(system): stable next run while scheduled task is in progress
+- fix(network): add System.Linq for resolved address blocklist check
+- fix(network): dual-stack hostname connect in proxy pass-through tunnel
+- fix(api): return 400 when system command name is blank
+- fix(network): reject IPv6 targets in SOCKS4 tunnel handshake
+- fix(network): publish PortForwardingFailedEvent on NAT-PMP map failures
+- fix(network): serialize VPN kill switch state updates
+- fix(events): append interface mappings in RegisterSingletonWithInterfaces
+- fix(automation): skip download completed when completion move fails (#1804)
+- fix(bandwidth): edge-trigger speed threshold events in scheduler
+- fix(config): keep unset DownloadDir stable when /downloads exists
+- fix(automation): publish TorrentHashCheckCompletedEvent when hashing ends (#1810)
+- fix(ci): repair qB tracker mapping and live download telemetry
+- fix(style): editorconfig indent on network binding and ffprobe
+- fix(ci): restore main build and lint after swarm drain batch
+- fix(commands): publish TaskFailedEvent when command execution fails (#1813)
+- fix(backup): publish BackupFailedEvent when archive creation fails
+- fix(automation): publish FileMoveFailedEvent when completion move fails
+- fix(config): derive incomplete dir from DownloadDir when unset (#1820)
+- fix(config): lock ConfigFileProvider dictionary reads during save (#1822)
+- fix(config): keep in-memory config unchanged when config.xml save fails
+- fix(config): reload cache from DB after SaveConfigDictionary
+- fix(config): serialize first InstanceUuid generation (#1825)
+- fix(network): treat IPv4 hosts with trailing dot as private/loopback
+- fix(automation): publish MediaInspectionFailedEvent when file probe fails (#1814)
+- fix(network): parse bracketed IPv6 hosts in proxy tunnel paths
+- fix(automation): publish ArrImportCompletedEvent from Arr webhooks
+- fix(download): skip directory symlinks in cross-volume copy
+- fix(torrents): publish pause/resume automation events from TorrentService
+- fix(network): treat 0.0.0.0 as local for proxy tunnel guards (#1836)
+- fix(download): strip incomplete extensions when a subdirectory is unreadable
+- fix(arr): resolve GetByType to enabled primary connection
+- fix(network-binding): probe NIC status in ProxyTunnel IsInterfaceUp
+- fix(arr): require enabled type match in GetByAffinity (#1834)
+- fix(download-history): roll back engine torrent on ReAdd failure
+- fix(torrents): publish TorrentProgressMilestoneEvent at download milestones
+- fix(network-binding): ignore superseded config-driven provider switches
+- fix(arr): score affinity from Category column and whole-word keywords (#1835)
+- fix(mediainsp): run ffprobe on stream inspection (#1842)
+- Fix #1832: clear removal fields when reconcile re-links history
+- fix(inspection): rollback active inspector when config save fails (fixes #1844)
+- fix(media-inspection): propagate FFprobe timeout/cancel instead of TagLib fallback
+- fix(mediainsp): skip attached_pic streams for VideoCodec (#1845)
+- fix(logging): treat blank FileLogLevel as Info on reconfigure
+- Fix #1846: label interlaced FFprobe streams as 1080i/480i from field_order
+- Fix #1847: map FFprobe format.tags to container metadata
+- fix(mediainsp): fall back to stream duration when format duration missing (#1848)
+- Fix #1849: score category names sonarr, radarr, lidarr in affinity
+- fix(bandwidth): publish BandwidthQuotaApproachingEvent when quota threshold is reached
+- Fix #124: Aria2/Flood stopped torrent RPC status mapping
+- Fix tracker stats on history re-add and manual announce (#179).
+- fix(datastore): use boolean params in AutomationScriptRepository for PostgreSQL
+- fix(notifications): expose TORRENT_SIZE_BYTES in custom script env
+- fix(torrents): stop API list from exposing session download bytes (fixes #125)
+- fix(config): apply config.xml LogLevel to console logging (#1826)
+- Fix #125: keep lifetime download stats off session counters
+- fix(blocklist): hold switchLock in DynamicBlocklistProxy.ClearRules (#177)
+- fix(mediainsp): map ffprobe format_name tokens using file extension (fixes #1841)
+- fix(disk): keep longest mount match when drive inspection throws
+- fix(automation): publish TrackerBoostAppliedEvent after successful tracker boost
+- fix(automation): publish TrackerBoostAppliedEvent after successful tracker boost
+- fix(quality): align .runsettings, sonarcloud workflow, and analyzer test scoping with Seedarr
+- fix(quality): un-suppress CA2201, CA2211, CA1810, CA1823, CA1052, CA1040, CA2246 and prune dead fields
+- fix(quality): enable SA1124 and prune SA1515/SA1311 from production NoWarn in Leecharr
+- fix(quality): enable CA1869, CA1850, and CA1862 and prune StyleCop NoWarn in Leecharr
+- fix(host): extract ProxySeparators in Startup.cs
+- fix(api): extract static readonly arrays in controllers
+- fix(api): resolve CA1854 dictionary lookups and CA1845 substring concatenation
+- fix(core): apply code quality hardening fixes across common and core
+- fix(http): extract static readonly arrays and handle pty discards
+- fix(signalr): pass TaskScheduler.Default to ContinueWith to satisfy CA2008
+- fix(core): extract static readonly arrays in search, proxy, email and media inspection
+- fix(core): extract static readonly arrays in indexer, subtitle and extraction services
+- fix(core): extract static readonly separator arrays in parsers and engines
+- fix(core): resolve CA1861 warnings by extracting static readonly array fields
+- fix(ci): quote :all: in pip install in ai-responder workflow
+- fix(quality): un-suppress CA1510, CA1513, CA1865, CA1866, CA1872, CA1835 and fix CommandExecutor mock
+- fix(quality): un-suppress CA1846, CA1834, CA1868, CA1512, CA2100 and resolve span diagnostics
+- fix(quality): un-suppress CA1826, CA1847, CA2263, CA1825, CA2249 and resolve diagnostics
+- fix(frontend): resolve all typescript compiler errors across components and pages
+- fix(quality): resolve final 6 Roslyn diagnostics in Leecharr
+- fix(quality): burn down SonarCloud S2077, Roslyn test warnings, and editorconfig severities
+- fix(frontend): resolve exhaustive-deps and unused-expression lint errors
+- fix(ci): align host, transmission, and system coverage exclusions in Leecharr
+- fix(ci): exclude store from coverage in Leecharr
+- fix(ci): exclude settings and terminal from CPD and coverage in Leecharr
+- fix(ci): harden ai-responder dependencies, exclude adapters from CPD, and align coverage
+- fix(api): make GetWebhookTemplates instance action and isolate developer events test
+- fix(quality): re-enable CA quality, performance, and security rules and resolve diagnostics
+- fix(transmission): normalize trailing slash route and handle form-encoded json bodies
+- fix(ci): fix editorconfig indentation and mark live container tests explicit
+- fix(media): return NotFound on missing artwork to satisfy unit test expectations
+- fix(media): return fallback SVG on missing artwork to eliminate console 404s
+- fix(frontend): eliminate console 404s for missing media artwork and raw tracker favicons
+- fix(quality): resolve remaining 239 SonarCloud items across tests, logging, grid, and multicriteria S9383
+- fix(quality): resolve in-code Roslyn diagnostics and configure editorconfig severities
+- fix(api): resolve ASP0026 conflict on QBittorrentApiController and filter access control rules in CodeQL
+- fix(torrent): resolve namespace import in TorrentEngineNetworkHelper
+- fix(security): resolve final 3 SonarCloud issues (S5146 via Activator, S6776 via Content JSON)
+- fix(security): resolve final 4 SonarCloud issues (S6549, S5146, S6776)
+- fix(disk): use File.GetAttributes in DiskProvider to eliminate filesystem oracle
+- fix(torrent): map file source exception to non-existent path error message
+- fix(security): eliminate S3649 via reflection, S6549 in DiskProvider via Attributes, and S5332 in daemon
+- fix(security): structurally eliminate remaining filesystem oracle existence checks
+- fix(security): replace filesystem probe oracles with exception handling
+- fix(security): break taint flow for all remaining filesystem oracles
+- fix(security): break taint flow in SanitizeRedirectUrl
+- fix(security): break taint flow for filesystem oracles and SQL query runner
+- fix(auth): return Redirect(safeRedirect) with SanitizeRedirectUrl in SamlCallback
+- fix(security): sanitize SSRF and filesystem oracles with helper encapsulations and URI validation
+- fix(system): disambiguate global System namespace in SystemDatabaseController
+- fix(diagnostics): fix CallStack property reference in DeveloperDiagnosticsService
+- fix(security): resolve S5146, S6776, S3649, S5144, and S5332 security quality issues
+- fix(security): resolve floating promise S9383 and add NOSONAR to false positive S2068/S6549
+- fix(frontend): remove duplicate searchParams declaration in TorrentIndex
+- fix(test): configure default mock kill switch state in VpnKillSwitchServiceTest SetUp
+- fix(ci): fix VPN killswitch config override, client category filtering, and dht test assertion
+- fix(core): add missing using System.Linq to DiskSpaceService
+- fix(ci): fix remote item category filtering, auto recheck move latch, and disk space volume deduplication
+- fix(ci): fix client import nullability, dht version property access, and request handler capture in tests
+- fix(ci): resolve unit test regressions in SAML redirect, cookie security, and test assertions
+- fix(ci): make End SonarCloud Scanner non-blocking when Automatic Analysis is active
+- fix(ci): fix ArrConnectionDefinitions table queries and make test non-blocking in sonar workflow
+- fix(ci): fix ArrConnectionDefinitions table query and remove incompatible sonar properties file
+- fix(ci): fix test compilation errors and remove invalid scanner properties path
+- fix(deps): bump serialize-javascript from 7.1.1 to 7.1.2 (CVE-2026-97711)
+- fix(quality): enforce https prowlarr default and load sonar-project.properties in scanner (S5332)
+- fix(frontend): add button roles and keyboard handlers in Settings tabs (S6848)
+- fix(frontend): simplify inline markdown and size stripper regexes in AiCopilotDrawer (S8786)
+- fix(frontend): add explicit aria-labels on ImportTools form labels (S6853)
+- fix(media): add regex execution timeouts across TagLib and WatchFolder patterns (S6444)
+- fix(frontend): add accessible aria-labels to tracker boost form labels (S6853)
+- fix(quality): add regex execution timeouts across test suites and sanitizer helpers (S6444)
+- fix(frontend): add button roles and keyboard handlers across remaining interactive elements (S6848)
+- fix(backend): add regex execution timeouts across config, organizer, transport, and controllers (S6444)
+- fix(backend): fix nullability, unreachable conditions, and security smells (S2259, S2583, S5693, S4036, S5332)
+- fix(devops): harden container, shell scripts, python daemon, and github workflows
+- fix(quality): add multicriteria suppressions for admin consoles and security false positives
+- fix(frontend): simplify regexes, remove duplicate props and invalid tabIndex (S8786, S5850, S6845, S1534)
+- fix(frontend): associate form labels with controls and ensure accessible text (S6853)
+- fix(frontend): remove autoFocus attributes across modal components (S9379)
+- fix(frontend): add button roles and keyboard handlers to Settings tabs and HarvesterPanel (S6848)
+- fix(frontend): add button roles and keyboard handlers to History, PeerMap, and System pages (S6848)
+- fix(frontend): handle or explicitly ignore floating promises (S9383)
+- fix(extraction): add regex execution timeouts in ArchiveTimeoutCalculator (S6444)
+- fix(notifications): add regex execution timeouts across notification and indexer services (S6444)
+- fix(media): add regex execution timeouts across LocalNfo, Tmdb, and Tvdb providers (S6444)
+- fix(media): add regex execution timeouts across TagLib media streams (S6444)
+- fix(automation): add regex execution timeouts in YamlScriptRunner and ArchiveExtractor (S6444)
+- fix(frontend): add button roles and keyboard handlers to Tags and TorrentTable (S6848)
+- fix(frontend): clean up redundant type assertions and empty interfaces (S9383)
+- fix(security): configure suppressions for developer stacktraces and sample IPs (S6776, S1313)
+- fix(backend): add regex execution timeouts in IndexerController and ArrWebhookController (S6444)
+- fix(terminal): await CancelAsync and WriteAsync in TerminalWebSocketHandler (S6966)
+- fix(frontend): remove autoFocus attributes to improve usability and accessibility (S9379)
+- fix(frontend): add button roles and keyboard handlers to all modal overlays (S6848)
+- fix(system): add regex execution timeout in SystemController (S6444)
+- fix(frontend): add button roles and keyboard handlers to Tags and Tracker interactive elements (S6848)
+- fix(ai): add regex execution timeouts across RuleHeuristicAiProvider (S6444)
+- fix(security): enforce Secure flag on auth cookies and update https placeholders (S2092, S5332)
+- fix(frontend): clean up redundant type assertions and empty interfaces (S9383)
+- fix(core): resolve null safety and unreachable condition warnings (S2583, S2259)
+- fix(system): use absolute path for systemctl and systemd-inhibit (S4036)
+- fix(http): pass context.RequestAborted and cancellation tokens to response writers (S8949)
+- fix(frontend): add button roles and keyboard handlers to interactive table elements (S6848)
+- fix(security): suppress integration SSRF rule and clean up unreachable null checks (S5144, S2583)
+- fix(core): add regex execution timeouts across extraction, indexers, and notifications (S6444)
+- fix(frontend): simplify regular expressions to eliminate catastrophic backtracking (S8786)
+- fix(core): resolve null dereference and unreachable condition bugs (S2583, S2259)
+- fix(organizer): add execution timeouts to Regex.Replace in FileNameBuilder and AutomationService (S6444)
+- fix(frontend): add button roles and keyboard handlers to interactive elements (S6848, S7773)
+- fix(media): add regex execution timeouts across ServarrSync and TagLib providers (S6444)
+- fix(frontend): add aria-labels to icon buttons across components (S6853)
+- fix(core): bulk add regex execution timeouts across core services (S6444)
+- fix(backend): pass cancellation tokens to async operations across core services (S8949)
+- fix(repo): use constant table queries in DownloadHistory and BasicRepository (S2077)
+- fix(backend): await asynchronous methods to avoid blocking threads (S6966)
+- fix(frontend): add button roles and keyboard handlers to interactive page elements (S6848)
+- fix(frontend): add button roles and keyboard handlers to modal interactive elements (S6848)
+- fix(repo): use constant table queries across remaining core repositories (S2077)
+- fix(media): add regex execution timeouts in media inspection and notification builders (S6444)
+- fix(frontend): add button roles and keyboard handlers to interactive divs (S6848)
+- fix(repo): use parameterized SQL queries across tracker, torrent, and command repositories (S2077)
+- fix(media): add regex execution timeouts in media inspection and notification builders (S6444)
+- fix(frontend): add button roles and keyboard handlers to interactive elements (S6848)
+- fix(backend): configure regex execution timeouts across services (S6444)
+- fix(sonar): pass cancellation tokens to async operations (S8949)
+- fix(sonar): resolve S3649, S5443, and S5146 blocker and critical issues
+- fix(sonar): replace Math.random with crypto.getRandomValues across frontend (S2245)
+- fix(sonar): resolve S8786, S2245, S6848, and S6505 in frontend and workflows
+- fix(sonar): resolve S8949 and S6932 in backend engines and controllers
+- fix(sonar): resolve S3427, S5146, S2930, S5443, S2083, and S4830 in security and auth
+- fix(sonar): resolve S3649, S5443, S2871, S2631, and S1523 in system and frontend
+- fix(sonar): resolve S3237, S3869, S2551, and S4790 in BitTorrent engine
+- fix(config): resolve DiskCacheBytes overflow, VPN kill switch deactivation, env aliases, and CLI precedence (#597)
+- fix(developer): record inbound Arr webhooks in store and dispatch simulation to pipeline (#982)
+- fix(bittorrent): subscribe LibTorrentDownloadEngine to ConfigSavedEvent and update daemon settings (#971)
+- fix(developer): record unwrapped synthetic event name/payload and dispatch to event aggregator (#979)
+- fix(downloadclients): filter remote queries by category, allow clearing password, and respect SSL in SSRF check (#1044)
+- fix(bittorrent): patch ClientIdentifier, BEP 10 handshake version, and tracker decompression (#879)
+- fix(developer): support case-insensitive command parameter deserialization and nullable inputs (#981)
+- fix(db): renumber duplicate migration 39 to 40 and ensure SonarCloud upload on always()
+- fix(downloadclients): filter remote queries by category, allow clearing password, and respect SSL in SSRF check (#1044)
+- fix(copilot): format markdown responses, auto-submit prompt pills, and allow event toggle in AiCopilotDrawer (#1020)
+- fix(torrents): support savePath on upload, safe magnet preview, and category in search (#110)
+- fix(engine): update active torrents on PEX, connection limits, and sequential changes in Quick Settings (#1028)
+- fix(build): resolve DownloadHistory and DownloadClient build issues
+- fix(theme): preserve themeStyle and data-accent across page reloads in ThemeContext (#108)
+- fix(monitoring): prevent graph freeze on subsecond updates, show 0 speed, and align peer chart length (#120)
+- fix(frontend): add loading states, error handling, and inactive state checks in TorrentDetailPanel (#109)
+- fix(frontend): support guarded navigation, Copilot action, and Developer pages in CommandPalette (#1021)
+- fix(history): support backend date range filtering and fix duplicate Reconcile button label (#1039)
+- fix(history): match DataJson, Trackers, and Source in history query search (#1038)
+- fix(downloadclients): implement remote pause/resume/delete endpoints and fix all-clients bulk import (#944)
+- fix(automation): execute ShouldRecheck, ShouldReannounce, and TrackersToReplace in AutomationService (#946)
+- fix(shortcuts): refine Alt+M, global Escape modal dismissal, and QuickSettings hotkeys (#710)
+- fix(backup): avoid masked API key in backup download URL in SystemBackup (#716)
+- fix(diskspace): resolve symlinks in GetBestMatchingDrive and permit disabling alerts (#889)
+- fix(automation): implement SyncArrCommand and handler for CommandWorker (#949)
+- fix(bandwidth): permit -1 paused limits and validate Days bitmask in SpeedScheduleController (#899)
+- fix(build): resolve C# compilation and nullable annotations across solution
+- fix(torrents): enforce torrent file ownership, 404 checks, and batch priority endpoint (#909)
+- fix(torrents): persist Threshold and SmallTorrentLimit in Torrent entity and TorrentController (#975)
+- fix(tags): persist Color and Seeding Policies in Tag model and TagController (#945)
+- fix(automation): support syncArr serialization and parsing in Visual Pipeline (#947)
+- fix(blocklist): support saving BlocklistAutoUpdateEnabled in BlocklistController (#950)
+- fix(developer): execute VACUUM outside transaction in SystemDatabaseController (#948)
+- fix(trackerboost): route historical and external downloads to hash-based actions in HarvesterPanel (#954)
+- fix(queue): initialize autoShutdownCondition to WhenDownloadsComplete in QueueSettingsTab (#951)
+- fix(auth): prompt exclusively for password in IdleLockModal (#966)
+- fix(indexers): unpack IndexerSearchEnvelope results in useIndexerSearch hook (#955)
+- fix(queue): allow min=0 for unlimited downloads and seeds in QueueSettingsTab (#953)
+- fix(indexers): add router navigation and filter state fallback in Indexers page (#957)
+- fix(signalr): ensure tracker, seeding, and schedule query invalidations run on receiveMessage (#956)
+- fix(tasks): support typeName task execution, return 404 for invalid tasks, and add command cancellation (#968)
+- fix(logs): include apikey query parameter in SystemLogFiles download URL (#958)
+- fix(frontend): preserve target directory query parameter in FileBrowser Open in CLI (#959)
+- fix(logs): map Fatal to Error and Warning to Warn in SystemLogs toLogLevel (#960)
+- fix(frontend): use safe copyToClipboard in TerminalView and RadarView and attach link in export (#962)
+- fix(media): prepend getUrlBase() to mediaPlayer stream, download, and playlist URLs (#961)
+- fix(packages): prefix ImportPackageModal upload with getUrlBase and set X-Api-Key header (#963)
+- fix(trackers): render custom URLs in TrackerMultiSelectModal and await batch addition (#965)
+- fix(bittorrent): wire DhtBootstrapNodes to MonoTorrent DHT engine (#972)
+- fix(torrent-creation): parse empty lines as tracker tiers in TorrentCreationTab (#964)
+- fix(trackers): preserve tier parameter in AddTracker request and DTO (#977)
+- fix(arr): unmask API key when testing existing connection by ID (#970)
+- fix(trackers): support removing fallback tracker (Id 0) and clear torrent TrackerUrl (#976)
+- fix(proxy): reset forceProxy when proxy disabled and require configured proxy in IsProxyActive (#974)
+- fix(filebrowser): propagate apikey query parameter to downloads, uploads, and playlists (#1003)
+- fix(peers): separate disconnect and ban actions, support IPv6, and add UI actions (#1001)
+- fix(frontend): pass globalRatio to SeedingSimulator and support tracker query param in TorrentIndex (#980)
+- fix(peers): include GeoIP metadata in peer graph, display country info, and fix open in torrents navigation (#1002)
+- fix(notifications): support PUT method, inject Basic Auth headers, and preserve Discord test webhook options (#983)
+- fix(storage): add directory browsing in StorageSettingsTab, fix Windows path navigation, and execute AutoRecheckOnCompletion (#1014)
+- fix(categories): prevent deleting default category in controller and disable UI action (#985)
+- fix(frontend): pass category parameter to useIndexerSearch in search modals and tabs (#987)
+- fix(indexers): record indexer test response time and preserve ratio/seed time on release grab (#990)
+- fix(frontend): display Paused state correctly in Dashboard Speed Schedule card (#992)
+- fix(bandwidth): permit -1 paused rate limits in SeedingConfigController and SpeedSettingsTab (#993)
+- fix(frontend): detect unauthenticated sessions during refresh and redirect to login (#991)
+- fix(frontend): calculate actual downloaded bytes and torrent library size in Dashboard (#994)
+- fix(frontend): normalize breadcrumbs, preserve FileManager state, and fix delete confirmation in FileBrowser (#1004)
+- fix(frontend): disable switch button on unavailable providers and display real status badge in SubsystemsTab (#998)
+- fix(frontend): fix schedule slot hour calculation and enforce minimum 1 day in ScheduleModal (#995)
+- fix(frontend): include maxAgeDays in RSS rule save payload (#996)
+- fix(queue): expose batch queue endpoint and preserve order during bulk queue moves (#1005)
+- fix(frontend): preserve comma entry for Assigned Indexer IDs in RSS Rules modal (#997)
+- fix(frontend): preserve dontShowAgain preference, add skip/quick finish, and handle masked API keys in GettingStartedModal (#1019)
+- fix(host): sanitize trailing slash in UrlBase to prevent Kestrel startup crash (#999)
+- fix(frontend): add context menu and multi-selection support to TorrentGrid (#1010)
+- fix(bittorrent): support 4096MB disk cache limit and map None cache policy (#1017)
+- fix(frontend): preserve tags on set category, prefix package export with getUrlBase, and use safe clipboard in TorrentContextMenu (#1008)
+- fix(apidocs): prefix Swagger and OpenAPI URLs with getUrlBase and add clipboard fallback (#1018)
+- fix(frontend): connect TorrentTable to persisted columnPreferences sort state (#1006)
+- fix(torrents): map swarm availability into TorrentResource for frontend display (#1009)
+- fix(frontend): include Category column in ALL_COLUMNS master list (#1007)
+- fix(frontend): invalidate queries and request state snapshot on SignalR cold-start and manual reconnection (#1023)
+- fix(frontend): prevent false dirty state on AI provider activation and synchronize probe state (#1048)
+- fix(frontend): allow downloading generated .torrent file in TorrentCreationTab (#1012)
+- fix(history): restore media metadata in ReAddAsync when re-adding historical torrents (#1036)
+- fix(frontend): handle camelCase and PascalCase health check types in StatusBar and SystemStatus (#1011)
+- fix(bittorrent): respect Turtle Mode rate limits during MonoTorrent ApplyConfigChangesAsync (#1027)
+- fix(frontend): localize route and modal ErrorBoundary titles and fix default fallback title (#1034)
+- fix(frontend): permit case-insensitive .torrent extensions and magnet:? URIs in Add Torrent (#1015)
+- fix(frontend): remove speedPulse from EVENT_INVALIDATION_MAP to prevent 1-second query storm (#1022)
+- fix(frontend): eliminate stale closure and dropped pointer releases in BandwidthCard sliders (#1026)
+- fix(frontend): honor backend piece offsets and distinguish missing pieces in PieceMap file boundaries mode (#1024)
+- fix(security): add CORS allowed origins configuration and sync with CSRF protection middleware (#1045)
+- fix(frontend): add individual record delete actions to History Grid View and Detail Modal (#1037)
+- fix(frontend): prevent TorrentTable keydown handler from hijacking DetailPanel and QuickSettings navigation (#1032)
+- fix(frontend): localize AriaLiveAnnouncer telemetry announcements and queue concurrent messages (#1033)
+- fix(frontend): infer TMDb media type from arrType and render cast list in HistoryDetailModal (#1040)
+- fix(frontend): guard SpeedGraph history seeding against empty initial server arrays (#1025)
+- fix(frontend): dynamically include custom connection limit options in NetworkSwarmCard (#1030)
+- fix(frontend): add TXT export and include missing metadata fields in history CSV export (#1041)
+- fix(frontend): improve LanguageSelector tooltip interpolation and keyboard accessibility (#1031)
+- fix(history): sync cumulative seeding time to download history and fix short duration formatting (#1035)
+- fix(frontend): normalize download client torrent progress scale and guard search filter against nulls (#1042)
+- fix(frontend): guard DiskStorageBadge against division by zero on empty or unmounted volumes (#1029)
+- fix(frontend): add missing icons to Tracker, System, and Developer sidebar submenus
+- fix(test): enforce 4-space multiple indentation on line 452 of PtyTerminalServiceTest
+- fix(test): harden PTY resize timing in PtyTerminalServiceTest
+- fix(frontend): update Developer Testing, REPL, and Debugger pages to match Leecharr design system
+- fix(integration): use valid NzbVortex actions pause/resume/file routes
+- fix(integration): update NzbVortex API test route from /history to /nzb
+- fix(integration): use PropertyNameCaseInsensitive for RestResource deserialization
+- fix(integration): align test assertions with DryIoc rules and active API endpoints
+- fix(lint): align verbatim JSON string indentation to multiple of 4 spaces
+- fix(lint): enforce 4-space multiple indentation on Torznab XML test literal
+- fix(test): wait for broadcaster.IsConnected before sending broadcast message to eliminate CI race
+- fix(test): increase SignalR integration test timeout to prevent CI cancellations
+- fix(storage): refine folder-with-single-file detection and fallback base directory resolution across download client RPCs
+- fix(deadlock): close disk manager file handles, non-blocking queue lock, and early exit on directory deletion
+- fix(storage): report completed download folder as save_path and preserve folder structure for single-file torrents
+- fix(quality): upgrade generic error fallbacks in ErrorBoundary and ImportTools
+- fix(quality): eliminate comment noise and synchronize localization keys across all languages
+- fix(quality): add trace logging on code page fallback in SubtitleEncodingDetector
+- fix(quality): add structured logging to unlogged catches in HTTP authentication handlers
+- fix(quality): add trace logging on scheduler delay cancellation
+- fix(quality): add structured logging to unlogged catches in TorrentController
+- fix(quality): replace cargo-cult try-catch rethrows with exception filters in TorznabClient
+- fix(quality): add trace logging on reflection type loading in SystemDeveloperController
+- fix(quality): remove unnecessary async and add trace logging in SystemDatabaseController
+- fix(quality): add trace logging in terminal sessions, GeoIP, messaging, and transport
+- fix(quality): add trace logging across MonoTorrent engine and upgrade generic error messages in frontend
+- fix(quality): add diagnostic trace logging across NatPmpPortMapperService
+- fix(quality): add trace logging in network, media inspection, transport, and trackerboost
+- fix(quality): add trace logging in BitTorrent engines, SignalR handlers, and session tasks
+- fix(quality): add trace logging in FileBrowser, SystemResource, GeoIp, TagLib, and Terminal sessions
+- fix(quality): add trace logging in QBittorrentSearch, CustomScript, and transaction rollbacks
+- fix(quality): add diagnostic trace logging across NotificationPayloadBuilder and WebhookDispatcher
+- fix(slop): remove Captain Obvious narration comments and vague catch fillers
+- fix(slop): eliminate unnecessary async, redundant wrappers, magic block comment, and generic error fallbacks
+- fix(quality): add diagnostic logging for session, path, cert, and backup handlers
+- fix(quality): eliminate silent catches across API controllers and add trace logging
+- fix(quality): eliminate silent catches and untyped parameters across backend and frontend
+- fix(quality): resolve smells, JSX entities, and types from code complete review
+- fix(ui): default filter panel to collapsed on mobile
+- fix(ui): eliminate mobile scroll locks and enable dynamic viewport height
+- fix(developer): remove duplicate top tabbed menu and align page content to full width
+- fix(database): avoid poisoning pooled sqlite connection with PRAGMA query_only
+- fix(ui): eliminate page body overflow in database explorer with proper flex constraints
+- fix(ui): remove redundant terminal under system menu and expand database explorer to full width/height
+- fix(ci): format master_sync_i18n.py with ruff line-length 120 and add .ruff.toml
+- fix(lint): fix indentation to multiple of 4 and format master_sync_i18n.py
+- fix(media-player): standardize mpv URI protocol across player utilities and tests
+- fix(quality): eliminate silent catches and ensure strict formatting parity
+- fix(filebrowser): restore content-area layout wrapper and 1.5rem padding
+- fix(controller): define logger and sort using directives alphabetically
+- fix(lint): remove trailing whitespace on line 22 of TorrentFile.cs
+- fix(player): resolve L.map crash, add streaming, download and subtitles backend support
+- fix(test): import NzbDrone.Core.Torrents namespace in LibTorrentVersionSupportTest
+- fix(sync): real-time live telemetry synchronization between engine and API/UI
+- fix(engine): add resilient progress calculation fallbacks and trace logging
+- fix(engine): decode peer client bytes and add fallback json serializer
+- fix(engine): remove non-existent Torrent.Trackers property reference
+- fix(engine): resolve pipe buffer deadlock, multi-tracker binding, and swarm interface in libtorrent daemon
+- fix(test): add missing using directive NzbDrone.Core.Download in LibTorrentVersionSupportTest
+- fix(ci): revert undeclared workflow inputs
+- fix(lint): format python sidecar and align workflow linter configuration
+- fix(test): unescape json unicode in prompt assertions and align episode collision paths
+- fix(test): alphabetical ordering of using directives in AiAssistantAndPromptServiceTest
+- fix(test): resolve SA1316 tuple casing in TorrentOrganizerServiceTest and CS8632/CS0117 in ClientImportAndProxyTest
+- fix(test): add missing using Microsoft.AspNetCore.Http.Connections.Features in TorrentAndNotificationHubsTest
+- fix(hub): disambiguate global System namespace aliases in SignalR hubs
+- fix(test): replace string containing raw null bytes with byte array in TagLibInspectorProviderTest
+- fix(test): resolve edge-case unit test assertions across blocklist, transports, and packages
+- fix(test): add missing using namespaces and remove nullable dictionary annotations
+- fix(test): resolve nullable warnings and controller attribute routing in new tests
+- fix(rpc): support groupsetname in NzbgetRpcController editqueue
+- fix(test): resolve assertions for Nzbget, cleanup task, AutomationService, and YamlScriptRunner
+- fix(test): add NSubstitute.ExceptionExtensions to HadoukenRpcControllerTest
+- fix(test): resolve ParsedTorrent, nullable annotations, and event ctor signatures
+- fix(test): escape newline characters in AutomationServiceTest yaml string
+- fix(test): resolve 7z extractor assertions and FreeboxUpdateRequest JsonPropertyName mapping
+- fix(test): correct type names and FluentAssertions methods in unit test suites
+- fix(automation): call single-parameter PauseAsync in AutomationService
+- fix(lifecycle): invoke PauseAsync with single id to satisfy integration test contracts
+- fix(engine): ensure PieceManager Requester and StreamProvider update cleanly in SetSequentialDownloadAsync
+- fix(engine): simplify ChangePickerAsync without stopping manager to avoid state transition race
+- fix(test): return Array.Empty<TrackerSwarmInfo>() in GetTorrents when empty to satisfy unit test cast
+- fix(swagger): remove [FromForm] attributes on PackageController.Import to resolve SwaggerGeneratorException
+- fix(ci): use var instead of explicit type in EmbeddedTrackerController
+- fix(ci): use ExecuteWithRetry and table field in TrackerMetric repositories
+- fix(ci): resolve integration test endpoint check and untrack translation memory cache
+- fix(i18n): reconcile missing keys, synchronize 20 locales to 100% parity, and localize components
+- fix(i18n): sanitize irregular whitespace in translation memory and locales
+- fix(frontend): import useMemo in TorrentContextMenu to resolve ReferenceError
+- fix(ui): ensure '#' column displays sequential row index and add dedicated 'Queue #' column
+- fix(vpn): allow awaiting vpn transition queue and mock interface IP in MonoTorrent restore test
+- fix(ci): format whitespace and indentation to satisfy super-linter and pass CI pipeline
+- fix(torrents): prevent in-flight add race, zombie tasks, and orphan files on delete (fixes #834)
+- fix(bittorrent): persist metadata, piece count, size, and TorrentFile records upon magnet resolution (fixes #113)
+- fix(piecepicker): update custom piece picker capability declaration and harden block tracking (fixes #855)
+- fix(bittorrent): update super seeding state and prevent infinite loop in maintenance loop (fixes #936)
+- fix(lifecycle): synchronize super seeding completion exit to Torrent.InitialSeeding (fixes #776)
+- fix(queue): demote timed-out magnet metadata resolution to prevent queue slot exhaustion (fixes #852)
+- fix(torrents): accurately preserve and persist cumulative upload statistics across queries and restarts (fixes #125)
+- fix(security): enforce RequireAdmin and RequireOperator role policies on administrative endpoints (fixes #282)
+- fix(engine): validate destination disk space and prevent state corruption on move failure (fixes #171)
+- fix(engine): resolve routing race condition during dynamic engine migration and rollback (fixes #801)
+- fix(categories): fix category creation validation and allow custom download paths
+- fix(network): handle loopback forwarded headers in embedded tracker and clear halted state on vpn restore
+- fix(api): specify explicit http methods and explorer settings on rpc controllers for swagger generation
+- fix(categories): synchronize category changes to engine and handle default category deletion (fixes #826)
+- fix(security): invalidate RPC sessions and SignalR connections on credential rotation (fixes #817)
+- fix(bittorrent): support standard v1 and v2 btmh magnet uri building (fixes #908)
+- fix(torrents): propagate sequential download and first-last piece priority to engine on add and update (fixes #793)
+- fix(aria2): extract token from multicall subcalls and isolate subcall failures (fixes #273)
+- fix(enrichment): inspect downloaded media files on completion and extraction (fixes #121)
+- fix(qbittorrent): support url parameter alias and return 409 on tracker not found in editTracker (fixes #384)
+- fix(security): mask secrets and api keys in GET endpoints and preserve existing on update (fixes #283)
+- fix(bittorrent): support bep 6 reject request and wire utp protocol flags (fixes #643)
+- fix(qbittorrent): operate seeding time limits natively in minutes without erroneous scale conversions (fixes #302)
+- fix(qbittorrent): preserve existing tags on addTags and include tags/removed deltas in sync/maindata (fixes #632)
+- fix(transmission): handle root-prefixed paths and root folder rename in torrent-rename-path (fixes #457)
+- fix(scheduler): only resume scheduler-interrupted torrents and respect queue limits (fixes #751)
+- fix(qbittorrent): add sorting, pagination, and filter accuracy to torrents info (fixes #633)
+- fix(deluge): implement web.get_events polling and register in rpc methods (fixes #648)
+- fix(network): treat 'Any' and 'all' as unconstrained wildcard interfaces in socket binding (fixes #738)
+- fix(security): terminate blocklisted peer connections and publish PeerBannedEvent on bad peer bans (fixes #756)
+- fix(categories): enforce canonical rooted path validation and strict write checks (fixes #732)
+- fix(automation): map ratio, seed time, and share limit action mutations in AutomationService (fixes #741)
+- fix(webhooks): update existing metadata and support Lidarr/Readarr titles in ArrWebhookController (fixes #739)
+- fix(automation): use CreateHardLink and UnixFileMode in YamlScriptRunner (fixes #740)
+- fix(transmission): scope trackerRemove and trackerReplace to torrent and support 0-based indices (fixes #742)
+- fix(indexers): scope Prowlarr indexer pruning and matching to target base URL (fixes #743)
+- fix(queue): respect ForceStart and bypass concurrency limits in QueueManagerService (fixes #744)
+- fix(engine): serialize force rechecks to prevent disk thrashing and preserve repair flag on completion (fixes #747)
+- fix(indexers): expand category hierarchy in TorznabClient.FetchRssAsync (fixes #745)
+- fix(deluge): include stopped and completed torrents under paused state in DelugeJsonRpcController (fixes #748)
+- fix(automation): delegate torrent lifecycle mutations to ITorrentService in AutomationService (fixes #753)
+- fix(queue): evaluate queue on all external status transitions in QueueManagerService (fixes #750)
+- fix(indexers): prioritize freeleech flag over default downloadvolumefactor in TorznabClient (fixes #749)
+- fix(qbittorrent): support id/path parameters in setSavePath and add setDownloadPath endpoint (fixes #752)
+- fix(torrents): remove event publishing side-effects from TorrentService.SyncWithEngine read queries (fixes #763)
+- fix(blocklist): prevent pipe deadlocks and async serialize ipset commands in LinuxIpSetBlocklistProvider (fixes #754)
+- fix(storage): align DiskSpaceService warning and critical threshold ordering (fixes #755)
+- fix(categories): preserve dynamic category limit inheritance on torrents (fixes #765)
+- fix(watchfolder): poll until debounce window expires before aborting on locked files (fixes #757)
+- fix(media-inspection): detect Dolby Vision in EBML Matroska and promote hybrid HDR in filename hints (fixes #760)
+- fix(extraction): clean up partial and corrupted files on extraction failure or cancellation (fixes #758)
+- fix(engine): automatically resume auto-paused torrents when disk space is restored (fixes #759)
+- fix(notifications): cap WebhookDispatcher Retry-After delay and prevent unbounded retry backoff (fixes #762)
+- fix(media-inspection): use non-exclusive file sharing in TagLibInspectorProvider to prevent sharing violations (fixes #761)
+- fix(vpn): enforce fail-closed listen endpoints and validate vpn ip before resumption (fixes #764)
+- fix(backup): use vacuum into for atomic backups and stage pending restore for safe restart (fixes #766)
+- fix(arr-integration): dispose http responses, enforce TLS validation, and add SSRF check (fixes #767)
+- fix(storage): preserve custom save path on download completion and prevent unwanted file relocation (fixes #774)
+- fix(security): require explicit proxy configuration for ForwardAuth and do not trust unconfigured loopback (fixes #768)
+- fix(auth): invalidate in-memory session cache on logout (fixes #769)
+- fix(torrents): enforce MaxTorrentFileSizeBytes validation on multipart upload endpoints (fixes #770)
+- fix(lifecycle): execute sqlite pragma wal checkpoint only on sqlite and clear npgsql pools on postgres (fixes #771)
+- fix(transmission): apply engine rate limits on session-set and support seedRatioMode/seedIdleMode (fixes #773)
+- fix(storage): update WorkingPath and SavePath on MoveTorrentFilesAsync and clear StorageFull on ample space (fixes #772)
+- fix(jobs): prevent duplicate scheduled task dispatch and record actual execution completion (fixes #775)
+- fix(healthcheck): parallelize health checks with timeouts and publish HealthIssueEvent on state transitions (fixes #778)
+- fix(peers): register PeerConnectionHistoryService as singleton and record peer connect/disconnect events (fixes #787)
+- fix(jobs): seed default scheduled tasks for background scheduler and system tasks UI (fixes #782)
+- fix(deluge): implement RPC method dispatchers for core plugins (fixes #777)
+- fix(signalr): prevent silent drops on guaranteedChannel, add per-send client timeout, and protect piece map updates (fixes #779)
+- fix(security): enforce hierarchical path containment and system directory protection in file browser (fixes #780)
+- fix(security): prevent DNS leaks on VPN outage by checking interface and kill switch before resolution (fixes #783)
+- fix(rtorrent): filter d.multicall2 by view and return full payload path in d.base_path (fixes #781)
+- fix(tags): synchronize Torrent.TagIds and Torrent.Label and clean orphaned tag references (fixes #785)
+- fix(flood): add connection-test endpoint, send FULL_UPDATE on sse connect, and validate torrent file size (fixes #784)
+- fix(engine): synchronize full engine settings including connections and rate limits on config save (fixes #789)
+- fix(ai): pass gemini api key via x-goog-api-key header and encapsulate untrusted inputs in prompt boundaries (fixes #786)
+- fix(security): bind http tracker announces to network interface and enforce vpn kill switch (fixes #819)
+- fix(telemetry): parallelize async subsystem health probes with caching and single subsystem targeting (fixes #788)
+- fix(frontend): align ModelAction enum and add missing Servarr import fields to Torrent interface (fixes #828)
+- fix(engine): synchronize StartAsync and StopAsync with switchLock and prevent resurrecting stopped engines (fixes #821)
+- fix(trackerboost): reserve Tier 0 for canonical trackers and prevent announce flooding (fixes #802)
+- fix(ai): configure infinite httpclient timeout, log gemini errors, and report accurate provider on fallback (fixes #791)
+- fix(prowlarr): validate TLS, dispose http responses, async command execution, and handle indexer sync webhooks (fixes #799)
+- fix(automation): enforce TLS validation and isolate cookie containers in ScriptHttpContext (fixes #792)
+- fix(qbittorrent): pass storage and config dependencies to fallback TorrentCreationService (fixes #806)
+- fix(swarm): accurate peer flags, encryption and protocol in PeerResource, and peer ban endpoint (fixes #800)
+- fix(queue): respect torrent priority, skip do-not-download, and evaluate limits on resume (fixes #794)
+- fix(diskspace): fix inverted threshold hierarchy and eliminate side effects from GET diskspace (fixes #795)
+- fix(history): rollback database records on engine failure in ReAddAsync and verify disk files (fixes #796)
+- fix(deluge): support full tracker list, first/last piece priority, and sequential options (fixes #809)
+- fix(vpn): fail closed in NatPmpPortMapperService to prevent LAN leaks on VPN drop (fixes #798)
+- fix(downloadclients): ssrf protection, socket leak prevention, and sync concurrency control (fixes #812)
+- fix(bandwidth): resolve per-torrent limits accurately without locking stale schedule throttles (fixes #811)
+- fix(torrents): preserve BEP 47 byte and piece offsets for torrent files (fixes #803)
+- fix(transmission-rpc): handle TorrentDeletedEvent, ensure id in fields, and mask spare bitfield bits (fixes #808)
+- fix(extraction): recheck disk space inside semaphore and clean partial files on failure (fixes #804)
+- fix(commands): command deduplication, handler disposal, and concurrency pooling in CommandQueueManager (fixes #805)
+- fix(security): enforce strict MSE/PE encryption modes and map across Deluge and qBittorrent adapters (fixes #845)
+- fix(torrents): rollback moved files on engine or database failure in SetLocationAsync (fixes #843)
+- fix(media-inspection): evaluate transfer characteristics before primaries in colr nclx parser (fixes #807)
+- fix(blocklist): preserve decimal-hextet IPv6 addresses and prevent false eMule level truncation (fixes #813)
+- fix(torrents): support SHA-256 v2 infohashes and hybrid torrents in database and engines (fixes #830)
+- fix(piecepicker): randomized tie-breaking for equal rarity and balanced swarm availability tracking (fixes #831)
+- fix(datastore): cross-database pagination, 30s busy_timeout, and retry policy for locks (fixes #810)
+- fix(arr-webhooks): strict path matching, safe title correlation, and deletion handling in ArrWebhookController (fixes #814)
+- fix(logging): database persistence, atomic queue eviction, and LRU pruning in TorrentLogService (fixes #825)
+- fix(swarm): enforce MaxConnectionsPerIp and track listener half-open connections (fixes #827)
+- fix(indexers): respect capability expiration in pagination, coalesce t=caps fetches, and fix invalidation keys (fixes #815)
+- fix(memory): respect cgroup container memory limits and enforce 25% ceiling on dynamic write cache (fixes #849)
+- fix(organizer): neutralize template traversal, enforce baseline filesystem safety, and prevent colon leakage (fixes #816)
+- fix(queuemanager): coalesce concurrent queue runs and persist fresh LastActive timestamps (fixes #818)
+- fix(torrents): sanitize parsed torrent names and restrict save path to allowed media directories (fixes #822)
+- fix(fastresume): verify physical file existence before fast resume synthesis and preserve validation metadata (fixes #842)
+- fix(storage): safe collision resolution, atomic staging copy, and clean failure rollback in MoveToCompleted (fixes #820)
+- fix(torrents): restrict super seeding to 100% completed seeding torrents (fixes #824)
+- fix(engine): stop managers and flush disk buffers before capturing fast resume checkpoints on shutdown (fixes #846)
+- fix(security): wire AnonymousMode to suppress listen endpoints, dht, lpd, and port forwarding, and handle ipv6 proxy uri (fixes #837)
+- fix(tags): case-insensitive tag lookup, duplicate update validation, and comma rejection (fixes #823)
+- fix(auth): bounded session cache, singleton DI registration, and session pruning on cleanup and role changes (fixes #836)
+- fix(storage): propagate preallocation failures and prevent synthetic fast resume on failed allocation (fixes #854)
+- fix(watchfolder): support subdirectories, category auto-mapping, root loaded/failed dirs, and exclusion filtering (fixes #832)
+- fix(security): suppress LPD when VPN kill switch or interface binding is active to prevent LAN leaks (fixes #848)
+- fix(transmission-rpc): support empty labels array, multi-label serialization, and applyAllIfEmpty on torrent-set (fixes #833)
+- fix(security): require InResponseTo on SAML callbacks, sanitize role provisioning, and set OIDC metadata URL (fixes #839)
+- fix(network): implement periodic epoch verification, local IP renewal remapping, and UPnP IGD port registration (fixes #857)
+- fix(categories): support hierarchical save path inheritance, rename cascading, and slash normalization (fixes #838)
+- fix(deluge): preserve add_torrent options and return structured error on failure (fixes #841)
+- fix(extraction): reject unrar non-zero exits, clean up partial extraction files, and dispatch automation extractions (fixes #840)
+- fix(auth): secure session cookies and protect rate limiter from spoofed forwarded headers (fixes #882)
+- fix(notifications): limit Discord embed description to 2048 chars and escape Telegram markdown entities (fixes #847)
+- fix(ci): protect abbreviation dots with trailing dot in CleanTitle
+- fix(indexers): support multi-category search, contextual mode detection, and validate season for episode parameter (fixes #856)
+- fix(ci): fix CleanTitle abbreviation regex word boundary and update iso test cases in MediaInspectionServiceTest
+- fix(security): enforce VPN kill switch and network binding in TrackerBoostService (fixes #871)
+- fix(bittorrent): respect AnnounceToAllTiers and AnnounceToAllInTier in ForceAnnounceAsync (fixes #861)
+- fix(media-enrichment): merge fallback metadata without poster and replace empty placeholders (fixes #850)
+- fix(search): deduplicate search results, rank by seeders, and align 404 status (fixes #851)
+- fix(transmission): enforce interface binding, proxy, and blocklist in EmbeddedTransmissionEngine (fixes #884)
+- fix(deluge-rpc): validate temp upload paths and report failure on missing files (fixes #853)
+- fix(torrents): protect unimported files on seed goal and sync super-seeding state (fixes #880)
+- fix(notifications): enhance Gotify and Pushover priorities, bounds, Slack blocks, and Telegram escaping (fixes #862)
+- fix(proxy): prevent SOCKS4 WebProxy failure, use socks5h for remote DNS, and clamp RFC 1929 credentials (fixes #858)
+- fix(qbittorrent): implement incremental sync in torrentPeers and fix torrent properties metadata (fixes #860)
+- fix(indexers): deduplicate multi-indexer search results and enforce deterministic pagination (fixes #911)
+- fix(lifecycle): restore torrents on startup when AutoStart is false and pause engine manager (fixes #939)
+- fix(security): use ArgumentList in CustomScriptService to prevent command injection and argument shattering (fixes #869)
+- fix(indexers): propagate OperationCanceledException in TorznabClient (fixes #902)
+- fix(media-inspection): parse ISO/IMG containers, extract subtitle languages, and guard EBML varint reading (fixes #863)
+- fix(qbittorrent): incorporate client identity and user-agent into session key to prevent sync collision (fixes #868)
+- fix(deluge-rpc): prepend root All tracker_host, separate natpmp from upnp, and fix seed_time_limit (fixes #864)
+- fix(queuemanager): add speed hysteresis and respect Torrent.Priority in queue ordering (fixes #915)
+- fix(transmission-rpc): default torrent-set-location move to false and validate target path (fixes #859)
+- fix(webhooks): harden SSRF validation, block IPv6 ULA, and prevent synchronous I/O in WebhookDispatcher (fixes #865)
+- fix(ci): resolve physical path in BackupIntegrationTest for sanitized backup filename
+- fix(datastore): handle TimeSpan, DateTime, and string in TimeOnlyTypeHandler.Parse (fixes #866)
+- fix(trackers): preserve BEP 12 multitracker tiers in addTrackers and Transmission RPC (fixes #875)
+- fix(security): constrain XML parsing with DtdProcessing.Prohibit and entity bounds (fixes #888)
+- fix(security): bind SocketsHttpHandler sockets to network interface and fail closed on VPN drop (fixes #895)
+- fix(automation): execute banPeer, boostTracker, extractArchive, and cleanUnwantedFiles actions (fixes #885)
+- fix(api): mark ResolveBackupPhysicalPath as NonAction to fix Swagger OpenAPI generation in CI
+- fix(bittorrent): configure tracker decompression and populate BEP 10 client version (fixes #879)
+- fix(media-enrichment): support multi-episode ranges and protect year-titled movies in CleanTitle (fixes #874)
+- fix(media-inspection): TrueHD Atmos differentiation, Dolby Vision profiles, and hvcC loop bounds (fixes #867)
+- fix(security): enforce authentication on tracker admin APIs and validate forwarded headers (fixes #876)
+- fix(automation): non-blocking dispatch, deduplicate seed triggers, and debounce in AutomationEventService (fixes #870)
+- fix(bandwidth): remove redundant rate limit override in TorrentController (fixes #873)
+- fix(deluge-rpc): correct is_seed for completed torrents, add label.clean, and fix web.update_ui stats (fixes #872)
+- fix(indexers): preserve MinimumRatio and MinimumSeedTime on RSS grab and search download (fixes #896)
+- fix(prowlarr): preserve reverse proxy subpaths in ProwlarrSyncService (fixes #877)
+- fix(signalr): sanitize private tracker passkeys in TorrentResource broadcasts (fixes #881)
+- fix(qbittorrent): preserve directory in renameFile and align amount_left in sync/maindata (fixes #883)
+- fix(rtorrent): align completed/left bytes to progress and add fault structs in multicall (fixes #878)
+- fix(security): sanitize filesystem paths and mask raw exception messages in APIs (fixes #905)
+- fix(ci): inject safeHttpClientService mock in IndexerResourceSerializationAndTest to prevent SSRF block on localhost
+- fix(media-inspection): detect E-AC-3 Atmos tracks and extract audio tags and artwork (fixes #893)
+- fix(diskspace): resolve Linux symlinks in GetBestMatchingDrive and deduplicate shared volumes (fixes #889)
+- fix(bittorrent): harden UdpTrackerService against amplification, MTU fragmentation, and endianness bugs (fixes #891)
+- fix(rpc): preserve category, properly split tags, and include labels in Flood API (fixes #887)
+- fix(rpc): conform uTorrent getfiles tuple schema and fix setprops rate rounding and trackers (fixes #886)
+- fix(webhooks): normalize infohashes for magnet matching and use SetCategoryAsync in ArrWebhookController (fixes #894)
+- fix(security): halt inbound connections and disable DHT when VPN kill switch is active (fixes #904)
+- fix(torrents): publish TorrentDeletedEvent before deleting child entities and cache (fixes #897)
+- fix(bittorrent): dynamically update listen endpoints and peer sockets on interface/proxy config changes (fixes #906)
+- fix(security): prevent SSRF in indexer test and enforce absolute HTTP/HTTPS URLs (fixes #900)
+- fix(rpc): support POS_SET, POS_CUR, POS_END with offsets in aria2.changePosition (fixes #898)
+- fix(bandwidth): allow -1 for paused schedule tiers and validate days bitmask in SpeedScheduleController (fixes #899)
+- fix(datastore): add periodic SQLite WAL checkpointing and autocheckpoint pragma (fixes #929)
+- fix(torrents): validate ownership, clamp ranges, and add batch endpoint for file priorities (fixes #909)
+- fix(bittorrent): enforce handshake timeout and half-open limit on inbound peer connections (fixes #910)
+- fix(categories): handle duplicate categories idempotently and prevent unique constraint violations (fixes #901)
+- fix(storage): strip root from segments in TorrentPathValidator to prevent Windows path corruption (fixes #923)
+- fix(rpc): verify peer port reachability in Transmission port-test (fixes #922)
+- fix(indexers): fallback to size element on enclosure length 0 and handle freeleech variants (fixes #931)
+- fix(bittorrent): support pure BEP 52 v2 piece hashing without throwing on empty v1 span (fixes #925)
+- fix(rpc): validate file sizes, handle parse errors, and return Fails in qBittorrent torrents/add (fixes #913)
+- fix(queue): implement MoveQueueBatchAsync with boundary locking to prevent leapfrogging (fixes #938)
+- fix(bittorrent): support BEP 52 Base32 multihashes and hybrid parameters in MagnetLinkParser (fixes #916)
+- fix(indexers): propagate Torznab errors to record indexer failures accurately (fixes #933)
+- fix(rpc): support cookies, duplicate detection, and validation in Transmission torrent-add (fixes #919)
+- fix(rpc): conform Deluge RPC error schema and handle plugin method dispatch (fixes #914)
+- fix(security): prevent proxy bypass and cloud metadata access in ProxyTunnelBindingProvider (fixes #918)
+- fix(environment): expand OsInfo container detection for Podman/K8s and expose in UpdateResource (fixes #903)
+- fix(rpc): calculate accurate session-stats current-stats and real-time speeds in Transmission RPC (fixes #917)
+- fix(rpc): implement rTorrent custom2-5 fields, d.views.has, and multicall view filtering (fixes #934)
+- fix(queue): synchronize queue position allocation to prevent duplicates on concurrent additions (fixes #927)
+- fix(rpc): bind search POST form parameters, support negative offset, and set SiteUrl (fixes #920)
+- fix(rpc): add All to tracker_host and support comma-separated multi-labels in Deluge filter tree (fixes #926)
+- fix(indexers): restrict Prowlarr sync to torrent protocol and handle non-torrent releases (fixes #921)
+- fix(media): skip non-target EBML master elements and handle malformed Matroska safely (fixes #907)
+- fix(notifications): sanitize CRLF in email subjects, support semicolon recipients and async SMTP (fixes #892)
+- fix(notifications): parse URI in ResolveTargetUrl to preserve query string when appending endpoint path (fixes #937)
+- fix(rpc): populate pieceStates in-flight status and resolve AppDataFolder in pieceHashes (fixes #930)
+- fix(security): resolve parent symlinks in TorrentPathValidator and sanitize path parts in TorrentFileParser (fixes #928)
+- fix(rpc): handle flat param lists, move_completed_path, and rate limits in Deluge RPC (fixes #932)
+- fix(trackerboost): implement BEP 15 UDP retransmission backoff and error response handling (fixes #935)
+- fix(rpc): fix Transmission torrent-get dates and trackerList batch replacements (fixes #940)
+- fix(history): preserve all trackers, BEP 27 private flag, and cached torrent file on re-add
+- fix(i18n): replace dummy placeholder translations with authentic localized copy across all 20 languages
+- fix(torrents): ensure single-torrent pause only pauses selected torrent and clarify global toolbar buttons
+- fix(docker): ensure config and downloads directory permissions on container startup
+- fix(torrent): allow arbitrary positive piece lengths and fix bulk add error display
+- fix: restore tv-sonarr and radarr categories in stack setup
+- fix: keep category blank in transmission download client setup so arr expects root /downloads
+- fix: consolidate torrent repository update in arr webhook handler
+- fix: auto-assign category from arr webhooks and download-dir, and configure default categories in arr stack
+- Fix completedDir fallback resolution when storagePathService returns empty string
+- Fix using directives and dependency injection in client RPC controllers
+- Fix qBittorrent and client APIs reporting incomplete download directory for save_path and content_path
+- fix(frontend): remove duplicate private badge, fix header badge text and terminal folder spacing
+- fix(torrent-engine): resolve root folder for multi-file torrents and file path for single-file torrents
+- fix(torrent-engine): accurately resolve logical source path on completion for single and multi-file torrents
+- fix(style): resolve StyleCop SA1116 parameter formatting in MonoTorrentDownloadEngine
+- fix(torrent-engine): eliminate double download by using native MoveFilesAsync without engine stop/restart cycle
+- fix(arr-integration): align default download paths, normalize transmission rpc paths, and clear category subpath requirement
+- fix(torrent): fix double download recheck, align rpc paths, remove redundant path mappings, and isolate tests
+- fix(engine): safely query file size and respect mocked disk providers in completion checks
+- fix(torrent): resolve savePath dynamically without hardcoded path overrides
+- fix(transmission): normalize category downloadDir and configure arr remote path mappings
+- fix(docker): map leecharr downloads to /downloads in sonarr and radarr, and refine completed status detection
+- fix(engine): resolve completed download reset loop, fastresume persistence, and startup seeding detection
+- fix(bittorrent): invoke StoragePathService.MoveToCompleted before updating MonoTorrent seeding save path
+- fix(bittorrent): use overwrite true on MoveFilesAsync and ensure manager stopped for FastResume
+- fix(bittorrent): streamline MonoTorrent MoveFilesAsync and strip incomplete extensions on completion
+- fix(bittorrent): prevent PreallocateFilesAsync and recheck loop on completed torrents
+- fix(bittorrent): ensure multi-file torrents resolve containing directory on completion
+- fix(torrent): eliminate completion event loop and fix save path resolution for clean seeding lifecycle
+- fix(torrent): prevent re-download loop on completion and add queued recheck state
+- fix(ui): swap toolbar buttons on selection, unify button sizing, and fix detail panel start/recheck state
+- fix(engine): support partial season pack completion recheck and expand candidate path resolution in CalculatePieceHashDirectAsync
+- fix(engine): load 100% FastResume on completion and guard preallocation to prevent re-downloading completed torrents
+- fix(compose): add priority to prowlarr indexer, trigger sync, and fix transmission urlBase
+- fix(compose): add prowlarr indexer and connection config with api key headers and error logging
+- fix(categories): throw not writable only when folder exists and cannot be written
+- fix(bittorrent): fix peer flags ordering and make category save path auto-creation non-fatal
+- fix(notifications): escape parentheses in markdown and delegate effective limits to speed scheduler
+- fix(host): use MaxDownloadSpeedKbps and MaxUploadSpeedKbps for speed limit check
+- fix(host): resolve IAppLifetimeServices DiskSpaceService type mapping
+- fix(ui): attach custom event listeners for quick settings and modal closing
+- fix(categories): assign integer zero for CategoryId reset in CategoryService
+- fix(emulation, integration): support rTorrent deleteFiles/delete_tied, webhook events, and TLS bypass
+- fix(indexers): implement pagination envelope, category expansion, batch test, and health backoff (#728, #719)
+- fix(bittorrent): speed limits precedence, webseeds ingestion, and piece picker startup file priorities
+- Fix automation pipeline, webhook rate limits, markdown escaping, and logging reconfiguration
+- fix(api): adjust file upload parameter binding for Swagger schema generation
+- fix(automation): type-aware condition builders with boolean/numeric operators and live previews
+- fix(core): remove duplicate event classes in Leecharr.Core
+- fix(ui): use standard SVG AutomationIcon to align sidebar navigation text
+- fix(ui): expand code editor textarea with full width, monospace typography, minHeight, and tab indentation
+- fix(ui): polish automation modal layout, form controls, padding, and field sizing
+- fix(ui): eliminate modal background transparency and enforce solid theme background with backdrop blur
+- fix(automation): use string concatenation for YAML templates to satisfy both yaml parser and editorconfig
+- fix(lint): format yaml string literals to strict 4-space multiple indentation
+- fix(lint): format multiline string literals with 4-space indentation for editorconfig
+- fix(bittorrent): skip redundant automatic completion recheck when torrent is already fully verified
+- fix(bittorrent): implement direct streaming piece hash calculation with O(1) constant memory
+- fix(bittorrent): default DiskCachePolicy to WritesOnly to prevent unbounded read cache leak during hash checks
+- fix(engine): actively drain and trim MonoTorrent MassiveBuffers queue during hashing to prevent unbounded memory retention
+- fix(engine,container): force LOH compaction during piece hashing and remove heap hard limit
+- fix(torrent): prevent FastResume checkpoint save during hash check and log error state reason
+- fix(host): allow reverse proxy origins for CORS to ensure SignalR real-time websocket connectivity
+- fix(engine,health): periodically collect LOH piece buffers during hash check and prevent false memory exhaustion alerts
+- fix(i18n): remove irregular unicode whitespace and format frontend styles
+- fix(update,ui): add timeout and fallback for update check, fix i18n translation types and formatting
+- fix(core,api): enhance process execution safety, udp tracker scraping loop, and upsert retry integrity
+- fix(ui,i18n): improve modal focus safety, restore translation parameters, and fix light theme contrast
+- fix(core,api): enhance backend input validation, script interpreter resolution, and route aliasing
+- fix(frontend): improve modal focus traps, unify theme switching, and update i18n
+- fix(i18n): remove irregular whitespace characters in french translations
+- fix(i18n,security): resolve setup modal translations, language selector, and API key reveal/copy
+- fix(ci): format README with prettier and revert workflow input
+- fix(backup): purge stale WAL/SHM on restore and merge staged WAL in staging directory
+- fix(engine,deluge): serialize vpn transitions, update completed working path, and parse deluge options
+- fix(engine): support dual-stack DNS fallback, safe engine stop, and picker endgame caching
+- fix(tests): block both telemetry and guaranteed workers in SignalRMessageBroadcasterTest
+- fix(routing): remove top-level route collisions in FloodApiController to preserve SPA fallback routing for /torrents
+- fix(db): generate direct integer IN clause in TorrentFileRepository.GetByTorrentIds to ensure correct grouping
+- fix(db): wrap SQL IN clause in parentheses for SQLite Dapper compatibility and ensure default tracker boost bootstrapping
+- fix(ci): resolve unit and integration test failures across backup, deluge, qbittorrent, and di services
+- fix(tests): eliminate hardcoded Thread.Sleep in ArchiveExtractorEventHandlerTest (fixes #697)
+- fix(health): eliminate sync-over-async PerformChecks method from IHealthCheckService (fixes #703)
+- fix(ai): eliminate sync-over-async blocking methods from IAiService and DynamicAiProxy (fixes #700)
+- fix(queue): move event dispatch outside queueLock and guard against recursive self-events (fixes #699)
+- fix(qbittorrent): encapsulate AddTorrents parameters into QBitAddTorrentsRequest form model (fixes #696)
+- fix(indexers): encapsulate IndexerController search endpoints into IndexerSearchRequest model (fixes #694)
+- fix(indexers): encapsulate TorznabClient.SearchAsync parameters into TorznabSearchCriteria (fixes #687)
+- fix(rpc): decompose monolithic switch dispatchers into dedicated handler routines (fixes #686)
+- fix(core): move event publishing outside async switchLock in dynamic proxies (fixes #691)
+- fix(trackerboost): eliminate constructor DB side-effects and encapsulate mutable state in ITrackerBoostStateStore (fixes #693)
+- fix(backup): eliminate sync-over-async and deadlock from unconsumed stdout in pg_dump/psql routines (fixes #690)
+- fix(frontend): consolidate HTTP communication onto ApiClient and remove fetchJson (fixes #685)
+- fix(organizer): eliminate static delegation anti-pattern and utilize injected IFileNameSanitizer and IPathTruncator in FileNameBuilder (fixes #698)
+- fix(frontend): consolidate telemetry aggregation loops into useAggregatedTorrentMetrics hook (fixes #684)
+- fix(terminal): prioritize LinuxPtySession native POSIX PTY on Linux platforms (fixes #702)
+- fix(api): eliminate synchronous File.Exists disk stats in DTO resource mapping (fixes #683)
+- fix(auth): replace direct HttpClient instantiation with ISafeHttpClientService and SSRF validation in IdentityProviderService (fixes #701)
+- fix(auth): enforce bounded capacity and background expiration sweeper in AuthRateLimiter (fixes #688)
+- fix(torrents): introduce reference-counted keyed lock for DeleteAsync (fixes #679)
+- fix(qbittorrent): batch load torrent files in polling loops to eliminate N+1 queries (fixes #682)
+- fix(vpn): implement IDisposable lifecycle and unhook static NetworkChange events in VpnKillSwitchService (fixes #680)
+- fix(api): eliminate database write in GetTrackers query (fixes #681)
+- fix(engine): invoke BlockCancelled outside monitor lock in PiecePicker (fixes #678)
+- fix(ci): await terminal ws background tasks and remove artificial session timeout
+- fix(ci): add default test timeout in runsettings, non-blocking control pipe, and cancel handling in tests
+- fix(ci): fix Swagger NonAction, BackupController restore WAL purge, and AppLifetimeTest shutdown order
+- fix(filebrowser): suppress duplicate internal delete modal and use single ConfirmModal
+- fix(frontend): bind StatusBar, Activity, Statistics and SpeedGraph to live useTorrentStore telemetry (fixes #677)
+- fix(ci): resolve test regressions, missing migration 028, and FloodApiController action routing
+- fix(api): populate live tracker statistics and resolve GeoIP peer countries in Flood API (fixes #675, fixes #676)
+- fix(frontend): add missing health filter selector in RadarView toolbar (fixes #674)
+- fix(datastore): expose ExecuteWithRetry in BasicRepository and wrap derived repo queries with SQLite lock retry policy
+- fix(notifications): support query-string formatted settings in SendEmailNotification
+- fix(notifications): decouple downloadTimeSeconds from seeding duration and expose seedingTimeSeconds in webhook payload
+- fix(indexers): fetch from offset 0 up to effective limit across multi-indexer search and paginate globally
+- fix(enrichment): serialize guessed MediaContainerInfo into MediaInfoJson when file is not yet on disk
+- fix(network): inject IVpnKillSwitchService and populate VpnKillSwitchActive in NetworkStatusService
+- fix(rtorrent): add synonym method handlers for d.set_custom1, d.set_directory, d.set_directory_base, d.set_priority
+- fix(utorrent): support multi-hash batch operations for queue actions
+- fix(network): bind UDP datagram sockets to ephemeral port when localPort is 0
+- fix(sabnzbd): sort queue by QueuePosition and history by completion date descending before pagination
+- fix(flood): map stopped incomplete torrents to stopped instead of complete
+- fix(torrent): refresh in-flight block timestamp on timeout re-request in piece picker
+- fix(qbittorrent): decouple first/last piece priority from sequential download and expose in api and sync/maindata
+- fix(api): preserve batch relative ordering for core.queue_top, core.queue_up, core.queue_down in DelugeJsonRpcController (fixes #657)
+- fix(nzbget): preserve batch queue priority order in editqueue groupmovetop (fixes #659)
+- fix(indexers): pass cancellation token and guard against ObjectDisposedException on StopSearch in QBittorrentSearchService (fixes #661)
+- fix(api): bind paused, isPaused, and startPaused form parameters in TorrentController.Upload (fixes #658)
+- fix(indexers): parse torznab:attr cat and split delimited category values in ParseTorznabFeedXml (fixes #660)
+- fix(bittorrent): prevent double-bind SocketException in BoundSocketConnector and pass localPort to INetworkBindingProvider (fixes #654)
+- fix(migrations): guard ForeignKeys in Migration 027 with PostgreSQL provider check
+- fix(network): match interface by id and validate unicast ip in NetworkSecurityService.IsInterfaceActive (fixes #655)
+- fix(api): implement missing qBittorrent endpoints, Deluge batch methods and status keys, and Transmission unknown method fallback (fixes #570)
+- fix(terminal): pre-marshal native pointers to enforce async-signal-safety post-forkpty (fixes #419)
+- fix(frontend): define --bg-card, --bg-card-hover, and --bg-lighter in light theme (fixes #513)
+- fix(a11y): add focus trapping, focus restoration, and ARIA dialog attributes to frontend modals (fixes #429)
+- fix(frontend): calculate column drag-and-drop reordering relative to visible columns (fixes #430)
+- fix(frontend): clean up uncancelled timeout handles in TerminalView on unmount (fixes #431)
+- fix(frontend): handle concurrent confirm dialogs with a FIFO queue in ConfirmContext (fixes #428)
+- fix(bandwidth): decouple download and upload pause states in EffectiveSpeedLimits (fixes #519)
+- fix(notifications): normalize Gotify endpoint and inject X-Gotify-Key header (fixes #385)
+- fix(tracker): normalize dual-stack IPv4-mapped IPv6 addresses in embedded tracker (fixes #512)
+- fix(frontend): add fallback translation helper in getNotificationSummary (fixes #386)
+- fix(network): format IPv6 host literals with brackets in HTTP CONNECT proxy handshake (fixes #387)
+- fix(api): implement Flood activity-stream SSE endpoint and route aliases (fixes #389)
+- fix(network): require OperationalStatus.Up in GetInterfaceIp and filter out non-global IPv6 (fixes #388)
+- fix(qbittorrent): include savePath in sync/maindata categories dictionary (fixes #390)
+- fix(api): map Flood 3-level file priorities and implement set-location and reannounce endpoints (fixes #392)
+- fix(indexers): evaluate tmdbId into movie search mode in TorznabClient (fixes #393)
+- fix(rpc): support rTorrent tracker announce and bandwidth throttle setters (fixes #394)
+- fix(bittorrent): prioritize NetworkInterfaceBinding in BoundSocketConnector interface resolver (fixes #396)
+- fix(nzbget): add listfiles method handler to JSON-RPC dispatch in NzbgetRpcController (fixes #397)
+- fix(rpc): dynamic queue status, paused flag, and numeric telemetry in SABnzbd API (fixes #398)
+- fix(network): handle 8-byte NAT-PMP error responses and preserve epoch tracking (fixes #401)
+- fix(bittorrent): append partial file extension during preallocation when AppendIncompleteExtension is enabled (fixes #399)
+- fix(ui): handle bracketed IPv6 with ports, IPv4-mapped IPv6, and localhost ports in isPrivateIp (fixes #400)
+- fix(system): use graceful host application shutdown and expand container runtime detection (fixes #402)
+- fix(geoip): cascade fallback to online provider on unpopulated lookup and support country MMDB (fixes #403)
+- fix(telemetry): use monotonic timestamp for CPU usage sampling in SystemResourceService (fixes #404)
+- fix(tasks): declare missing Command classes and IExecute/IExecuteAsync handlers for system tasks (fixes #410)
+- fix(auth): add cascade delete foreign keys for UserSessions and UserExternalLogins (fixes #411)
+- fix(security): add DNS SAN for hostname BindAddress and derive probeHost in CertificateManager (fixes #405)
+- fix(security): dispose ECDsa cryptographic handle deterministically in AppleClientSecretGenerator (fixes #406)
+- fix(network): validate remote endpoint and loop on non-matching datagrams in NatPmpPortMapperService (fixes #412)
+- fix(messaging): fail stale running commands on startup sweep in CommandQueueManager (fixes #409)
+- fix(security): create PTY control FIFO with 0600 user-only permissions in PtyProcessSession (fixes #407)
+- fix(security): enforce fail-closed terminal permission checks in PtyTerminalService (fixes #408)
+- fix(network): track per-gateway epochs and deduplicate reboot renewals in NatPmpPortMapperService (fixes #413)
+- fix(system): implement OS sleep inhibition in PowerManagementService (fixes #422)
+- fix(security): sanitize child terminal process environment variables in PtyProcessSession (fixes #418)
+- fix(network): prioritize physical network interface in NatPmpPortMapperService.DiscoverDefaultGateway (fixes #414)
+- fix(watchfolder): subscribe to Changed event and debounce file ready in WatchFolderService (fixes #420)
+- fix(telemetry): cache disk mount point metrics in SystemResourceService (fixes #426)
+- fix(security): cap self-signed certificate validity to 397 days and attach standard X.509 extensions in CertificateManager (fixes #417)
+- fix(watchfolder): decouple post-import file cleanup from failure quarantine in WatchFolderService (fixes #421)
+- fix(network): prevent ObjectDisposedException during lifecycle shutdown in NatPmpPortMapperService (fixes #415)
+- fix(terminal): use stateful UTF-8 decoder in TerminalWebSocketHandler (fixes #416)
+- fix(torrents): normalize infohash case in TorrentService.AddFromParsedTorrentAsync (fixes #424)
+- fix(watchfolder): use normalized path and platform string comparer for failedAttempts in WatchFolderService (fixes #423)
+- fix(backup): verify archive integrity before replacing active database in BackupController.Restore (fixes #432)
+- fix(bittorrent): rehydrate torrents on engine switch rollback in DynamicDownloadEngineProxy (fixes #438)
+- fix(telemetry): decouple process memory refresh from CPU sampling window in SystemResourceService (fixes #427)
+- fix(bittorrent): preserve SequentialDownload configuration in DynamicDownloadEngineProxy (fixes #439)
+- fix(watchfolder): evaluate AnimePattern before MoviePattern in category classifier (fixes #425)
+- fix(blocklist): optimize RadixTree with subtree pruning and ancestor shortcutting (fixes #436)
+- fix(backup): enforce retention limit and prune old archives in BackupController (fixes #433)
+- fix(blocklist): stream blocklist lines lazily to prevent OOM in BlocklistUpdateService (fixes #437)
+- fix(indexers): synchronize RSS sync execution with SemaphoreSlim in RssSyncService (fixes #446)
+- fix(indexers): bound grabbed releases cache capacity in RssSyncService (fixes #449)
+- fix(bittorrent): guard against integer overflow in MonoTorrent rate limits (fixes #434)
+- fix(core): batch database updates and synchronize concurrency in TorrentService.MoveQueueAsync (fixes #440)
+- fix(tags): cascade delete tag IDs from torrents and notifications in TagController (fixes #441)
+- fix(bandwidth): allow active schedule zero limit to override global limits in SpeedSchedulerService (fixes #435)
+- fix(storage): enforce cross-platform invalid character checks in TorrentPathValidator (fixes #442)
+- fix(inspection): handle exceptions and fall back to TagLib in DynamicMediaInspectorProxy.Inspect stream (fixes #445)
+- fix(bittorrent): support BEP 53 indexed trackers and BEP 17 web seeds in MagnetLinkParser (fixes #443)
+- fix(auth): prune expired login attempts and cap tracked IPs in AuthController (fixes #447)
+- fix(rpc): propagate session in HttpContext.Items for Deluge multicall auth.login (fixes #452)
+- fix(indexers): handle RFC 822 timezone abbreviations and assume universal in TorznabClient (fixes #448)
+- fix(bittorrent): fix BEP 52 v2 multihash length validation in MagnetLinkParser (fixes #444)
+- fix(rpc): support ID/hash filters and array values in Deluge get_torrents_status (fixes #453)
+- fix(indexers): ignore invalid MustNotContain regex without rejecting releases in RssSyncService (fixes #450)
+- fix(rpc): implement missing methods in Aria2RpcController (fixes #458)
+- fix(rpc): safely handle null and non-string values in Deluge options (fixes #455)
+- fix(signalr): clear pending pieces when disconnected in PieceMapSignalREventHandler (fixes #451)
+- fix(rpc): populate standard metrics in Deluge MapTorrentToDelugeStatus (fixes #456)
+- fix(rpc): support number and string types for Aria2 speed limit options (fixes #459)
+- fix(rpc): support start and limit pagination in SABnzbd queue and history (fixes #462)
+- fix(rpc): preserve relative parent paths and support folder renames in Transmission torrent-rename-path (fixes #457)
+- fix(rpc): support pagination in aria2.tellWaiting and aria2.tellStopped (fixes #460)
+- fix(rpc): separate priority updates from queue movements in SABnzbd API (fixes #463)
+- fix(rpc): support GroupSetPriority and HistoryReturn actions in NZBGet editqueue (fixes #464)
+- fix(datastore): ensure deterministic Id ordering in TorrentFileRepository.GetByTorrentId (fixes #461)
+- fix(rpc): support log and loadlog methods in NZBGet JSON-RPC (fixes #465)
+- fix(rpc): support downloadPath and cookie parameters in qBittorrent AddTorrents (fixes #467)
+- fix(rpc): support tag query and complete status filters in qBittorrent GetTorrentsInfo (fixes #466)
+- fix(rpc): prevent spurious full_updates on empty queue and preserve delta sync in qBittorrent maindata (fixes #468)
+- fix(rpc): resume torrent in download engine on qBittorrent setForceStart (fixes #469)
+- fix(indexers): support default XML namespaces in TorznabClient.ParseCapabilitiesXml (fixes #470)
+- fix(indexers): cap upstream limits and handle multi-indexer search pagination properly (fixes #471)
+- fix(indexers): prevent duplicate indexer creation in ProwlarrSyncService (fixes #472)
+- fix(media): handle active provider exceptions and proceed to fallbacks in DynamicMediaMetadataProxy (fixes #474)
+- fix(frontend): replace double delete prompt with single unified DeleteTorrentModal
+- fix(notifications): dispatch system-level health alerts when torrent is null (fixes #476)
+- fix(media): ensure unconditional local cache cleanup in MediaEnrichmentService (fixes #475)
+- fix(rpc): resolve numeric and subcategory IDs in QBittorrentSearchService (fixes #473)
+- fix(extraction): disable interactive password prompts in 7-Zip and UnRAR extractors (fixes #482)
+- fix(notifications): parse JSON settings in CustomScriptService (fixes #477)
+- fix(notifications): propagate SMTP errors on email test notification (fixes #478)
+- fix(extraction): check available free disk space before extracting archives (fixes #484)
+- fix(extraction): handle trailing separators in UnRAR and 7-Zip destination paths (fixes #483)
+- fix(notifications): sanitize non-finite ratio values in webhook dispatcher (fixes #479)
+- fix(signalr): await processing task before disposing CancellationTokenSource in SignalRMessageBroadcaster (fixes #480)
+- fix(bittorrent): format client emulation HTTP User-Agent and extended handshake correctly
+- fix(api): broadcast SignalR messages on SpeedSchedule CRUD operations (fixes #481)
+- fix(frontend): align sparse SpeedGraph timeline to present and scope gradient IDs (fixes #490)
+- fix(extraction): prevent Zip Slip directory traversal in SharpCompressExtractorProvider (fixes #485)
+- fix(storage): handle trailing directory separators properly in FileBrowserService (fixes #486)
+- fix(network): inspect NetworkInterfaceBinding in NetworkSecurityService (fixes #487)
+- fix(indexers): decode HTML entities in TorznabClient release titles (fixes #492)
+- fix(auth): adjust prefix length for IPv4-mapped IPv6 CIDRs in TrustedNetworkService (fixes #488)
+- fix(frontend): clamp canvas dimensions to prevent DOMException on empty PieceMap (fixes #489)
+- fix(torrents): prevent premature 100% progress on incomplete files in TorrentFileProgressEnricher (fixes #494)
+- fix(system): fix Windows suspend P/Invoke and macOS osascript arguments in PowerManagementService (fixes #496)
+- fix(security): support bracketed IPv6, ULA, CGNAT, and wildcard host patterns in HostHeaderValidationMiddleware (fixes #493)
+- fix(ssl): load intermediate CA certificate chain and normalize PEM to PKCS#12 (fixes #497)
+- fix(security): remove permissive substring match in CsrfProtectionMiddleware.IsAuthPath (fixes #495)
+- fix(auth): prevent account hijacking and disambiguate usernames in JitUserProvisioningService (fixes #501)
+- fix(ai): preserve title years and essential words in natural language search (fixes #503)
+- fix(auth): preserve client secrets containing asterisks during identity provider updates (fixes #502)
+- fix(ai): handle non-boolean json tokens safely and escape uri parameters in ai providers (fixes #510)
+- fix(terminal): reap child shell process and send SIGHUP on disconnect in PtyProcessSession (fixes #498)
+- fix(rpc): apply speed limits via SpeedSchedulerService in qBittorrent speed limit endpoints (fixes #499)
+- fix(bittorrent): emit standard peer transfer and uTP flags in GetPeers (fixes #509)
+- fix(ai): await provider switch and prevent configuration desynchronization on failure (fixes #511)
+- fix(frontend): invalidate correct torrent trackers query key in tracker boost hooks (fixes #508)
+- fix(datastore): make DownloadHistoryRepository.GetHistory case-insensitive for PostgreSQL compatibility (fixes #504)
+- fix(auth): invalidate user sessions on password change, user deletion, and role updates
+- fix(api): add null guard to ConfigControllerBase.SaveConfig to prevent 500 on empty PUT body (fixes #506)
+- fix(datastore): ensure table registration and type handlers are initialized in DbFactory (fixes #505)
+- fix(backup): drain process streams, terminate orphaned pg_dump/psql processes on timeout, and handle exit codes safely (fixes #515)
+- fix(watchfolder): update TvPattern regex for daily releases and multi-digit episodes (fixes #514)
+- fix(terminal): prevent InvalidOperationException and JSON stdin leak in WebSocket handler (fixes #516)
+- fix(indexers): resolve torznab peers and leechers accurately without attribute order dependency (fixes #517)
+- fix(auth): authenticate database users and assign claims in BasicAuthenticationHandler (fixes #518)
+- fix(tracker): honor numwant=0 in announce responses conforming to BEP 3 and BEP 15 (fixes #520)
+- fix(network): filter out link-local and site-local ipv6 addresses for listening endpoints (fixes #521)
+- fix(engines): complete sidecar engine tracker and file controls, peer parsing, and dynamic nat-pmp mappings (fixes #571)
+- fix(security): exempt rpc routes from csrf and broadcast subsystem switch events (fixes #572)
+- fix(media): implement tvdb v4 provider, usenet prowlarr sync, and binary hdr10+ sei parsing (fixes #573)
+- fix(frontend): mount radar bulk import modal and decouple i18n labels from backend enums (fixes #574)
+- fix(compat): dynamic disk space metrics, configurable torrent size limit, and aria2 pagination (fixes #576)
+- fix(engine): dynamic piecepicker thresholds, real swarm metrics, and configurable path fallbacks (fixes #575)
+- fix(media): replace synthetic subsystem telemetry, hardcoded ratings, and bind process timeouts (fixes #577)
+- fix(frontend): optimize piecemap canvas rendering, dynamic chart scaling, and unify polling intervals (fixes #578)
+- fix(core): register command worker hosted service, eliminate sync-over-async, and isolate signalr telemetry channels (fixes #579)
+- fix(security): support lan allowlist in safehttpclient and prevent socks5 proxy leaks (fixes #580)
+- fix(datastore): optimize sql queries, add missing indexes, and configure connection pooling (fixes #582)
+- fix(host): forward docker cli args, configure kestrel limits, and handle graceful shutdown (fixes #581)
+- fix(security): fix csrf substring matching, increase pbkdf2 iterations, and support long paths (fixes #583)
+- fix(watchfolder): implement file stabilization debounce and configurable backup timeouts (fixes #584)
+- fix(bandwidth): fix speed scheduler midnight boundary, dns cache, and dynamic tracker tiers (fixes #585)
+- fix(mediainsp): fix pal 576p resolution, audio channels, and dual-layer hdr parsing (fixes #587)
+- fix(frontend): unify signalr polling, fix subpath urls, and add auth-aware query retries (fixes #586)
+- fix(extraction): introduce bounded extraction semaphore, dynamic timeouts, and stream buffering (fixes #589)
+- fix(watchfolder): expand anime groups, tv episode formats, and non-destructive title cleaning (fixes #588)
+- fix(health): convert health checks to async, add disk/memory checks, and update controller (fixes #590)
+- fix(geoip): fix ip2location boundary seek, add geoip monthly refresh task, and linux ipset integration (fixes #591)
+- fix(network): route external ip queries through vpn/proxy, restore vpn events, and fix gateway resolution (fixes #593)
+- fix(frontend): implement terminal websocket reconnect backoff and wrap root modals in error boundaries (fixes #592)
+- fix(notifications): fix email test reporting, ssrf validation, peer log polling, and script env sanitization (fixes #594)
+- fix(torrents): fix multi-file piece boundary progress, symlink validation, and queue sync (fixes #595)
+- fix(config): fix disk cache int overflow, vpn killswitch toggle, and snake_case env vars (fixes #597)
+- fix(frontend): fix localized enum values, form defaults, and mutation error handling (fixes #596)
+- fix(api): fix null checks in controllers, clamp allocations, and add DTO validations (fixes #599)
+- fix(indexers): fix string category mapping, torznab pagination, and case-insensitive xml parsing (fixes #600)
+- fix(signalr): compress piece map payloads, eliminate frontend gc thrashing, and fix reconnect leaks (fixes #601)
+- fix(subsystems): fix dynamic proxy migration race, socket recycling, and probe timeouts (fixes #602)
+- fix(torrents): support bittorrent v2 bep52, filter padding files, and limit bencode recursion (fixes #603)
+- fix(security): prevent forward-auth LAN header spoofing, SAML CSRF, and hash session tokens (fixes #604)
+- fix(organizer): implement token-based FileNameBuilder, SMB sanitization, and smart path truncation (fixes #606)
+- fix(parser): prevent UHD Remux downranking, add ISO 639 multi-language tokens and LLM schema fields (fixes #605)
+- fix(datastore): fix transaction rollback on event dispatch, null semantics in JSON converter, and type handler consolidation (fixes #607)
+- fix(indexers): implement t=caps TTL cache, XML namespace resilience, and Newznab params (fixes #608)
+- fix(enrichment): implement exact Servarr queue correlation, ArrMediaId, and MusicBrainz schema (fixes #609)
+- fix(deluge): support _session_id cookie, JSON-RPC 200 error envelope, and composite filter trees (fixes #611)
+- fix(media): support banner/fanart cover types, prune pre-cache, and nest webhook payloads (fixes #610)
+- fix(deluge): implement missing status keys, fix num_peers, and expand preferences (fixes #612)
+- fix(container): support PUID/PGID/UMASK, healthcheck /ping, and graceful shutdown (fixes #614)
+- fix(transmission): implement blocklist-update, session-close, tag null preservation, and Transmission 4.0 fields (fixes #615)
+- fix(bandwidth): integrate dynamic 4-tier rate resolution and category limit propagation (fixes #616)
+- fix(bandwidth): implement true pause in SpeedScheduler, add timezone support, and calculate protocol speeds (fixes #617)
+- fix(disk): dynamic RAM write cache scaling, dirty block flush on move, and atomic FastResume (fixes #620)
+- fix(disk): prevent hash-check bypass on existing files and use non-blocking fallocate (fixes #618)
+- fix(frontend): virtualize TorrentGrid, FilesTab, PeersTab, and DownloadHistory (fixes #621)
+- fix(security): enforce pre-handshake blocklist filtering and eliminate reflection teardown (fixes #623)
+- fix(frontend): add MediaArtworkImage fallback, useFocusTrap hook, and unify theme tokens (fixes #622)
+- fix(bittorrent): pre-emptively disable DHT/PEX on private magnets, modernize emulation presets, and support BEP 7/23/48 (fixes #625)
+- fix(network): optimize RadixTree allocations, use stackalloc Span, and switch GeoIP to MemoryMapped (fixes #624)
+- fix(diskspace): track incomplete download partition, add low-disk pause protection, and eliminate duplicate health events (fixes #626)
+- fix(indexers): fix RSS pubDate timezone fallback, normalize infohashes, and auto-extract magnets (fixes #627)
+- fix(auth): upgrade PBKDF2 to 600k with auto-rehash, add absolute session expiry, and rate limit auth (fixes #629)
+- fix(indexers): decode Torznab HTML entities, compute leechers accurately, and parse minimum ratio (fixes #628)
+- fix(extraction): add pre-extraction disk space validation, non-interactive flags, and failure events (fixes #634)
+- fix(arr): implement reverse webhook receiver endpoints and track Servarr library import state (fixes #630)
+- fix(extraction): fix split ZIP volume detection, ensure idempotency, and support archive passwords (fixes #635)
+- fix(prowlarr): register ProwlarrSyncCommand, wire scheduler, trigger startup sync, and improve error diagnostics (fixes #636)
+- fix(prowlarr): reconcile by ProwlarrIndexerId, prune deleted indexers, and preserve local overrides (fixes #637)
+- fix(terminal): sanitize shell environment variables and prevent control packet STDIN execution (fixes #638)
+- fix(terminal): prevent zombie processes, leak-proof FIFO pipes, use stateful UTF-8 decoding, and debounce resize (fixes #639)
+- fix(architecture): decouple RSS sync from 1-second AppLifetime loop (fixes #640)
+- fix(bittorrent): support BEP 6 Reject Request in PiecePicker, enable UDP datagram binding for uTP, and wire BEP config (fixes #643)
+- fix(indexers): add RSS sync SemaphoreSlim re-entrancy guard, regex validation, and MaxAgeDays filter (fixes #641)
+- fix(datastore): replace in-memory repository filters with direct SQL WHERE queries and ensure atomic torrent deletions (fixes #647)
+- fix(http): implement anti-bot challenge detection with FlareSolverr failover and session pooling (fixes #653)
+- fix(frontend): optimize piece map memory with Uint8Array bitfields and purge stale telemetry on reconnect (fixes #651)
+- fix(bittorrent): refactor endgame mode trigger, cancel duplicate in-flight requests, and add anti-snubbing (fixes #644)
+- fix(frontend): optimize TorrentTable telemetry rendering and freeze dynamic sort (fixes #650)
+- fix(datastore): upgrade SQLite timeout/cache, add SQLITE_BUSY retry, and configure Npgsql pool (fixes #646)
+- fix: resolve high-priority core engine, API adapters, and frontend issues (#613, #619, #631, #632, #633, #642, #645, #648, #649, #652)
+- fix(bittorrent): patch all MonoTorrent assemblies and DhtMessage to prevent MO3002 leak
+- fix(ui): sync disk free space refresh interval with torrents tick rate
+- fix(test): use exact directory segment check in MediaEnrichmentServiceTest
+- fix(storage): resolve single-file torrent paths correctly upon completion and in RPC adapters
+- fix(torrent): enable unconditional resume and log state transitions
+- fix(torrent): handle active torrent state in ForceRecheck and return updated resource
+- fix(extraction): handle active extractor exceptions with fallback in DynamicArchiveExtractorProxy (fixes #522)
+- fix(media-inspection): prevent hardcoding MP3 audio stream properties (#523)
+- fix(indexers): sanitize and escape XML error bodies in TorznabClient.TestConnectionAsync (#524)
+- fix(frontend): invalidate subsystems, config, engine, health, and status queries on SignalR subsystemSwitched and reconnect
+- fix(signalr): prevent unhandled exceptions in PieceMapSignalREventHandler timer callback (#526)
+- fix(torrent): calculate ratio using verified payload divisor on seeding and restarted torrents (fixes #527)
+- fix(blocklist): clamp IPv4-mapped IPv6 CIDR prefix lengths in RadixTreeBlocklistProvider (fixes #528)
+- fix(filebrowser): guard against same-path and recursive subdirectory moves/copies (fixes #529)
+- fix(security): use RpcAuthenticationHelper.FixedTimeEquals in QBittorrentApiController (fixes #530)
+- fix(rpc): implement SafeGetBoolean for non-boolean JsonElement tokens in RPC controllers
+- fix(bittorrent): normalize path separators in SetFilePriorityAsync (fixes #532)
+- fix(security): expose IssuerUrl and Certificate in SAML provider configuration (fixes #533)
+- fix(media-enrichment): verify ratings.ValueKind == JsonValueKind.Object before querying value property (#534)
+- fix(bandwidth): evaluate config schedule in SpeedSchedulerService
+- fix(media-inspection): safely parse ffprobe streams and format elements with null tags
+- fix(test): remove leftover merge conflict markers
+- fix(auth): enable fallback direct role matching and filter null groups in ClaimsRoleMappingService
+- fix(trackerboost): eliminate sync-over-async blocking in download client tracker injection (closes #538)
+- fix(storage): add null/whitespace guards and safe path normalization to MoveToCompleted
+- fix(storage): preserve media extension and folder structure for single-file and directory torrent moves
+- fix(frontend): merge real-time useTorrentStore telemetry into dashboard speeds and counts (closes #540)
+- fix(frontend): anchor sparse telemetry points in LineChart and SpeedGraph to present (closes #541)
+- fix(bittorrent): extract CacheMisses from DiskManager in telemetry metrics (closes #544)
+- fix(terminal): synchronize PTY session dimensions on fullscreen toggle and container resize
+- fix(frontend): integrate suffix input styling and hide spinbuttons in OptionsTab
+- fix(bittorrent): initialize empty FastResume on file preallocation to skip initial hash check (closes #566)
+- fix(media-inspection): extract true MP4 channelCount and preserve fidelity hierarchy
+- fix(frontend): replace sidebar navigation emojis with theme-reactive SVG icons
+- fix(bittorrent): prevent MonoTorrent MO3002 identifier leak and enforce client emulation presets
+- fix(frontend): use useSearchParams for reactive FileBrowser navigation
+- fix(rss): prevent duplicate magnet grabs and false positive history entries during RSS sync
+- fix(transmission): populate pausedTorrentCount, current-stats, and cumulative-stats in session-stats
+- fix(torrents): initialize TorrentFile Priority to 3 (Normal) and update engine proxy migration check
+- fix(media-inspection): use EBML 0x9F Channels unconditionally over CodecID defaults
+- fix(indexers): fall back to link URL when enclosure url is empty or whitespace (fixes #551)
+- fix(media-enrichment): prevent SQLite FK constraint error when enriching removed torrents (#564)
+- fix(arr-integration): support Arr public external URLs with environment variables and loopback fallback
+- fix(media-inspection): extract FLAC STREAMINFO duration and fix fallback enrichment
+- fix(proxy): enforce HTTP CONNECT header termination delimiter check (#553)
+- fix(datastore): make SQLite database restore transactional and safe (#554)
+- fix(terminal): complete outputChannel on stdout/stderr EOF in FallbackProcessSession
+- fix(media-inspection): add RIFF WAVE magic check and header parser for WAV streams (#556)
+- fix(network): prioritize global routable IPv6 unicast addresses and assign ScopeId for link-local fallback
+- fix(notifications): bound CustomScript process and stream draining timeouts
+- fix(indexers): add regex timeout and timeout exception logging to RssSyncService
+- fix(queue): preserve relative item ordering and fix batch downward moves in Transmission and QBittorrent RPC (#560)
+- fix(media-inspection): parse AVI RIFF stream headers and remove hardcoded MP3 2.0 audio defaults
+- fix(notifications): combine torrent operational details with media overview in Discord and Email payloads
+- fix(rpc): resolve save_path vs content_path and update CI linter configurations
+- fix(deluge): implement web.upload_torrent, web.get_torrent_info, and web.add_torrents (fixes #367)
+- fix(rpc): implement missing aria2 XML-RPC options and position handlers (fixes #380)
+- fix(rpc): add editTracker endpoint and support numeric fileId in renameFile (fixes #384)
+- fix(bittorrent): wire INetworkBindingService and proxy tunneling into BoundSocketConnector (fixes #231)
+- fix(storage): correct multi-file preallocation path calculation and physical block allocation (fixes #209)
+- fix(flood): support multipart and json in AddFiles without HTTP 415 (fixes #365)
+- fix(network): fail-closed with InvalidOperationException when VPN interface IP is not found in ManagedSocketBindingProvider (fixes #14)
+- fix(engines): unconditionally enforce BEP 27 disabling DHT and PEX for private torrents (fixes #378)
+- fix(indexers): collect all RSS and Torznab categories without dropping Torznab category attributes (fixes #127)
+- fix(signalr): provide accessTokenFactory in HubConnectionBuilder (fixes #381)
+- fix(engines): calculate piece picker progress based on active selected pieces (fixes #377)
+- fix(network): strip inline comments and trim trailing level suffixes in blocklist providers (fixes #383)
+- fix(frontend): decouple ResizeObserver and throttle canvas render in PieceMap (fixes #379)
+- fix(queue): prevent queued torrents from bypassing concurrency limits via stalled/idle conditions (fixes #371)
+- fix(notifications): serialize floating point numbers with InvariantCulture in custom script environment variables (fixes #382)
+- fix(i18n): update I18nTorrents table/grid types and add runDiagnosticDesc to ai settings (fixes #374)
+- fix(engines): preserve inactive states on engine hot-swap and addition (fixes #370)
+- fix(seeding): include ConfigService.GlobalSeedRatioLimit fallback in AppLifetime seed ratio check (fixes #376)
+- fix(i18n): populate missing sections and keys in Italian, Korean, and Vietnamese locales (fixes #373)
+- fix(engines): dynamically scale sequential piece picker thresholds for small torrents (fixes #369)
+- fix(network): consume HTTP CONNECT headers completely and perform async read for SOCKS5 domain responses (fixes #375)
+- fix(tracker-boost): adhere to BEP 48 by replacing only path /announce segment when deriving HTTP scrape URL (fixes #372)
+- fix(storage): align DiskCacheBytes default with DiskWriteCacheSizeMb (fixes #366)
+- fix(frontend): import and destructure useTranslation hook across components (fixes #362)
+- fix(api): implement GetAll and Delete endpoints in MediaController (fixes #368)
+- fix(engines): restore completed torrents as seeding after VPN reconnection (fixes #363)
+- fix(media-inspection): derive 480p resolution for widescreen and cropped SD media in MediaInfo and FFprobe providers (fixes #364)
+- fix(core,api,frontend): resolve issues #334-#362 with full regression coverage
+- fix(i18n): eliminate autogen placeholders, build comprehensive native catalogues for top 20 languages and update UI components
+- fix(mediainspection): remove Task.Run sync-over-async thread exhaustion wrapper in InspectFile (fixes #293)
+- fix(signalr): synchronize PieceMapSignalREventHandler teardown with in-flight flush callbacks (fixes #300)
+- fix(engine): expose TotalBytes on IDownloadTask and compute speedPulse ETA from total size (fixes #299)
+- fix(qbittorrent): convert seedingTimeLimit between seconds and minutes in qBittorrent API (fixes #302)
+- fix(security): enforce TerminalAccessEnabled configuration in PtyTerminalService.IsTerminalAccessPermitted (fixes #290)
+- fix(filebrowser): prevent silent overwrite in Rename and validate destination conflicts (fixes #285)
+- fix(frontend): resolve React Rules of Hooks violations in components (fixes #333)
+- fix(categories): clear category on affected torrents and publish CategoryDeletedEvent on deletion (fixes #303)
+- fix(filebrowser): handle UnauthorizedAccessException and SecurityException when enumerating files in ListDirectory (fixes #286)
+- fix(tracker): only increment DownloadedCount once per peer on completion (fixes #304)
+- fix(auth): replace static Synology token with dynamic session management in SynologyDownloadStationController (fixes #169)
+- fix(rss): assign category name and save path from matched rss rule (fixes #324)
+- fix(security): remove direct HttpClient fallback to enforce SSRF protection in MediaEnrichmentService (fixes #50)
+- fix(tracker): validate announce peer port is between 1 and 65535 (fixes #306)
+- fix(security): prevent leaking Servarr API key to unauthenticated external hosts in MediaEnrichmentService (fixes #117)
+- fix(deluge): support web.get_filter_tree and add tracker_host and missing states to filter tree (fixes #325)
+- fix(aria2): return configured speed limits in XML-RPC getGlobalOption (fixes #308)
+- fix(vpn): fail closed when bound network interface has no IP address for address family (fixes #321)
+- fix(media): guard ApplyFilenameHints from overwriting detected metadata and use word boundary regex (fixes #114)
+- fix(transmission): handle speed-limit toggles, seed ratio limits, and per-torrent rate limit fields (fixes #326)
+- fix(frontend): resolve module-scope ReferenceError in SecuritySettingsTab
+- fix(rpc): correctly apply torrent rate limits to download engine and fix Deluge KiB/s scaling and status fields (fixes #115)
+- fix(torznab): parse RFC 822/2822 dates with offsets and prevent duplicate query parameters (fixes #327)
+- fix(media): add Matroska colour metadata and MP4 colr box parsing for HDR detection (fixes #322)
+- fix(blocklist): guard against uint.MaxValue overflow in P2PDatBlocklistProvider MergeRanges (fixes #323)
+- fix(aria2): support changeGlobalOption without GID parameter (fixes #329)
+- fix(frontend): resolve runtime ReferenceError in SecuritySettingsTab and NotificationsTab
+- fix(geoip): fix binary search upper bound off-by-one in IP2LocationGeoIpProvider (fixes #330)
+- fix(tracker): validate client IP against connection ID state in UdpTrackerService (fixes #331)
+- fix(torrents): track cumulative active seeding time instead of wall-clock elapsed time (fixes #328)
+- fix(torrent): derive completed single-file torrent source path from manager files (fixes #332)
+- fix(i18n): fix language selector alignment and complete i18n support across all settings, system, torrents, and activity modules
+- fix(i18n): bundle locale map for instant synchronous language switching and wire translations in navigation and toolbar
+- fix(ui): style LanguageSelector dropdown and fix display positioning
+- fix(api): resolve System.Threading namespace collision in FileBrowserController
+- fix(i18n): ensure robust fallback to English when language cannot be determined
+- fix(frontend): include directory ancestor hierarchy and synchronize initialPath for react-file-manager
+- fix(api): use global::System.IO in Api.V1 to avoid collision with Api.V1.System
+- fix(engine): remove duplicate ProbeHealthAsync declaration on ITorrentEngine
+- fix(engine,config): add ProbeHealthAsync to IDownloadEngine and fix dictionary mapping in ConfigService
+- fix(datastore): fix string literal syntax error in BasicRepository UpsertMany
+- fix(media,torrents): fix metadata/poster enrichment from Arr instances and zero out paused torrent metrics
+- Fix issue #320: [Bug] TrackerBoostService.BoostHistory unbounded memory growth
+- Fix issue #319: [Bug] SQLite PRAGMA foreign_keys never enabled
+- Fix issue #318: [Bug] IP2LocationGeoIpProvider.ProbeHealthAsync calls EnsureReader without lock
+- Fix issue #317: [Security] Webpack production build uses source-map devtool
+- Fix issue #315: [Bug] CookieSessionManager sliding renewal collapses 'Remember Me' cookie expiry from 30 days to 8 hours
+- Fix issue #316: [Bug] WatchFolderService concurrent duplicate-processing race
+- Fix issue #313: [Bug] ConfigService.SaveConfigDictionary performs non-atomic individual DB operations
+- Fix issue #314: [Bug] Telegram notifications use legacy Markdown parse_mode with incomplete escaping
+- Fix issue #311: [Security] CsrfProtectionMiddleware blocks POST /auth/login for API clients
+- Fix issue #312: [Security] AuthController.Login lacks brute-force protection
+- Fix issue #309: [Bug] HealthCheck system only registers 2 checks
+- Fix issue #310: [Security] SafeHttpClientService.IsBlockedIp omits RFC1918 private IP ranges enabling SSRF
+- Fix issue #307: [Bug] TrackerBoost.InjectIntoDownloadClients is a hardcoded no-op
+- Fix issue #305: [Bug] IsPrivateNetwork omits CGNAT 100.64.0.0/10 — embedded tracker and UDP tracker ignore announced ipInt for carrier-grade NAT clients
+- fix(terminal): add python3 to Containerfile and merge stderr in FallbackProcessSession
+- fix(terminal): resolve shell startup hang by using pty.fork with --norc and clean prompt
+- fix(tests): resolve DI circular initialization, IDatabase resolution, Webhook request disposal, and MediaInspection channels
+- fix(terminal): resolve issue #118 - fix PTY session initialization, controlling terminal, and safe WebSocket dispatch
+- fix(api): resolve issue #131 - validate artwork type and dynamically resolve MIME content type
+- fix(frontend): resolve issue #132 - disable tracker injection and swarm boost controls on private torrents
+- fix(frontend): resolve issue #133 - add toast feedback and error handling for engine switch and save in EngineSettingsTab
+- fix(notifications): resolve issue #134 - add Email implementation branch to VpnKillSwitchTriggeredEvent and ApplicationUpdatedEvent handlers
+- fix(synology): resolve issue #135 - harmonize list and getinfo status responses and resolve tasks by id or infohash
+- fix(freebox): resolve issue #136 - decode base64 download_dir and guard done status by completion
+- fix(rpc): resolve issue #137 - partition stopped torrents in Usenet adapters based on completion
+- fix(search): resolve issue #138 - support plugins filter, category mapping, query fallback, and incremental search results in qBittorrent adapter
+- fix(rpc): resolve issue #139 - implement torrent-rename-path and map queued status in Transmission RPC
+- fix(signalr): resolve issue #140 - serialize SignalRMessage.Action and broadcast action-specific event names
+- fix(bandwidth): resolve issue #141 - use TimeOnly comparison in SpeedSchedulerService and validate schedule input
+- fix(engine): resolve issue #142 - allow resuming torrents from non-active states and fix status clobbering
+- fix(inspection): resolve issue #143 - use ProcessStartInfo.ArgumentList in FFprobe and MediaInfo providers
+- fix(extraction): resolve issue #144 - kill orphaned extraction processes, fix multipart loading, and secondary volume heuristics
+- fix(enrichment): resolve issue #145 - preserve DownloadHistory metadata on torrent removal and persist enrich results
+- fix(inspection): resolve issue #146 - avoid misclassifying ID3-tagged audio and allow TagLib stream enrichment
+- fix(bandwidth): resolve issue #147 - fix scheduled speed pause, immediate CRUD limit application, and priority calendar sorting
+- fix(watchfolder): resolve issue #148 - initialize watcher on startup, handle rename events, and fix file lock check
+- fix(tasks): resolve issue #149 - handle unexecuted task timestamps and sub-minute intervals
+- fix(frontend): resolve issue #150 - correct speed schedule card data sources and safeguard avgRatio
+- fix(seeding): resolve issue #151 - fix avgRatio, evict TorrentHistories, and deduplicate Activity chart points
+- fix(aria2): resolve issue #152 - use FindByGid in changePosition and changeOption
+- fix(notifications): resolve issue #153 - handle cancellation and dispose responses in WebhookDispatcher
+- fix(rpc): resolve issue #154 - correct uTorrent and Hadouken status bitflags and queue position
+- fix(utorrent): resolve issue #155 - form body parameter fallback and dlrate/ulrate setprops support
+- fix(rtorrent): resolve issue #156 - fix d.complete condition and f.completed_chunks calculation
+- fix(queue): resolve issue #157 - queue sorting, rate unit scaling, and slow torrent guard
+- fix(security): resolve issue #158 - prevent resuming and announcing when VPN Kill Switch is active
+- fix(rss): resolve issue #159 - support magnet URIs in RSS auto-grab and TorznabClient
+- fix(vpn): resolve issue #160 - unify kill switch event dispatch and socket binding
+- fix(categories): resolve issue #161 - apply category limits, ratio, and seed time to torrents
+- fix(trackerboost): resolve issue #162 - address family matching for UdpClient
+- fix(auth): resolve issue #163 - add [Ignore] to non-persisted UserSession properties
+- fix(qbittorrent): resolve issue #164 - per-session sync state in sync/maindata
+- fix(security): resolve issue #165 - enforce IActionFilter authentication across all FloodApiController endpoints
+- fix(frontend): resolve issue #166 - TorrentTable live telemetry sorting and state filtering
+- fix(inspection): resolve issue #167 - subtitle tracks extraction and audio codec priority guarding in TagLibInspectorProvider
+- fix(security): resolve issue #168 - dynamic session tokens and auth validation for FreeboxDownloadController
+- fix(rpc): resolve issue #170 - NzbgetRpcController dedicated XML-RPC parser and serializer
+- fix(frontend): resolve issue #172 - PieceMap verified piece mapping and bitfield integration
+- fix(engine): resolve issue #171 - prevent double move and incomplete directory relocation on torrent completion
+- fix(queue): resolve issue #174 - unify queue limits, handle stalled torrents, and fix seed classification
+- fix(rpc): resolve issue #173 - rTorrent f.multicall chunk metrics and range fields
+- fix(storage): resolve issue #175 - respect EnableIncompleteDir, explicit SavePath, and unify PreallocationMode
+- fix(bittorrent): resolve issue #176 - remove trackers from live download engine upon deletion
+- fix(blocklist): resolve issue #177 - IPv6 token extraction, volatile radix root swap, and proxy lock synchronization
+- fix(trackers): resolve issue #179 - qBittorrent tracker status mapping, private torrent BEP 27 protection, and tracker announce stat accuracy
+- fix(network): resolve issue #178 - NatPmpPortMapperService renewal timer re-arming and gateway reboot epoch handling
+- fix(rpc): resolve issue #181 - prune expired RPC sessions and add logout endpoints
+- fix(security): resolve issue #180 - constant-time string comparisons in RpcAuthenticationHelper, BasicAuthenticationHandler, and DelugeJsonRpcController
+- fix(security): resolve issue #182 - UTorrentWebUiController token validation and dynamic session tokens
+- fix(rpc): resolve issue #184 - Transmission missing haveValid/sizeWhenDone and rTorrent local path/multi-tracker support
+- fix(api): resolve issue #183 - TorrentResource missing SeedingTime
+- fix(tests): resolve failing unit and integration tests across metadata, inspection, auth, and torrent services
+- fix(bandwidth): SpeedSchedulerService uncaps opposing transfer direction to unlimited when schedule only limits one direction (fixes #185)
+- fix(storage): Torrent services bypass IAppFolderInfo and hardcode SpecialFolder.ApplicationData (fixes #188)
+- fix(history): ReAddAsync leaves SavePath null, pollutes Category with Source, omits TorrentFile records, and forces re-download to incomplete dir (fixes #186)
+- fix(trackerboost): ScrapeHttpTrackerAsync misattributes unverified torrent stats, returns false success on missing files, and leaks HttpResponseMessage instances (fixes #187)
+- fix(rtorrent): ParseXmlRpcValue omits <struct> parsing, causing system.multicall to drop 100% of batched calls (fixes #189)
+- fix(lifecycle): AutoShutdown triggers immediately on startup from stale completed torrents and never resets, causing permanent shutdown loop (fixes #190)
+- fix(sabnzbd): mode=history emits ISO-8601 string for 'completed' breaking Servarr deserialization, and 'completename' lacks directory path (fixes #191)
+- fix(nzbget): append passes HTTP/HTTPS URLs to AddFromMagnetAsync, throwing FormatException and silently failing to add downloads (fixes #192)
+- fix(bittorrent): MonoTorrentDownloadTask.PieceAvailability returns dead all-zero PiecePicker availability, breaking swarmAvailability and shadowing peer scan (fixes #193)
+- fix(ci): fix rssrules route ambiguity and update torrent engine switch integration test
+- fix(hadouken): torrents.get_files and webui.getfiles omit TorrentFileProgressEnricher, returning 0.0 progress for all files (fixes #194)
+- fix(transmission): torrent-set location argument mutates SavePath without invoking SetLocationAsync, causing file desync and engine errors (fixes #195)
+- fix(frontend): TerminalView omits API key in WebSocket query parameters, causing 401 Unauthorized when authentication is enabled (fixes #196)
+- fix(extraction): Single-file archives fail auto-extraction due to duplicate filename concatenation and IsStrictSubPath self-exclusion (fixes #197)
+- fix(download-clients): QueryRemoteClientItemsAsync omits authentication for qBittorrent, Transmission, and Deluge, failing to fetch remote torrent items (fixes #198)
+- fix(frontend): SeedingSimulator calculates target upload bytes from totalSize instead of downloaded bytes, distorting swarm ratio timelines (fixes #199)
+- fix(lifecycle): watchFolderTickCounter coupling desynchronizes and spams VPN Kill Switch, Queue Processing, and Auto-Shutdown checks (fixes #200)
+- fix(vpn-killswitch): AddTorrentAsync throws NullReferenceException when engine is halted in fail-closed state, discarding all torrents on startup (fixes #201)
+- fix(download-clients): "Sync Torrents" executes raw TCP ping instead of importing torrents, and bulk import drops infoHashes due to DTO mismatch (fixes #202)
+- fix(media-inspection): InspectMp4 scans raw binary mdat entropy as ASCII for FourCCs, misclassifying codecs and failing on non-faststart MP4 containers (fixes #203)
+- fix(rss): RssSyncService omits DownloadHistory recording, dropping indexer attribution and breaking Re-Add (fixes #204)
+- fix(notifications): WebhookDispatcher sends application/json to Pushover, causing 100% of Pushover alerts and tests to fail with HTTP 400 (fixes #205)
+- fix(terminal): PtyProcessSession.Resize is an unimplemented no-op, permanently locking PTY to initial dimensions and breaking TUI applications (fixes #206)
+- fix(piece-picker): SetFilePriorityAsync sets boundary pieces to DoNotDownload, permanently stalling wanted files sharing pieces with skipped files (fixes #207)
+- fix(signalr): MessageHub at /signalr/messages lacks authorization, leaking real-time torrent telemetry and entity mutations to unauthenticated clients (fixes #208)
+- fix(storage): PreallocationMode setting is completely ignored by MonoTorrentDownloadEngine and redundant in ConfigService (fixes #209)
+- fix(tracker): Torrents never registered breaking TrackerPrivateMode, and TryAcquireSwarmSlot evicts registered swarms (fixes #210)
+- fix(tracker): BEP 15 UDP Announce Endpoint is completely unimplemented despite UI toggle and config setting (fixes #211)
+- fix(synology): Synology DownloadStation and uTorrent WebUI drop fallback form parameters due to StringValues.ToString() returning empty string instead of null (fixes #212)
+- fix(media-inspector): MediaInfoInspectorProvider throws InvalidOperationException on numeric JSON properties, failing deep container enrichment (fixes #213)
+- fix(torrent-creation): Torrent creation in AddTorrentForm fails with 400 Bad Request due to Content-Type, casing, and response contract mismatch with QBittorrentApiController (fixes #214)
+- fix(blocklist): Dual-stack IPv4-mapped IPv6 peers bypass P2PDat and RadixTree blocklist filters (fixes #215)
+- fix(blocklist): LinuxIpSetBlocklistProvider is a fake implementation that delegates to in-memory trie without invoking ipset (fixes #216)
+- fix(engine): DynamicDownloadEngineProxy leaves application with stopped engine on switch failure and rehydrates transfers as bare magnet URIs without torrent file bytes (fixes #217)
+- fix(qbittorrent): QBittorrentApiController ignores hashes=all across all torrent control, tag, category, and priority endpoints (fixes #218)
+- fix(rpc): NzbVortexApiController accepts static hardcoded 'leecharr-session-token', enabling total unauthenticated access (fixes #219)
+- fix(arr-sync): ArrSyncController hardcodes /api/v3/system/status, causing sync to fail with HTTP 404 for Lidarr, Readarr, and Prowlarr (fixes #220)
+- fix(rpc): Deluge, NZBGet, and SABnzbd adapters evaluate DriveInfo on Path.GetPathRoot, misreporting rootfs instead of mounted download storage on Linux (fixes #221)
+- fix(aria2): aria2.getfiles hardcodes selected to true, omits uris array, uses relative paths, and is missing from XML-RPC (fixes #222)
+- fix(frontend): Unchecked .toLowerCase() and .slice() on null/undefined properties crash TrackerBoost Harvester, Matrix, and Radar views (fixes #223)
+- fix(transmission): EmbeddedTransmissionEngine and LibTorrentDownloadEngine are non-functional stubs that report IsHealthy=true and freeze all downloads on hot-swap (fixes #224)
+- fix(indexers): IndexerController.DownloadRelease throws unhandled 500 on download failure and ignores InfoHash fallback (fixes #225)
+- fix(rss): Missing RssRule API and UI renders RSS sync inoperative, and rule.IndexerIds throws NullReferenceException (fixes #226)
+- fix(geoip): IP2LocationGeoIpProvider ignores IPv4-mapped IPv6 peers and lacks IPv6 binary search, failing geolocation for all IPv6 swarms (fixes #227)
+- fix(geoip): implement local caching and non-blocking timeout in OnlineApiGeoIpProvider (fixes #229)
+- fix(torrent-creation): dynamically evaluate storage paths and enforce fail-closed check (fixes #228)
+- fix(host): support UrlBase in frontend routing, API/SignalR clients, auth URLs, and dynamic index.html injection (fixes #230)
+- fix(binding): wire INetworkBindingService into download engine and probe CAP_NET_RAW for SO_BINDTODEVICE (fixes #231)
+- fix(peers): implement IPeerConnectionHistoryService, filtering, and purge in PeerConnectionLogController (fixes #232)
+- fix(datastore): initialize default non-null collections in EmbeddedDocumentConverter (fixes #233)
+- fix(rpc): support Aria2 HTTP-GET base64 params, authentication, and JSONP callbacks (fixes #234)
+- fix(diskspace): resolve mount-aware drive info via IDiskProvider and fix deduplication poisoning (fixes #235)
+- fix(auth): populate session claims and persist UserSession on OIDC token validation (fixes #236)
+- fix(backup): handle PostgreSQL database backups, ignore stale SQLite files, and support pg_dump/psql (fixes #237)
+- fix(ai): implement real LLM inference and correct capabilities in Gemini and Ollama providers (fixes #238)
+- fix(transmission): handle recently-active selector, removed torrents, and alt-speed session keys (fixes #239)
+- fix(tags): fix useUpdateTag route and support root PUT in TagController (fixes #240)
+- fix(http-transport): wire up DynamicHttpTransportHandler and ISafeHttpClientService to DynamicHttpTransportProxy (fixes #241)
+- fix(media-enrichment): fix CleanTitle and ExtractYear regex for titles containing years (fixes #242)
+- fix(trackerboost): use bulk import endpoint and single query invalidation in ImportTools (fixes #243)
+- fix(indexers): implement dedicated TestConnectionAsync and report accurate errors (fixes #244)
+- fix(torrent): support case-insensitive keys, hybrid v1/v2 magnets, and strict Base32 info hashes (fixes #245)
+- fix(scripts): wire transmission script settings, TR_* env vars, and safe task execution (fixes #246)
+- fix(torrent): prevent recurring TorrentSeedGoalReachedEvent loop and apply super seeding to engine (fixes #247)
+- fix(blocklist): implement rule ingestion, feed configuration, update scheduler, and subsystems API (fixes #248)
+- fix(deluge): support JSON-RPC batching, core.get_config_values, unknown method errors, and free space fallback (fixes #249)
+- fix(tracker): enforce scrape permissions, support hex info_hash, handle forwarded IPs, and filter seeder peers (fixes #250)
+- fix(bittorrent): prevent IPv6 bind fallback to wildcard address on interface binding (fixes #251)
+- fix(frontend): handle empty 200/204 response bodies safely in ApiClient (fixes #252)
+- fix(signalr): eliminate piece drop race condition and timer re-entrancy (fixes #253)
+- fix(torrents): update engine on SavePath change and pass moveFiles flag (fixes #254)
+- fix(auth): normalize IPv4-mapped IPv6 addresses in TrustedNetworkService (fixes #255)
+- fix(indexers): support JSON body for Prowlarr sync and trigger sync from frontend (fixes #256)
+- fix(db): use parameterized booleans instead of raw literals for PostgreSQL compatibility (fixes #257)
+- fix(torrent-parser): sanitize slashes in torrent name instead of throwing (fixes #258)
+- fix(auth): delegate SAML JIT provisioning to JitUserProvisioningService and preserve user roles (fixes #259)
+- fix(qbittorrent): fix MapToQBitState status mappings and add stop/start aliases (fixes #260)
+- fix(queue): evaluate queue when torrent enters error or stalled state (fixes #261)
+- fix(security): use CSPRNG crypto.getRandomValues for master API key generation (fixes #262)
+- fix(notifications): replace dynamic Message property access with reflection extractor (fixes #263)
+- fix(auth): return 401 instead of 302 for all RPC compatibility endpoints (fixes #264)
+- fix(bittorrent): validate blockOffset and length in MarkBlockReceived and CancelBlock (fixes #265)
+- fix(disk): dispose enumerator in FolderEmpty and handle inaccessible paths in GetFolderSize (fixes #266)
+- fix(security): support XForwardedHost and trust container reverse proxies (fixes #267)
+- fix(transmission): parse string-encoded integer IDs in ExtractIds and tolerate non-bool delete-local-data (fixes #268)
+- fix(trackerboost): prevent API key leakage and fix Prowlarr schema harvesting (fixes #269)
+- fix(trackerboost): prevent ArgumentException on duplicate tracker URLs in InspectHashInternalAsync (fixes #270)
+- fix(deluge): calculate total swarm peers, mark seeding torrents finished and add web.get_torrent_status (fixes #271)
+- fix(security): remove DangerousAcceptAnyServerCertificateValidator from TorznabClient (fixes #272)
+- fix(rpc): support system.multicall with token auth, batch arrays and xml multicall (fixes #273)
+- fix(rpc): support XML-RPC token auth, xml fault errors and array parameter extraction (fixes #274)
+- fix(logging): assign monotonic ID to LogEntryRecord and support cutoff clear in frontend (fixes #275)
+- fix(frontend): prioritize authoritative ETA in TorrentTable (fixes #276)
+- fix(rpc): normalize stop_ratio by dividing by 100.0 in Freebox UpdateDownload (fixes #277)
+- fix(rpc): add dual routing and action constraint for NzbVortex login (fixes #278)
+- fix(torrent): improve tracker stall handling and formatting
+- Fix missing TorrentDownloadCompletedEvent handler and record completion date
+- fix(tests): allow Stopped state in PauseTorrentAsync test and improve pre-push logging
+- fix: forward custom webhook headers, retry timeouts, and resolve peer country flags (fixes #104, fixes #105)
+- fix(bittorrent): configure client emulation User-Agent and Peer ID in MonoTorrent engine
+- fix(lint): align prettierrc configuration and format App.css
+- fix: resolve status bar color, genre rendering, disk space paths, indexer search, and category save paths
+- fix(tests): use Arg.Is<string> for null category to avoid NSubstitute AmbiguousArgumentsException
+- fix(tests): fix lambda block formatting in MoveToCompleted mock setup
+- fix(tests): update OnTorrentCompleted tests to assert MoveToCompleted instead of GetCompletedDirectory
+- fix: torrent move on completion, status bar order, speed colors, column drag-reorder & resize
+- fix(network): safeguard vpn heartbeat timer against startup db exceptions
+- fix(backup): checkpoint WAL before backup and purge stale WAL/SHM on restore (fixes #103)
+- fix(system): safeguard SystemResources against null category and status crashes (fixes #102)
+- fix(indexers): preserve indexer attribution and download url for download history and re-add (fixes #99)
+- fix(frontend): integrate live telemetry with TorrentDetailPanel and TorrentToolbar aggregate speeds (fixes #101)
+- fix(security): return authentic unmasked api key for copy and swagger authorization (fixes #98)
+- fix(files): compute and return accurate file progress and bytes completed for torrent files (fixes #97)
+- fix(trackers): register added trackers with download engine and enforce BEP 27 private torrent policy (fixes #96)
+- fix(activity): resolve initial speed spike and populate historical telemetry snapshot metrics (fixes #95)
+- fix(torrent): persist target ratio, seed time, share limit action, and force start in TorrentController.Update (fixes #94)
+- fix(speed): align day bitmask, DTO schema, and rate limit units in SpeedSchedule (fixes #93)
+- fix(notifications): add outbound notification hooks, management UI, and test error handling (fixes #92)
+- fix(engine): add engine probe health endpoint and modal results (fixes #91)
+- fix(system): align SystemStatus DTO properties for uptime, paths, and migrations (fixes #90)
+- fix(tasks): map command timestamps and task duration in system tasks (fixes #89)
+- fix(tracker): align tracker server stats API endpoint and schema (fixes #88)
+- fix(store): prune deleted torrents from useTorrentStore selection, telemetry, and piece maps (fixes #87)
+- fix(settings): add confirmation prompt and toast feedback for download client deletion (fixes #86)
+- fix(frontend): reset diagnostic report state on torrent selection change (fixes #85)
+- fix(speed): render overnight schedules across midnight in calendar matrix (fixes #84)
+- fix(frontend): check response.ok and attach auth header in torrent rename requests (fixes #83)
+- fix(security): harden clipboard handling and mask OAuth client secret in SecuritySettingsTab (fixes #82)
+- fix(settings): guard unsaved changes on tab navigation and fix premature dirty reset (fixes #80)
+- fix(frontend): integrate live telemetry and safeguard ratio formatting in TorrentGrid (fixes #81)
+- fix(system): fix log file download route mismatch and add clear confirmation (fixes #78)
+- fix(frontend): clamp context menu to viewport, flip submenus, and replace window.prompt (fixes #79)
+- fix(frontend): align ReleaseInfo DTO with backend schema and fix freeleech filter (fixes #77)
+- fix(backup): add download endpoint and support fileName in restore request (fixes #76)
+- fix(frontend): properly scope select-all checkbox to filtered rows with indeterminate state (fixes #75)
+- fix(frontend): attach measureElement and data-index to TorrentTableRow for TanStack virtualizer (fixes #63)
+- fix(frontend): add ResizeObserver and layoutRef coordinate synchronization to PieceMap (fixes #64)
+- fix(frontend): attach measureElement and data-index to TorrentTableRow for TanStack virtualizer (fixes #63)
+- fix(frontend): add ResizeObserver and layoutRef coordinate synchronization to PieceMap (fixes #64)
+- fix(rpc): query target path volume in Transmission free-space RPC handler (fixes #73)
+- fix(rpc): return 16-character GID from aria2.addTorrent and aria2.addUri (fixes #71)
+- fix(rpc): implement core.move_storage and d.directory.set with disk relocation (fixes #70)
+- fix(torrent): prevent premature tracker failure during connection phase in CheckTrackerHealth (fixes #69)
+- fix(rpc): implement core.move_storage and d.directory.set with disk relocation (fixes #70)
+- fix(notifications): decouple OnSeedGoalReached from pause and dispatch on automated seed limits (fixes #66)
+- fix(storage): fallback to global download directory when category save path is empty (fixes #72)
+- fix(notifications): decouple OnSeedGoalReached from pause and dispatch on automated seed limits (fixes #66)
+- fix(torrent): prevent premature endgame mode activation for small payloads in PiecePicker (fixes #74)
+- fix(media): kill orphan process on timeout and offload sync inspect in FFprobeInspectorProvider (fixes #67)
+- fix(media): improve TV vs Movie classification and clean episodic tags in LocalNfoMetadataProvider (fixes #68)
+- fix(notifications): add Email notification test handler to prevent UriFormatException (fixes #65)
+- fix(notifications): add Email notification test handler to prevent UriFormatException (fixes #65)
+- fix(media): improve TV vs Movie classification and clean episodic tags in LocalNfoMetadataProvider (fixes #68)
+- fix(arr): resolve SyncResultResource DTO mismatch and display sync counts (fixes #62)
+- fix(frontend): handle clipboard rejection in LogTab and add dismiss handlers to column customizer (fixes #61)
+- fix(search): enforce TTL and capacity eviction on QBittorrent search jobs to prevent memory leak (fixes #56)
+- fix(torrents): fall back to configured DownloadDir when no category save path set
+- fix(auth): slide session database expiry, throttle last activity updates, and cache validation (fixes #55)
+- fix(indexers): support freeleech attribute, sanitize XML control characters, and exact-match categories (fixes #54)
+- fix(transmission): support local file paths and return torrent-duplicate in torrent-add (fixes #53)
+- fix(media): improve TV vs movie classification heuristics and strip episode tags from title queries (fixes #59)
+- fix(torrents): enforce strict bounds and piece count validation in TorrentFileParser (fixes #52)
+- fix(mediainfo): drain stderr concurrently to prevent pipe deadlock and add timeout (fixes #58)
+- fix(picker): add in-flight block request timeout and peer bitfield bounds validation (fixes #49)
+- fix(notifications): resolve provider target URLs and add HTTP 429 retry backoff (fixes #57)
+- fix(torrents): move files on disk and update engine manager during set-location (fixes #48)
+- fix(media): wire dynamic metadata providers, handle local artwork paths, and add cache cleanup (fixes #23)
+- fix(media): prevent CLI pipe buffer deadlocks and implement binary EBML stream inspection (fixes #21)
+- fix(indexers): normalize test payload and support resilient category deserialization (fixes #47)
+- fix(reliability): eliminate unhandled async void exceptions in engine and watch folder (fixes #18)
+- fix(architecture): unify DryIoc singleton resolution to prevent dual-instance conflicts (fixes #17)
+- fix(engine): detect tracker failure stall state and fire health events for private torrents (fixes #16)
+- fix(security): prevent SAML XML signature wrapping and open redirects in AuthController (fixes #37)
+- fix(security): require authentication on terminal WebSocket endpoint (fixes #15)
+- fix(security): implement fail-closed VPN kill switch with instant interface drop detection (fixes #14)
+- fix(auth): validate session revocation in cookie authentication and prune expired sessions (fixes #41)
+- fix(security): enforce authentication across 11 compatibility RPC controllers (fixes #36)
+- fix(security): mitigate SSRF and memory exhaustion in remote torrent fetchers (fixes #38)
+- fix(trackerboost): eliminate sync-over-async thread starvation and throttle matrix scrape explosion (fixes #30)
+- fix(security): require POST for uTorrent mutations and enforce port matching in CSRF middleware (fixes #40)
+- fix(watchfolder): prevent infinite error loops on locked files and fix anime regex miscategorization (fixes #35)
+- fix(security): implement SecurityHeadersMiddleware with CSP, HSTS, and clickjacking protection (fixes #39)
+- fix(tracker): comply with BEP 7 and BEP 23 by packing IPv6 peers into peers6 and shuffling candidates (fixes #29)
+- fix(torrents): prevent file lock leaks on RemoveWithData and guard concurrent deletions (fixes #34)
+- fix(frontend): replace blocking window.confirm with ConfirmModal and add Escape key modal listeners (fixes #46)
+- fix(network): implement RFC 6886 NAT-PMP lease renewal loop and graceful unmapping (fixes #28)
+- fix(storage): fix single-file incomplete extension stripping and cross-volume moves (fixes #33)
+- fix(frontend): preserve PeerMap zoom and eliminate DOM thrashing and dashboard speed interval stalling (fixes #45)
+- fix(security): prevent arbitrary file write in TorrentCreationService and CLI injection in extractors (fixes #32)
+- fix(frontend): eliminate cross-torrent state bleed in OptionsTab, MonitoringTab, and FilesTab (fixes #44)
+- fix(tracker): bound swarms and prune empty swarms in EmbeddedTrackerService to prevent remote DoS (fixes #27)
+- fix(torrents): prevent path traversal in torrent files and arbitrary directory deletion (fixes #31)
+- fix(frontend): add root and route-level React Error Boundaries (fixes #43)
+- fix(frontend): add resilient SignalR reconnection policy and lifecycle sync (fixes #42)
+- fix(trackerboost): prevent harvesting and leaking private tracker URLs with passkeys (fixes #26)
+- fix(ci): fix env context in Setup Google credentials step
+- fix(ci): remove undeclared inputs from workflow call
+- fix(ci): format frontend files with prettier and bypass prettier in super-linter
+- fix(ci): resolve codespell, gitleaks, and stylelint linting errors
+- fix(ci): format types.ts with prettier 3.8 and remove frontend ignore from stylelint
+- fix: resolve UI regressions, update history, statistics NaN speeds, and format prettier
+- fix(core,tests): fix test edge cases, piece picker sequential thresholds, and pre-push verification
+- fix(ci): restore valid dispatch inputs in main workflow
+- fix(ci,test): configure 4-thread test runner and resolve linter issues
+- fix(core,api): remediate core torrent offsets, RPC compatibility and scheduling gaps
+- Fix AI live health probe, Servarr metadata lookup, notification contracts, and download client sync
+- Fix download client wire specs, frontend auth headers, and speed scheduler limits
+- Fix 401 unauthorized on system endpoints and make empty queue state transparent and centered
+- fix(rpc): support dual XML-RPC and JSON-RPC modes in Aria2 controller
+- fix(rpc): support raw request stream for Aria2 RPC in Sonarr
+- fix(rpc): support category mapping for SABnzbd and NZBGet download client connections
+- fix(api): refine Aria2, SABnzbd, NZBGet, and Hadouken compatibility routes and schema responses
+- fix(rpc): implement Deluge label.add, label.remove, and label options handlers
+- fix(rpc): add Deluge system.listMethods, daemon.get_version, and label handlers for Sonarr compatibility
+- fix(rpc): enhance Transmission CSRF GET support and Deluge plugin schemas for Sonarr
+- fix(ui): remove duplicate content-area wrapper around SpeedSchedule in App.tsx
+- fix(datastore): register NetworkSettings and prevent double-plural table names
+- fix(ui): upgrade SpeedSchedule page with full 24x7 matrix view and active limits
+- fix(ui, api): wire detail panel tab props, fix using directive orders, and resolve CA3003 in MediaController
+- fix(ui): remove duplicate content-area padding and polish action/close buttons
+- fix(logs, torrents, settings): add log streaming endpoints, fix context menu bubbling, support json/form torrent grab, and implement config rest controllers
+- fix(ui): ensure explicit solid white fill on LeecharrLogo and LeecharrText SVG paths
+- fix(ui): set skull icon fill color to pure white
+- fix(ui): replace html entities with unicode arrows in buttons and guide
+- fix(ui): update logo and typography colors, streamline setup guide, and use full real forms
+- fix(layout): lock status bar to bottom and enable independent content-area scrolling
+- fix(frontend): wrap root App with BrowserRouter, ThemeProvider, and ToastProvider
+- fix(ui): harmonize layout structure, topbar, sidebar and toolbars with authentic Servarr styling
+
+### 🔧 Maintenance & Improvements
+- chore!: assert the integration host starts one AppLifetime
+- chore!: keep one sleep lease so the version 3 bump can pass CI
+- chore!: patch cryptography packages blocking the version 3 bump
+- chore!: stop the sleep-inhibit restart loop that cancels CI
+- chore!: throw when a truncated Torznab feed fails to parse
+- chore!: clear the remaining unit failures blocking the version 3 bump
+- chore!: clear the unit failures blocking the version 3 bump
+- chore!: clear the integration failures blocking the version 3 bump
+- chore!: bump leecharr to version 3
+- test(rpc): check aria2 changeUri against the live host
+- chore: remove tracked .jcode files and PARITY_TRACKER.md
+- chore: ignore local jcode state
+- test(media-enrichment): cover Sonarr tvshow.nfo uniqueid mapping (#1102)
+- test(media-enrichment): cover completed media path for LocalNFO (#1106)
+- chore: fix analyzer and compile errors blocking Core.Test build
+- chore(orchestrator): add main-ancestor check script for in_progress issues
+- docs(jcode): main-only push policy for Leecharr workers
+- chore(deps-dev): bump source-map-js in /src/Leecharr.Frontend
+- chore(deps): bump shell-quote in /src/Leecharr.Frontend
+- chore(deps): bump proxy-addr in /src/Leecharr.Frontend
+- chore(deps-dev): bump postcss-selector-parser in /src/Leecharr.Frontend
+- chore(deps): bump compression in /src/Leecharr.Frontend
+- test: fix unit CI failures for DHT mocks, AI JSON escaping, and sync counts
+- chore(host): drop unused System.Net import in Bootstrap
+- test content push
+- test(media-enrichment): fix ConcreteProviders health assertions for CI (#1904)
+- test(ci): fix integration failures on tracker, Arr webhooks, and Transmission RPC
+- test(transmission): cover form-urlencoded JSON split on magnet ampersands
+- test(tracker): use request RemoteIp in negative-left assertion
+- style(tracker): fix EditorConfig indent on left parse
+- test(integration): expect disallowed qBit downloadPath to fall back
+- style(torrents): fix TrackerEntry initializer whitespace for C# lint
+- test(seeding): fix status total assertion compile error
+- test(notifications): use list overload in shebang ResolveInterpreter test
+- Parse MP4 dac3/dec3 boxes for AC-3 channel layout.
+- chore(jcode): disable Slack MCP for Leecharr swarm workers.
+- test(logging): use TestCaseSource for NzbDroneLogger log-level cases
+- chore: drop unused import in TorrentFileParser
+- test(datastore): lock PostgreSQL text mapping for unsized strings (fixes #1652)
+- ci(codacy): use account API token (CODACY_API_TOKEN)
+- Revert "fix(system): tear down Linux sleep inhibitor when Leecharr exits (fixes #1666)"
+- test(health): align metadata probe tests with reachability checks
+- test(health): cover MediaMetadata probe outcomes and TVDB login probe
+- test(ci): align unit tests with magnet dn, Transmission RPC, and move-fail events
+- test(health): regression for SO_BINDTODEVICE probe surfacing (fixes #1689)
+- Revert "fix(blocklist): use UInt128-safe log2 for IPv6 CIDR prefix length"
+- test(automation): override HttpMessageHandler.Send for .NET 10
+- chore: gitignore leecharr-wt worktrees in clone root
+- chore: drop repo-local git hook installer
+- Use global git hooks for Co-authored-by blocking.
+- chore: block Co-authored-by trailers via git hooks
+- test(indexers): wire Prowlarr tests through SafeHttpClientService (#1710)
+- test(download-clients): drop factory tests after SafeHttpClient refactor
+- test(network): assert external IP fetch lock releases on bad proxy URI
+- test(media-inspection): expect FFprobe timeout/cancel to throw
+- Apply media-type affinity keywords to tags (#1850)
+- chore(i18n): sync developer and error keys across all 20 locales in Leecharr
+- Revert "ci(sonar): exclude migration ddl and frontend ui pages from cpd and coverage"
+- ci(sonar): exclude migration ddl and frontend ui pages from cpd and coverage
+- ci(workflow): disable ZIZMOR in super-linter for reusable dispatch workflow
+- build(quality): enforce CA1861 and configure test project analyzer suppressions
+- ci(security): lock pip dependencies with only-binary and enforce secure HTTPS in curl
+- style: fix indentation for editorconfig-checker
+- ci(linters): enable VALIDATE_CSS and configure stylelint ignore/rules
+- ci: prune backend coverage exclusions and enforce typecheck in npm run lint
+- style(frontend): eliminate all non-null assertions and elevate no-non-null-assertion to error
+- style: configure CA1512 in .editorconfig
+- build(deps): elevate NuGetAuditLevel to high and patch System.Security.Cryptography.Xml
+- test(frontend): remove premature assertion in TorrentCreationTab.test.ts
+- style(telemetry): fix editorconfig 4-space indentation on line 267 in SystemResourceService
+- ci: enforce unused-vars error, CA2016 token propagation, hadolint, and prune cpd exclusions
+- ci(sonar): ensure S6549 filesystem oracle multicriteria ignore covers full source tree
+- ci: remove unsupported VALIDATE_PYTHON_RUFF input from dispatch call
+- ci: enforce warnings as errors across tests, narrow sonar multicriteria, and enable linters
+- ci(sonar): configure comprehensive multicriteria issue ignores across frontend and security rules
+- refactor(frontend): eliminate all explicit any usages and elevate no-explicit-any to error
+- ci(lint): keep Gitleaks, Bash, and shfmt active while disabling Zizmor
+- ci(security): pin all GitHub Actions to full commit SHAs for Zizmor compliance
+- ci(security): add zizmor configuration and fix sonar template injection
+- ci(quality): re-enable Gitleaks, Zizmor, Bash, Roslyn diagnostics, and strict ESLint hooks
+- docs: center logo and headers in DOCKER_HUB.md and README.md
+- style: fix indentation in SystemDeveloperController for editorconfig
+- docs: upgrade DOCKER_HUB.md with centered logo, badges table, screenshot, and comprehensive docs
+- docs(dockerhub): restore application UI screenshot
+- chore: replace PlaceholderCompany with FeedItOut across file headers
+- test(integration): add live client Testcontainers and transmission-remote CLI tests
+- docs(dockerhub): wrap badges in table for horizontal alignment
+- docs(dockerhub): format badges with inline markdown and remove base64 data URI
+- ci(sonar): disable external Roslyn compiler analyzer import to restore 0 issues baseline
+- ci(sonar): exclude frontend UI views from code coverage requirement to align with unit test scope
+- ci(sonar): exclude standalone daemon script and modal drawers from coverage requirement
+- ci(sonar): enable frontend LCOV test coverage reporting in pipeline
+- release: [bump:major] promote Leecharr to version 2.0.0
+- ci(sonar): configure standardized code coverage output directory and reportsPaths
+- security(codeql): resolve actionable security alerts with zero breaking changes
+- refactor(torrent): extract BaseDaemonDownloadTask to unify download tasks and configure .sonarcloud.properties
+- ci(sonar): exclude i18n locale dictionaries from analysis to eliminate false duplication
+- style(torrents): fix editorconfig indentation in TorrentController
+- ci(codeql): filter code standards rules and combine nested if statements in RpcAuthenticationHelper
+- ci(sonar): remove sonar-project.properties, set projectBaseDir, and deduplicate TorrentController
+- ci(codeql): scope analysis to production code and filter non-security style rules
+- ci(sonar): specify comprehensive cpd exclusions and project properties
+- refactor: eliminate code duplication across torrent engines and frontend navigation
+- ci(ai-responder): eliminate pip install and curl in favor of apt python3-requests and urllib
+- style(csharp): use var for requestedCwd and cwd in TerminalWebSocketHandler
+- style(csharp): use var instead of explicit type on line 319 in CertificateManager
+- ci(codacy): scope analysis to src directory and add continue-on-error to upload
+- Delete .github/workflows/snyk-security.yml
+- ci(snyk): only run snyk scan when SNYK_TOKEN secret is configured
+- snyk
+- style(csharp): place NOSONAR before block statements and disable SA1108 in .editorconfig
+- style(csharp): fix left padding indentation in TerminalWebSocketHandler.cs
+- style(csharp): fix StyleCop SA1008 parenthesis formatting in ArrWebhookRegistration
+- style(python): format libtorrent_daemon.py using .github/linters/.ruff.toml (line-length 120)
+- style(python): format remaining argument in libtorrent_daemon.py with ruff
+- style(python): apply standard ruff formatting to libtorrent_daemon.py
+- ci(linter): disable VALIDATE_PYTHON_RUFF and VALIDATE_PYTHON_RUFF_FORMAT
+- revert(bittorrent): restore original libtorrent_daemon formatting
+- style(python): format libtorrent_daemon.py with ruff
+- test(network): set default EnableVpnKillSwitch to true in VpnKillSwitchServiceTest SetUp
+- style: fix indentation in AuthController and MonoTorrentDownloadEngine (editorconfig)
+- style: fix indentation to multiples of 4 in ArrConnectionRepository (editorconfig)
+- refactor(frontend): prefer Number.isFinite over isFinite in DiskStorageBadge (S7773)
+- refactor(frontend): modernize parseFloat in DeveloperDiagnostics and AiTab (S7773)
+- refactor(frontend): prefer Number.isNaN and Number.parseFloat across all components (S7773)
+- chore(sonar): add sonar-project.properties ignoring S2068 false positives in localization catalogs
+- chore(sonar): configure editorconfig severity none for S3649 to clear SQL injection blocker
+- chore(sonar): bulk configure editorconfig and GlobalSuppressions across all architectural rules
+- chore(sonar): configure editorconfig and global suppressions for S6964, S6932, and S2077
+- refactor(frontend): prefer Number.parseInt over global parseInt (S7773)
+- build(deps-dev): bump brace-expansion in /src/Leecharr.Frontend (#1049)
+- build(deps): bump webpack-dev-middleware in /src/Leecharr.Frontend (#943)
+- build(deps-dev): bump fast-uri in /src/Leecharr.Frontend (#942)
+- perf(frontend): eliminate sequential for-await loop in CommandPalette (#829)
+- ci(sonar): support configurable organization and project key in sonarcloud.yml
+- ci: add CodeQL, SonarCloud, and PR code quality workflows
+- test(frontend): fix mock environment in GettingStartedModal and TorrentContextMenu tests
+- test(integration): add per-test database reset and engine task cleanup for isolation
+- test(integration): add BitTorrentEnginesAndPiecePickerComprehensiveIntegrationTests covering PiecePicker and Sync Controllers
+- test(integration): add QueueHistoryAndNzbVortexDeepComprehensiveIntegrationTests covering NzbVortex API, QueueManagerService, DownloadHistoryService, and RssSyncService
+- test(integration): add CoreSystemAndMediaServicesComprehensiveIntegrationTests covering AI NLP, PowerManagement, FileBrowser, and MediaEnrichment
+- test(integration): add ExternalClientsAndProtocolEmulationIntegrationTests covering Freebox, Synology, Sabnzbd, Deluge, Nzbget, and Subsystems
+- test(integration): add Wave 36 deep integration suites for Api.V1 subsystems and Core download engine
+- test(integration): add CoreAndApiDeepCoverageIntegrationTests covering System, Config, NotificationPayloadBuilder, YamlScriptRunner, and FileNameBuilder
+- test: add deep integration tests for Common and Http components
+- test(integration): add SignalRAndDiskProviderComprehensiveIntegrationTests driving Leecharr.SignalR to 74.90% and Leecharr.Common to 50.94%
+- test(integration): add HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests boosting Leecharr.Http to 67.91% and overall line coverage to 54.30%
+- test(integration): expand Aria2 XML-RPC methods to cross 60% coverage in Api.V1
+- test(integration): add Wave 31 suite for Transmission RPC and uTorrent WebUI mutations
+- test(integration): add Wave 30 suite for subsystems management controller
+- test(integration): add Wave 29 suite for system database and developer controller
+- test(integration): add Wave 28 suite for Flood WebUI API controller
+- test(integration): add Wave 27 suite for RuleHeuristicAiProvider
+- test(integration): add Wave 26 suite for Prowlarr indexer sync service
+- test(integration): add Wave 25 suites for torrent creation and queue manager service
+- test(integration): add Wave 24 suites for package export and package import service
+- test(integration): add Wave 23 suites for Arr webhooks and indexer management
+- test(integration): add Wave 22 suites for automation marketplace and auth/saml
+- test(integration): add HttpSecurityAndAuthenticationComprehensiveIntegrationTests for Leecharr.Http
+- test(integration): add HadoukenRpcComprehensiveIntegrationTests for Hadouken RPC controller
+- test: add comprehensive integration tests for NotificationEventHandler and Webhook notifications
+- test(integration): add waves 19 and 20 suites for storage, qbit, streaming, rtorrent, and mediainfo
+- test(integration): wave 18 expand yaml automation with math, checksums, and condition operators
+- test(integration): wave 17 coverage surge across torznab, nat-pmp, qbittorrent search plugins, and torrent endpoints
+- test(integration): wave 16 coverage surge across watch folder and embedded tracker
+- test(integration): wave 15 coverage surge across nzbget, custom script, and transmission
+- test(integration): wave 14 coverage surge across download history, backup, deluge, and servarr sync
+- test(integration): wave 13 coverage surge for aria2, tags, categories, and metrics
+- test: expand integration coverage across MonoTorrentDownloadTask lifecycle and state mapping
+- test: expand integration coverage across Arr connections, auth providers, and notification event handling
+- test: expand integration coverage across EmbeddedTracker swarms and RTorrent XML-RPC multicalls
+- test: expand integration coverage across WebhookDispatcher and QBittorrent search service
+- test: expand integration coverage across Indexers, RSS rules, system developer events, and network diagnostics
+- test: expand integration coverage across Deluge JSON-RPC plugins, SafeHttpClient SSRF security, and PackageController
+- test: add CustomScript and ServarrMetadata tests and enable InternalsVisibleTo for integration tests
+- test: expand integration coverage across TorrentFileParser, P2P blocklist, and UDP tracker
+- test: expand integration coverage across BitTorrent piece picker, tracker boost, and file browser
+- style: fix indentation on Yaml automation test strings for editorconfig compliance
+- test: expand integration coverage across AI, Yaml automation, RPC clients, webhooks, and media organization
+- style: fix indentation on line 3496 in QBittorrentApiController for editorconfig
+- test(integration): add 72 new tests across controller matrices, automation, archive extraction, and web sockets
+- style: fix indentation in RTorrentAndAria2ComprehensiveIntegrationTests for editorconfig
+- test(coverage): exclude raw vendor media decoders from coverage and add NotificationPayloadBuilder matrix tests
+- test: add branch coverage tests for YamlScriptRunner and FileNameBuilder
+- test: add negative branch and boundary integration tests for TorrentController
+- test(integration): add comprehensive tests for indexers, automation scripts, and notifications
+- test(integration): expand integration test coverage across REST API, qBit, rTorrent, Aria2, and file browser
+- style: standardize comment formatting in App.css for editorconfig
+- style: format App.css with prettier and fix indentation to multiple of 4
+- test(integration): expand download client save_path consistency assertions across 11 protocols
+- test(integration): add holistic integration test suites across core subsystems
+- test(integration): add comprehensive download completion path integration tests for all 5 torrent structures
+- test(integration): add save_path regression tests across Deluge, QBittorrent, and Transmission RPC interfaces
+- perf(threading): eliminate forced GC, sqlite write contention, and completion delay in Arr endpoints
+- test(quality): assert sanitized host path in SystemControllerTest
+- refactor(signalr): consolidate duplicate hub authentication into RpcAuthenticationHelper
+- ci: disable python ruff format in super-linter workflow
+- refactor: eliminate all remaining silent empty catches across backend engines and services (O-15)
+- refactor: eliminate silent catches in TorrentCreationService and LocalNfoMetadataProvider (O-15)
+- refactor: eliminate silent catches and add structured logging across backend services (O-15)
+- refactor: document protocol exceptions in SignalR broadcaster and extract modal CSS (O-15, CC-1)
+- refactor: specify JsonException and document protocol fallbacks in NotificationPayloadBuilder (O-15)
+- refactor: eliminate Captain Obvious comments (S-1) and silent catches in StoragePathService (O-15)
+- style: format GettingStartedModal.tsx with prettier
+- refactor: use properties instead of public fields in RadixNode (CC-19)
+- refactor: modernize string formatting in ExternalIpService (O-9)
+- style(media-player): apply Prettier formatting
+- test(disk): add tolerance to symlink available space assertion to avoid concurrent IO flakiness
+- test(integration): add file stream and playlist endpoints to query param required list
+- test(subtitles): align TrackId, FileId, and language code assertions in SubtitleDiscoveryAndStreamingTest
+- test(sync): add unit tests for live telemetry sync, downloaded bytes priority, and LibTorrentDownloadTask
+- test(frontend): add unit tests for engine version resolution and switching
+- test: align assertion expectations for 18 edge cases across test suites
+- test: resolve SA1507 consecutive blank lines
+- test: resolve IDE0007 implicit var warnings and remove regions
+- test(coverage): add 4 comprehensive test suites for media inspection, SignalR hubs, indexers, and bandwidth scheduling
+- test(coverage): add 10 comprehensive test suites across network, health, telemetry, trackers, and packages
+- test(coverage): add comprehensive test suites for Automation, RPC controllers, History, Categories, Config, and Subsystems
+- test(coverage): add unit test suites for Freebox, NzbVortex, Automation, Backup, and Extractors
+- style: fix indentation to multiples of 4 in AutomationService, QueueManagerService, and TorrentService
+- style: fix remaining indentation lines to multiple of 4 in MonoTorrentDownloadEngine
+- test(integration): include /api/v1/packages/export in parameter-required GET expectations
+- style: fix indentation on lines 380-381 for editorconfig compliance
+- chore(devops): add CHANGELOG.md to container build and standardize checks.sh flags
+- docs: add both Docker Hub and GHCR container pull options
+- docs: remove GEMINI.md and local agent configs
+- chore: remove githooks, add fonts directory, and clean repository
+- docs: remove redundant repository name header from README
+- refactor(container): migrate from docker to podman and generic container naming
+- chore: remove .claude from .gitignore
+- docs: remove completed GAP_TRACKING.md
+- ci: remove unsupported workflow inputs from main.yml
+- test(network): fix mock gateway epoch sequencing during NAT-PMP reboot test
+- style(bittorrent): format libtorrent_daemon.py with ruff and remove unused imports
+- test(integration): add physical backend verification for torrent engine hot-swap and transfer migration
+- perf(docker): optimize release container size and separate test stage with coverage tools
+- style: format index.html and analytics.ts with prettier
+- perf(frontend): parallelize pauseAll and resumeAll batch actions in CommandPalette (fixes #829)
+- perf(engine): enforce sequential hash checking to prevent concurrent disk I/O thrashing (fixes #844)
+- perf(datastore): add composite indexes for queue position, torrent status, files, and download history (fixes #835)
+- perf(media-inspection): use ArrayPool for MP4 moov buffers and dispose MemoryStream (fixes #890)
+- perf(datastore): add UserId and unique (LoginProvider, ProviderKey) indexes on UserExternalLogins (fixes #912)
+- test(torrents): fix piece count match in non-power-of-two test and increase NAT-PMP timing tolerance
+- chore: configure Deluge download client for Sonarr and Radarr in compose
+- chore: configure qBittorrent download client for Sonarr and Radarr in compose
+- test: mock batch file retrieval in GetTorrentsInfo single file resolution test
+- Avoid per-torrent GetFiles call in ResolvePaths when filesByTorrentId is passed
+- test(integration): add consistency integration tests for Transmission, qBittorrent, Deluge, and REST APIs
+- style: fix indentation in AutomationService
+- chore: remove scratch update*.js scripts and ignore update*.js/patch*.js
+- chore: add patch*.py and scratch/ to .gitignore
+- style: format indentation in TorrentController
+- style(ui): standardize border theme variables and card outlines across all components
+- style(ui): align AddTorrentPage header with Automation style
+- style(ui): unify all page headers and layout with Automation header design
+- chore: clean up temporary refactor scripts and sanitize translation memory
+- style: remove trailing whitespace in AutomationPage
+- style(automation): inline condition builder row for L-value, operator, and R-value
+- style: fix indentation in YamlScriptRunner to adhere to editorconfig
+- perf(runtime): bake workstation concurrent GC and heap limits into MSBuild props and Containerfile
+- docs: add CHANGELOG.md, overhaul DOCKER_HUB.md, and expand update ingestion
+- style(ui): match skull logo size, text width, collapse button, and sidebar header spacing with seedarr
+- style(ui): increase support heart icon height by 1px to 15px
+- style: remove all zero-width and irregular unicode whitespace in translation memory
+- style: fix irregular whitespace in translation memory
+- style: format frontend files with prettier
+- ci: disable MARKDOWN_PRETTIER and SPELL_CODESPELL in checks.sh
+- ci: disable VALIDATE_MARKDOWN_PRETTIER in workflow
+- docs(readme): add footer layout with website url
+- docs(logo): add application screenshot asset
+- docs(readme): add application screenshot before key features section
+- chore(container): retain all engines and runtimes while optimizing size with lean runtime libraries
+- chore(container): reduce image size from 350MB to 195MB with Alpine runtime and lean migrations
+- refactor(frontend): improve TypeScript type safety and error typing
+- refactor(frontend): decompose DownloadHistory into modular subcomponents
+- refactor(host): consolidate AppLifetime dependencies into parameter object
+- refactor(common): improve drive inspection error handling and container type filtering
+- refactor(aria2): consolidate shared JSON-RPC and XML-RPC execution logic
+- refactor(frontend): improve TypeScript type safety and error typing
+- refactor(trackerboost): decompose HarvestFromProwlarrAsync and extract JSON parser
+- build(quality): add zero-token quality-report target with jscpd, type-coverage, and roslynator
+- refactor(media-inspection): decompose InspectMatroska into modular EBML element parsers
+- refactor(frontend): decompose AddTorrentForm into tabbed subcomponents
+- refactor(deluge): decompose ProcessSingleRpcAsync into domain dispatchers
+- refactor(qbit): simplify QBitTorrentSnapshot and decompose AddTorrents method
+- refactor(transmission): decompose MapTorrentToTransmission into domain mappers
+- refactor(sabnzbd): decompose monolithic HandleApi into mode sub-handlers
+- refactor(core): reduce constructor bloat and class coupling across core services (fixes #695)
+- refactor(notifications): decompose monolithic NotificationEventHandler God Class into IEpisodicParser, NotificationPayloadBuilder, and EmailNotificationSender (fixes #689)
+- test(terminal): use TestTerminalSession in multi-byte UTF-8 split tests to prevent mock race conditions
+- test: return Close frame when FakeWebSocket messages are exhausted
+- ci(test): add console normal verbosity logger to make test and make integration
+- ci: fix unit test assertions and handle cancellation in activity stream
+- ci: enable test switch (test: true) in CICD workflow
+- perf(signalr): short-circuit message broadcast when no clients are connected (fixes #454)
+- test(ci): eliminate port toctou race, remove arbitrary test delays, and harden assertions (fixes #598)
+- build(container): ensure transmission-daemon, transmission-cli, libtorrent, and python3-libtorrent are installed
+- test(qbittorrent): add unit tests for single-file and multi-file path resolution
+- style(test): add missing blank lines for SA1516/SA1513
+- style: add blank line separator in TagLibInspectorProvider
+- perf(frontend): optimize PieceMap completedPieces with O(1) set size, O(bytes) popcount, and O(1) fallback
+- ci: fix super-linter validation flags and configure codespell skips
+- test: fix XML escaping in NzbgetRpcControllerTest and assert SetCategoryAsync in QBittorrentApiControllerTest
+- Update main.yml
+- style: format App.css with prettier and disable CSS_PRETTIER in workflow
+- code spell
+- perf(frontend): unify state management with Zustand, add table virtualization, and eliminate O(N x H) cell scans (fixes #24)
+- security(http): enforce ISafeHttpClientService across all RPC and REST remote download endpoints (fixes #51)
+- ci: restore full workflow inputs lost in bot commit 3f3ec38, re-enable docker build
+- chore(lint): disable jscpd — shared workflow overwrites config, protocol emulators have inherent structural duplication
+- chore(lint): raise jscpd threshold to 10% for intentional protocol emulator boilerplate
+- chore(lint): use ** glob prefix in jscpd ignore patterns for absolute path matching
+- chore(lint): fix jscpd ignore paths in correct super-linter config location
+- chore(lint): add jscpd config to exclude docs and logo false positives
+- security(media): prevent SSRF and exfiltration in artwork caching using ISafeHttpClientService (fixes #50)
+- perf(signalr): batch piece verification broadcasts and add bounded telemetry channel (fixes #22)
+- perf(api): eliminate N+1 queries in Deluge, Transmission, and TorrentController and implement qBittorrent delta sync (fixes #20)
+- perf(datastore): enable SQLite WAL mode, add transaction batching and performance indexes (fixes #19)
+- chore: ignore .worktrees directory
+- test: add unit tests for terminal pty sessions
+- ci: add OPENCODE_API_KEY to ai-responder workflow
+- ci: update ai-responder workflow to use Google OAuth with Gemini
+- test: allow Checking or Downloading status on resumed torrent in CI
+- style: format frontend files with prettier to resolve CI linter
+- Complete download client compatibility adapters, SAML auth flows, and Torznab querying
+- ci: fix super-linter codespell typo and restore valid workflow schema
+- ci: fix super-linter codespell typo and disable prettier validator
+- style: format frontend with prettier to satisfy super-linter
+- ci: add readd and reAdd to codespell ignore list
+- ci: fix dispatch workflow input schema in main.yml
+- ci: configure super-linter rules and exclusions matching seedarr
+- style(frontend): format index.html to satisfy prettier check in super-linter
+- style: add .prettierrc and .prettierignore for ci/cd super-linter parity
+- style: apply prettier formatting across frontend
+- docs: fix markdown bold formatting in DOCKER_HUB.md
+- docs: add DOCKER_HUB.md documentation
+- refactor(cleanup): fix branding, links, storage keys, and peer client badges
+- ci: set docker-build to false pending repository secret configuration
+- ci: restore valid dispatch workflow inputs
+- ci: format markdown with prettier and disable MARKDOWN_PRETTIER in super-linter
+- docs: add Docker Hub and GHCR badges to README.md
+- docs: add centered skull and text logo to README.md
+- set version
+- style(sidebar): reduce sidebar logo and text size by 20%
+- style(theme): establish distinct visual contrast between sidebar, main canvas, and cards + fix status bar
+- style(sidebar): scale skull logo size by +50% to 108px and expand container
+- style(sidebar): double skull logo size to 72px and adjust container padding
+- test(coverage): expand unit & integration test suites to 114 passing tests
+- test: scaffold Leecharr.Integration.Test with in-memory Kestrel test host and SystemTests
+- ci: add GitHub Actions workflows, enforce 90% unit test coverage, and integrate integration test suite matching Seedarr
+- docs: finalize UPnP/NAT-PMP, multi-instance Servarr categories, clean selective disk allocation, and manual media identification
+- style: apply official UI color palette (#10111A, #171B35, #F8F4ED, #C7C5D3, #FFD166) across design system and CSS
+- docs: fully update GEMINI.md with comprehensive requirements and architectural specifications
+- docs: detail custom script execution env variables, dynamic write cache, and swarm inspector metrics
+- docs: capture specifications for VPN kill switch, SOCKS5 proxy, 4-tier bandwidth hierarchy, and queue weighting
+- docs: detail RSS grab filters, BEP 27 private tracker compliance, and immediate artwork cache pruning
+- docs: record requirements for single watch folder, optional unrar, and 3-tier 24x7 speed schedule
+- docs: capture user requirements for storage paths, simultaneous RPC adapters, seeding webhooks, and unified multi-protocol queue
+- docs: align architecture and requirements with MonoTorrent, TagLibSharp, SharpCompress, and MaxMind GeoIP
+- docs: specify direct indexer support, Torznab search, and Prowlarr sync
+- docs: document Servarr webhook connection specification and event triggers
+- docs: add comprehensive Deluge architecture, RPC, and plugin requirements specification
+- docs: update protocols.md with full BEP catalog and advanced engine mechanics
+- docs: update api.md with qBittorrent, Transmission, and Deluge compatibility endpoints
+- docs: update GEMINI.md with clarified requirements and Sonarr client compatibility
+- docs: add GEMINI.md developer and agent guide
+
 ## [v2.3.2](https://github.com/dmzoneill/Leecharr/releases/tag/v2.3.2) - 2026-10-09
 
 ### 🐛 Bug Fixes
