@@ -926,6 +926,11 @@ public class TorznabClient : ITorznabClient
                 results.Add(result);
             }
         }
+        catch (XmlException ex)
+        {
+            this.logger.Debug(ex, "Torznab feed from indexer '{0}' was not valid XML.", indexer?.Name ?? "Unknown");
+            return results;
+        }
         catch (TorznabException)
         {
             throw;

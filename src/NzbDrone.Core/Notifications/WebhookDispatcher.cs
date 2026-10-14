@@ -403,7 +403,7 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
         else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
         {
-            if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal)
+            if (ip.IsIPv6SiteLocal)
             {
                 return true;
             }
@@ -1042,8 +1042,8 @@ public class WebhookDispatcher : IWebhookDispatcher
 
     private static bool IsParseModeKey(string key)
     {
-        return string.Equals(key, "parse_mode", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(key, "parseMode", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(key, "parse_mode", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(key, "parseMode", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsTelegramTextKey(string key)
@@ -1310,10 +1310,10 @@ public class WebhookDispatcher : IWebhookDispatcher
 
             redactedPath = string.Join('/', segments);
         }
-        else if ((host.Equals("discord.com", StringComparison.OrdinalIgnoreCase) ||
-                  host.Equals("discordapp.com", StringComparison.OrdinalIgnoreCase) ||
-                  host.EndsWith(".discord.com", StringComparison.OrdinalIgnoreCase)) &&
-                 path.Contains("/api/webhooks/", StringComparison.OrdinalIgnoreCase))
+        else if ((host.Equals("discord.com", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("discordapp.com", StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith(".discord.com", StringComparison.OrdinalIgnoreCase))
+            && path.Contains("/api/webhooks/", StringComparison.OrdinalIgnoreCase))
         {
             redactedPath = MaskLastPathSegment(path);
         }

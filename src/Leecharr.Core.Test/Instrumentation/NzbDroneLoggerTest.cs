@@ -106,7 +106,14 @@ public class NzbDroneLoggerTest
 
         var consoleRules = config.LoggingRules.Where(r => r.Targets.Contains(consoleTarget)).ToList();
         consoleRules.Should().NotBeEmpty();
-        consoleRules.Any(r => r.Levels.Contains(expectedLevel)).Should().BeTrue();
+        if (expectedLevel == LogLevel.Off)
+        {
+            consoleRules.Any(r => r.IsLoggingEnabledForLevel(LogLevel.Info)).Should().BeFalse();
+        }
+        else
+        {
+            consoleRules.Any(r => r.Levels.Contains(expectedLevel)).Should().BeTrue();
+        }
     }
 
     [Test]

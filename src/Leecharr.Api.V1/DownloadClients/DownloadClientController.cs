@@ -757,7 +757,7 @@ public class DownloadClientController : Controller
         {
             if (string.Equals(resource.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrEmpty(resource.Username) || !string.IsNullOrEmpty(password))
+                if (!string.IsNullOrEmpty(resource.Username) || passwordOverride != null)
                 {
                     var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
                     {

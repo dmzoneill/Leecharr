@@ -122,7 +122,7 @@ public static class ArrTargetUrlValidator
         }
         else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
         {
-            if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal)
+            if (ip.IsIPv6SiteLocal)
             {
                 return true;
             }

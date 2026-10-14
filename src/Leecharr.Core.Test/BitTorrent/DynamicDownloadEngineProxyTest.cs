@@ -545,9 +545,9 @@ public class DynamicDownloadEngineProxyTest
         var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
         result.Success.Should().BeTrue();
-        await this.libTorrentEngine.Received(1).PauseTorrentAsync(101);
         await this.libTorrentEngine.Received(1).PauseTorrentAsync(102);
-        await this.libTorrentEngine.Received(1).PauseTorrentAsync(103);
+        await this.libTorrentEngine.DidNotReceive().PauseTorrentAsync(101);
+        await this.libTorrentEngine.DidNotReceive().PauseTorrentAsync(103);
         await this.libTorrentEngine.DidNotReceive().PauseTorrentAsync(104);
     }
 
