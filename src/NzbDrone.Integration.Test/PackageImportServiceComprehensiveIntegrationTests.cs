@@ -25,7 +25,7 @@ public class PackageImportServiceComprehensiveIntegrationTests : IntegrationTest
     [SetUp]
     public void SetUp()
     {
-        this.tempSandboxDir = Path.Combine(Path.GetTempPath(), "package_sandbox_" + Guid.NewGuid().ToString("N"));
+        this.tempSandboxDir = Path.Combine(AppContext.BaseDirectory, "temp", "package_sandbox_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(this.tempSandboxDir);
     }
 

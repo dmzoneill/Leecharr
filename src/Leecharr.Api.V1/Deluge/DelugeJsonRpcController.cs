@@ -1401,11 +1401,12 @@ public class DelugeJsonRpcController : ControllerBase
         }
 
         var optionConfigUpdates = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        if (TryStoreDelugeTorrentOption(added, "max_connections", opts, optionConfigUpdates) |
-            TryStoreDelugeTorrentOption(added, "max_upload_slots", opts, optionConfigUpdates) |
-            TryStoreDelugeTorrentOption(added, "auto_managed", opts, optionConfigUpdates) |
-            TryStoreDelugeTorrentOption(added, "move_completed", opts, optionConfigUpdates) |
-            TryStoreDelugeTorrentOption(added, "move_completed_path", opts, optionConfigUpdates))
+        var storedMaxConnections = TryStoreDelugeTorrentOption(added, "max_connections", opts, optionConfigUpdates);
+        var storedMaxUploadSlots = TryStoreDelugeTorrentOption(added, "max_upload_slots", opts, optionConfigUpdates);
+        var storedAutoManaged = TryStoreDelugeTorrentOption(added, "auto_managed", opts, optionConfigUpdates);
+        var storedMoveCompleted = TryStoreDelugeTorrentOption(added, "move_completed", opts, optionConfigUpdates);
+        var storedMoveCompletedPath = TryStoreDelugeTorrentOption(added, "move_completed_path", opts, optionConfigUpdates);
+        if (storedMaxConnections || storedMaxUploadSlots || storedAutoManaged || storedMoveCompleted || storedMoveCompletedPath)
         {
             hasUpdates = true;
         }
@@ -2088,11 +2089,12 @@ public class DelugeJsonRpcController : ControllerBase
                         await this.torrentService.SetSuperSeedingAsync(t.Id, enabled);
                     }
 
-                    if (TryStoreDelugeTorrentOption(t, "max_connections", opts, optionConfigUpdates) |
-                        TryStoreDelugeTorrentOption(t, "max_upload_slots", opts, optionConfigUpdates) |
-                        TryStoreDelugeTorrentOption(t, "auto_managed", opts, optionConfigUpdates) |
-                        TryStoreDelugeTorrentOption(t, "move_completed", opts, optionConfigUpdates) |
-                        TryStoreDelugeTorrentOption(t, "move_completed_path", opts, optionConfigUpdates))
+                    var storedMaxConnections = TryStoreDelugeTorrentOption(t, "max_connections", opts, optionConfigUpdates);
+                    var storedMaxUploadSlots = TryStoreDelugeTorrentOption(t, "max_upload_slots", opts, optionConfigUpdates);
+                    var storedAutoManaged = TryStoreDelugeTorrentOption(t, "auto_managed", opts, optionConfigUpdates);
+                    var storedMoveCompleted = TryStoreDelugeTorrentOption(t, "move_completed", opts, optionConfigUpdates);
+                    var storedMoveCompletedPath = TryStoreDelugeTorrentOption(t, "move_completed_path", opts, optionConfigUpdates);
+                    if (storedMaxConnections || storedMaxUploadSlots || storedAutoManaged || storedMoveCompleted || storedMoveCompletedPath)
                     {
                         // Completion path is stored for later. It must not relocate incomplete files.
                         hasOtherUpdates = true;

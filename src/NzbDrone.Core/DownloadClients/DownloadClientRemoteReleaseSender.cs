@@ -151,18 +151,25 @@ public static class DownloadClientRemoteReleaseSender
     {
         if (!string.IsNullOrWhiteSpace(category))
         {
-            form.Add(new StringContent(category), "category");
+            form.Add(PlainTextPart(category), "category");
         }
 
         if (!string.IsNullOrWhiteSpace(savePath))
         {
-            form.Add(new StringContent(savePath), "savepath");
+            form.Add(PlainTextPart(savePath), "savepath");
         }
 
         if (startPaused)
         {
-            form.Add(new StringContent("true"), "paused");
+            form.Add(PlainTextPart("true"), "paused");
         }
+    }
+
+    private static ByteArrayContent PlainTextPart(string value)
+    {
+        var content = new ByteArrayContent(Encoding.UTF8.GetBytes(value));
+        content.Headers.ContentType = new MediaTypeHeaderValue("text/plain") { CharSet = "utf-8" };
+        return content;
     }
 
     private static void AddQbittorrentFormDictionary(Dictionary<string, string> fields, string category, string savePath, bool startPaused)

@@ -61,18 +61,19 @@ public class PackageImportService : IPackageImportService
         var targetRootDir = options.TargetRootDir;
 
         var appData = this.appFolderInfo?.AppDataFolder ?? AppContext.BaseDirectory;
+        var canonicalAppData = Path.GetFullPath(appData);
         if (string.IsNullOrWhiteSpace(targetRootDir))
         {
-            targetRootDir = Path.Combine(appData, "temp", "import_" + Guid.NewGuid().ToString("N"));
+            targetRootDir = Path.Combine(canonicalAppData, "temp", "import_" + Guid.NewGuid().ToString("N"));
             isTemporarySandbox = true;
         }
 
         var canonicalTargetRoot = Path.GetFullPath(targetRootDir);
-        var canonicalAppData = Path.GetFullPath(appData);
-        if (isTemporarySandbox && !PackagePathTranslator.IsPathUnderDirectory(canonicalTargetRoot, canonicalAppData))
+        if (!canonicalTargetRoot.StartsWith(canonicalAppData + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("Invalid sandbox destination directory.");
+            throw new InvalidOperationException("Import directory must stay inside the application data folder.");
         }
+
         Directory.CreateDirectory(canonicalTargetRoot);
 
         try

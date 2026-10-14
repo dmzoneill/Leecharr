@@ -332,12 +332,25 @@ public class AuthController : ControllerBase
             return this.NotFound("SAML Identity Provider not found");
         }
 
+        if (!Uri.TryCreate(provider.IssuerUrl, UriKind.Absolute, out var issuerUri) ||
+            (issuerUri.Scheme != Uri.UriSchemeHttp && issuerUri.Scheme != Uri.UriSchemeHttps) ||
+            string.IsNullOrWhiteSpace(issuerUri.Host))
+        {
+            return this.BadRequest("Invalid SAML identity provider URL");
+        }
+
+        var canonicalProviderId = provider.ProviderId;
+        if (string.IsNullOrWhiteSpace(canonicalProviderId))
+        {
+            return this.NotFound("SAML Identity Provider not found");
+        }
+
         if (!ApplicationPublicUrlResolver.TryResolvePublicBaseUrl(this.configFileProvider, out var baseUrl))
         {
             return this.BadRequest("Unable to determine application public URL for SAML. Configure LEECHARR_URL or BindAddress.");
         }
 
-        var acsUrl = $"{baseUrl}/api/v1/auth/callback/saml/{providerId}";
+        var acsUrl = $"{baseUrl}/api/v1/auth/callback/saml/{canonicalProviderId}";
         var issuerEntityId = $"{baseUrl}/saml/metadata";
         var id = "_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         var issueInstant = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
@@ -351,10 +364,13 @@ public class AuthController : ControllerBase
         var samlRequest = $@"<samlp:AuthnRequest xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion"" ID=""{id}"" Version=""2.0"" IssueInstant=""{issueInstant}"" Destination=""{escapedDestination}"" AssertionConsumerServiceURL=""{escapedAcsUrl}""><saml:Issuer>{escapedIssuer}</saml:Issuer><samlp:NameIDPolicy Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"" AllowCreate=""true""/></samlp:AuthnRequest>";
 
         var b64Request = Convert.ToBase64String(Encoding.UTF8.GetBytes(samlRequest));
-        var redirectUrl = $"{provider.IssuerUrl}{(provider.IssuerUrl.Contains('?') ? "&" : "?")}SAMLRequest={Uri.EscapeDataString(b64Request)}&RelayState={Uri.EscapeDataString(safeReturnUrl)}";
+        var samlQuery = $"SAMLRequest={Uri.EscapeDataString(b64Request)}&RelayState={Uri.EscapeDataString(safeReturnUrl)}";
+        var issuerPrefix = issuerUri.GetLeftPart(UriPartial.Path) + issuerUri.Query;
+        var redirectUrl = issuerPrefix + (string.IsNullOrEmpty(issuerUri.Query) ? "?" : "&") + samlQuery;
 
         if (!Uri.TryCreate(redirectUrl, UriKind.Absolute, out var parsedRedirect) ||
-            (parsedRedirect.Scheme != Uri.UriSchemeHttp && parsedRedirect.Scheme != Uri.UriSchemeHttps))
+            !string.Equals(parsedRedirect.Host, issuerUri.Host, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(parsedRedirect.Scheme, issuerUri.Scheme, StringComparison.OrdinalIgnoreCase))
         {
             return this.BadRequest("Invalid SAML redirect URL");
         }

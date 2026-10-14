@@ -227,60 +227,15 @@ public class SpeedDistributionManager : ISpeedDistributionManager
             return (long[])speeds.Clone();
         }
 
-        var totalOriginal = 0L;
-        for (var i = 0; i < speeds.Length; i++)
-        {
-            totalOriginal += speeds[i];
-        }
-
+        var totalOriginal = SumSpeeds(speeds);
         if (totalOriginal <= 0)
         {
             return (long[])speeds.Clone();
         }
 
         var count = speeds.Length;
-        var sanitizedWeights = new double[count];
-        var totalWeight = 0.0;
-
-        for (var i = 0; i < count; i++)
-        {
-            var w = weights[i];
-            double sanitizedWeight;
-            if (double.IsNaN(w) || double.IsInfinity(w) || w <= 0.0)
-            {
-                sanitizedWeight = 1.0;
-            }
-            else
-            {
-                sanitizedWeight = Math.Clamp(w, 0.01, 100.0);
-            }
-
-            sanitizedWeights[i] = sanitizedWeight;
-            totalWeight += sanitizedWeight;
-        }
-
-        if (double.IsNaN(totalWeight) || double.IsInfinity(totalWeight) || totalWeight <= 0.0)
-        {
-            for (var i = 0; i < count; i++)
-            {
-                sanitizedWeights[i] = 1.0;
-            }
-
-            totalWeight = count;
-        }
-
-        var effectiveCaps = new long[count];
-        for (var i = 0; i < count; i++)
-        {
-            if (caps != null && i < caps.Length && caps[i] > 0)
-            {
-                effectiveCaps[i] = caps[i];
-            }
-            else
-            {
-                effectiveCaps[i] = long.MaxValue;
-            }
-        }
+        var sanitizedWeights = SanitizePriorityWeights(weights);
+        var effectiveCaps = BuildEffectiveCaps(caps, count);
 
         var allocated = new long[count];
         var saturated = new bool[count];
@@ -508,6 +463,68 @@ public class SpeedDistributionManager : ISpeedDistributionManager
         }
 
         return allocated;
+    }
+
+    private static long SumSpeeds(long[] speeds)
+    {
+        var totalOriginal = 0L;
+        for (var i = 0; i < speeds.Length; i++)
+        {
+            totalOriginal += speeds[i];
+        }
+
+        return totalOriginal;
+    }
+
+    private static double[] SanitizePriorityWeights(double[] weights)
+    {
+        var count = weights.Length;
+        var sanitizedWeights = new double[count];
+        var totalWeight = 0.0;
+        for (var i = 0; i < count; i++)
+        {
+            var w = weights[i];
+            double sanitizedWeight;
+            if (double.IsNaN(w) || double.IsInfinity(w) || w <= 0.0)
+            {
+                sanitizedWeight = 1.0;
+            }
+            else
+            {
+                sanitizedWeight = Math.Clamp(w, 0.01, 100.0);
+            }
+
+            sanitizedWeights[i] = sanitizedWeight;
+            totalWeight += sanitizedWeight;
+        }
+
+        if (double.IsNaN(totalWeight) || double.IsInfinity(totalWeight) || totalWeight <= 0.0)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                sanitizedWeights[i] = 1.0;
+            }
+        }
+
+        return sanitizedWeights;
+    }
+
+    private static long[] BuildEffectiveCaps(long[] caps, int count)
+    {
+        var effectiveCaps = new long[count];
+        for (var i = 0; i < count; i++)
+        {
+            if (caps != null && i < caps.Length && caps[i] > 0)
+            {
+                effectiveCaps[i] = caps[i];
+            }
+            else
+            {
+                effectiveCaps[i] = long.MaxValue;
+            }
+        }
+
+        return effectiveCaps;
     }
 
     private long[] DistributeWithConfig(int torrentCount, long maxSpeed, string algorithm, int spreadPercentage)

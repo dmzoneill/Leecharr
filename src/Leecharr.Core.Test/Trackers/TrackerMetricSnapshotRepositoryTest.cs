@@ -74,7 +74,7 @@ public class TrackerMetricSnapshotRepositoryTest
             {
                 TrackerMetricId = metricId,
                 TrackerUrl = "udp://history-limit.tracker.org:1337/announce",
-                Timestamp = baseTime.AddMinutes(i * 10),
+                Timestamp = baseTime.AddMinutes(i * 10d),
                 Operation = "Announce",
                 IsSuccess = true,
                 ResponseTimeMs = 10 + i,
