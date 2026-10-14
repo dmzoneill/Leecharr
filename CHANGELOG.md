@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.2](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.2) - 2026-10-14
+
+### 🐛 Bug Fixes
+- fix: keep curl temp files out of the public temp directory
+- fix: cover the new path, temp-file, and bandwidth helpers
+- fix: clear the open CodeQL path alerts and the Sonar security rating
+
 ## [v3.0.1](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.1) - 2026-10-14
 
 ### 🐛 Bug Fixes
