@@ -468,7 +468,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOut
             || name.Equals("Upgrade", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string CreatePrivateTempFile()
+    internal static string CreatePrivateTempFile()
     {
         var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         using (new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))

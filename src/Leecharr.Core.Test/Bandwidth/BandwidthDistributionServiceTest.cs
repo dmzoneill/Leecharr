@@ -94,4 +94,18 @@ public class BandwidthDistributionServiceTest
         stopped.Should().ContainSingle();
         stopped.Should().NotContain(0);
     }
+
+    [Test]
+    public void SelectStoppedIndices_UsesTheDefaultRollWhenNoneIsInjected()
+    {
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 1, ForceStart = false },
+            new() { Id = 2, ForceStart = false },
+        };
+
+        var stopped = BandwidthStopSelection.SelectStoppedIndices(torrents, 50, 50);
+
+        stopped.Count.Should().BeLessThanOrEqualTo(1);
+    }
 }
