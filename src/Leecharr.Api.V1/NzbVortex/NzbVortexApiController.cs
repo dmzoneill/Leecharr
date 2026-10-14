@@ -296,7 +296,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
                 added = await this.torrentService.AddFromMagnetAsync(url, category, null, false);
             }
             else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                     url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
                 var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 0);
                 if (maxTorrentBytes <= 0)
@@ -444,7 +444,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
     [Route("api/v1/file/{fileId}/unignore")]
     public async Task<IActionResult> UnignoreFile(int fileId)
     {
-        await this.torrentFileService.SetPriorityAsync(fileId, 3);
+        await this.torrentFileService.SetPriorityAsync(fileId, 1);
         return this.Ok(new { error = 0, result = 0 });
     }
 

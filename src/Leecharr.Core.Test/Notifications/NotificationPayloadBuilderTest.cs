@@ -299,9 +299,9 @@ public class NotificationPayloadBuilderTest
         var json = JsonSerializer.Serialize(result);
 
         json.Should().NotContain("<!channel>");
-        json.Should().Contain("&lt;!channel&gt;");
-        json.Should().Contain("&amp;");
-        json.Should().Contain("&lt;https://evil.example|open&gt;");
+        json.Should().Contain("\\u0026lt;!channel\\u0026gt;");
+        json.Should().Contain("\\u0026amp;");
+        json.Should().Contain("\\u0026lt;https://evil.example|open\\u0026gt;");
     }
 
     [Test]

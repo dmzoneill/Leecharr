@@ -723,7 +723,14 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
 
     private static bool ShouldDeferMalwareRiskToHeuristic(AiMalwareRiskAssessment model, AiMalwareRiskAssessment heuristic)
     {
-        return heuristic != null && heuristic.RiskScore > model.RiskScore;
+        if (heuristic == null || model == null || heuristic.RiskScore <= model.RiskScore)
+        {
+            return false;
+        }
+
+        var modelFiles = new HashSet<string>(model.SuspiciousFileNames ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        return heuristic.SuspiciousFileNames != null
+            && heuristic.SuspiciousFileNames.Any(file => !string.IsNullOrWhiteSpace(file) && !modelFiles.Contains(file));
     }
 
     private static bool ShouldDeferReleaseParseToHeuristic(AiParsedRelease ollama, AiParsedRelease heuristic)

@@ -34,6 +34,8 @@ public class DynamicBlocklistProxyTest
         this.radixTreeProvider.Capabilities.Returns(BlocklistCapabilities.IPv4 | BlocklistCapabilities.IPv6 | BlocklistCapabilities.Cidr);
         this.radixTreeProvider.RuleCount.Returns(5);
         this.radixTreeProvider.ProbeHealthAsync().Returns(Task.FromResult(new BlocklistHealthResult { IsHealthy = true, StatusMessage = "OK" }));
+        this.radixTreeProvider.LoadRulesAsync(Arg.Any<IEnumerable<string>>())
+            .Returns(ci => Task.FromResult(ci.ArgAt<IEnumerable<string>>(0).Count()));
         this.radixTreeProvider.IsIpBlocked(Arg.Is<string>(ip => ip == "1.2.3.4" || ip.StartsWith("10."))).Returns(true);
 
         this.p2pDatProvider = Substitute.For<IBlocklistProvider>();

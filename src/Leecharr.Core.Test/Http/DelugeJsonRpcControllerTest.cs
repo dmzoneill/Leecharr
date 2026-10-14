@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -48,7 +50,11 @@ public class DelugeJsonRpcControllerTest
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.downloadEngine = Substitute.For<IDownloadEngine>();
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
-        this.delugePluginSettings = new DelugePluginSettingsService(configService: this.configService);
+        var settingsDir = Path.Combine(Path.GetTempPath(), "leecharr-deluge-plugin-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(settingsDir);
+        var appFolder = Substitute.For<IAppFolderInfo>();
+        appFolder.AppDataFolder.Returns(settingsDir);
+        this.delugePluginSettings = new DelugePluginSettingsService(appFolder, this.configService);
 
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("deluge_secret_key");

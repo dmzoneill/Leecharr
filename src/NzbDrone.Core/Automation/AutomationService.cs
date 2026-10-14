@@ -1119,7 +1119,24 @@ public class AutomationService : IAutomationService
         if (trimmed.Contains('*') || trimmed.Contains('?'))
         {
             var regexPattern = "^" + Regex.Escape(trimmed).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
-            return Regex.IsMatch(fileName, regexPattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+            if (Regex.IsMatch(fileName, regexPattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
+            {
+                return true;
+            }
+
+            // "*.sample.mkv" also matches the bare name "sample.mkv" and "Movie/sample.mkv".
+            if (trimmed.StartsWith("*.", StringComparison.Ordinal))
+            {
+                var suffix = trimmed[2..];
+                if (string.Equals(fileName, suffix, StringComparison.OrdinalIgnoreCase)
+                    || fileName.EndsWith("/" + suffix, StringComparison.OrdinalIgnoreCase)
+                    || fileName.EndsWith("\\" + suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         return string.Equals(fileName, trimmed, StringComparison.OrdinalIgnoreCase) ||

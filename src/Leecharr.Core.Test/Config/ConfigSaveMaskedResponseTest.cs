@@ -24,6 +24,10 @@ public class ConfigSaveMaskedResponseTest
         var resource = new NetworkConfigResource
         {
             ListeningPort = 6881,
+            MaxGlobalConnections = 200,
+            MaxPerTorrentConnections = 50,
+            MaxUploadSlots = 4,
+            ProxyPort = 8080,
             ProxyPassword = "********",
         };
 

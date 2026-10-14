@@ -441,15 +441,27 @@ public class YamlScriptRunner : IScriptRunner
                             logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] stopPipeline: {reason}");
                         }
 
-                        if (torrentCtx != null)
+                        if (action.TryGetValue("addTag", out var tagToAdd) && tagToAdd != null)
                         {
-                            if (action.TryGetValue("addTag", out var tagToAdd) && tagToAdd != null)
+                            var tag = SubstituteVariables(tagToAdd.ToString()!, variableContext);
+                            if (torrentCtx != null)
                             {
-                                var tag = SubstituteVariables(tagToAdd.ToString()!, variableContext);
                                 torrentCtx.addTag(tag);
-                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] addTag: {tag}");
+                            }
+                            else if (!string.IsNullOrWhiteSpace(tag))
+                            {
+                                var trimmedTag = tag.Trim();
+                                if (!result.TagsToAdd.Contains(trimmedTag))
+                                {
+                                    result.TagsToAdd.Add(trimmedTag);
+                                }
                             }
 
+                            logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] addTag: {tag}");
+                        }
+
+                        if (torrentCtx != null)
+                        {
                             if (action.TryGetValue("removeTag", out var tagToRemove) && tagToRemove != null)
                             {
                                 var tag = SubstituteVariables(tagToRemove.ToString()!, variableContext);

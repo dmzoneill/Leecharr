@@ -785,7 +785,7 @@ public class TransmissionRpcControllerTest
 
         var parsed = new ParsedTorrent
         {
-            InfoHash = "categorytest0123456789abcdef0123456789ab",
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
             Name = "Release.S01E01",
         };
         this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
@@ -1931,7 +1931,7 @@ public class TransmissionRpcControllerTest
         {
             Id = 5,
             Name = "X-Men.Days.of.Future.Past",
-            InfoHash = "categorytest0123456789abcdef0123456789ab",
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
             Status = TorrentStatus.Seeding,
             Category = "radarr",
             SavePath = "/downloads/radarr",

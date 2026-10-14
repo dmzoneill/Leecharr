@@ -158,7 +158,7 @@ public class DiskSpaceService : IDiskSpaceService
             long? totalSpace;
             DriveSpaceSnapshot probeSnapshot = default;
             var hasProbeSnapshot = this.diskProvider is DiskProvider concreteDiskProvider &&
-                                   concreteDiskProvider.TryQueryPathSpace(path, out probeSnapshot);
+                concreteDiskProvider.TryQueryPathSpace(path, out probeSnapshot);
 
             if (hasProbeSnapshot && probeSnapshot.TotalBytes > 0)
             {

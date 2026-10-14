@@ -338,7 +338,7 @@ public class HadoukenRpcController : ControllerBase
 
                         if (string.Equals(type, "file", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(data))
                         {
-                            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                            var maxTorrentBytes = this.GetMaxTorrentFileSizeBytes();
                             if ((long)data.Length * 3 / 4 > maxTorrentBytes + 4)
                             {
                                 return this.Ok(new { result = (object)null, error = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes.", id });
@@ -363,7 +363,7 @@ public class HadoukenRpcController : ControllerBase
                             }
                             else
                             {
-                                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                                var maxTorrentBytes = this.GetMaxTorrentFileSizeBytes();
                                 var bytes = await this.safeHttpClientService.DownloadBytesAsync(data, maxSizeBytes: maxTorrentBytes);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
@@ -537,7 +537,7 @@ public class HadoukenRpcController : ControllerBase
                             }
                             else
                             {
-                                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                                var maxTorrentBytes = this.GetMaxTorrentFileSizeBytes();
                                 var bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes);
                                 var parsed = this.torrentFileParser.Parse(bytes);
                                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
@@ -672,6 +672,21 @@ public class HadoukenRpcController : ControllerBase
         }
 
         return this.Ok(new { result = added.InfoHash, error = (object)null, id });
+    }
+
+    private long GetMaxTorrentFileSizeBytes()
+    {
+        if (this.configService != null && this.configService.MaxTorrentFileSizeBytes > 0)
+        {
+            return this.configService.MaxTorrentFileSizeBytes;
+        }
+
+        if (this.configFileProvider != null && this.configFileProvider.MaxTorrentFileSizeBytes > 0)
+        {
+            return this.configFileProvider.MaxTorrentFileSizeBytes;
+        }
+
+        return 250L * 1024 * 1024;
     }
 
     private static bool SafeGetBoolean(JsonElement element, bool defaultValue = false)

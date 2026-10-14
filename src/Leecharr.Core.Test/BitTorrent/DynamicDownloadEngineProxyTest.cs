@@ -1030,6 +1030,7 @@ public class DynamicDownloadEngineProxyTest
     {
         await this.proxy.StartAsync();
         this.monoTorrentEngine.SwitchVersionAsync("9.9.9").Returns(Task.FromResult(false));
+        this.monoTorrentEngine.ClearReceivedCalls();
 
         var result = await this.proxy.SwitchVersionAsync("9.9.9");
 

@@ -1819,6 +1819,16 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     private static readonly ConcurrentDictionary<string, HttpClient> ClientHttpMap = new(StringComparer.OrdinalIgnoreCase);
 
+    private HttpClient GetDownloadClientHttpClient(DownloadClientDefinition client, string baseUrl)
+    {
+        if (!this.ownsHttpClient)
+        {
+            return this.httpClient;
+        }
+
+        return GetOrCreateClient(client, baseUrl);
+    }
+
     private static HttpClient GetOrCreateClient(DownloadClientDefinition client, string baseUrl)
     {
         var key = $"{client.Id}_{baseUrl}";
@@ -1939,7 +1949,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             try
             {
-                var clientPrivate = await TryQueryClientTorrentIsPrivateAsync(client, infoHash).ConfigureAwait(false);
+                var clientPrivate = await this.TryQueryClientTorrentIsPrivateAsync(client, infoHash).ConfigureAwait(false);
                 if (clientPrivate == true)
                 {
                     return true;
@@ -1959,7 +1969,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return resolved;
     }
 
-    private static async Task<bool?> TryQueryClientTorrentIsPrivateAsync(DownloadClientDefinition client, string infoHash)
+    private async Task<bool?> TryQueryClientTorrentIsPrivateAsync(DownloadClientDefinition client, string infoHash)
     {
         if (client == null || string.IsNullOrWhiteSpace(client.Host) || string.IsNullOrWhiteSpace(infoHash))
         {
@@ -1971,7 +1981,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         var scheme = client.UseSsl ? "https" : "http";
         var baseUrl = $"{scheme}://{client.Host}:{port}";
         var password = DownloadClientPasswordCodec.Unprotect(client.Password);
-        var clientHttp = GetOrCreateClient(client, baseUrl);
+        var clientHttp = this.GetDownloadClientHttpClient(client, baseUrl);
 
         if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
         {
@@ -2169,7 +2179,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return false;
         }
 
-        if (await TryQueryClientTorrentIsPrivateAsync(client, infoHash).ConfigureAwait(false) == true)
+        if (await this.TryQueryClientTorrentIsPrivateAsync(client, infoHash).ConfigureAwait(false) == true)
         {
             this.logger.Warn(
                 "Refusing to inject trackers for private torrent {0} on download client {1}",
@@ -2182,7 +2192,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         var scheme = client.UseSsl ? "https" : "http";
         var baseUrl = $"{scheme}://{client.Host}:{port}";
 
-        var clientHttp = GetOrCreateClient(client, baseUrl);
+        var clientHttp = this.GetDownloadClientHttpClient(client, baseUrl);
 
         if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
         {

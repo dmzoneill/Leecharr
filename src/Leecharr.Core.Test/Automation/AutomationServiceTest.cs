@@ -529,12 +529,12 @@ public class AutomationServiceTest
                 Name = "Test YAML clean",
                 Language = AutomationLanguage.Yaml,
                 Code = "name: 'Test clean'\n" +
-                       "steps:\n" +
-                       "  - name: 'Clean'\n" +
-                       "    actions:\n" +
-                       "      - cleanExtensions:\n" +
-                       $"          directory: '{tempDir}'\n" +
-                       "          extensions: 'nfo'\n",
+                    "steps:\n" +
+                    "  - name: 'Clean'\n" +
+                    "    actions:\n" +
+                    "      - cleanExtensions:\n" +
+                    $"          directory: '{tempDir}'\n" +
+                    "          extensions: 'nfo'\n",
             };
 
             var service = new AutomationService(
@@ -2391,7 +2391,14 @@ public class AutomationServiceTest
 
         _appFolderInfo.AppDataFolder.Returns(tempRoot);
         _diskProvider.FileExists(sourcePath).Returns(true);
-        _diskProvider.When(x => x.CreateFolder(Arg.Any<string>())).Do(_ => { });
+        _diskProvider.When(x => x.CreateFolder(Arg.Any<string>())).Do(call =>
+        {
+            var folder = call.Arg<string>();
+            if (!string.IsNullOrWhiteSpace(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+        });
         _diskProvider.When(x => x.CopyFile(sourcePath, destinationPath, true)).Do(_ => File.Copy(sourcePath, destinationPath, overwrite: true));
 
         var torrent = new Torrent

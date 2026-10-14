@@ -270,7 +270,7 @@ public class WebhookDispatcherTest
         stringResult.Should().NotContainKey("parseMode");
         stringResult["text"].Should().Be("Name_2024");
 
-        var jsonPayload = "{\"text\":\"Movie.Name.\\(2024\\)\",\"parse_mode\":\"Markdown\",\"chat_id\":\"9\"}";
+        var jsonPayload = "{\"text\":\"Movie.Name.\\\\(2024\\\\)\",\"parse_mode\":\"Markdown\",\"chat_id\":\"9\"}";
         var jsonResult = WebhookDispatcher.RemoveParseMode(jsonPayload).Should().BeOfType<Dictionary<string, object>>().Subject;
         jsonResult.Should().NotContainKey("parse_mode");
         jsonResult["text"].Should().Be("Movie.Name.(2024)");

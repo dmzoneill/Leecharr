@@ -621,10 +621,16 @@ public sealed class DelugePluginSettingsService : IDelugePluginSettingsService
 
             if (first.ValueKind == JsonValueKind.String)
             {
-                var key = first.GetString();
+                var key = first.GetString() ?? string.Empty;
+                if (TryParseExecuteCommandId(key, out var parsedId))
+                {
+                    return this.ExecuteCommands.RemoveAll(c => c.Id == parsedId) > 0;
+                }
+
                 return this.ExecuteCommands.RemoveAll(c =>
                     string.Equals(c.Event, key, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(c.Command, key, StringComparison.OrdinalIgnoreCase)) > 0;
+                    string.Equals(c.Command, key, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(FormatExecuteCommandId(c.Id), key, StringComparison.OrdinalIgnoreCase)) > 0;
             }
 
             return false;
@@ -847,6 +853,25 @@ public sealed class DelugePluginSettingsService : IDelugePluginSettingsService
 
         public bool Enabled { get; set; } = true;
 
-        public object[] ToDelugeObject() => new object[] { this.Id, this.Event, this.Command, this.Enabled };
+        public object[] ToDelugeObject() => new object[] { FormatExecuteCommandId(this.Id), this.Event, this.Command, this.Enabled };
+    }
+
+    private static string FormatExecuteCommandId(int id) => "cmd" + id.ToString(CultureInfo.InvariantCulture);
+
+    private static bool TryParseExecuteCommandId(string key, out int id)
+    {
+        if (int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out id))
+        {
+            return true;
+        }
+
+        if (key.StartsWith("cmd", StringComparison.OrdinalIgnoreCase) &&
+            int.TryParse(key.AsSpan(3), NumberStyles.Integer, CultureInfo.InvariantCulture, out id))
+        {
+            return true;
+        }
+
+        id = 0;
+        return false;
     }
 }

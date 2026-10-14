@@ -795,9 +795,20 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 }
 
                 var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
-                var magnetUri = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
+                string magnetUri = null;
+                try
+                {
+                    magnetUri = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
+                }
+                catch (FormatException ex)
+                {
+                    this.logger.Warn(ex, "Skipping magnet for torrent {0}: invalid info hash", torrent.Name);
+                }
 
-                await engine.AddTorrentAsync(torrent, torrentBytes, magnetUri);
+                if (torrentBytes != null || !string.IsNullOrWhiteSpace(magnetUri))
+                {
+                    await engine.AddTorrentAsync(torrent, torrentBytes, magnetUri);
+                }
 
                 if (this.torrentFileRepository != null)
                 {
@@ -852,7 +863,11 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                     }
                 }
 
-                if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error)
+                if (torrent.Status is TorrentStatus.Paused
+                    or TorrentStatus.Stopped
+                    or TorrentStatus.Error
+                    or TorrentStatus.Queued
+                    or TorrentStatus.Stalled)
                 {
                     await engine.PauseTorrentAsync(torrent.Id);
                 }

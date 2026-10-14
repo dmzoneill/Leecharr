@@ -26,6 +26,15 @@ public static class ProwlarrInstanceDiscovery
             return true;
         }
 
+        if (Uri.TryCreate(indexer.Url.Trim(), UriKind.Absolute, out var uri))
+        {
+            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (Array.Exists(segments, segment => segment.Equals("prowlarr", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
         return UsesDefaultProwlarrPort(indexer.Url);
     }
 

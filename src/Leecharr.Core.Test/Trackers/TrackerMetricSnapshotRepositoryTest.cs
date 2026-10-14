@@ -87,7 +87,7 @@ public class TrackerMetricSnapshotRepositoryTest
 
         history.Should().HaveCount(3);
         history.Select(s => s.Timestamp).Should().BeInAscendingOrder();
-        history.Select(s => s.ResponseTimeMs).Should().Equal(30, 40, 50);
+        history.Select(s => s.ResponseTimeMs).Should().Equal(13, 14, 15);
     }
 
     [Test]

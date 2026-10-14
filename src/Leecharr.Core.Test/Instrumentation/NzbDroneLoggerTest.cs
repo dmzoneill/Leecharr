@@ -55,7 +55,8 @@ public class NzbDroneLoggerTest
         fileTarget.Should().NotBeNull();
 
         var fileRules = config.LoggingRules.Where(r => r.Targets.Contains(fileTarget)).ToList();
-        fileRules.Any(r => r.Levels.Contains(LogLevel.Off)).Should().BeTrue();
+        fileRules.Should().NotBeEmpty();
+        fileRules.All(r => !r.IsLoggingEnabledForLevel(LogLevel.Info)).Should().BeTrue();
 
         var expectedLogDir = Path.Combine(this.tempAppDataFolder, "logs");
         Directory.Exists(expectedLogDir).Should().BeTrue();

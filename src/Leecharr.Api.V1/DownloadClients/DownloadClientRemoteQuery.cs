@@ -549,7 +549,14 @@ public static class DownloadClientRemoteQuery
                     return false;
                 }
 
-                var actionJson = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var actionJson = resp.Content == null
+                    ? string.Empty
+                    : await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(actionJson))
+                {
+                    return true;
+                }
+
                 using var actionDoc = JsonDocument.Parse(actionJson);
                 return TryGetDelugeRpcSuccess(actionDoc.RootElement, action, baseUrl);
             }

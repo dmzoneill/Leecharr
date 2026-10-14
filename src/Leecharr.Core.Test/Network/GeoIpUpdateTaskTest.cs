@@ -221,8 +221,8 @@ public class GeoIpUpdateTaskTest
         var bytes = new byte[2048];
         new Random(42).NextBytes(bytes);
 
-        // Append MaxMind metadata marker
-        var marker = Encoding.ASCII.GetBytes("\xAB\xCD\xEFMaxMind.Db");
+        // Same UTF-8 literal GeoIpUpdateTask.IsMmdbContent searches for.
+        var marker = "\xAB\xCD\xEFMaxMind.Db"u8.ToArray();
         Array.Copy(marker, 0, bytes, bytes.Length - marker.Length, marker.Length);
         return bytes;
     }

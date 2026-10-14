@@ -645,17 +645,24 @@ public class BackupControllerTest
         var zipPath = Path.Combine(backupDir, "Leecharr_backup_wal_merge_fail.zip");
 
         var tempDb = Path.Combine(this.testTempDir, "temp_source.db");
+        var tempWal = Path.Combine(this.testTempDir, "temp_source.db-wal");
+        byte[] walBytes = null;
         using (var conn = new SqliteConnection($"Data Source={tempDb}"))
         {
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "PRAGMA journal_mode = WAL; CREATE TABLE wal_table (id INTEGER PRIMARY KEY, content TEXT); INSERT INTO wal_table (content) VALUES ('wal-only-commit');";
+            cmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = 0; CREATE TABLE wal_table (id INTEGER PRIMARY KEY, content TEXT); INSERT INTO wal_table (content) VALUES ('wal-only-commit');";
             cmd.ExecuteNonQuery();
+            File.Exists(tempWal).Should().BeTrue();
+            walBytes = File.ReadAllBytes(tempWal);
         }
 
         SqliteConnection.ClearAllPools();
+        if (!File.Exists(tempWal))
+        {
+            File.WriteAllBytes(tempWal, walBytes);
+        }
 
-        var tempWal = Path.Combine(this.testTempDir, "temp_source.db-wal");
         File.Exists(tempWal).Should().BeTrue();
 
         using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))

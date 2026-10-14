@@ -52,7 +52,7 @@ public static class TerminalWebSocketHandler
         var hasOrigin = context.Request.Headers.TryGetValue("Origin", out var originHeader) &&
                         !string.IsNullOrWhiteSpace(originHeader);
         var hasReferer = context.Request.Headers.TryGetValue("Referer", out var refererHeader) &&
-                         !string.IsNullOrWhiteSpace(refererHeader);
+            !string.IsNullOrWhiteSpace(refererHeader);
 
         if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&
             string.Equals(secFetchSite.ToString(), "cross-site", StringComparison.OrdinalIgnoreCase))
@@ -101,9 +101,9 @@ public static class TerminalWebSocketHandler
         }
 
         return context.Request.Query.ContainsKey("apikey") ||
-               context.Request.Query.ContainsKey("api_key") ||
-               context.Request.Query.ContainsKey("token") ||
-               context.Request.Query.ContainsKey("access_token");
+            context.Request.Query.ContainsKey("api_key") ||
+            context.Request.Query.ContainsKey("token") ||
+            context.Request.Query.ContainsKey("access_token");
     }
 
     public static async Task HandleWebSocket(
@@ -236,15 +236,10 @@ public static class TerminalWebSocketHandler
                         break;
                     }
 
-                    var charCount = decoder.GetCharCount(buffer, 0, bytesRead, flush: false);
-                    if (charCount <= 0)
+                    var neededChars = bytesRead + 1;
+                    if (neededChars > charBuffer.Length)
                     {
-                        continue;
-                    }
-
-                    if (charCount > charBuffer.Length)
-                    {
-                        charBuffer = new char[charCount];
+                        charBuffer = new char[neededChars];
                     }
 
                     var charsRead = decoder.GetChars(buffer, 0, bytesRead, charBuffer, 0, flush: false);

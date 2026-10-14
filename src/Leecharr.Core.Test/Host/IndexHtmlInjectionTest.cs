@@ -17,7 +17,7 @@ public class IndexHtmlInjectionTest
 
         injection.Should().NotContain("<script>alert(1)</script>");
         injection.Should().Contain("&lt;script&gt;alert(1)&lt;/script&gt;");
-        injection.Should().Contain("urlBase: \"/\\\"&gt;&lt;/script&gt;&lt;script&gt;alert(1)&lt;/script&gt;\"");
+        injection.Should().Contain("urlBase: \"/\\u0022\\u003E\\u003C/script\\u003E\\u003Cscript\\u003Ealert(1)\\u003C/script\\u003E\"");
     }
 
     [TestCase("", "/")]

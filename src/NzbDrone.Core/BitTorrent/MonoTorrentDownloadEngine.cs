@@ -2748,7 +2748,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        if (added > 0 && task.Manager.Peers != null)
+        {
+            RefreshAvailablePeerCount(task.Manager.Peers);
+        }
+
         return (added, failed);
+    }
+
+    private static void RefreshAvailablePeerCount(PeerManager peers)
+    {
+        typeof(PeerManager)
+            .GetMethod("UpdatePeerCounts", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.Invoke(peers, null);
     }
 
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
