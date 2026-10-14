@@ -369,27 +369,15 @@ public class AppLifetime : IHostedService, IDisposable
                 if (hasDownloadingTasks)
                 {
                     this.downloadStartedThisSession = true;
-                    if (this.services.PowerManagementService != null)
+                    if (this.services.PowerManagementService != null && this.activeSleepInhibitToken == null)
                     {
-                        if (this.activeSleepInhibitToken != null && !this.services.PowerManagementService.IsSleepInhibited)
-                        {
-                            this.activeSleepInhibitToken.Dispose();
-                            this.activeSleepInhibitToken = null;
-                        }
-
-                        if (this.activeSleepInhibitToken == null)
-                        {
-                            this.activeSleepInhibitToken = this.services.PowerManagementService.InhibitSleep("Leecharr active torrent downloads in progress");
-                        }
+                        this.activeSleepInhibitToken = this.services.PowerManagementService.InhibitSleep("Leecharr active torrent downloads in progress");
                     }
                 }
-                else
+                else if (this.activeSleepInhibitToken != null)
                 {
-                    if (this.activeSleepInhibitToken != null)
-                    {
-                        this.activeSleepInhibitToken.Dispose();
-                        this.activeSleepInhibitToken = null;
-                    }
+                    this.activeSleepInhibitToken.Dispose();
+                    this.activeSleepInhibitToken = null;
                 }
 
                 // Broadcast 1-second speedPulse telemetry to SignalR clients

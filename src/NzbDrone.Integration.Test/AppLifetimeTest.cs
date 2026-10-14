@@ -631,6 +631,32 @@ public class AppLifetimeTest
     }
 
     [Test]
+    public async Task BackgroundLoop_WhenDownloadingAndOsDeniesInhibition_KeepsTheSameLease()
+    {
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(1);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+        this.powerManagementService.IsSleepInhibited.Returns(false);
+
+        var mockToken = Substitute.For<IDisposable>();
+        this.powerManagementService.InhibitSleep(Arg.Any<string>()).Returns(mockToken);
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(40);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        this.powerManagementService.Received(1).InhibitSleep(Arg.Any<string>());
+        mockToken.Received(1).Dispose();
+    }
+
+    [Test]
     public async Task BackgroundLoop_WhenDatabaseIsSqlite_ExecutesPeriodicPassiveWalCheckpoint()
     {
         var mockDb = Substitute.For<IDatabase>();

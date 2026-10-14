@@ -145,6 +145,7 @@ public static class ContainerExtensions
     {
         var interfaces = type.GetInterfaces()
             .Where(i => i != typeof(IDisposable) && i != typeof(IAsyncDisposable))
+            .Where(i => i.Name != "IHostedService" && i.Name != "IHostedLifecycleService")
             .ToArray();
 
         if (!interfaces.Any(i => i.Name == "ITorrentEngine"))

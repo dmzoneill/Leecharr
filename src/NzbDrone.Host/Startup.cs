@@ -279,6 +279,7 @@ public class Startup
 
         services.AddHostedService<AppLifetime>();
         services.AddHostedService<CommandWorker>();
+        services.AddHostedService(sp => (NzbDrone.Core.Network.ExternalIpService)sp.GetRequiredService<NzbDrone.Core.Network.IExternalIpService>());
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "ASP.NET Core convention expects instance Configure method")]
