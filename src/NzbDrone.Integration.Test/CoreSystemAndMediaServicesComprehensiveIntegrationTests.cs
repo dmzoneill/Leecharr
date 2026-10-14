@@ -3,8 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Ai;
@@ -14,6 +17,7 @@ using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.SystemServices;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
+using NzbDrone.Host;
 
 namespace NzbDrone.Integration.Test;
 
@@ -126,6 +130,7 @@ public class CoreSystemAndMediaServicesComprehensiveIntegrationTests : Integrati
     {
         var powerService = (IPowerManagementService)GlobalSetup.Factory.Services.GetService(typeof(IPowerManagementService))!;
         powerService.Should().NotBeNull();
+        GlobalSetup.Factory.Services.GetServices<IHostedService>().OfType<AppLifetime>().Should().ContainSingle();
 
         // The host may already hold a lease for an active download. GitHub-hosted
         // runners also deny systemd-inhibit, so the check is that this call takes
