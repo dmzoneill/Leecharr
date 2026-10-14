@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.1](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.1) - 2026-10-14
+
+### 🐛 Bug Fixes
+- fix: pass the Sonar project version with the scanner /v flag
+- fix: clear the four failing SonarCloud quality gate conditions
+- fix: clear open CodeQL findings and the KaTeX advisory
+
 ## [v3.0.0](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.0) - 2026-10-14
 
 ### ✨ Features
