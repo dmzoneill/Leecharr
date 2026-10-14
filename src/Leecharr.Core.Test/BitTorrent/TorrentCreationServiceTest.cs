@@ -298,6 +298,57 @@ public class TorrentCreationServiceTest
     }
 
     [Test]
+    public async Task CreateTorrentAsync_WhenOutputPathIsNestedUnderAllowedRoot_CreatesTheNestedFile()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        Directory.CreateDirectory(allowedDir);
+
+        var sourceFile = Path.Combine(allowedDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var outputFile = Path.Combine(allowedDir, "sub", "dir", "nested.torrent");
+        var service = new TorrentCreationService(new[] { allowedDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = outputFile,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.OutputPath.Should().Be(Path.GetFullPath(outputFile));
+        File.Exists(outputFile).Should().BeTrue();
+        File.ReadAllBytes(outputFile).Should().Equal(result.TorrentFileBytes);
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenOutputDirectoryNameStartsWithDots_WritesInsideThatDirectory()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        var dottedDir = Path.Combine(allowedDir, "..cache");
+        Directory.CreateDirectory(dottedDir);
+
+        var sourceFile = Path.Combine(allowedDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var outputFile = Path.Combine(dottedDir, "out.torrent");
+        var service = new TorrentCreationService(new[] { allowedDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = outputFile,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        File.Exists(outputFile).Should().BeTrue();
+    }
+
+    [Test]
     public async Task CreateTorrentAsync_WhenNoAllowedDirectoriesConfigured_FailsClosed()
     {
         var sourceFile = Path.Combine(this.testDir, "video.mp4");

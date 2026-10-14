@@ -256,22 +256,17 @@ public class TorrentCreationService : ITorrentCreationService
                     outputPath = Path.Combine(outputPath, fileName);
                 }
 
-                if (!this.ValidatePath(outputPath, "Resolved output path", out var finalOutputError))
+                var write = await this.WriteSanitizedTorrentAsync(outputPath, bytes, cancellationToken);
+                if (!write.Success)
                 {
                     return new TorrentCreationResult
                     {
                         Success = false,
-                        ErrorMessage = finalOutputError,
+                        ErrorMessage = write.Error,
                     };
                 }
 
-                var dir = Path.GetDirectoryName(outputPath);
-                if (!string.IsNullOrEmpty(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-
-                await File.WriteAllBytesAsync(outputPath, bytes, cancellationToken);
+                outputPath = write.WrittenPath;
                 this.logger.Info("Saved generated .torrent file to '{0}'", outputPath);
             }
 
@@ -359,6 +354,143 @@ public class TorrentCreationService : ITorrentCreationService
         {
             list.Add(path);
         }
+    }
+
+    private readonly record struct SanitizedTorrentWrite(bool Success, string WrittenPath, string Error);
+
+    private async Task<SanitizedTorrentWrite> WriteSanitizedTorrentAsync(string outputPath, byte[] bytes, CancellationToken cancellationToken)
+    {
+        if (!this.ValidatePath(outputPath, "Resolved output path", out var error))
+        {
+            return new SanitizedTorrentWrite(false, null, error);
+        }
+
+        var canonical = TorrentPathValidator.ResolveCanonicalPath(outputPath);
+        if (!this.TryGetLongestAllowedRoot(canonical, out var allowedRoot))
+        {
+            return new SanitizedTorrentWrite(false, null, $"Resolved output path resides outside of allowed storage directories: '{outputPath}'.");
+        }
+
+        var relative = Path.GetRelativePath(allowedRoot, canonical);
+        if (!TrySplitSafeRelativePath(relative, out var segments))
+        {
+            return new SanitizedTorrentWrite(false, null, $"Resolved output path resides outside of allowed storage directories: '{outputPath}'.");
+        }
+
+        var directory = allowedRoot;
+        for (var i = 0; i < segments.Length - 1; i++)
+        {
+            var safeSegment = Path.GetFileName(segments[i]);
+            if (!IsUnchangedFileName(segments[i], safeSegment))
+            {
+                return new SanitizedTorrentWrite(false, null, $"Resolved output path contains an unsafe segment: '{outputPath}'.");
+            }
+
+            directory = Path.Combine(directory, safeSegment);
+        }
+
+        var safeFileName = Path.GetFileName(segments[segments.Length - 1]);
+        if (!IsUnchangedFileName(segments[segments.Length - 1], safeFileName))
+        {
+            return new SanitizedTorrentWrite(false, null, $"Resolved output path contains an unsafe file name: '{outputPath}'.");
+        }
+
+        var writtenPath = Path.Combine(directory, safeFileName);
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        var writtenCanonical = TorrentPathValidator.ResolveCanonicalPath(writtenPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var expectedCanonical = canonical.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!string.Equals(writtenCanonical, expectedCanonical, comparison))
+        {
+            return new SanitizedTorrentWrite(false, null, $"Resolved output path resides outside of allowed storage directories: '{outputPath}'.");
+        }
+
+        Directory.CreateDirectory(directory);
+        await File.WriteAllBytesAsync(writtenPath, bytes, cancellationToken);
+        return new SanitizedTorrentWrite(true, writtenPath, null);
+    }
+
+    private static bool TrySplitSafeRelativePath(string relative, out string[] segments)
+    {
+        segments = Array.Empty<string>();
+        if (string.IsNullOrWhiteSpace(relative)
+            || relative == "."
+            || Path.IsPathRooted(relative)
+            || EscapesAllowedRoot(relative))
+        {
+            return false;
+        }
+
+        segments = relative.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length > 0;
+    }
+
+    private static bool EscapesAllowedRoot(string relative)
+    {
+        return relative == ".."
+            || relative.StartsWith("../", StringComparison.Ordinal)
+            || relative.StartsWith("..\\", StringComparison.Ordinal)
+            || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+    }
+
+    private static bool IsUnchangedFileName(string segment, string safeFileName)
+    {
+        return !string.IsNullOrEmpty(safeFileName)
+            && string.Equals(safeFileName, segment, StringComparison.Ordinal)
+            && safeFileName != "."
+            && safeFileName != "..";
+    }
+
+    private bool TryGetLongestAllowedRoot(string canonicalPath, out string allowedRoot)
+    {
+        allowedRoot = null;
+        if (string.IsNullOrWhiteSpace(canonicalPath))
+        {
+            return false;
+        }
+
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        var fullTarget = canonicalPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string longest = null;
+
+        foreach (var allowed in this.GetCurrentAllowedDirectories())
+        {
+            if (string.IsNullOrWhiteSpace(allowed))
+            {
+                continue;
+            }
+
+            try
+            {
+                var fullAllowed = TorrentPathValidator.ResolveCanonicalPath(allowed)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (string.Equals(fullAllowed, fullTarget, comparison)
+                    || fullTarget.StartsWith(fullAllowed + Path.DirectorySeparatorChar, comparison)
+                    || fullTarget.StartsWith(fullAllowed + "/", comparison))
+                {
+                    if (longest == null || fullAllowed.Length > longest.Length)
+                    {
+                        longest = fullAllowed;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "Failed to resolve allowed path '{AllowedPath}' while validating target", allowed);
+            }
+        }
+
+        if (longest == null)
+        {
+            return false;
+        }
+
+        allowedRoot = longest;
+        return true;
     }
 
     private bool ValidatePath(string path, string paramName, out string error)
@@ -454,42 +586,7 @@ public class TorrentCreationService : ITorrentCreationService
             }
         }
 
-        var allowedDirs = this.GetCurrentAllowedDirectories();
-
-        if (allowedDirs.Count == 0)
-        {
-            error = $"{paramName} resides outside of allowed storage directories: '{path}'.";
-            return false;
-        }
-
-        var isAllowed = false;
-        foreach (var allowed in allowedDirs)
-        {
-            if (string.IsNullOrWhiteSpace(allowed))
-            {
-                continue;
-            }
-
-            try
-            {
-                var fullAllowed = TorrentPathValidator.ResolveCanonicalPath(allowed).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                var fullTarget = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-                if (string.Equals(fullAllowed, fullTarget, comparison) ||
-                    fullTarget.StartsWith(fullAllowed + Path.DirectorySeparatorChar, comparison) ||
-                    fullTarget.StartsWith(fullAllowed + "/", comparison))
-                {
-                    isAllowed = true;
-                    break;
-                }
-            }
-            catch (Exception ex)
-            {
-                this.logger.Trace(ex, "Failed to resolve allowed path '{AllowedPath}' while validating target", allowed);
-            }
-        }
-
-        if (!isAllowed)
+        if (this.GetCurrentAllowedDirectories().Count == 0 || !this.TryGetLongestAllowedRoot(fullPath, out _))
         {
             error = $"{paramName} resides outside of allowed storage directories: '{path}'.";
             return false;
