@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.3](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.3) - 2026-10-14
+
+### 🐛 Bug Fixes
+- fix: sanitize torrent output paths before writing them
+
 ## [v3.0.2](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.2) - 2026-10-14
 
 ### 🐛 Bug Fixes
