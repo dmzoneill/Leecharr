@@ -376,7 +376,11 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
 
             execResponse.Should().NotBeNull();
             execResponse!.Passed.Should().BeGreaterThanOrEqualTo(1);
-            execResponse.Failed.Should().Be(0);
+            var failedDiagnostics = execResponse.Results?
+                .Where(r => !string.Equals(r.Status, "Passed", StringComparison.OrdinalIgnoreCase))
+                .Select(r => $"{r.Category}/{r.TestId}: {r.ErrorMessage}")
+                .ToList();
+            execResponse.Failed.Should().Be(0, "failed diagnostics: {0}", string.Join("; ", failedDiagnostics ?? new List<string>()));
         }
     }
 

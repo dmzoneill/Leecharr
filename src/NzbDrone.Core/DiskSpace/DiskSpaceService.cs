@@ -107,6 +107,11 @@ public class DiskSpaceService : IDiskSpaceService
                         continue;
                     }
 
+                    if (IsUnrelatedSystemMount(probe.MountPath, probe.DriveFormat))
+                    {
+                        continue;
+                    }
+
                     var volumeKey = $"{probe.DriveFormat}_{probe.TotalBytes}_{probe.VolumeLabel}_{probe.MountPath}";
                     if (seen.Add(probe.MountPath) && seenVolumes.Add(volumeKey))
                     {
@@ -239,6 +244,36 @@ public class DiskSpaceService : IDiskSpaceService
         }
 
         return !this.diskProvider.FolderWritable(path);
+    }
+
+    private static bool IsUnrelatedSystemMount(string mountPath, string fileSystemType)
+    {
+        if (string.IsNullOrWhiteSpace(mountPath))
+        {
+            return true;
+        }
+
+        if (fileSystemType is "tmpfs" or "efivarfs" or "ramfs" or "devtmpfs" or "squashfs" or "overlay")
+        {
+            return true;
+        }
+
+        var path = mountPath.TrimEnd('/');
+        if (path.Length == 0)
+        {
+            path = "/";
+        }
+
+        if (path is "/" or "/boot")
+        {
+            return true;
+        }
+
+        return path.StartsWith("/boot/", StringComparison.Ordinal)
+            || path.StartsWith("/run/", StringComparison.Ordinal)
+            || path.StartsWith("/dev/", StringComparison.Ordinal)
+            || path.StartsWith("/sys/", StringComparison.Ordinal)
+            || path.StartsWith("/proc/", StringComparison.Ordinal);
     }
 
     private void PublishThresholdEventsIfApplicable(DiskSpaceInfo info)

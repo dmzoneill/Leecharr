@@ -956,19 +956,19 @@ public class CommonAndHttpDeepCoverageIntegrationTests : IntegrationTestBase
         var r192 = await h192.AuthenticateAsync();
         r192.Succeeded.Should().BeTrue();
 
-        // Link-local 169.254.x bypassed
+        // Link-local 169.254.x is APIPA and cloud metadata, not a private LAN
         var ctxLinkLocal = new DefaultHttpContext();
         ctxLinkLocal.Connection.RemoteIpAddress = IPAddress.Parse("169.254.10.20");
         var hLinkLocal = this.CreateApiKeyHandler(ctxLinkLocal, configProvider, trustedNetworkService: trustedService);
         var rLinkLocal = await hLinkLocal.AuthenticateAsync();
-        rLinkLocal.Succeeded.Should().BeTrue();
+        rLinkLocal.None.Should().BeTrue();
 
-        // IPv6 Link-Local fe80:: bypassed
+        // IPv6 link-local fe80:: is not a private LAN
         var ctxFe80 = new DefaultHttpContext();
         ctxFe80.Connection.RemoteIpAddress = IPAddress.Parse("fe80::1");
         var hFe80 = this.CreateApiKeyHandler(ctxFe80, configProvider, trustedNetworkService: trustedService);
         var rFe80 = await hFe80.AuthenticateAsync();
-        rFe80.Succeeded.Should().BeTrue();
+        rFe80.None.Should().BeTrue();
 
         // IPv6 ULA fd00:: bypassed
         var ctxFd00 = new DefaultHttpContext();

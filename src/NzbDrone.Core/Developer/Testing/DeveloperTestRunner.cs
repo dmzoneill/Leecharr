@@ -1279,9 +1279,25 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"DHT engine state: {dhtNodes} active node contacts.";
     }
 
+    private ITorrentEngine? ResolveTorrentEngine()
+    {
+        if (this.downloadEngine is ITorrentEngine torrentEngine)
+        {
+            return torrentEngine;
+        }
+
+        if (this.downloadEngine is ITorrentEngineManager manager)
+        {
+            return manager.ActiveEngine;
+        }
+
+        return null;
+    }
+
     private string ExecuteEngineEncryptionCheck()
     {
-        if (this.downloadEngine is not ITorrentEngine torrentEngine || torrentEngine.Capabilities == null)
+        var torrentEngine = this.ResolveTorrentEngine();
+        if (torrentEngine?.Capabilities == null)
         {
             throw new InvalidOperationException("Download engine does not expose encryption capabilities.");
         }
@@ -1313,7 +1329,8 @@ public class DeveloperTestRunner : IDeveloperTestRunner
 
     private string ExecuteEngineCapabilitiesCheck()
     {
-        if (this.downloadEngine is not ITorrentEngine torrentEngine || torrentEngine.Capabilities == null)
+        var torrentEngine = this.ResolveTorrentEngine();
+        if (torrentEngine?.Capabilities == null)
         {
             throw new InvalidOperationException("Download engine does not expose torrent capabilities.");
         }

@@ -66,7 +66,8 @@ public class HttpSecurityAndAuthenticationComprehensiveIntegrationTests : Integr
         var context2 = new DefaultHttpContext();
         context2.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.1");
         context2.Request.Headers["X-Forwarded-For"] = "203.0.113.50, 10.0.0.1";
-        trustedService.IsTrustedProxy(Arg.Any<IPAddress>(), Arg.Any<string>()).Returns(true);
+        trustedService.IsTrustedProxy(Arg.Any<IPAddress>(), Arg.Any<string>())
+            .Returns(call => call.Arg<IPAddress>().Equals(IPAddress.Parse("10.0.0.1")));
 
         var resolvedForwarded = ClientIpResolver.ResolveClientIp(context2, trustedService, configService);
         resolvedForwarded.Should().Be("203.0.113.50");
@@ -75,7 +76,6 @@ public class HttpSecurityAndAuthenticationComprehensiveIntegrationTests : Integr
         var context2b = new DefaultHttpContext();
         context2b.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.1");
         context2b.Request.Headers["X-Forwarded-For"] = "198.51.100.10, 203.0.113.50";
-        trustedService.IsTrustedProxy(Arg.Any<IPAddress>(), Arg.Any<string>()).Returns(true);
 
         var resolvedSpoofed = ClientIpResolver.ResolveClientIp(context2b, trustedService, configService);
         resolvedSpoofed.Should().Be("203.0.113.50");

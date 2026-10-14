@@ -1378,7 +1378,7 @@ public class RssSyncServiceTest
 
         await safeHttpClient.DidNotReceive().DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>());
         await this.torrentService.Received(1).AddFromMagnetAsync(
-            Arg.Is<string>(m => m.Contains("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")),
+            Arg.Is<string>(m => m.Contains("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", StringComparison.OrdinalIgnoreCase)),
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<bool>());
@@ -1480,7 +1480,7 @@ public class RssSyncServiceTest
 
         parser.DidNotReceive().Parse(Arg.Any<byte[]>());
         await this.torrentService.Received(1).AddFromMagnetAsync(
-            Arg.Is<string>(m => m.Contains("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")),
+            Arg.Is<string>(m => m.Contains("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", StringComparison.OrdinalIgnoreCase)),
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<bool>());

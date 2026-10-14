@@ -109,12 +109,11 @@ public class AppLifetimeTest
         mockTask.Status.Returns(TorrentStatus.Downloading);
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
 
-        var tcs = new TaskCompletionSource<bool>();
-        this.powerManagementService.ExecutePowerActionAsync(PowerAction.Shutdown).Returns(ci =>
-        {
-            tcs.TrySetResult(true);
-            return Task.CompletedTask;
-        });
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.powerManagementService.ExecutePowerActionAsync(PowerAction.Shutdown).Returns(Task.FromResult(true));
+        this.configService.When(c => c.SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            d.ContainsKey("AutoShutdownAction") && (string)d["AutoShutdownAction"] == "None")))
+            .Do(_ => tcs.TrySetResult(true));
 
         using var lifetime = new AppLifetime(
             this.CreateServices(),
@@ -315,12 +314,11 @@ public class AppLifetimeTest
         mockTask.Status.Returns(TorrentStatus.Downloading);
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
 
-        var tcs = new TaskCompletionSource<bool>();
-        this.powerManagementService.ExecutePowerActionAsync(PowerAction.Shutdown).Returns(ci =>
-        {
-            tcs.TrySetResult(true);
-            return Task.CompletedTask;
-        });
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.powerManagementService.ExecutePowerActionAsync(PowerAction.Shutdown).Returns(Task.FromResult(true));
+        this.configService.When(c => c.SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            d.ContainsKey("AutoShutdownAction") && (string)d["AutoShutdownAction"] == "None")))
+            .Do(_ => tcs.TrySetResult(true));
 
         using var lifetime = new AppLifetime(
             this.CreateServices(),
@@ -609,7 +607,11 @@ public class AppLifetimeTest
         this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
 
         var mockToken = Substitute.For<IDisposable>();
-        this.powerManagementService.InhibitSleep(Arg.Any<string>()).Returns(mockToken);
+        this.powerManagementService.InhibitSleep(Arg.Any<string>()).Returns(_ =>
+        {
+            this.powerManagementService.IsSleepInhibited.Returns(true);
+            return mockToken;
+        });
 
         using var lifetime = new AppLifetime(
             this.CreateServices(),
