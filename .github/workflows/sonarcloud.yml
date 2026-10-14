@@ -75,9 +75,9 @@ jobs:
           dotnet-sonarscanner begin \
             /k:"$SONAR_PROJECT_KEY" \
             /o:"$SONAR_ORGANIZATION" \
+            /v:"$VERSION" \
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.projectVersion="$VERSION" \
             /d:sonar.qualitygate.wait=true \
             /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.cs.roslyn.ignoreIssues=false \
