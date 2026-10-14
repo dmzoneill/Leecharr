@@ -349,6 +349,83 @@ public class TorrentCreationServiceTest
     }
 
     [Test]
+    public async Task CreateTorrentAsync_WhenDirectoryOutputNameDecodesToTraversal_RejectsTheResolvedFile()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        Directory.CreateDirectory(allowedDir);
+
+        var sourceFile = Path.Combine(allowedDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var service = new TorrentCreationService(new[] { allowedDir });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            Name = "a%2e%2e",
+            OutputPath = allowedDir + Path.DirectorySeparatorChar,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("encoded directory traversal");
+        Directory.GetFiles(allowedDir, "*.torrent").Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenOutputPathIsTheAllowedRootItself_RejectsTheDotRelativePath()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        Directory.CreateDirectory(allowedDir);
+        var sourceFile = Path.Combine(allowedDir, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var fileRoot = Path.Combine(this.testDir, "file-root.torrent");
+        var service = new TorrentCreationService(new[] { allowedDir, fileRoot });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = fileRoot,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("allowed storage directories");
+        File.Exists(fileRoot).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task CreateTorrentAsync_WhenNestedRootAndUnrelatedRootAreConfigured_UsesTheLongerRoot()
+    {
+        var allowedDir = Path.Combine(this.testDir, "allowed");
+        var nestedRoot = Path.Combine(allowedDir, "nested");
+        var unrelated = Path.Combine(this.testDir, "unrelated");
+        Directory.CreateDirectory(nestedRoot);
+        Directory.CreateDirectory(unrelated);
+
+        var sourceFile = Path.Combine(nestedRoot, "video.mp4");
+        await File.WriteAllBytesAsync(sourceFile, new byte[1024]);
+
+        var outputFile = Path.Combine(nestedRoot, "out.torrent");
+        var service = new TorrentCreationService(new[] { allowedDir, nestedRoot, unrelated, " " });
+        var request = new TorrentCreationRequest
+        {
+            Path = sourceFile,
+            OutputPath = outputFile,
+        };
+
+        var result = await service.CreateTorrentAsync(request);
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.OutputPath.Should().Be(Path.GetFullPath(outputFile));
+        File.Exists(outputFile).Should().BeTrue();
+    }
+
+    [Test]
     public async Task CreateTorrentAsync_WhenNoAllowedDirectoriesConfigured_FailsClosed()
     {
         var sourceFile = Path.Combine(this.testDir, "video.mp4");
