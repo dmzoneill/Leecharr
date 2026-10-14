@@ -589,6 +589,36 @@ public class PowerManagementServiceTest
     }
 
     [Test]
+    public void InhibitSleep_OnLinux_WhenInhibitorExitsAsEventsAreArmed_DoesNotDeadlock()
+    {
+        var starts = 0;
+        var service = new PowerManagementService
+        {
+            TargetPlatformOverride = OSPlatform.Linux,
+            ContainerDetector = () => false,
+            LinuxProcessStarter = (_, _) =>
+            {
+                Interlocked.Increment(ref starts);
+                return StartTestSleepProcess("0");
+            },
+        };
+
+        var finished = Task.Run(() =>
+        {
+            using (service.InhibitSleep("Immediate deny"))
+            {
+                service.ActiveSleepInhibitionLeases.Should().Be(1);
+            }
+
+            service.ActiveSleepInhibitionLeases.Should().Be(0);
+        });
+
+        finished.Wait(TimeSpan.FromSeconds(3)).Should().BeTrue("systemd-inhibit exiting immediately must not deadlock the caller");
+        starts.Should().BeInRange(1, 4);
+        service.Dispose();
+    }
+
+    [Test]
     public void InhibitSleep_OnLinux_WhenInhibitorExitsImmediately_IsNotReportedAsInhibited()
     {
         var service = new PowerManagementService

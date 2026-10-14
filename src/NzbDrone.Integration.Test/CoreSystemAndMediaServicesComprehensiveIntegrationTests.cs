@@ -127,17 +127,21 @@ public class CoreSystemAndMediaServicesComprehensiveIntegrationTests : Integrati
         var powerService = (IPowerManagementService)GlobalSetup.Factory.Services.GetService(typeof(IPowerManagementService))!;
         powerService.Should().NotBeNull();
 
-        // 1. Inhibit sleep lease
+        // 1. Inhibit sleep lease. GitHub-hosted runners deny systemd-inhibit, so the
+        // lease must still be taken and released when the OS inhibitor cannot start.
         using (var lease = powerService.InhibitSleep("Active Torrent Seeding Session"))
         {
             lease.Should().NotBeNull();
-            powerService.IsSleepInhibited.Should().BeTrue();
             powerService.ActiveSleepInhibitionLeases.Should().BeGreaterThanOrEqualTo(1);
         }
 
+        powerService.ActiveSleepInhibitionLeases.Should().Be(0);
+
         // 2. SetSleepInhibited direct toggle
         powerService.SetSleepInhibited(true, "Direct Toggle Test");
+        powerService.ActiveSleepInhibitionLeases.Should().BeGreaterThanOrEqualTo(1);
         powerService.SetSleepInhibited(false, "Direct Toggle End");
+        powerService.ActiveSleepInhibitionLeases.Should().Be(0);
     }
 
     [Test]

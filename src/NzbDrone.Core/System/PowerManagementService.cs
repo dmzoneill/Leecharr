@@ -23,6 +23,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         EsContinuous = 0x80000000,
     }
 
+    private const int MaxLinuxInhibitRestarts = 3;
     private static readonly string[] WindowsShutdownArgs = ["/s", "/t", "60", "/c", "Leecharr completed queue"];
     private static readonly string[] OsxShutdownScriptArgs = ["-e", "tell app \"System Events\" to shut down"];
     private static readonly string[] OsxSleepNowArgs = ["sleepnow"];
@@ -37,6 +38,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
     private uint osxAssertionId;
     private Process linuxInhibitProcess;
     private string linuxInhibitReason;
+    private int linuxInhibitRestartCount;
     private WindowsSleepInhibitionWorker windowsSleepInhibitionWorker;
     private bool disposed;
 
@@ -137,20 +139,25 @@ public class PowerManagementService : IPowerManagementService, IDisposable
 
     public IDisposable InhibitSleep(string reason)
     {
+        Process processToArm = null;
         lock (this.lockObj)
         {
             this.activeLeaseCount++;
             if (this.activeLeaseCount == 1)
             {
+                this.linuxInhibitRestartCount = 0;
                 this.ApplySleepInhibition(true, reason);
+                processToArm = this.linuxInhibitProcess;
             }
         }
 
+        this.ArmLinuxInhibitProcessExit(processToArm);
         return new SleepInhibitionToken(this, reason);
     }
 
     public void SetSleepInhibited(bool inhibit, string reason)
     {
+        Process processToArm = null;
         lock (this.lockObj)
         {
             if (inhibit)
@@ -161,7 +168,9 @@ public class PowerManagementService : IPowerManagementService, IDisposable
                     this.activeLeaseCount++;
                     if (this.activeLeaseCount == 1)
                     {
+                        this.linuxInhibitRestartCount = 0;
                         this.ApplySleepInhibition(true, reason);
+                        processToArm = this.linuxInhibitProcess;
                     }
                 }
             }
@@ -182,6 +191,8 @@ public class PowerManagementService : IPowerManagementService, IDisposable
                 this.ApplySleepInhibition(false, reason);
             }
         }
+
+        this.ArmLinuxInhibitProcessExit(processToArm);
     }
 
     public async Task<bool> ExecutePowerActionAsync(PowerAction action)
@@ -529,22 +540,61 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             return;
         }
 
-        process.EnableRaisingEvents = true;
-        process.Exited -= this.HandleLinuxInhibitProcessExited;
-        process.Exited += this.HandleLinuxInhibitProcessExited;
         this.isSleepInhibited = true;
     }
 
-    private void HandleLinuxInhibitProcessExited(object sender, EventArgs e)
+    private void ArmLinuxInhibitProcessExit(Process process)
     {
-        lock (this.lockObj)
+        if (process == null)
         {
-            if (this.disposed)
+            return;
+        }
+
+        var handled = 0;
+        EventHandler handler = null;
+        handler = (sender, args) =>
+        {
+            if (Interlocked.Exchange(ref handled, 1) == 1)
             {
                 return;
             }
 
-            if (sender is not Process exitedProcess || exitedProcess != this.linuxInhibitProcess)
+            process.Exited -= handler;
+            this.RestartLinuxInhibitAfterExit(process);
+        };
+
+        lock (this.lockObj)
+        {
+            if (this.disposed || this.linuxInhibitProcess != process)
+            {
+                this.StopLinuxSleepInhibition(process);
+                return;
+            }
+        }
+
+        process.Exited += handler;
+        try
+        {
+            process.EnableRaisingEvents = true;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Could not watch the systemd-inhibit process");
+        }
+
+        if (!IsLinuxInhibitProcessRunning(process) && Interlocked.Exchange(ref handled, 1) == 0)
+        {
+            process.Exited -= handler;
+            this.RestartLinuxInhibitAfterExit(process);
+        }
+    }
+
+    private void RestartLinuxInhibitAfterExit(Process exitedProcess)
+    {
+        Process replacement = null;
+        lock (this.lockObj)
+        {
+            if (this.disposed || exitedProcess != this.linuxInhibitProcess)
             {
                 return;
             }
@@ -553,11 +603,30 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             this.linuxInhibitProcess = null;
             this.isSleepInhibited = false;
 
-            if (this.activeLeaseCount > 0 && !string.IsNullOrEmpty(this.linuxInhibitReason))
+            if (this.activeLeaseCount <= 0 || string.IsNullOrEmpty(this.linuxInhibitReason))
             {
-                this.SetLinuxSleepInhibitionProcess(this.StartLinuxSleepInhibition(this.linuxInhibitReason));
+                return;
             }
+
+            if (this.linuxInhibitRestartCount >= MaxLinuxInhibitRestarts)
+            {
+                this.logger.Debug("Stopped retrying systemd-inhibit after {0} failures", this.linuxInhibitRestartCount);
+                return;
+            }
+
+            this.linuxInhibitRestartCount++;
+            replacement = this.StartLinuxSleepInhibition(this.linuxInhibitReason);
+            if (!IsLinuxInhibitProcessRunning(replacement))
+            {
+                this.StopLinuxSleepInhibition(replacement);
+                return;
+            }
+
+            this.linuxInhibitProcess = replacement;
+            this.isSleepInhibited = true;
         }
+
+        this.ArmLinuxInhibitProcessExit(replacement);
     }
 
     private static bool IsLinuxInhibitProcessRunning(Process process)
@@ -596,6 +665,8 @@ public class PowerManagementService : IPowerManagementService, IDisposable
                     FileName = File.Exists("/bin/systemd-inhibit") ? "/bin/systemd-inhibit" : "/usr/bin/systemd-inhibit",
                     UseShellExecute = false,
                     CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                 },
             };
 
@@ -605,6 +676,16 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             }
 
             proc.Start();
+            try
+            {
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+            }
+            catch (Exception drainEx)
+            {
+                this.logger.Debug(drainEx, "Could not drain systemd-inhibit output");
+            }
+
             return proc;
         }
         catch (Exception ex)
@@ -619,15 +700,6 @@ public class PowerManagementService : IPowerManagementService, IDisposable
         if (process == null)
         {
             return;
-        }
-
-        try
-        {
-            process.Exited -= this.HandleLinuxInhibitProcessExited;
-        }
-        catch (Exception ex)
-        {
-            this.logger.Trace(ex, "Failed to detach Linux sleep inhibition process exit handler");
         }
 
         try
