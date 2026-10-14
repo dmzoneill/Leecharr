@@ -928,6 +928,16 @@ public class TorznabClient : ITorznabClient
         }
         catch (XmlException ex)
         {
+            var trimmed = xml.TrimStart();
+            var looksLikeFeed = trimmed.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("<rss", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("<feed", StringComparison.OrdinalIgnoreCase);
+            if (looksLikeFeed)
+            {
+                this.logger.Error(ex, "Failed to parse Torznab XML feed.");
+                throw new TorznabException("Failed to parse Torznab XML feed.", ex);
+            }
+
             this.logger.Debug(ex, "Torznab feed from indexer '{0}' was not valid XML.", indexer?.Name ?? "Unknown");
             return results;
         }
