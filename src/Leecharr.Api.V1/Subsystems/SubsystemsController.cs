@@ -82,7 +82,7 @@ public class SubsystemsController : Controller
                 success = loaded > 0,
                 rulesLoaded = loaded,
                 activeRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0,
-                activeProvider = this.blocklistManager.ActiveProviderId,
+                activeProvider = string.IsNullOrEmpty(this.blocklistManager?.ActiveProviderId) ? null : this.blocklistManager.ActiveProviderId,
             });
         }
         catch (Exception ex)
@@ -92,7 +92,7 @@ public class SubsystemsController : Controller
                 success = false,
                 rulesLoaded = 0,
                 activeRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0,
-                activeProvider = this.blocklistManager.ActiveProviderId,
+                activeProvider = string.IsNullOrEmpty(this.blocklistManager?.ActiveProviderId) ? null : this.blocklistManager.ActiveProviderId,
                 error = ex.Message,
             });
         }

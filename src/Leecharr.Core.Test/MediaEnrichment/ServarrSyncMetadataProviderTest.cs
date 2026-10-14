@@ -310,7 +310,7 @@ public class ServarrSyncMetadataProviderTest
                 ApiKey = "sonarr-key",
                 Enable = true,
             },
-            new() { Id = 2, Name = "Radarr", ArrType = "Radarr", Url = "http://127.0.0.1:7878", Enable = true },
+            new() { Id = 2, Name = "Radarr", ArrType = "Radarr", Url = "http://127.0.0.1:7878", ApiKey = "radarr-key", Enable = true },
         };
         this.arrRepository.GetEnabled().Returns(connections);
 

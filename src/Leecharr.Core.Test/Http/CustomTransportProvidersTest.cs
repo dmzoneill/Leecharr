@@ -248,31 +248,20 @@ public class CustomTransportProvidersTest
     [Test]
     public async Task ExecuteRequestAsync_CurlImpersonate_InjectsChromeBrowserHeaders()
     {
-        var port = GetFreePort();
-        using var listener = new HttpListener();
-        listener.Prefixes.Add($"http://127.0.0.1:{port}/api/");
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
-        string receivedUserAgent = null!;
-        string receivedSecChUa = null!;
-        string receivedSecChUaMobile = null!;
-        string receivedSecChUaPlatform = null!;
-
+        string requestText = null!;
         var serverTask = Task.Run(async () =>
         {
-            var context = await listener.GetContextAsync();
-            var req = context.Request;
-            receivedUserAgent = req.Headers["User-Agent"];
-            receivedSecChUa = req.Headers["Sec-Ch-Ua"];
-            receivedSecChUaMobile = req.Headers["Sec-Ch-Ua-Mobile"];
-            receivedSecChUaPlatform = req.Headers["Sec-Ch-Ua-Platform"];
-
-            var response = context.Response;
-            var buffer = Encoding.UTF8.GetBytes("<html><body>OK</body></html>");
-            response.StatusCode = 200;
-            response.ContentType = "text/html";
-            await response.OutputStream.WriteAsync(buffer);
-            response.OutputStream.Close();
+            using var client = await listener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+            var buffer = new byte[8192];
+            var read = await stream.ReadAsync(buffer);
+            requestText = Encoding.ASCII.GetString(buffer, 0, read);
+            var responseBytes = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+            await stream.WriteAsync(responseBytes);
         });
 
         using var provider = CurlImpersonateTestHelper.CreateProvider();
@@ -280,12 +269,13 @@ public class CustomTransportProvidersTest
 
         var response = await provider.SendAsync(request);
         await serverTask;
+        listener.Stop();
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        receivedUserAgent.Should().Contain("Chrome/124");
-        receivedSecChUa.Should().Contain("Chromium");
-        receivedSecChUaMobile.Should().Be("?0");
-        receivedSecChUaPlatform.Should().Be("\"Windows\"");
+        requestText.Should().Contain("Chrome/124");
+        requestText.Should().Contain("Chromium");
+        requestText.Should().Contain("Sec-Ch-Ua-Mobile: ?0");
+        requestText.Should().Contain("Sec-Ch-Ua-Platform: \"Windows\"");
     }
 
     [Test]

@@ -467,7 +467,7 @@ public class TorznabAndProwlarrClientTest
         capturedRequest.Should().NotBeNull();
         var query = capturedRequest.RequestUri!.Query;
 
-        query.Should().Contain("t=search%26limit%3D1", "Ampersands in search type must be encoded so MergeQueryParams cannot inject extra keys");
+        query.Should().ContainEquivalentOf("t=search%26limit%3D1", "Ampersands in search type must be encoded so MergeQueryParams cannot inject extra keys");
         query.Should().NotContain("&limit=1&", "Injected limit parameter must not appear as a separate query key");
     }
 

@@ -1670,6 +1670,43 @@ public class RTorrentController : ControllerBase
         views[viewName.Trim()] = 0;
     }
 
+    private static bool LooksLikeInfoHash(string view)
+    {
+        if (string.IsNullOrWhiteSpace(view) || view.Length is not (32 or 40 or 64))
+        {
+            return false;
+        }
+
+        foreach (var character in view)
+        {
+            if (!Uri.IsHexDigit(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool AnyTorrentHasView(string viewName)
+    {
+        if (string.IsNullOrWhiteSpace(viewName))
+        {
+            return false;
+        }
+
+        var trimmed = viewName.Trim();
+        foreach (var views in TorrentViewsStore.Values)
+        {
+            if (views.ContainsKey(trimmed))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool TorrentHasView(string infoHash, string viewName)
     {
         if (string.IsNullOrWhiteSpace(infoHash) || string.IsNullOrWhiteSpace(viewName))
@@ -1720,7 +1757,22 @@ public class RTorrentController : ControllerBase
                 return torrent.Status == TorrentStatus.Checking;
 
             default:
-                return TorrentHasView(torrent.InfoHash, view);
+                if (string.Equals(torrent.InfoHash, view, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (TorrentHasView(torrent.InfoHash, view))
+                {
+                    return true;
+                }
+
+                if (LooksLikeInfoHash(view) || AnyTorrentHasView(view))
+                {
+                    return false;
+                }
+
+                return true;
         }
     }
 

@@ -43,7 +43,8 @@ public class AlternateEnginesVpnRestorationTest
             this.storagePathService,
             this.categoryService,
             this.diskProvider,
-            this.eventAggregator);
+            this.eventAggregator,
+            httpClient: DaemonRpcTestDoubles.CreateClient());
 
         await engine.StartAsync();
 
@@ -80,7 +81,8 @@ public class AlternateEnginesVpnRestorationTest
             this.storagePathService,
             this.categoryService,
             this.diskProvider,
-            this.eventAggregator);
+            this.eventAggregator,
+            DaemonRpcTestDoubles.CreateClient());
 
         await engine.StartAsync();
 

@@ -25,7 +25,7 @@ public class ArrConnectionAndSyncLifecycleIntegrationTests : IntegrationTestBase
         {
             name = "Test Sonarr Server",
             arrType = "Sonarr",
-            url = "http://sonarr.integration.test:8989",
+            url = "http://127.0.0.1:8989",
             apiKey = "sonarr_api_key_12345",
             enable = true,
             syncInterval = 15,
@@ -47,7 +47,7 @@ public class ArrConnectionAndSyncLifecycleIntegrationTests : IntegrationTestBase
                 id = connectionId,
                 name = "Updated Radarr Server",
                 arrType = "Radarr",
-                url = "http://radarr.integration.test:7878",
+                url = "http://127.0.0.1:7878",
                 apiKey = "radarr_api_key_67890",
                 enable = false,
                 syncInterval = 30,

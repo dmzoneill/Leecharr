@@ -1278,7 +1278,84 @@ public class WebhookDispatcher : IWebhookDispatcher
             return string.Empty;
         }
 
-        return TrackerUrlSanitizer.Sanitize(targetUrl.Trim());
+        var trimmed = targetUrl.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+        {
+            var redactedWebhook = RedactWebhookPath(uri);
+            if (redactedWebhook != null)
+            {
+                return redactedWebhook;
+            }
+        }
+
+        return TrackerUrlSanitizer.Sanitize(trimmed);
+    }
+
+    private static string RedactWebhookPath(Uri uri)
+    {
+        var host = uri.Host;
+        var path = uri.AbsolutePath;
+        string redactedPath = null;
+
+        if (host.Equals("api.telegram.org", StringComparison.OrdinalIgnoreCase))
+        {
+            var segments = path.Split('/');
+            for (var i = 0; i < segments.Length; i++)
+            {
+                if (segments[i].StartsWith("bot", StringComparison.OrdinalIgnoreCase) && segments[i].Length > 3)
+                {
+                    segments[i] = "bot********";
+                }
+            }
+
+            redactedPath = string.Join('/', segments);
+        }
+        else if ((host.Equals("discord.com", StringComparison.OrdinalIgnoreCase) ||
+                  host.Equals("discordapp.com", StringComparison.OrdinalIgnoreCase) ||
+                  host.EndsWith(".discord.com", StringComparison.OrdinalIgnoreCase)) &&
+                 path.Contains("/api/webhooks/", StringComparison.OrdinalIgnoreCase))
+        {
+            redactedPath = MaskLastPathSegment(path);
+        }
+        else if (host.Equals("hooks.slack.com", StringComparison.OrdinalIgnoreCase))
+        {
+            redactedPath = MaskLastPathSegment(path);
+        }
+
+        if (redactedPath == null)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.Append(uri.Scheme).Append("://").Append(uri.Host);
+        if (!uri.IsDefaultPort)
+        {
+            builder.Append(':').Append(uri.Port);
+        }
+
+        builder.Append(redactedPath);
+        if (!string.IsNullOrEmpty(uri.Query))
+        {
+            builder.Append(uri.Query);
+        }
+
+        return builder.ToString();
+    }
+
+    private static string MaskLastPathSegment(string path)
+    {
+        var segments = path.Split('/');
+        for (var i = segments.Length - 1; i >= 0; i--)
+        {
+            if (!string.IsNullOrEmpty(segments[i]))
+            {
+                segments[i] = "********";
+                break;
+            }
+        }
+
+        return string.Join('/', segments);
     }
 
     private void AddHeader(HttpRequestMessage request, string key, string value)

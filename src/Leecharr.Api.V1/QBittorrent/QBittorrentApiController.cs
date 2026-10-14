@@ -3843,7 +3843,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         switch (filter)
         {
             case "downloading":
-                return snapshot.Status == TorrentStatus.Downloading;
+                return snapshot.Status == TorrentStatus.Downloading && snapshot.DownloadSpeed > 0;
             case "seeding":
                 return snapshot.Status == TorrentStatus.Seeding || (snapshot.Status == TorrentStatus.Queued && snapshot.Progress >= 1.0);
             case "completed":

@@ -51,7 +51,8 @@ public class EngineResourceMetricsTest
             this.storagePathService,
             this.categoryService,
             this.diskProvider,
-            this.eventAggregator);
+            this.eventAggregator,
+            httpClient: DaemonRpcTestDoubles.CreateClient());
     }
 
     private LibTorrentDownloadEngine CreateLibTorrentEngine()
@@ -61,7 +62,8 @@ public class EngineResourceMetricsTest
             this.storagePathService,
             this.categoryService,
             this.diskProvider,
-            this.eventAggregator);
+            this.eventAggregator,
+            DaemonRpcTestDoubles.CreateClient());
     }
 
     [Test]
@@ -130,17 +132,12 @@ public class EngineResourceMetricsTest
     [Test]
     public async Task EmbeddedTransmissionEngine_GetAllTorrentResourceMetrics_WithNullCategoryTorrent_HasNonNullCategoryAndStatus()
     {
-        using var engine = new EmbeddedTransmissionEngine(
-            this.configService,
-            this.storagePathService,
-            this.categoryService,
-            this.diskProvider,
-            this.eventAggregator);
+        using var engine = this.CreateTransmissionEngine();
 
         var torrent = new Torrent
         {
             Id = 100,
-            InfoHash = "trans-hash-100",
+            InfoHash = "1000100010001000100010001000100010001000",
             Name = "Transmission Ingested",
             TotalSize = 5000,
             Category = null!,
@@ -277,12 +274,7 @@ public class EngineResourceMetricsTest
     [Test]
     public async Task LibTorrentDownloadEngine_GetAllTorrentResourceMetrics_WithNullCategoryTorrent_HasNonNullCategoryAndStatus()
     {
-        using var engine = new LibTorrentDownloadEngine(
-            this.configService,
-            this.storagePathService,
-            this.categoryService,
-            this.diskProvider,
-            this.eventAggregator);
+        using var engine = this.CreateLibTorrentEngine();
 
         var torrent = new Torrent
         {
@@ -312,12 +304,7 @@ public class EngineResourceMetricsTest
     [Test]
     public async Task EmbeddedTransmissionEngine_ProbeHealthAsync_ReturnsValidHealthResult()
     {
-        using var engine = new EmbeddedTransmissionEngine(
-            this.configService,
-            this.storagePathService,
-            this.categoryService,
-            this.diskProvider,
-            this.eventAggregator);
+        using var engine = this.CreateTransmissionEngine();
 
         engine.EngineId.Should().Be("Transmission");
         engine.ProtocolName.Should().Be("BitTorrent");
@@ -331,12 +318,7 @@ public class EngineResourceMetricsTest
     [Test]
     public async Task LibTorrentDownloadEngine_ProbeHealthAsync_ReturnsValidHealthResult()
     {
-        using var engine = new LibTorrentDownloadEngine(
-            this.configService,
-            this.storagePathService,
-            this.categoryService,
-            this.diskProvider,
-            this.eventAggregator);
+        using var engine = this.CreateLibTorrentEngine();
 
         engine.EngineId.Should().Be("LibTorrent");
         engine.ProtocolName.Should().Be("BitTorrent");

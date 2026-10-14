@@ -143,7 +143,7 @@ public class TorrentLogServiceTest
         repo.When(r => r.TrimToMaxPerTorrent(Arg.Any<int>(), Arg.Any<int>()))
             .Do(callInfo =>
             {
-                var torrentId = callInfo.Arg<int>();
+                var torrentId = callInfo.ArgAt<int>(0);
                 var maxRows = callInfo.ArgAt<int>(1);
                 var keepIds = persisted
                     .Where(e => e.TorrentId == torrentId)

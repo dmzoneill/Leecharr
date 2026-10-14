@@ -57,6 +57,9 @@ public class BandwidthScheduleAndQueueServiceTest
         this.configService.QueueStalledEnabled.Returns(false);
         this.configService.QueueStalledMinutes.Returns(15);
         this.configService.MagnetMetadataTimeoutSeconds.Returns(180);
+        this.configService
+            .GetValueBoolean(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(call => call.ArgAt<bool>(1));
 
         this.speedScheduler = new SpeedSchedulerService(
             this.speedScheduleRepository,

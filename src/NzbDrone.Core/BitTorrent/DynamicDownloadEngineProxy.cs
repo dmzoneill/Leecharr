@@ -658,7 +658,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             return new EngineHealthCheckResult
             {
                 IsHealthy = false,
-                StatusMessage = "No BitTorrent download engine is active.",
+                StatusMessage = "BitTorrent download engine is not active.",
                 Warnings = new List<string> { "Start the download engine to run health checks against a live session." },
             };
         }

@@ -530,7 +530,13 @@ public class FloodApiController : ControllerBase, IActionFilter
 
         if (torrent.DownloadSpeed > 0)
         {
-            return GetFloodLeftBytes(torrent) / torrent.DownloadSpeed;
+            var leftBytes = Math.Max(0d, (1.0 - torrent.Progress) * torrent.TotalSize);
+            if (leftBytes <= 0)
+            {
+                return 0;
+            }
+
+            return (long)Math.Ceiling(leftBytes / torrent.DownloadSpeed);
         }
 
         return FloodUnknownEtaSeconds;

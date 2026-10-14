@@ -67,9 +67,9 @@ public class SubtitleConversionService : ISubtitleConversionService
         }
 
         var fmt = (format ?? string.Empty).TrimStart('.').ToLowerInvariant();
-        if (fmt == "sub")
+        if (fmt is "sub" or "microdvd" || LooksLikeMicroDvd(trimmed))
         {
-            if (MicroDvdRegex.IsMatch(trimmed))
+            if (LooksLikeMicroDvd(trimmed))
             {
                 return ConvertMicroDvdToWebVtt(trimmed);
             }
@@ -231,6 +231,19 @@ public class SubtitleConversionService : ISubtitleConversionService
         }
 
         return sb.ToString();
+    }
+
+    private static bool LooksLikeMicroDvd(string content)
+    {
+        foreach (var line in content.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+        {
+            if (MicroDvdRegex.IsMatch(line.Trim()))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string ConvertMicroDvdToWebVtt(string subContent, double fps = 23.976)

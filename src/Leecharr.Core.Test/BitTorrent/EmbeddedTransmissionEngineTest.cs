@@ -534,7 +534,7 @@ public class EmbeddedTransmissionEngineTest
 
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":7}}}"),
             };
         });
 
@@ -570,7 +570,7 @@ public class EmbeddedTransmissionEngineTest
 
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{\"torrent-added\":{\"id\":7}}}"),
             };
         });
 

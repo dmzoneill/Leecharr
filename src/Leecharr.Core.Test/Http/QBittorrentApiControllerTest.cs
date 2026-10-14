@@ -69,6 +69,8 @@ public class QBittorrentApiControllerTest
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
         this.downloadEngine = Substitute.For<IDownloadEngine>();
+        this.downloadEngine.GetTask(Arg.Any<int>()).Returns((IDownloadTask)null);
+        this.torrentService.GetDownloadTask(Arg.Any<int>()).Returns((IDownloadTask)null);
 
         this.configFileProvider.AuthenticationEnabled.Returns(false);
         this.categoryService.GetAll().Returns(new List<Category>());

@@ -37,6 +37,9 @@ public class QueueManagerServiceTest
         this.configService.IgnoreSlowTorrents.Returns(false);
         this.configService.SlowTorrentDownloadRateThreshold.Returns(2048L);
         this.configService.SlowTorrentUploadRateThreshold.Returns(2048L);
+        this.configService
+            .GetValueBoolean(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(call => call.ArgAt<bool>(1));
 
         this.queueManager = new QueueManagerService(
             this.torrentRepository,

@@ -41,13 +41,14 @@ public class ConfigSaveMaskedResponseTest
     public async Task AiConfigController_SaveConfig_WhenMaskedGeminiApiKeySubmitted_ReturnsMaskedKeyInResponse()
     {
         const string storedKey = "AIzaSyABCDEFGHIJKLMNOP";
+        var maskedKey = new string('*', storedKey.Length - 4) + storedKey[^4..];
         var configService = Substitute.For<IConfigService>();
         configService.GeminiApiKey.Returns(storedKey);
 
         var controller = new AiConfigController(configService);
         var resource = new AiConfigResource
         {
-            GeminiApiKey = "****************NOP",
+            GeminiApiKey = maskedKey,
         };
 
         var actionResult = await controller.SaveConfig(resource);
@@ -56,7 +57,7 @@ public class ConfigSaveMaskedResponseTest
         accepted.Should().NotBeNull();
         var response = accepted!.Value as AiConfigResource;
         response.Should().NotBeNull();
-        response!.GeminiApiKey.Should().Be("****************NOP");
+        response!.GeminiApiKey.Should().Be(maskedKey);
         response.GeminiApiKey.Should().NotBe(storedKey);
     }
 }

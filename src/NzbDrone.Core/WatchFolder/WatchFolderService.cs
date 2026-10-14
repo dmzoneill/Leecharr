@@ -724,6 +724,15 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                     return match.Name;
                 }
             }
+
+            foreach (var synonym in synonyms)
+            {
+                var match = categories.FirstOrDefault(c => CategoryNameHasWord(c.Name, synonym));
+                if (match != null)
+                {
+                    return match.Name;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -731,5 +740,16 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
         }
 
         return detectedCategory;
+    }
+
+    private static bool CategoryNameHasWord(string name, string word)
+    {
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(word))
+        {
+            return false;
+        }
+
+        var tokens = Regex.Split(name, @"[^A-Za-z0-9]+");
+        return tokens.Any(token => string.Equals(token, word, StringComparison.OrdinalIgnoreCase));
     }
 }

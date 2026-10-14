@@ -144,9 +144,10 @@ public class SidecarEnginesControlsAndPeersTest
             this.storagePathService,
             this.categoryService,
             this.diskProvider,
-            this.eventAggregator);
+            this.eventAggregator,
+            httpClient: DaemonRpcTestDoubles.CreateClient());
 
-        var torrent = new Torrent { Id = 10, InfoHash = "AABB112233", Name = "Test Torrent", TotalSize = 5000 };
+        var torrent = new Torrent { Id = 10, InfoHash = "aabb112233aabb112233aabb112233aabb112233", Name = "Test Torrent", TotalSize = 5000 };
         await engine.AddTorrentAsync(torrent);
 
         var actRemoveTrackers = async () => await engine.RemoveTrackersAsync(10, new[] { "http://tracker.example.com/announce" });
@@ -164,7 +165,8 @@ public class SidecarEnginesControlsAndPeersTest
             this.storagePathService,
             this.categoryService,
             this.diskProvider,
-            this.eventAggregator);
+            this.eventAggregator,
+            DaemonRpcTestDoubles.CreateClient());
 
         var torrent = new Torrent { Id = 20, InfoHash = "ccddee4455ccddee4455ccddee4455ccddee4455", Name = "Test Torrent 2", TotalSize = 10000 };
         await engine.AddTorrentAsync(torrent);
@@ -308,10 +310,11 @@ public class SidecarEnginesControlsAndPeersTest
             this.storagePathService,
             this.categoryService,
             this.diskProvider,
-            this.eventAggregator);
+            this.eventAggregator,
+            httpClient: DaemonRpcTestDoubles.CreateClient());
 
-        await engine.AddTorrentAsync(new Torrent { Id = 11, InfoHash = "cc", Name = "C", TotalSize = 100 });
-        await engine.AddTorrentAsync(new Torrent { Id = 12, InfoHash = "dd", Name = "D", TotalSize = 100 });
+        await engine.AddTorrentAsync(new Torrent { Id = 11, InfoHash = "cccccccccccccccccccccccccccccccccccccccc", Name = "C", TotalSize = 100 });
+        await engine.AddTorrentAsync(new Torrent { Id = 12, InfoHash = "dddddddddddddddddddddddddddddddddddddddd", Name = "D", TotalSize = 100 });
         await engine.PauseTorrentAsync(12);
 
         await engine.PauseAllAsync();

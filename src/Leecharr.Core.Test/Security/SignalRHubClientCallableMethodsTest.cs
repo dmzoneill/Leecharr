@@ -19,9 +19,14 @@ public class SignalRHubClientCallableMethodsTest
     {
         var allowed = new HashSet<string>(allowedMethods, StringComparer.Ordinal);
 
+        var frameworkMethods = new HashSet<string>(
+            hubType.BaseType?.GetMethods(BindingFlags.Instance | BindingFlags.Public).Select(method => method.Name)
+            ?? Enumerable.Empty<string>(),
+            StringComparer.Ordinal);
+
         var clientCallableMethods = hubType
             .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
-            .Where(method => !method.IsSpecialName)
+            .Where(method => !method.IsSpecialName && !frameworkMethods.Contains(method.Name))
             .Select(method => method.Name)
             .ToList();
 

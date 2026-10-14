@@ -56,7 +56,7 @@ public class ArrConnectionControllerTest
                 Id = 1,
                 Name = "Sonarr",
                 ArrType = "Sonarr",
-                Url = "http://sonarr:8989",
+                Url = "http://127.0.0.1:8989",
                 ExternalUrl = "https://sonarr.myhome.net",
                 ApiKey = "key1",
                 Enable = true,
@@ -68,7 +68,7 @@ public class ArrConnectionControllerTest
                 Id = 2,
                 Name = "Radarr",
                 ArrType = "Radarr",
-                Url = "http://radarr:7878",
+                Url = "http://127.0.0.1:7878",
                 ExternalUrl = null,
                 ApiKey = "key2",
                 Enable = false,
@@ -90,7 +90,7 @@ public class ArrConnectionControllerTest
         resources[0].Id.Should().Be(1);
         resources[0].Name.Should().Be("Sonarr");
         resources[0].ArrType.Should().Be("Sonarr");
-        resources[0].Url.Should().Be("http://sonarr:8989");
+        resources[0].Url.Should().Be("http://127.0.0.1:8989");
         resources[0].ExternalUrl.Should().Be("https://sonarr.myhome.net");
         resources[0].PublicUrl.Should().Be("https://sonarr.myhome.net");
         resources[0].Enabled.Should().BeTrue();
@@ -107,7 +107,7 @@ public class ArrConnectionControllerTest
             Id = 1,
             Name = "Radarr",
             ArrType = "Radarr",
-            Url = "http://radarr:7878",
+            Url = "http://127.0.0.1:7878",
             ExternalUrl = "https://radarr.local",
             ApiKey = "key",
             Enable = true,
@@ -147,7 +147,7 @@ public class ArrConnectionControllerTest
         {
             Name = "Lidarr",
             ArrType = "Lidarr",
-            Url = "http://lidarr:8686",
+            Url = "http://127.0.0.1:8686",
             ExternalUrl = "https://lidarr.myhome.net",
             ApiKey = "key3",
             Enabled = true,
@@ -181,7 +181,7 @@ public class ArrConnectionControllerTest
             Id = 5,
             Name = "Updated Sonarr",
             ArrType = "Sonarr",
-            Url = "http://sonarr:8989",
+            Url = "http://127.0.0.1:8989",
             ExternalUrl = "https://sonarr.updated.net",
             ApiKey = "newkey",
             Enabled = true,
@@ -281,7 +281,7 @@ public class ArrConnectionControllerTest
             Id = 7,
             Name = "Sonarr",
             ArrType = "Sonarr",
-            Url = "http://sonarr:8989",
+            Url = "http://127.0.0.1:8989",
             Priority = 9,
             Settings = "{\"tags\":[\"tv\"]}",
             ConfigContract = "CustomContract",
@@ -295,7 +295,7 @@ public class ArrConnectionControllerTest
             Id = 7,
             Name = "Renamed Sonarr",
             ArrType = "Sonarr",
-            Url = "http://sonarr:8989",
+            Url = "http://127.0.0.1:8989",
             ApiKey = "********",
             Enabled = true,
         };
@@ -322,7 +322,7 @@ public class ArrConnectionControllerTest
             Id = 8,
             Name = "Sonarr",
             ArrType = "Sonarr",
-            Url = "http://sonarr:8989",
+            Url = "http://127.0.0.1:8989",
             ExternalUrl = null,
             ApiKey = "key",
         };
@@ -333,7 +333,7 @@ public class ArrConnectionControllerTest
             Id = 8,
             Name = "Sonarr",
             ArrType = "Sonarr",
-            Url = "http://sonarr:8989",
+            Url = "http://127.0.0.1:8989",
             ExternalUrl = "https://sonarr.env.example",
             PublicUrl = "https://sonarr.env.example",
             ApiKey = "********",
@@ -682,7 +682,7 @@ public class ArrConnectionControllerTest
         {
             Name = "Sonarr",
             ArrType = "Sonarr",
-            Url = "http://sonarr:8989",
+            Url = "http://127.0.0.1:8989",
             ApiKey = "key",
             Enabled = true,
             EnableAutomaticAdd = true,
@@ -716,7 +716,7 @@ public class ArrConnectionControllerTest
             Id = 3,
             Name = "Radarr",
             ArrType = "Radarr",
-            Url = "http://radarr:7878",
+            Url = "http://127.0.0.1:7878",
             Enable = true,
             WebhookEnabled = true,
             EnableAutomaticAdd = true,
@@ -728,7 +728,7 @@ public class ArrConnectionControllerTest
             Id = 3,
             Name = "Radarr",
             ArrType = "Radarr",
-            Url = "http://radarr:7878",
+            Url = "http://127.0.0.1:7878",
             Enabled = true,
             EnableAutomaticAdd = true,
             WebhookEnabled = true,
@@ -748,7 +748,7 @@ public class ArrConnectionControllerTest
             Id = 44,
             Name = "Sonarr",
             ArrType = "Sonarr",
-            Url = "http://sonarr:8989",
+            Url = "http://127.0.0.1:8989",
         };
         this.repository.Get(44).Returns(existing);
 

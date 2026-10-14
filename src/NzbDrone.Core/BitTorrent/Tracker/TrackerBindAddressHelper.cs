@@ -38,7 +38,12 @@ public static class TrackerBindAddressHelper
         try
         {
             var hostAddresses = Dns.GetHostAddresses(trimmed);
-            var resolved = hostAddresses.FirstOrDefault(ManagedSocketBindingProvider.IsUsableBindUnicastAddress)
+            var resolved = hostAddresses.FirstOrDefault(address =>
+                    address.AddressFamily == AddressFamily.InterNetwork &&
+                    ManagedSocketBindingProvider.IsUsableBindUnicastAddress(address))
+                ?? hostAddresses.FirstOrDefault(address =>
+                    address.AddressFamily == AddressFamily.InterNetwork && IPAddress.IsLoopback(address))
+                ?? hostAddresses.FirstOrDefault(ManagedSocketBindingProvider.IsUsableBindUnicastAddress)
                 ?? hostAddresses.FirstOrDefault(IPAddress.IsLoopback);
             if (resolved != null)
             {

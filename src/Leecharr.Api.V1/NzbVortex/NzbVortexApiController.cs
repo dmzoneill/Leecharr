@@ -257,7 +257,11 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
             var file = this.Request.Form.Files[0];
-            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 0);
+            if (maxTorrentBytes <= 0)
+            {
+                maxTorrentBytes = 250L * 1024 * 1024;
+            }
             if (file.Length > maxTorrentBytes)
             {
                 return this.StatusCode(StatusCodes.Status413PayloadTooLarge, $"Torrent file size exceeds maximum allowed size of {maxTorrentBytes} bytes.");
@@ -294,7 +298,12 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
             else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                      url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 0);
+                if (maxTorrentBytes <= 0)
+                {
+                    maxTorrentBytes = 250L * 1024 * 1024;
+                }
+
                 var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
                 var parsed = this.torrentFileParser.Parse(bytes);
                 added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, false, bytes);

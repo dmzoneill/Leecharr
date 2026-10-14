@@ -1591,7 +1591,7 @@ public class YamlScriptRunnerTest
             result.Success.Should().BeTrue();
             result.OutputLog.Should().Contain("[ACTION] sendTelegramMessage to 12345");
             result.OutputLog.Should().NotContain("sendTelegramMessage Error:");
-            receivedBody.Should().Contain("Release\\_name\\_with\\_underscore");
+            receivedBody.Should().Contain("Release\\\\_name\\\\_with\\\\_underscore");
         }
         finally
         {
