@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.5](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.5) - 2026-10-15
+
+### ✨ Features
+- Add or update GitHub Actions workflows
+
+### 🐛 Bug Fixes
+- fix: lock the ai-responder install that setup.sh copied back
+
 ## [v3.0.4](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.4) - 2026-10-14
 
 ### 🔧 Maintenance & Improvements
