@@ -23,10 +23,10 @@
   </Target>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
     <PackageReference Include="NSubstitute" Version="6.2.0" />
-    <PackageReference Include="FluentAssertions" Version="8.1.1" />
-    <PackageReference Include="Testcontainers" Version="4.15.0" />
+    <PackageReference Include="FluentAssertions" Version="8.11.0" />
+    <PackageReference Include="Testcontainers" Version="4.16.0" />
   </ItemGroup>
 </Project>
