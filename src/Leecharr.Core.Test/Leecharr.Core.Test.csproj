@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="NSubstitute" Version="6.2.0" />
-    <PackageReference Include="FluentAssertions" Version="8.1.1" />
+    <PackageReference Include="FluentAssertions" Version="8.11.0" />
   </ItemGroup>
 
   <ItemGroup>
