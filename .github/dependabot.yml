@@ -1,0 +1,50 @@
+---
+# Managed by https://github.com/dmzoneill/dmzoneill setup.sh.
+# Entries follow manifests detected in this repository.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+  - package-ecosystem: "npm"
+    directory: "/src/Leecharr.Frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      npm:
+        patterns:
+          - "*"
+  - package-ecosystem: "nuget"
+    directories:
+      - "/src"
+      - "/src/Leecharr.Api.V1"
+      - "/src/Leecharr.Core.Test"
+      - "/src/Leecharr.Http"
+      - "/src/NzbDrone.Common"
+      - "/src/NzbDrone.Console"
+      - "/src/NzbDrone.Core"
+      - "/src/NzbDrone.Host"
+      - "/src/NzbDrone.Integration.Test"
+      - "/src/NzbDrone.Integration.Test/TestAssets/MissingContract"
+      - "/src/NzbDrone.Integration.Test/TestAssets/PartialExport"
+      - "/src/NzbDrone.SignalR"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      nuget:
+        patterns:
+          - "*"
