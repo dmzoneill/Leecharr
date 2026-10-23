@@ -22,7 +22,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
     <PackageReference Include="MonoTorrent" Version="3.0.2" />
-    <PackageReference Include="NLog" Version="6.2.0" />
+    <PackageReference Include="NLog" Version="6.2.2" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="Open.NAT" Version="2.1.0" NoWarn="NU1701" />
     <PackageReference Include="Polly" Version="8.7.0" />
