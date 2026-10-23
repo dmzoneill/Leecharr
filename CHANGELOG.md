@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.11](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.11) - 2026-10-23
+
+### 🔧 Maintenance & Improvements
+- chore(deps): bump dompurify in /src/Leecharr.Frontend
+- chore(deps): bump launch-editor in /src/Leecharr.Frontend
+
 ## [v3.0.10](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.10) - 2026-10-23
 
 ### 🔧 Maintenance & Improvements
