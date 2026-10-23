@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.10](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.10) - 2026-10-23
+
+### 🔧 Maintenance & Improvements
+- Restore frontend package files accidentally changed in previous commit
+- Align Leecharr.Core NLog reference with 6.2.2 to fix NU1605 downgrade
+- Bump the nuget group with 14 updates
+
 ## [v3.0.9](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.9) - 2026-10-19
 
 ### ✨ Features
