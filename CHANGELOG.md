@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.9](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.9) - 2026-10-19
+
+### ✨ Features
+- Add or update GitHub Actions workflows and Dependabot config
+
 ## [v3.0.8](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.8) - 2026-10-19
 
 ### ✨ Features
