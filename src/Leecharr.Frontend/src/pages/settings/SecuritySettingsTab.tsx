@@ -119,6 +119,8 @@ const parseAuthRequired = (val: unknown): number => {
   return 1;
 };
 
+const BLOCKLIST_INTERVAL_PRESET_HOURS = [24, 72, 168, 336, 720];
+
 export function SecuritySettingsTab() {
   const { t } = useTranslation();
 
@@ -186,8 +188,6 @@ export function SecuritySettingsTab() {
   const updateBlocklistMutation = useUpdateBlocklistConfig();
   const syncBlocklistMutation = useSyncBlocklist();
 
-  const blocklistIntervalPresetHours = [24, 72, 168, 336, 720];
-
   const [blocklistForm, setBlocklistForm] = useState({
     enabled: false,
     url: "",
@@ -217,7 +217,7 @@ export function SecuritySettingsTab() {
         autoUpdateIntervalHours: intervalHours,
         autoUpdateIntervalDays: blocklistData.autoUpdateIntervalDays ?? 1,
       });
-      const isPreset = blocklistIntervalPresetHours.includes(intervalHours);
+      const isPreset = BLOCKLIST_INTERVAL_PRESET_HOURS.includes(intervalHours);
       setCustomInterval(!isPreset);
       setBlocklistDirty(false);
     }
@@ -287,7 +287,9 @@ export function SecuritySettingsTab() {
     if (config) {
       setForm({
         authenticationEnabled: config.authenticationEnabled ?? false,
-        authenticationRequired: parseAuthRequired(config.authenticationRequired),
+        authenticationRequired: parseAuthRequired(
+          config.authenticationRequired,
+        ),
         apiKey: config.apiKey ?? "",
         csrfProtectionEnabled: config.csrfProtectionEnabled ?? true,
         hostHeaderValidationEnabled:
@@ -478,7 +480,8 @@ export function SecuritySettingsTab() {
     } catch (err: unknown) {
       const errObj = err as Error | null;
       showToast(
-        errObj?.message || t("settingsTabs.batch2.failedToSaveIdentityProvider"),
+        errObj?.message ||
+          t("settingsTabs.batch2.failedToSaveIdentityProvider"),
         "error",
       );
     }
@@ -500,7 +503,8 @@ export function SecuritySettingsTab() {
     } catch (err: unknown) {
       const errObj = err as Error | null;
       showToast(
-        errObj?.message || t("settingsTabs.batch2.failedToDeleteIdentityProvider"),
+        errObj?.message ||
+          t("settingsTabs.batch2.failedToDeleteIdentityProvider"),
         "error",
       );
     }
@@ -564,7 +568,8 @@ export function SecuritySettingsTab() {
               options={[
                 {
                   value: "1",
-                  label: "Disabled for Local Addresses (LAN & localhost bypass)",
+                  label:
+                    "Disabled for Local Addresses (LAN & localhost bypass)",
                 },
                 {
                   value: "0",
@@ -604,17 +609,23 @@ export function SecuritySettingsTab() {
               >
                 {form.authenticationRequired === 1 && (
                   <span>
-                    Authentication is enabled for external connections. Clients connecting from local or private networks (LAN) and localhost bypass authentication.
+                    Authentication is enabled for external connections. Clients
+                    connecting from local or private networks (LAN) and
+                    localhost bypass authentication.
                   </span>
                 )}
                 {form.authenticationRequired === 2 && (
                   <span>
-                    Authentication is enabled. Clients connecting from localhost (127.0.0.1 / ::1) bypass authentication, while LAN and external clients must authenticate.
+                    Authentication is enabled. Clients connecting from localhost
+                    (127.0.0.1 / ::1) bypass authentication, while LAN and
+                    external clients must authenticate.
                   </span>
                 )}
                 {form.authenticationRequired === 0 && (
                   <span>
-                    Authentication is enabled for all connections. All clients (LAN, local, and external) must authenticate using local credentials or configured SSO / Identity Providers below.
+                    Authentication is enabled for all connections. All clients
+                    (LAN, local, and external) must authenticate using local
+                    credentials or configured SSO / Identity Providers below.
                   </span>
                 )}
               </div>
