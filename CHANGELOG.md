@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.12](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.12) - 2026-10-24
+
+### ✨ Features
+- Add or update GitHub Actions workflows and Dependabot config
+
+### 🐛 Bug Fixes
+- fix(frontend): hold TypeScript at 6.0 and ESLint at 9 until plugins support newer majors (#1923)
+
+### 🔧 Maintenance & Improvements
+- chore(deps-dev): bump serialize-javascript in /src/Leecharr.Frontend
+- chore(deps): bump the github-actions group across 1 directory with 8 updates
+- chore(deps): bump the npm group across 1 directory with 16 updates
+
 ## [v3.0.11](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.11) - 2026-10-23
 
 ### 🔧 Maintenance & Improvements
