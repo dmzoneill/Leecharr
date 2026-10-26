@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.17](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.17) - 2026-10-26
+
+### 🐛 Bug Fixes
+- Fix editorconfig indentation
+
+### 🔧 Maintenance & Improvements
+- Cover torrent file progress mapping
+
 ## [v3.0.16](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.16) - 2026-10-26
 
 ### 🐛 Bug Fixes
