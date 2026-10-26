@@ -75,6 +75,9 @@ public abstract class BaseDaemonDownloadTask : IDownloadTask
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Required by IDownloadTask interface")]
     public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
 
+    public IReadOnlyDictionary<string, long> FileProgressBytes { get; set; } =
+        new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Required by IDownloadTask interface")]
     public int[] PieceAvailability { get; set; } = Array.Empty<int>();
 

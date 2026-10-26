@@ -19,6 +19,11 @@ public static class TorrentFileProgressEnricher
             || torrent.Status == TorrentStatus.Completed
             || torrent.Status == TorrentStatus.Seeding;
 
+        if (TryEnrichFromFileProgress(files, downloadTask))
+        {
+            return;
+        }
+
         if (downloadTask?.PieceBitfield != null && downloadTask.PieceBitfield.Length > 0)
         {
             long runningByteOffset = 0;
@@ -62,6 +67,51 @@ public static class TorrentFileProgressEnricher
             }
         }
     }
+
+    private static bool TryEnrichFromFileProgress(IEnumerable<TorrentFile> files, IDownloadTask downloadTask)
+    {
+        var fileProgress = downloadTask?.FileProgressBytes;
+        if (fileProgress == null || fileProgress.Count == 0)
+        {
+            return false;
+        }
+
+        var wanted = 0;
+        var matched = 0;
+        foreach (var file in files)
+        {
+            if (file.Priority == 0)
+            {
+                file.BytesCompleted = 0;
+                file.Progress = 0.0;
+                continue;
+            }
+
+            wanted++;
+
+            var normalizedPath = NormalizePath(file.Path);
+            if (!fileProgress.TryGetValue(normalizedPath, out var completedBytes))
+            {
+                continue;
+            }
+
+            matched++;
+            if (file.Size <= 0)
+            {
+                file.BytesCompleted = 0;
+                file.Progress = 1.0;
+                continue;
+            }
+
+            file.BytesCompleted = Math.Clamp(completedBytes, 0, file.Size);
+            file.Progress = Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0);
+        }
+
+        return wanted == 0 || matched == wanted;
+    }
+
+    private static string NormalizePath(string path) =>
+        (path ?? string.Empty).Replace('\\', '/').TrimStart('/');
 
     private static void EnrichFromFilePieceBitfield(Torrent torrent, TorrentFile file, long byteOffset, IDownloadTask downloadTask)
     {

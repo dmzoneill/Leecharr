@@ -808,6 +808,17 @@ class LibTorrentManager:
                 except Exception:
                     pass
 
+                file_paths = []
+                file_progress = []
+                try:
+                    if h.has_metadata():
+                        ti = h.torrent_file()
+                        files = ti.files()
+                        file_paths = [_normalize_rel_path(files.file_path(i)) for i in range(files.num_files())]
+                        file_progress = [int(x) for x in h.file_progress()]
+                except Exception:
+                    pass
+
                 state_str = str(st.state).lower()
                 if "." in state_str:
                     state_str = state_str.split(".")[-1]
@@ -840,6 +851,8 @@ class LibTorrentManager:
                         "super_seeding": bool(getattr(st, "super_seeding", False)),
                         "peers": peer_list,
                         "piece_availability": piece_availability,
+                        "file_paths": file_paths,
+                        "file_progress": file_progress,
                     }
                 )
         return torrents

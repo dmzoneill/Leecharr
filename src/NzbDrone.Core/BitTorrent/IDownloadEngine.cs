@@ -142,6 +142,8 @@ public interface IDownloadTask
 
     bool[] PieceBitfield { get; }
 
+    IReadOnlyDictionary<string, long> FileProgressBytes => new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
     int[] PieceAvailability { get; }
 
     IReadOnlyList<PeerInfo> GetPeers();

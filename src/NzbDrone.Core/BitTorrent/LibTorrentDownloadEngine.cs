@@ -1338,6 +1338,32 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                                 task.PieceAvailability = availability;
                             }
 
+                            if (item.TryGetProperty("file_paths", out var filePaths) &&
+                                filePaths.ValueKind == JsonValueKind.Array &&
+                                item.TryGetProperty("file_progress", out var fileProgress) &&
+                                fileProgress.ValueKind == JsonValueKind.Array)
+                            {
+                                var progressByPath = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+                                var pathIndex = 0;
+                                foreach (var path in filePaths.EnumerateArray())
+                                {
+                                    if (pathIndex >= fileProgress.GetArrayLength())
+                                    {
+                                        break;
+                                    }
+
+                                    var normalizedPath = path.GetString()?.Replace('\\', '/').TrimStart('/');
+                                    if (!string.IsNullOrWhiteSpace(normalizedPath))
+                                    {
+                                        progressByPath[normalizedPath] = fileProgress[pathIndex].GetInt64();
+                                    }
+
+                                    pathIndex++;
+                                }
+
+                                task.FileProgressBytes = progressByPath;
+                            }
+
                             if (item.TryGetProperty("peers", out var peersArray) && peersArray.ValueKind == JsonValueKind.Array)
                             {
                                 var peerList = new List<PeerInfo>();

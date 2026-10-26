@@ -162,6 +162,38 @@ public class TorrentFileProgressEnricherTest
     }
 
     [Test]
+    public void Enrich_WithPerFileProgress_UsesEachFilesCompletedBytes()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 3000,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.FileProgressBytes.Returns(new Dictionary<string, long>
+        {
+            ["season/episode-1.mkv"] = 900,
+            ["season/episode-2.mkv"] = 100,
+        });
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, Path = "season/episode-1.mkv", Size = 2000, Priority = 3 },
+            new() { Id = 2, Path = "season\\episode-2.mkv", Size = 1000, Priority = 3 },
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, files, task);
+
+        files[0].BytesCompleted.Should().Be(900);
+        files[0].Progress.Should().Be(0.45);
+        files[1].BytesCompleted.Should().Be(100);
+        files[1].Progress.Should().Be(0.1);
+    }
+
+    [Test]
     public void Enrich_WithoutPieceBitfield_ProratesFromTorrentProgress()
     {
         var torrent = new Torrent
