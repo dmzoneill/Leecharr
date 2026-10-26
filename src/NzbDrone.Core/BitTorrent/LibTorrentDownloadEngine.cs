@@ -1245,6 +1245,29 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     public IReadOnlyList<TorrentResourceMetrics> GetAllTorrentResourceMetrics() =>
         this.tasks.Values.Select(t => t.GetResourceMetrics()).ToList();
 
+    internal static IReadOnlyDictionary<string, long> MapFileProgress(JsonElement filePaths, JsonElement fileProgress)
+    {
+        var progressByPath = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        var pathIndex = 0;
+        foreach (var path in filePaths.EnumerateArray())
+        {
+            if (pathIndex >= fileProgress.GetArrayLength())
+            {
+                break;
+            }
+
+            var normalizedPath = path.GetString()?.Replace('\\', '/').TrimStart('/');
+            if (!string.IsNullOrWhiteSpace(normalizedPath))
+            {
+                progressByPath[normalizedPath] = fileProgress[pathIndex].GetInt64();
+            }
+
+            pathIndex++;
+        }
+
+        return progressByPath;
+    }
+
     public void Dispose()
     {
         if (!this.disposed)
@@ -1343,25 +1366,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                                 item.TryGetProperty("file_progress", out var fileProgress) &&
                                 fileProgress.ValueKind == JsonValueKind.Array)
                             {
-                                var progressByPath = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-                                var pathIndex = 0;
-                                foreach (var path in filePaths.EnumerateArray())
-                                {
-                                    if (pathIndex >= fileProgress.GetArrayLength())
-                                    {
-                                        break;
-                                    }
-
-                                    var normalizedPath = path.GetString()?.Replace('\\', '/').TrimStart('/');
-                                    if (!string.IsNullOrWhiteSpace(normalizedPath))
-                                    {
-                                        progressByPath[normalizedPath] = fileProgress[pathIndex].GetInt64();
-                                    }
-
-                                    pathIndex++;
-                                }
-
-                                task.FileProgressBytes = progressByPath;
+                                task.FileProgressBytes = MapFileProgress(filePaths, fileProgress);
                             }
 
                             if (item.TryGetProperty("peers", out var peersArray) && peersArray.ValueKind == JsonValueKind.Array)

@@ -69,6 +69,19 @@ public class LibTorrentDownloadEngineTest
     }
 
     [Test]
+    public void MapFileProgress_NormalizesPathsAndStopsAtShortProgressArray()
+    {
+        using var paths = JsonDocument.Parse("[\"/folder\\\\one.mkv\", \"\", \"third.mkv\"]");
+        using var progress = JsonDocument.Parse("[12, 34]");
+
+        var mapped = LibTorrentDownloadEngine.MapFileProgress(paths.RootElement, progress.RootElement);
+
+        mapped.Should().ContainKey("folder/one.mkv").WhoseValue.Should().Be(12);
+        mapped.Should().NotContainKey(string.Empty);
+        mapped.Should().NotContainKey("third.mkv");
+    }
+
+    [Test]
     public void ResolveBoundIpv4Address_WhenNoInterfaceConfigured_ReturnsAnyIpv4()
     {
         this.configService.NetworkInterfaceBinding.Returns(string.Empty);
