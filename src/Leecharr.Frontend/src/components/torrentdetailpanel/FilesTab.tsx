@@ -524,9 +524,15 @@ export function FilesTab({
               ? "low"
               : "normal";
       trackFilePriorityChange(mapped, 1);
-      setFilePriority.mutate({ torrentId: effectiveId, fileId, priority });
+      setFilePriority.mutate(
+        { torrentId: effectiveId, fileId, priority },
+        {
+          onError: (error) =>
+            showToast(error.message || "Failed to update file priority", "error"),
+        },
+      );
     },
-    [effectiveId, setFilePriority],
+    [effectiveId, setFilePriority, showToast],
   );
 
   const handleBatchSetPriority = useCallback(
@@ -541,12 +547,18 @@ export function FilesTab({
               ? "low"
               : "normal";
       trackFilePriorityChange(mapped, targetFiles.length);
-      setFilesPriority.mutate({
-        torrentId: effectiveId,
-        files: targetFiles.map((f) => ({ fileId: f.id, priority })),
-      });
+      setFilesPriority.mutate(
+        {
+          torrentId: effectiveId,
+          files: targetFiles.map((f) => ({ fileId: f.id, priority })),
+        },
+        {
+          onError: (error) =>
+            showToast(error.message || "Failed to update file priorities", "error"),
+        },
+      );
     },
-    [effectiveId, setFilesPriority],
+    [effectiveId, setFilesPriority, showToast],
   );
 
   const handleToggleNodeCheckbox = useCallback(
@@ -750,12 +762,20 @@ export function FilesTab({
 
   const totalFilesCount = files.length;
   const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
-  const totalCompletedBytes = files.reduce(
-    (acc, f) => acc + (f.bytesCompleted ?? f.size * (f.progress ?? 0)),
+  const wantedFiles = files.filter(
+    (file) => normalizePriority(file.priority) !== 0,
+  );
+  const wantedBytes = wantedFiles.reduce(
+    (acc, file) => acc + (file.size || 0),
     0,
   );
-  const overallProgress =
-    totalBytes > 0 ? (totalCompletedBytes / totalBytes) * 100 : 0;
+  const wantedCompletedBytes = wantedFiles.reduce(
+    (acc, file) =>
+      acc + (file.bytesCompleted ?? file.size * (file.progress ?? 0)),
+    0,
+  );
+  const wantedProgress =
+    wantedBytes > 0 ? (wantedCompletedBytes / wantedBytes) * 100 : 0;
 
   return (
     <div
@@ -965,6 +985,29 @@ export function FilesTab({
             style={{
               padding: "0.1rem 0.4rem",
               borderRadius: "4px",
+              backgroundColor: "rgba(59, 130, 246, 0.12)",
+              color: "var(--info, #38bdf8)",
+              fontWeight: 600,
+              fontSize: "0.75rem",
+            }}
+            title={t(
+              "torrents.detail.wantedBytesTooltip",
+              "Only files with non-zero priority are wanted. Torrent Downloaded is cumulative and can include bytes received before files were skipped.",
+            )}
+          >
+            {t(
+              "torrents.detail.wantedSummary",
+              "Wanted: {completed} / {total}",
+              {
+                completed: formatBytes(wantedCompletedBytes),
+                total: formatBytes(wantedBytes),
+              },
+            )}
+          </span>
+          <span
+            style={{
+              padding: "0.1rem 0.4rem",
+              borderRadius: "4px",
               backgroundColor: "rgba(255, 209, 102, 0.12)",
               color: "var(--accent-gold, #FFD166)",
               fontWeight: 600,
@@ -972,7 +1015,7 @@ export function FilesTab({
             }}
           >
             {t("torrents.detail.percentVerified", {
-              percent: overallProgress.toFixed(1),
+              percent: wantedProgress.toFixed(1),
             })}
           </span>
         </div>
