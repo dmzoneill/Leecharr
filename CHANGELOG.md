@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.16](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.16) - 2026-10-26
+
+### 🐛 Bug Fixes
+- Fix CI lint and coverage failures
+- Fix torrent root file progress mapping
+- Fix per-file torrent progress
+- fix(frontend): clarify selective torrent download progress
+
 ## [v3.0.15](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.15) - 2026-10-26
 
 ### 🐛 Bug Fixes
