@@ -1146,7 +1146,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
 
         return response.TryGetValue("status", out var statusObj) &&
-               string.Equals(statusObj?.ToString(), "renamed", StringComparison.OrdinalIgnoreCase);
+                string.Equals(statusObj?.ToString(), "renamed", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void EnsureLibTorrentMoveStorageSuccess(Dictionary<string, object> response, int torrentId)
