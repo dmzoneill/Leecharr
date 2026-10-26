@@ -194,6 +194,40 @@ public class TorrentFileProgressEnricherTest
     }
 
     [Test]
+    public void Enrich_WithPerFileProgress_HandlesSkippedZeroAndUnmatchedFiles()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 3000,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.FileProgressBytes.Returns(new Dictionary<string, long>
+        {
+            ["exact.mkv"] = 500,
+            ["empty.txt"] = 0,
+        });
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, Path = "exact.mkv", Size = 1000, Priority = 3 },
+            new() { Id = 2, Path = "skipped.mkv", Size = 1000, Priority = 0 },
+            new() { Id = 3, Path = "empty.txt", Size = 0, Priority = 3 },
+            new() { Id = 4, Path = "missing.mkv", Size = 1000, Priority = 3 },
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, files, task);
+
+        files[1].BytesCompleted.Should().Be(0);
+        files[1].Progress.Should().Be(0.0);
+        files[2].BytesCompleted.Should().Be(0);
+        files[2].Progress.Should().Be(1.0);
+    }
+
+    [Test]
     public void Enrich_WithoutPieceBitfield_ProratesFromTorrentProgress()
     {
         var torrent = new Torrent

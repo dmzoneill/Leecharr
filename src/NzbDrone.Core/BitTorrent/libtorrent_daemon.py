@@ -11,7 +11,7 @@ import math
 import signal
 import sys
 import threading
-from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 try:
     import libtorrent as lt
@@ -110,14 +110,14 @@ def _status_is_paused(status):
         paused = getattr(status, "paused", None)
         if isinstance(paused, bool):
             return paused
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
 
     try:
         flags = int(getattr(status, "flags", 0))
         paused_flag = int(lt.torrent_flags.paused)
         return bool(flags & paused_flag)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -220,22 +220,22 @@ class LibTorrentManager:
 
     def add_torrent(self, params):
         atp = None
-        if "ti" in params and params["ti"]:
+        if params.get("ti"):
             raw = base64.b64decode(params["ti"])
             ti = lt.torrent_info(raw)
             atp = lt.add_torrent_params()
             atp.ti = ti
-        elif "url" in params and params["url"]:
+        elif params.get("url"):
             atp = lt.parse_magnet_uri(params["url"])
-        elif "info_hash" in params and params["info_hash"]:
+        elif params.get("info_hash"):
             atp = lt.add_torrent_params()
             atp.info_hash = lt.sha1_hash(bytes.fromhex(params["info_hash"]))
         else:
             raise ValueError("Missing torrent info or magnet url")
 
-        if "save_path" in params and params["save_path"]:
+        if params.get("save_path"):
             atp.save_path = params["save_path"]
-        if "name" in params and params["name"]:
+        if params.get("name"):
             atp.name = params["name"]
 
         ih_str = params.get("info_hash")
@@ -259,20 +259,20 @@ class LibTorrentManager:
                 for tr in trackers:
                     try:
                         h.add_tracker({"url": str(tr), "tier": 0})
-                    except Exception:
+                    except Exception:  # noqa: BLE001, S110
                         pass
             try:
                 if hasattr(h, "auto_managed"):
                     h.auto_managed(True)
                 if hasattr(h, "resume"):
                     h.resume()
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
 
             if "sequential_download" in params:
                 try:
                     h.set_sequential_download(bool(params["sequential_download"]))
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
             if "first_last_piece_priority" in params:
                 enabled = bool(params["first_last_piece_priority"])
@@ -307,7 +307,7 @@ class LibTorrentManager:
                 try:
                     if hasattr(h, "auto_managed"):
                         h.auto_managed(False)
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
                 h.pause()
             return {"status": "paused"}
@@ -322,7 +322,7 @@ class LibTorrentManager:
                         h.auto_managed(True)
                     if hasattr(h, "resume"):
                         h.resume()
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
             return {"status": "resumed"}
         return {"status": "not_found"}
@@ -361,7 +361,7 @@ class LibTorrentManager:
             if announce_settings:
                 try:
                     self.session.apply_settings(announce_settings)
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
             # tracker_idx -1 schedules every tracker. libtorrent then keeps only
@@ -388,7 +388,7 @@ class LibTorrentManager:
         with self.lock:
             try:
                 peers = list(h.get_peer_info())
-            except Exception:
+            except Exception:  # noqa: BLE001
                 peers = []
 
             for pi in peers:
@@ -400,16 +400,16 @@ class LibTorrentManager:
                     continue
                 try:
                     endpoint = pi.endpoint
-                except Exception:
+                except Exception:  # noqa: BLE001
                     port = pi.ip[1] if isinstance(pi.ip, tuple) else 0
                     try:
                         endpoint = lt.tcp_endpoint(lt.address_from_string(str(peer_ip)), int(port))
-                    except Exception:
+                    except Exception:  # noqa: BLE001, S112
                         continue
                 try:
                     h.disconnect_peer(endpoint)
                     disconnected += 1
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
         return {"status": "ok", "disconnected": disconnected}
@@ -422,7 +422,7 @@ class LibTorrentManager:
                 for t in trackers:
                     try:
                         h.add_tracker({"url": t, "tier": 0})
-                    except Exception:
+                    except Exception:  # noqa: BLE001, S110
                         pass
             return {"status": "trackers_added"}
         return {"status": "not_found"}
@@ -678,11 +678,7 @@ class LibTorrentManager:
             return {"status": "not_found"}
 
         is_private = bool(params.get("is_private", params.get("private", False)))
-        bep27_flags = (
-            lt.torrent_flags.disable_dht
-            | lt.torrent_flags.disable_pex
-            | lt.torrent_flags.disable_lsd
-        )
+        bep27_flags = lt.torrent_flags.disable_dht | lt.torrent_flags.disable_pex | lt.torrent_flags.disable_lsd
         with self.lock:
             if is_private:
                 h.set_flags(bep27_flags, bep27_flags)
@@ -791,7 +787,7 @@ class LibTorrentManager:
                                 "client_is_interested": _peer_has_flag(pi, "interesting"),
                             }
                         )
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
                 ih_key = ih.lower()
@@ -799,13 +795,13 @@ class LibTorrentManager:
                     pending_enabled = self.pending_first_last.pop(ih_key)
                     try:
                         _apply_first_last_piece_priority(h, pending_enabled)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         self.pending_first_last[ih_key] = pending_enabled
 
                 piece_availability = []
                 try:
                     piece_availability = [int(x) for x in h.piece_availability()]
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
                 file_paths = []
@@ -817,7 +813,7 @@ class LibTorrentManager:
                         torrent_root = ""
                         try:
                             torrent_root = _normalize_rel_path(ti.name())
-                        except Exception:
+                        except Exception:  # noqa: BLE001, S110
                             pass
 
                         for i in range(files.num_files()):
@@ -828,7 +824,7 @@ class LibTorrentManager:
                             file_paths.append(file_path)
 
                         file_progress = [int(x) for x in h.file_progress()]
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
                 state_str = str(st.state).lower()
@@ -893,7 +889,7 @@ class RpcHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length) if length > 0 else b"{}"
             req = json.loads(body.decode("utf-8"))
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -959,7 +955,7 @@ class RpcHandler(BaseHTTPRequestHandler):
                 result = {"result": "ok", "torrents": torrents}
             else:
                 error = f"Method '{method}' not found"
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             error = str(ex)
 
         self.send_response(200 if error is None else 500)
