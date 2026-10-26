@@ -175,8 +175,8 @@ public class TorrentFileProgressEnricherTest
         var task = Substitute.For<IDownloadTask>();
         task.FileProgressBytes.Returns(new Dictionary<string, long>
         {
-            ["season/episode-1.mkv"] = 900,
-            ["season/episode-2.mkv"] = 100,
+            ["Hung S01-S03 br 10bit hevc-d3g/season/episode-1.mkv"] = 900,
+            ["Hung S01-S03 br 10bit hevc-d3g/season/episode-2.mkv"] = 100,
         });
 
         var files = new List<TorrentFile>

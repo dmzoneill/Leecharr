@@ -814,7 +814,19 @@ class LibTorrentManager:
                     if h.has_metadata():
                         ti = h.torrent_file()
                         files = ti.files()
-                        file_paths = [_normalize_rel_path(files.file_path(i)) for i in range(files.num_files())]
+                        torrent_root = ""
+                        try:
+                            torrent_root = _normalize_rel_path(ti.name())
+                        except Exception:
+                            pass
+
+                        for i in range(files.num_files()):
+                            file_path = _normalize_rel_path(files.file_path(i))
+                            root_prefix = f"{torrent_root}/" if torrent_root else ""
+                            if root_prefix and file_path.lower().startswith(root_prefix.lower()):
+                                file_path = file_path[len(root_prefix) :]
+                            file_paths.append(file_path)
+
                         file_progress = [int(x) for x in h.file_progress()]
                 except Exception:
                     pass

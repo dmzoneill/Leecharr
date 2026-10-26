@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NzbDrone.Core.BitTorrent;
 
 namespace NzbDrone.Core.Torrents;
@@ -90,7 +91,7 @@ public static class TorrentFileProgressEnricher
             wanted++;
 
             var normalizedPath = NormalizePath(file.Path);
-            if (!fileProgress.TryGetValue(normalizedPath, out var completedBytes))
+            if (!TryGetCompletedBytes(fileProgress, normalizedPath, out var completedBytes))
             {
                 continue;
             }
@@ -108,6 +109,29 @@ public static class TorrentFileProgressEnricher
         }
 
         return wanted == 0 || matched == wanted;
+    }
+
+    private static bool TryGetCompletedBytes(IReadOnlyDictionary<string, long> fileProgress, string normalizedPath, out long completedBytes)
+    {
+        if (fileProgress.TryGetValue(normalizedPath, out completedBytes))
+        {
+            return true;
+        }
+
+        var suffix = "/" + normalizedPath;
+        var matches = fileProgress
+            .Where(pair => pair.Key.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            .Take(2)
+            .ToList();
+
+        if (matches.Count == 1)
+        {
+            completedBytes = matches[0].Value;
+            return true;
+        }
+
+        completedBytes = 0;
+        return false;
     }
 
     private static string NormalizePath(string path) =>
