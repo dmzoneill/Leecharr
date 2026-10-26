@@ -600,13 +600,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onSearchIndexers={onOpenSearchModal}
         onStartAll={handleStartAll}
         onStopAll={handleStopAll}
-        selectedCount={
-          selectedIds.size > 0
-            ? selectedIds.size
-            : selectedTorrentId != null
-              ? 1
-              : 0
-        }
+        selectedCount={selectedIds.size}
         bulkPending={bulkPending}
         onBulkStart={handleBulkStart}
         onBulkStop={handleBulkStop}

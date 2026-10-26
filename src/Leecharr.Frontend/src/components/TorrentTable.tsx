@@ -1041,8 +1041,10 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
           >
             <input
               type="checkbox"
+              className="torrent-checkbox"
               checked={isChecked}
               onChange={() => onToggleSelect(t.id)}
+              aria-label={`Select ${t.name}`}
             />
           </td>
         )}
@@ -2104,10 +2106,15 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 >
                   <input
                     type="checkbox"
+                    className="torrent-checkbox"
                     checked={allSelected}
                     ref={(el) => {
                       if (el) el.indeterminate = someSelected;
                     }}
+                    aria-label={t(
+                      "torrents.table.selectAll",
+                      "Select all torrents",
+                    )}
                     onChange={() => {
                       if (allSelected) {
                         const filteredIdSet = new Set(
