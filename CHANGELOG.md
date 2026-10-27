@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.18](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.18) - 2026-10-27
+
+### 🔧 Maintenance & Improvements
+- chore(deps): bump the github-actions group with 2 updates (#1926)
+- Bump the nuget group with 5 updates (#1927)
+
 ## [v3.0.17](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.17) - 2026-10-26
 
 ### 🐛 Bug Fixes
