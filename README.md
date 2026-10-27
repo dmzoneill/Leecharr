@@ -1,7 +1,3 @@
-<p align="center">
-  <img src=".github/logo.png" alt="Leecharr logo" width="128" />
-</p>
-
 <div align="center">
   <center>
     <img src="logo/leecharr-skull.svg" alt="Leecharr" width="200"/>
