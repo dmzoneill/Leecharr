@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.21](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.21) - 2026-10-27
+
+### 🔧 Maintenance & Improvements
+- Update README.md
+
 ## [v3.0.20](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.20) - 2026-10-27
 
 ### ✨ Features
