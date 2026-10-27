@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/logo.png" alt="Leecharr logo" width="128" />
+</p>
+
 <div align="center">
   <center>
     <img src="logo/leecharr-skull.svg" alt="Leecharr" width="200"/>
@@ -69,6 +73,7 @@ Leecharr container images are available on both **Docker Hub** and **GitHub Cont
 ### Run with Podman / Docker
 
 **Option 1: Docker Hub**
+
 ```bash
 podman run -d \
   --name leecharr \
@@ -82,6 +87,7 @@ podman run -d \
 ```
 
 **Option 2: GitHub Container Registry (GHCR)**
+
 ```bash
 podman run -d \
   --name leecharr \
