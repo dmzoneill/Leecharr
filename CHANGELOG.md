@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.19](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.19) - 2026-10-27
+
+### 🔧 Maintenance & Improvements
+- Bump frontend npm group, holding eslint 10 and TypeScript 7 (#1928)
+
 ## [v3.0.18](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.18) - 2026-10-27
 
 ### 🔧 Maintenance & Improvements
