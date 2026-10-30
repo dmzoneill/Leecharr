@@ -939,29 +939,29 @@ public class RTorrentController : ControllerBase
 
             case "throttle.global_down.max_rate.set_kb":
             case "throttle.global_down.max_rate.set":
-            {
-                var globalDownRaw = ExtractRateValue(paramValues);
-                var globalDownIsKb = methodName.EndsWith("_kb", StringComparison.OrdinalIgnoreCase);
-                var globalDownKb = globalDownIsKb ? (int)Math.Max(0, globalDownRaw) : (int)Math.Max(0, globalDownRaw / 1024);
-                this.configService.SaveConfigDictionary(new Dictionary<string, object>
                 {
-                    ["MaxDownloadSpeedKbps"] = globalDownKb,
-                });
-                return new XElement("i4", 0);
-            }
+                    var globalDownRaw = ExtractRateValue(paramValues);
+                    var globalDownIsKb = methodName.EndsWith("_kb", StringComparison.OrdinalIgnoreCase);
+                    var globalDownKb = globalDownIsKb ? (int)Math.Max(0, globalDownRaw) : (int)Math.Max(0, globalDownRaw / 1024);
+                    this.configService.SaveConfigDictionary(new Dictionary<string, object>
+                    {
+                        ["MaxDownloadSpeedKbps"] = globalDownKb,
+                    });
+                    return new XElement("i4", 0);
+                }
 
             case "throttle.global_up.max_rate.set_kb":
             case "throttle.global_up.max_rate.set":
-            {
-                var globalUpRaw = ExtractRateValue(paramValues);
-                var globalUpIsKb = methodName.EndsWith("_kb", StringComparison.OrdinalIgnoreCase);
-                var globalUpKb = globalUpIsKb ? (int)Math.Max(0, globalUpRaw) : (int)Math.Max(0, globalUpRaw / 1024);
-                this.configService.SaveConfigDictionary(new Dictionary<string, object>
                 {
-                    ["MaxUploadSpeedKbps"] = globalUpKb,
-                });
-                return new XElement("i4", 0);
-            }
+                    var globalUpRaw = ExtractRateValue(paramValues);
+                    var globalUpIsKb = methodName.EndsWith("_kb", StringComparison.OrdinalIgnoreCase);
+                    var globalUpKb = globalUpIsKb ? (int)Math.Max(0, globalUpRaw) : (int)Math.Max(0, globalUpRaw / 1024);
+                    this.configService.SaveConfigDictionary(new Dictionary<string, object>
+                    {
+                        ["MaxUploadSpeedKbps"] = globalUpKb,
+                    });
+                    return new XElement("i4", 0);
+                }
 
             case "set_download_rate":
                 var setDlRaw = ExtractRateValue(paramValues);

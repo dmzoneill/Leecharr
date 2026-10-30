@@ -177,104 +177,104 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
         try
         {
-        foreach (var candidatePassword in passwordsToTry)
-        {
-            Process process = null;
-
-            try
+            foreach (var candidatePassword in passwordsToTry)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var timeout = this.CalculateTimeout(archivePath);
-                this.logger.Info("UnRAR extracting '{0}' (timeout: {1:N0}m) to '{2}' using '{3}'...", archivePath, timeout.TotalMinutes, normalizedDest, binary);
-
-                var startInfo = BuildProcessStartInfo(binary, archivePath, normalizedDest, candidatePassword);
-
-                process = new Process { StartInfo = startInfo };
-                process.Start();
-                process.StandardInput.Close();
-
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(timeout);
-
-                var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
-                var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+                Process process = null;
 
                 try
                 {
-                    await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
-                }
-                catch (OperationCanceledException)
-                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var timeout = this.CalculateTimeout(archivePath);
+                    this.logger.Info("UnRAR extracting '{0}' (timeout: {1:N0}m) to '{2}' using '{3}'...", archivePath, timeout.TotalMinutes, normalizedDest, binary);
+
+                    var startInfo = BuildProcessStartInfo(binary, archivePath, normalizedDest, candidatePassword);
+
+                    process = new Process { StartInfo = startInfo };
+                    process.Start();
+                    process.StandardInput.Close();
+
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    cts.CancelAfter(timeout);
+
+                    var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+                    var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
+
                     try
                     {
-                        if (!process.HasExited)
-                        {
-                            process.Kill(true);
-                        }
+                        await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cts.Token));
                     }
-                    catch (Exception ex)
+                    catch (OperationCanceledException)
                     {
-                        this.logger.Trace(ex, "Failed to kill UnRAR process on cancellation");
+                        try
+                        {
+                            if (!process.HasExited)
+                            {
+                                process.Kill(true);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Trace(ex, "Failed to kill UnRAR process on cancellation");
+                        }
+
+                        NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
+                        this.logger.Warn("UnRAR extraction of '{0}' was canceled.", archivePath);
+                        throw;
+                    }
+
+                    // UnRAR exit codes: 0 = Success. Non-zero exit codes indicate failure or corruption.
+                    if (process.ExitCode == 0)
+                    {
+                        this.logger.Info("UnRAR successfully extracted archive '{0}'.", archivePath);
+                        return true;
                     }
 
                     NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
-                    this.logger.Warn("UnRAR extraction of '{0}' was canceled.", archivePath);
+
+                    var stderr = await stderrTask;
+                    if (passwordsToTry.Count > 1)
+                    {
+                        this.logger.Debug("UnRAR extraction attempt failed with exit code {0}: {1}", process.ExitCode, stderr);
+                    }
+                    else
+                    {
+                        this.logger.Warn("UnRAR extraction finished with error exit code {0}: {1}", process.ExitCode, stderr);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
                     throw;
                 }
-
-                // UnRAR exit codes: 0 = Success. Non-zero exit codes indicate failure or corruption.
-                if (process.ExitCode == 0)
+                catch (Exception ex)
                 {
-                    this.logger.Info("UnRAR successfully extracted archive '{0}'.", archivePath);
-                    return true;
+                    NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
+                    this.logger.Error(ex, "UnRAR failed to extract archive: {0}", archivePath);
+                    return false;
                 }
-
-                NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
-
-                var stderr = await stderrTask;
-                if (passwordsToTry.Count > 1)
+                finally
                 {
-                    this.logger.Debug("UnRAR extraction attempt failed with exit code {0}: {1}", process.ExitCode, stderr);
-                }
-                else
-                {
-                    this.logger.Warn("UnRAR extraction finished with error exit code {0}: {1}", process.ExitCode, stderr);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                NativeExtractorDestinationRollback.Rollback(this.diskProvider, normalizedDest, destinationSnapshot, this.logger);
-                this.logger.Error(ex, "UnRAR failed to extract archive: {0}", archivePath);
-                return false;
-            }
-            finally
-            {
-                if (process != null)
-                {
-                    try
+                    if (process != null)
                     {
-                        if (!process.HasExited)
+                        try
                         {
-                            process.Kill(true);
+                            if (!process.HasExited)
+                            {
+                                process.Kill(true);
+                            }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Trace(ex, "Failed to kill UnRAR process during disposal");
-                    }
+                        catch (Exception ex)
+                        {
+                            this.logger.Trace(ex, "Failed to kill UnRAR process during disposal");
+                        }
 
-                    process.Dispose();
+                        process.Dispose();
+                    }
                 }
             }
-        }
 
-        return false;
+            return false;
         }
         finally
         {

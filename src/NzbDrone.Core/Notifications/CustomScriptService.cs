@@ -314,11 +314,11 @@ public class CustomScriptService : ICustomScriptService
             switch (ext)
             {
                 case ".sh":
-                {
-                    var (shFile, shArgList) = ResolveUnixShellScript(cleanPath, TokenizeArguments(args));
-                    var shArgsString = string.Join(" ", shArgList.Select(a => a.Contains(' ') ? $"\"{a}\"" : a));
-                    return (shFile, shArgsString.TrimEnd());
-                }
+                    {
+                        var (shFile, shArgList) = ResolveUnixShellScript(cleanPath, TokenizeArguments(args));
+                        var shArgsString = string.Join(" ", shArgList.Select(a => a.Contains(' ') ? $"\"{a}\"" : a));
+                        return (shFile, shArgsString.TrimEnd());
+                    }
 
                 case ".bash":
                     return ("/bin/bash", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
