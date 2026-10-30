@@ -56,9 +56,9 @@ function createMockTorrent(overrides: Partial<Torrent> = {}): Torrent {
   };
 }
 
-describe("TorrentContextMenu (#1008)", () => {
-  describe("updateTorrentCategory", () => {
-    it("updates category while preserving existing label / tags", () => {
+void describe("TorrentContextMenu (#1008)", () => {
+  void describe("updateTorrentCategory", () => {
+    void it("updates category while preserving existing label / tags", () => {
       const torrent = createMockTorrent({
         category: "old-category",
         label: "important-tag, high-priority",
@@ -72,7 +72,7 @@ describe("TorrentContextMenu (#1008)", () => {
       assert.strictEqual(updated.name, torrent.name);
     });
 
-    it("trims whitespace from category without clobbering label", () => {
+    void it("trims whitespace from category without clobbering label", () => {
       const torrent = createMockTorrent({
         label: "preserve-me",
       });
@@ -83,7 +83,7 @@ describe("TorrentContextMenu (#1008)", () => {
       assert.strictEqual(updated.label, "preserve-me");
     });
 
-    it("clearing category preserves existing tags", () => {
+    void it("clearing category preserves existing tags", () => {
       const torrent = createMockTorrent({
         category: "movies",
         label: "tagA, tagB",
@@ -96,14 +96,14 @@ describe("TorrentContextMenu (#1008)", () => {
     });
   });
 
-  describe("getPackageExportUrl", () => {
+  void describe("getPackageExportUrl", () => {
     const originalWindow = globalThis.window;
 
     afterEach(() => {
       globalThis.window = originalWindow;
     });
 
-    it("generates correct export URL without urlBase", () => {
+    void it("generates correct export URL without urlBase", () => {
       (globalThis as unknown as { window: unknown }).window = {
         Leecharr: { urlBase: "" },
       };
@@ -111,7 +111,7 @@ describe("TorrentContextMenu (#1008)", () => {
       assert.strictEqual(url, "/api/v1/packages/export?torrentIds=1,2,3");
     });
 
-    it("prefixes export URL with getUrlBase() when running on reverse proxy subpath", () => {
+    void it("prefixes export URL with getUrlBase() when running on reverse proxy subpath", () => {
       (globalThis as unknown as { window: unknown }).window = {
         Leecharr: { urlBase: "/leecharr" },
       };
@@ -119,7 +119,7 @@ describe("TorrentContextMenu (#1008)", () => {
       assert.strictEqual(url, "/leecharr/api/v1/packages/export?torrentIds=42");
     });
 
-    it("handles trailing slashes in urlBase correctly", () => {
+    void it("handles trailing slashes in urlBase correctly", () => {
       (globalThis as unknown as { window: unknown }).window = {
         Leecharr: { urlBase: "/subpath/" },
       };
@@ -131,8 +131,8 @@ describe("TorrentContextMenu (#1008)", () => {
     });
   });
 
-  describe("buildMagnetLink", () => {
-    it("creates standard 40-char v1 magnet link", () => {
+  void describe("buildMagnetLink", () => {
+    void it("creates standard 40-char v1 magnet link", () => {
       const torrent = createMockTorrent({
         name: "Test Linux ISO",
         infoHash: "da39a3ee5e6b4b0d3255bfef95601890afd80709",
@@ -151,8 +151,8 @@ describe("TorrentContextMenu (#1008)", () => {
     });
   });
 
-  describe("copyToClipboard safe fallback", () => {
-    it("does not throw when navigator.clipboard is undefined (HTTP LAN context)", async () => {
+  void describe("copyToClipboard safe fallback", () => {
+    void it("does not throw when navigator.clipboard is undefined (HTTP LAN context)", async () => {
       const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
       try {
         // Simulate non-secure HTTP context where navigator.clipboard is undefined

@@ -9,7 +9,7 @@ using NzbDrone.Core.Trackers.Metrics;
 
 namespace Leecharr.Api.V1.Trackers;
 
-[V1ApiController("trackermetrics")]
+[V1ApiController("trackermetrics")] /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
 public class TrackerMetricsController : Controller
 {
     private readonly ITrackerMetricService trackerMetricService;

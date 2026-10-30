@@ -90,7 +90,7 @@ export const MediaArtworkImage: React.FC<MediaArtworkImageProps> = ({
           src={src ?? undefined}
           alt={alt}
           loading={loading}
-          onError={() => setHasError(true)}
+          onError={() => { setHasError(true); }}
           style={{
             width: "100%",
             height: "100%",

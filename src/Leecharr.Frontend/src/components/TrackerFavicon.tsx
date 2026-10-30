@@ -133,7 +133,7 @@ export function TrackerFavicon({
         backgroundColor: "rgba(255, 255, 255, 0.04)",
         ...style,
       }}
-      onError={() => setError(true)}
+      onError={() => { setError(true); }}
       loading="lazy"
     />
   );

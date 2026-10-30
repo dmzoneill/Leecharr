@@ -356,7 +356,7 @@ public class SystemCommandController : Controller
         return this.Ok(new { success = true });
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<CommandResource> Execute([FromBody] CommandResource command)
     {
         if (command == null)

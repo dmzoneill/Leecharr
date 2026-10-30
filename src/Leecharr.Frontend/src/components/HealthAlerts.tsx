@@ -70,7 +70,7 @@ function HealthAlerts() {
             </div>
             <button
               className="health-alert-dismiss"
-              onClick={() => setDismissed((d) => [...d, alert.source])}
+              onClick={() => { setDismissed((d) => [...d, alert.source]); }}
               style={{
                 cursor: "pointer",
                 background: "none",

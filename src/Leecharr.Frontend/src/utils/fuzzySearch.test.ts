@@ -7,13 +7,13 @@ import {
   type FuzzySearchable,
 } from "./fuzzySearch";
 
-describe("fuzzySearch: parseSearchQuery", () => {
-  it("should parse empty queries", () => {
+void describe("fuzzySearch: parseSearchQuery", () => {
+  void it("should parse empty queries", () => {
     assert.deepEqual(parseSearchQuery(""), { query: "" });
     assert.deepEqual(parseSearchQuery("   "), { query: "" });
   });
 
-  it("should parse action symbol prefix '>'", () => {
+  void it("should parse action symbol prefix '>'", () => {
     assert.deepEqual(parseSearchQuery(">"), {
       category: "Actions",
       query: "",
@@ -24,7 +24,7 @@ describe("fuzzySearch: parseSearchQuery", () => {
     });
   });
 
-  it("should parse named category prefixes", () => {
+  void it("should parse named category prefixes", () => {
     assert.deepEqual(parseSearchQuery("tor: ubuntu"), {
       category: "Torrents",
       query: "ubuntu",
@@ -47,15 +47,15 @@ describe("fuzzySearch: parseSearchQuery", () => {
     });
   });
 
-  it("should leave non-prefixed queries untouched", () => {
+  void it("should leave non-prefixed queries untouched", () => {
     assert.deepEqual(parseSearchQuery("tracker boost"), {
       query: "tracker boost",
     });
   });
 });
 
-describe("fuzzySearch: scoreItem", () => {
-  it("should score exact title match highest (100 pts)", () => {
+void describe("fuzzySearch: scoreItem", () => {
+  void it("should score exact title match highest (100 pts)", () => {
     const exact = scoreItem({ title: "Tracker Boost" }, "Tracker Boost");
     const prefix = scoreItem(
       { title: "Tracker Boost Matrix" },
@@ -76,7 +76,7 @@ describe("fuzzySearch: scoreItem", () => {
     assert.ok(substring > sub);
   });
 
-  it("should rank prefix match higher than word boundary and substring match", () => {
+  void it("should rank prefix match higher than word boundary and substring match", () => {
     const prefix = scoreItem({ title: "Tracker Boost" }, "track");
     const wordBoundary = scoreItem({ title: "Inbuilt Tracker" }, "track");
     const substring = scoreItem({ title: "Fastrack Engine" }, "track");
@@ -91,7 +91,7 @@ describe("fuzzySearch: scoreItem", () => {
     assert.equal(subtitle, 20);
   });
 
-  it("should match acronyms and initialisms (e.g. 'tb' -> 'Tracker Boost')", () => {
+  void it("should match acronyms and initialisms (e.g. 'tb' -> 'Tracker Boost')", () => {
     const tb = scoreItem({ title: "Tracker Boost" }, "tb");
     const gs = scoreItem({ title: "General Settings" }, "gs");
     const am = scoreItem({ title: "Activity Metrics" }, "am");
@@ -103,7 +103,7 @@ describe("fuzzySearch: scoreItem", () => {
     assert.equal(mismatch, 0);
   });
 
-  it("should perform multi-word matching across title and subtitle", () => {
+  void it("should perform multi-word matching across title and subtitle", () => {
     const match = scoreItem(
       {
         title: "Sync Trackers from Prowlarr Indexers",
@@ -129,7 +129,7 @@ interface TestSearchItem extends FuzzySearchable {
   id: string;
 }
 
-describe("fuzzySearch: filterAndRankItems", () => {
+void describe("fuzzySearch: filterAndRankItems", () => {
   const sampleItems: TestSearchItem[] = [
     {
       id: "nav-dash",
@@ -175,7 +175,7 @@ describe("fuzzySearch: filterAndRankItems", () => {
     },
   ];
 
-  it("should not match items just because of category 'Torrents' when searching 't'", () => {
+  void it("should not match items just because of category 'Torrents' when searching 't'", () => {
     // "Fedora 40" has no 't' in title or subtitle. Its category is "Torrents" (which has 't').
     // Naive category substring matching would include "Fedora 40". Our weighted search must NOT.
     const results = filterAndRankItems(sampleItems, "t");
@@ -183,31 +183,31 @@ describe("fuzzySearch: filterAndRankItems", () => {
     assert.equal(fedora, undefined);
   });
 
-  it("should match acronym 'tb' to 'Tracker Boost'", () => {
+  void it("should match acronym 'tb' to 'Tracker Boost'", () => {
     const results = filterAndRankItems(sampleItems, "tb");
     assert.ok(results.length > 0);
     assert.equal(results[0].id, "nav-tb");
   });
 
-  it("should match multi-word query 'prowlarr sync' to Prowlarr action", () => {
+  void it("should match multi-word query 'prowlarr sync' to Prowlarr action", () => {
     const results = filterAndRankItems(sampleItems, "prowlarr sync");
     assert.equal(results.length, 1);
     assert.equal(results[0].id, "act-prowlarr");
   });
 
-  it("should respect category prefix '>' to filter only Actions", () => {
+  void it("should respect category prefix '>' to filter only Actions", () => {
     const results = filterAndRankItems(sampleItems, ">");
     assert.equal(results.length, 2);
     assert.ok(results.every((r) => r.category === "Actions"));
   });
 
-  it("should respect category prefix 'tor:' to filter only Torrents", () => {
+  void it("should respect category prefix 'tor:' to filter only Torrents", () => {
     const results = filterAndRankItems(sampleItems, "tor: ubuntu");
     assert.equal(results.length, 1);
     assert.equal(results[0].id, "tor-ubuntu");
   });
 
-  it("should return unmodified order when query is empty", () => {
+  void it("should return unmodified order when query is empty", () => {
     const results = filterAndRankItems(sampleItems, "");
     assert.equal(results.length, sampleItems.length);
     assert.equal(results[0].id, sampleItems[0].id);

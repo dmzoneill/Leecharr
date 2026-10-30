@@ -27,7 +27,7 @@ class MockLocalStorage {
   }
 }
 
-describe("GettingStartedModal (#1019)", () => {
+void describe("GettingStartedModal (#1019)", () => {
   let mockStorage: MockLocalStorage;
   const originalLocalStorage = globalThis.localStorage;
 
@@ -52,14 +52,14 @@ describe("GettingStartedModal (#1019)", () => {
     });
   });
 
-  describe("getHideGuideKey", () => {
-    it("returns global key when instanceUuid is not provided", () => {
+  void describe("getHideGuideKey", () => {
+    void it("returns global key when instanceUuid is not provided", () => {
       assert.strictEqual(getHideGuideKey(), STORAGE_KEY_HIDE_GUIDE);
       assert.strictEqual(getHideGuideKey(undefined), STORAGE_KEY_HIDE_GUIDE);
       assert.strictEqual(getHideGuideKey(""), STORAGE_KEY_HIDE_GUIDE);
     });
 
-    it("returns scoped key when instanceUuid is provided", () => {
+    void it("returns scoped key when instanceUuid is provided", () => {
       assert.strictEqual(
         getHideGuideKey("inst-1234"),
         `${STORAGE_KEY_HIDE_GUIDE}_inst-1234`,
@@ -67,44 +67,44 @@ describe("GettingStartedModal (#1019)", () => {
     });
   });
 
-  describe("shouldHideGettingStarted", () => {
-    it("returns false when no preference is saved", () => {
+  void describe("shouldHideGettingStarted", () => {
+    void it("returns false when no preference is saved", () => {
       assert.strictEqual(shouldHideGettingStarted("inst-1234"), false);
       assert.strictEqual(shouldHideGettingStarted(), false);
     });
 
-    it("returns true when global preference is true even if instance key is null", () => {
+    void it("returns true when global preference is true even if instance key is null", () => {
       mockStorage.setItem(STORAGE_KEY_HIDE_GUIDE, "true");
       assert.strictEqual(shouldHideGettingStarted("inst-1234"), true);
       assert.strictEqual(shouldHideGettingStarted(), true);
     });
 
-    it("returns true when instance key is true even if global key is null", () => {
+    void it("returns true when instance key is true even if global key is null", () => {
       mockStorage.setItem(`${STORAGE_KEY_HIDE_GUIDE}_inst-1234`, "true");
       assert.strictEqual(shouldHideGettingStarted("inst-1234"), true);
       assert.strictEqual(shouldHideGettingStarted("inst-other"), false);
     });
 
-    it("returns false when both keys are explicitly false", () => {
+    void it("returns false when both keys are explicitly false", () => {
       mockStorage.setItem(STORAGE_KEY_HIDE_GUIDE, "false");
       mockStorage.setItem(`${STORAGE_KEY_HIDE_GUIDE}_inst-1234`, "false");
       assert.strictEqual(shouldHideGettingStarted("inst-1234"), false);
     });
   });
 
-  describe("isMaskedApiKey", () => {
-    it("returns true for undefined or empty apiKey", () => {
+  void describe("isMaskedApiKey", () => {
+    void it("returns true for undefined or empty apiKey", () => {
       assert.strictEqual(isMaskedApiKey(undefined), true);
       assert.strictEqual(isMaskedApiKey(""), true);
     });
 
-    it("returns true for asterisk-masked keys", () => {
+    void it("returns true for asterisk-masked keys", () => {
       assert.strictEqual(isMaskedApiKey("********"), true);
       assert.strictEqual(isMaskedApiKey("abc*123"), true);
       assert.strictEqual(isMaskedApiKey("*"), true);
     });
 
-    it("returns false for genuine unmasked API keys", () => {
+    void it("returns false for genuine unmasked API keys", () => {
       assert.strictEqual(isMaskedApiKey("d41d8cd98f00b204e9800998ecf8427e"), false);
       assert.strictEqual(isMaskedApiKey("SonarrApiKey12345"), false);
     });

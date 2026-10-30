@@ -86,7 +86,7 @@ export const QueueConcurrencyCard: React.FC = () => {
             <button
               type="button"
               className="stepper-btn"
-              onClick={() => changeDl(-1)}
+              onClick={() => { changeDl(-1); }}
               disabled={activeDl <= 0}
               title={t("quickSettings.decreaseMaxDownloads")}
               aria-label={t("quickSettings.decreaseMaxDownloads")}
@@ -99,7 +99,7 @@ export const QueueConcurrencyCard: React.FC = () => {
             <button
               type="button"
               className="stepper-btn"
-              onClick={() => changeDl(1)}
+              onClick={() => { changeDl(1); }}
               title={t("quickSettings.increaseMaxDownloads")}
               aria-label={t("quickSettings.increaseMaxDownloads")}
             >
@@ -118,7 +118,7 @@ export const QueueConcurrencyCard: React.FC = () => {
             <button
               type="button"
               className="stepper-btn"
-              onClick={() => changeSeed(-1)}
+              onClick={() => { changeSeed(-1); }}
               disabled={activeSeed <= 0}
               title={t("quickSettings.decreaseMaxSeeds")}
               aria-label={t("quickSettings.decreaseMaxSeeds")}
@@ -131,7 +131,7 @@ export const QueueConcurrencyCard: React.FC = () => {
             <button
               type="button"
               className="stepper-btn"
-              onClick={() => changeSeed(1)}
+              onClick={() => { changeSeed(1); }}
               title={t("quickSettings.increaseMaxSeeds")}
               aria-label={t("quickSettings.increaseMaxSeeds")}
             >
@@ -146,8 +146,7 @@ export const QueueConcurrencyCard: React.FC = () => {
             <input
               type="checkbox"
               checked={ignoreStalled}
-              onChange={(e) =>
-                handleUpdate({ queueStalledEnabled: e.target.checked })
+              onChange={(e) => { handleUpdate({ queueStalledEnabled: e.target.checked }); }
               }
             />
             <span>{t("quickSettings.ignoreStalled")}</span>

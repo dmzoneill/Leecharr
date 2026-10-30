@@ -478,7 +478,7 @@ export const TorrentNameCell: React.FC<{
                 href={arrLink.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); }}
                 style={{
                   fontSize: "0.68rem",
                   padding: "0.1rem 0.35rem",
@@ -1032,7 +1032,7 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
             role="button"
             tabIndex={0}
             style={{ textAlign: "center", padding: "0.5rem" }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1043,7 +1043,7 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
               type="checkbox"
               className="torrent-checkbox"
               checked={isChecked}
-              onChange={() => onToggleSelect(t.id)}
+              onChange={() => { onToggleSelect(t.id); }}
               aria-label={`Select ${t.name}`}
             />
           </td>
@@ -1183,7 +1183,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       }
     }
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    return () => { window.removeEventListener("storage", handleStorage); };
   }, [propSortKey]);
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -1256,7 +1256,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     return { historyByHash: byHash, historyByTitle: byTitle };
   }, [history]);
 
-  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const closeContextMenu = useCallback(() => { setContextMenu(null); }, []);
 
   const toggleColumn = useCallback(
     (key: string) => {
@@ -1864,7 +1864,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               : [];
         if (targetIds.length > 0) {
           e.preventDefault();
-          targetIds.forEach((id) => recheckTorrent.mutate(id));
+          targetIds.forEach((id) => { recheckTorrent.mutate(id); });
           return;
         }
       }
@@ -1879,7 +1879,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               : [];
         if (targetIds.length > 0) {
           e.preventDefault();
-          targetIds.forEach((id) => announceTorrent.mutate(id));
+          targetIds.forEach((id) => { announceTorrent.mutate(id); });
           return;
         }
       }
@@ -1968,12 +1968,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         });
 
         if (anyActive) {
-          targetIds.forEach((id) =>
-            onPause ? onPause(id) : stopSeeding.mutate(id),
+          targetIds.forEach((id) => { if (onPause) { onPause(id); } else { stopSeeding.mutate(id); } },
           );
         } else {
-          targetIds.forEach((id) =>
-            onResume ? onResume(id) : startSeeding.mutate(id),
+          targetIds.forEach((id) => { if (onResume) { onResume(id); } else { startSeeding.mutate(id); } },
           );
         }
         return;
@@ -1997,7 +1995,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     };
 
     window.addEventListener("keydown", handleTableKeyDown);
-    return () => window.removeEventListener("keydown", handleTableKeyDown);
+    return () => { window.removeEventListener("keydown", handleTableKeyDown); };
   }, [
     propTorrents,
     filteredTorrents,
@@ -2041,9 +2039,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         minHeight: 0,
         position: "relative",
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onContextMenu={(e) => handleContextMenu(e, null)}
+      onMouseEnter={() => { setIsHovered(true); }}
+      onMouseLeave={() => { setIsHovered(false); }}
+      onContextMenu={(e) => { handleContextMenu(e, null); }}
     >
       {/* Table Action Controls / Column Customizer Trigger */}
       <div
@@ -2140,13 +2138,13 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   key={c.key}
                   className="torrent-table-th"
                   draggable
-                  onDragStart={() => handleColDragStart(c.key)}
-                  onDragOver={(e) => handleColDragOver(e, c.key)}
-                  onDrop={(e) => handleColDrop(e, c.key)}
+                  onDragStart={() => { handleColDragStart(c.key); }}
+                  onDragOver={(e) => { handleColDragOver(e, c.key); }}
+                  onDrop={(e) => { handleColDrop(e, c.key); }}
                   onDragEnd={handleColDragEnd}
                   role={c.sortable ? "button" : undefined}
                   tabIndex={c.sortable ? 0 : undefined}
-                  onClick={() => c.sortable && handleSort(c.key)}
+                  onClick={() => { if (c.sortable) handleSort(c.key); }}
                   onKeyDown={
                     c.sortable
                       ? (e) => {
@@ -2230,7 +2228,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                       const th = e.currentTarget.parentElement as HTMLElement;
                       handleResizeMouseDown(e, c.key, th);
                     }}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.stopPropagation();
@@ -2310,30 +2308,23 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           allColumns={ALL_COLUMNS}
           onClose={closeContextMenu}
           onToggleColumn={toggleColumn}
-          onStart={(id) => (onResume ? onResume(id) : startSeeding.mutate(id))}
-          onStop={(id) => (onPause ? onPause(id) : stopSeeding.mutate(id))}
-          onUpdate={(tor) => updateTorrent.mutate(tor)}
-          onAnnounce={(id) => announceTorrent.mutate(id)}
-          onRecheck={(id) => recheckTorrent.mutate(id)}
-          onDelete={(payload) =>
-            onDelete ? onDelete(payload) : deleteTorrent.mutate(payload)
+          onStart={(id) => { if (onResume) { onResume(id); } else { startSeeding.mutate(id); } }}
+          onStop={(id) => { if (onPause) { onPause(id); } else { stopSeeding.mutate(id); } }}
+          onUpdate={(tor) => { updateTorrent.mutate(tor); }}
+          onAnnounce={(id) => { announceTorrent.mutate(id); }}
+          onRecheck={(id) => { recheckTorrent.mutate(id); }}
+          onDelete={(payload) => { if (onDelete) { onDelete(payload); } else { deleteTorrent.mutate(payload); } }
           }
-          onMoveQueue={(payload) => moveTorrentQueue.mutate(payload)}
-          onBatchStart={(ids) =>
-            ids.forEach((id) =>
-              onResume ? onResume(id) : startSeeding.mutate(id),
-            )
+          onMoveQueue={(payload) => { moveTorrentQueue.mutate(payload); }}
+          onBatchStart={(ids) => { ids.forEach((id) => { if (onResume) { onResume(id); } else { startSeeding.mutate(id); } },
+            ); }
           }
-          onBatchStop={(ids) =>
-            ids.forEach((id) =>
-              onPause ? onPause(id) : stopSeeding.mutate(id),
-            )
+          onBatchStop={(ids) => { ids.forEach((id) => { if (onPause) { onPause(id); } else { stopSeeding.mutate(id); } },
+            ); }
           }
-          onBatchAnnounce={(ids) =>
-            ids.forEach((id) => announceTorrent.mutate(id))
+          onBatchAnnounce={(ids) => { ids.forEach((id) => { announceTorrent.mutate(id); }); }
           }
-          onBatchRecheck={(ids) =>
-            ids.forEach((id) => recheckTorrent.mutate(id))
+          onBatchRecheck={(ids) => { ids.forEach((id) => { recheckTorrent.mutate(id); }); }
           }
           onBatchDelete={(payload) => {
             if (onDelete && payload.ids.length > 0) {
@@ -2343,19 +2334,16 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 ids: payload.ids,
               });
             } else {
-              payload.ids.forEach((id) =>
-                deleteTorrent.mutate({ id, deleteFiles: payload.deleteFiles }),
+              payload.ids.forEach((id) => { deleteTorrent.mutate({ id, deleteFiles: payload.deleteFiles }); },
               );
             }
           }}
-          onBatchUpdate={(torrents) =>
-            torrents.forEach((tor) => updateTorrent.mutate(tor))
+          onBatchUpdate={(torrents) => { torrents.forEach((tor) => { updateTorrent.mutate(tor); }); }
           }
-          onBatchMoveQueue={(payload) =>
-            moveTorrentQueueBatch.mutate({
+          onBatchMoveQueue={(payload) => { moveTorrentQueueBatch.mutate({
               ids: payload.ids,
               position: payload.position,
-            })
+            }); }
           }
           onSearchIndexers={onSearchIndexers}
           onNavigateTab={onNavigateTab}

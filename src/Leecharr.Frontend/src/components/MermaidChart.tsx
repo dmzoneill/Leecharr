@@ -170,7 +170,7 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
       }
     };
 
-    renderChart();
+    void renderChart();
     return () => {
       isMounted = false;
     };
@@ -203,7 +203,7 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    return () => { el.removeEventListener("wheel", onWheel); };
   }, []);
 
   // Window-level mouse move and mouse up listeners so dragging doesn't get interrupted
@@ -262,7 +262,7 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
       }
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => { window.removeEventListener("keydown", onKeyDown); };
   }, [isFullscreen]);
 
   // Lock body scroll when fullscreen is active
@@ -363,9 +363,9 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(chart);
+    void navigator.clipboard.writeText(chart);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => { setCopied(false); }, 2000);
   };
 
   const handleDownloadSvg = () => {
@@ -491,7 +491,7 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id, title }) 
           <button
             type="button"
             className="btn btn-sm btn-secondary"
-            onClick={() => setIsFullscreen((prev) => !prev)}
+            onClick={() => { setIsFullscreen((prev) => !prev); }}
             title={isFullscreen ? "Exit Fullscreen (Esc)" : "Fullscreen Mode"}
           >
             {isFullscreen ? "✕ Exit Fullscreen" : "⛶ Fullscreen"}

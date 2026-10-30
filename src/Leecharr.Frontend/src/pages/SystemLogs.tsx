@@ -162,14 +162,14 @@ export function SystemLogs() {
           <button
             type="button"
             className={`btn ${activeTab === "live" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("live")}
+            onClick={() => { setActiveTab("live"); }}
           >
             {t("system.liveStream")}
           </button>
           <button
             type="button"
             className={`btn ${activeTab === "files" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("files")}
+            onClick={() => { setActiveTab("files"); }}
           >
             {t("system.diskFiles")}
           </button>
@@ -229,7 +229,7 @@ export function SystemLogs() {
                 <input
                   type="checkbox"
                   checked={autoScroll}
-                  onChange={(e) => setAutoScroll(e.target.checked)}
+                  onChange={(e) => { setAutoScroll(e.target.checked); }}
                 />
                 {t("system.autoScroll")}
               </label>

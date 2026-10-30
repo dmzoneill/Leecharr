@@ -146,7 +146,7 @@ export default function DatabaseExplorer() {
       if (tablesData && tablesData.length > 0 && !selectedTable) {
         setSelectedTable(tablesData[0].name);
       }
-      fetchStorage();
+      void fetchStorage();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setSchemaError(msg || "Failed to load database schema.");
@@ -156,7 +156,7 @@ export default function DatabaseExplorer() {
   }, [selectedTable, fetchStorage]);
 
   useEffect(() => {
-    fetchSchema();
+    void fetchSchema();
   }, [fetchSchema]);
 
   // Treemap ResizeObserver
@@ -171,7 +171,7 @@ export default function DatabaseExplorer() {
       }
     });
     ro.observe(treemapContainerRef.current);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); };
   }, [activeTab]);
 
   // Compute Treemap layout
@@ -345,7 +345,7 @@ export default function DatabaseExplorer() {
       setQueryResult(res);
       // Refresh schema if DDL was run
       if (isWrite) {
-        fetchSchema();
+        void fetchSchema();
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -368,7 +368,7 @@ export default function DatabaseExplorer() {
     if (!schema?.mermaidErd) return;
     void navigator.clipboard.writeText(schema.mermaidErd);
     setCopyFeedback("Copied Mermaid ERD to clipboard!");
-    setTimeout(() => setCopyFeedback(null), 3000);
+    setTimeout(() => { setCopyFeedback(null); }, 3000);
   };
 
   const handleSelectTableForQuery = (name: string) => {
@@ -506,7 +506,7 @@ export default function DatabaseExplorer() {
               borderRadius: "6px",
               cursor: "pointer",
             }}
-            onClick={() => setIsSafeMode(!isSafeMode)}
+            onClick={() => { setIsSafeMode(!isSafeMode); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -528,7 +528,7 @@ export default function DatabaseExplorer() {
           </div>
 
           <button type="button" className="btn btn-outline btn-small"
-            onClick={fetchSchema}
+            onClick={(...args: Parameters<typeof fetchSchema>) => { void fetchSchema(...args); }}
             disabled={isLoadingSchema}
             title="Refresh database schema"
           >
@@ -564,7 +564,7 @@ export default function DatabaseExplorer() {
       >
         <button type="button" className={`btn ${activeTab === "diagram" ? "btn-primary" : "btn-outline"}`}
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
-          onClick={() => setActiveTab("diagram")}
+          onClick={() => { setActiveTab("diagram"); }}
         >
           <span>📊</span> Relational ER Diagram
         </button>
@@ -572,20 +572,20 @@ export default function DatabaseExplorer() {
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
           onClick={() => {
             setActiveTab("treemap");
-            if (!storageData) fetchStorage();
+            if (!storageData) void fetchStorage();
           }}
         >
           <span>🗺️</span> Storage Treemap
         </button>
         <button type="button" className={`btn ${activeTab === "console" ? "btn-primary" : "btn-outline"}`}
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
-          onClick={() => setActiveTab("console")}
+          onClick={() => { setActiveTab("console"); }}
         >
           <span>💻</span> SQL Console
         </button>
         <button type="button" className={`btn ${activeTab === "inspector" ? "btn-primary" : "btn-outline"}`}
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
-          onClick={() => setActiveTab("inspector")}
+          onClick={() => { setActiveTab("inspector"); }}
         >
           <span>🔍</span> Table Inspector
         </button>
@@ -626,7 +626,7 @@ export default function DatabaseExplorer() {
                 style={{ padding: "0.3rem 0.6rem", fontSize: "0.85rem", width: "220px" }}
                 placeholder="Filter tables or columns..."
                 value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
+                onChange={(e) => { setSearchFilter(e.target.value); }}
               />
               <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
                 {filteredTables.length} tables • {relationships.length} relations
@@ -635,14 +635,14 @@ export default function DatabaseExplorer() {
 
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <button type="button" className="btn btn-outline btn-small"
-                onClick={() => handleZoom(1.25)}
+                onClick={() => { handleZoom(1.25); }}
                 title="Zoom In"
                 aria-label="Zoom In"
               >
                 +
               </button>
               <button type="button" className="btn btn-outline btn-small"
-                onClick={() => handleZoom(0.8)}
+                onClick={() => { handleZoom(0.8); }}
                 title="Zoom Out"
                 aria-label="Zoom Out"
               >
@@ -661,7 +661,7 @@ export default function DatabaseExplorer() {
                 {copyFeedback || "📋 Copy Mermaid ERD"}
               </button>
               <button type="button" className="btn btn-outline btn-small"
-                onClick={() => setShowMermaidModal(true)}
+                onClick={() => { setShowMermaidModal(true); }}
                 title="View Mermaid Code"
               >
                 View Mermaid Source
@@ -749,10 +749,10 @@ export default function DatabaseExplorer() {
                     <g
                       key={table.name}
                       transform={`translate(${pos.x}, ${pos.y})`}
-                      onMouseEnter={() => setHoveredTable(table.name)}
-                      onMouseLeave={() => setHoveredTable(null)}
+                      onMouseEnter={() => { setHoveredTable(table.name); }}
+                      onMouseLeave={() => { setHoveredTable(null); }}
                       style={{ cursor: "move" }}
-                      onMouseDown={(e) => startDrag(e, table.name)}
+                      onMouseDown={(e) => { startDrag(e, table.name); }}
                     >
                       {/* Card Background */}
                       <rect
@@ -934,17 +934,17 @@ export default function DatabaseExplorer() {
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Show:</span>
               <button type="button" className={`btn btn-small ${storageFilter === "all" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setStorageFilter("all")}
+                onClick={() => { setStorageFilter("all"); }}
               >
                 All Objects
               </button>
               <button type="button" className={`btn btn-small ${storageFilter === "table" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setStorageFilter("table")}
+                onClick={() => { setStorageFilter("table"); }}
               >
                 Tables Only
               </button>
               <button type="button" className={`btn btn-small ${storageFilter === "index" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setStorageFilter("index")}
+                onClick={() => { setStorageFilter("index"); }}
               >
                 Indexes Only
               </button>
@@ -953,7 +953,7 @@ export default function DatabaseExplorer() {
               <select
                 className="select"
                 value={storageMetric}
-                onChange={(e) => setStorageMetric(e.target.value as "bytes" | "rows" | "pages")}
+                onChange={(e) => { setStorageMetric(e.target.value as "bytes" | "rows" | "pages"); }}
                 style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
               >
                 <option value="bytes">Disk Size (Bytes)</option>
@@ -968,7 +968,7 @@ export default function DatabaseExplorer() {
                 type="text"
                 placeholder="Filter table or index..."
                 value={treemapSearch}
-                onChange={(e) => setTreemapSearch(e.target.value)}
+                onChange={(e) => { setTreemapSearch(e.target.value); }}
                 style={{
                   padding: "0.3rem 0.6rem",
                   fontSize: "0.85rem",
@@ -980,7 +980,7 @@ export default function DatabaseExplorer() {
                 }}
               />
               <button type="button" className="btn btn-outline btn-small"
-                onClick={fetchStorage}
+                onClick={(...args: Parameters<typeof fetchStorage>) => { void fetchStorage(...args); }}
                 disabled={isLoadingStorage}
                 title="Refresh Storage Treemap"
               >
@@ -1080,15 +1080,15 @@ export default function DatabaseExplorer() {
                       style={{ cursor: "pointer" }}
                       role="button"
                       tabIndex={0}
-                      onClick={() => setSelectedStorageItem(item)}
+                      onClick={() => { setSelectedStorageItem(item); }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           setSelectedStorageItem(item);
                         }
                       }}
-                      onMouseEnter={() => setHoveredStorageItem(item)}
-                      onMouseLeave={() => setHoveredStorageItem(null)}
+                      onMouseEnter={() => { setHoveredStorageItem(item); }}
+                      onMouseLeave={() => { setHoveredStorageItem(null); }}
                     >
                       <rect
                         width={w}
@@ -1260,7 +1260,7 @@ export default function DatabaseExplorer() {
                   </>
                 )}
                 <button type="button" className="btn btn-outline btn-small"
-                  onClick={() => setSelectedStorageItem(null)}
+                  onClick={() => { setSelectedStorageItem(null); }}
                 >
                   ✕ Close
                 </button>
@@ -1313,7 +1313,7 @@ export default function DatabaseExplorer() {
                   key={t.name}
                   role="button"
                   tabIndex={0}
-                  onClick={() => handleSelectTableForQuery(t.name)}
+                  onClick={() => { handleSelectTableForQuery(t.name); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
@@ -1403,7 +1403,7 @@ export default function DatabaseExplorer() {
                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                   <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Ctrl+Enter to run</span>
                   <button type="button" className="btn btn-primary"
-                    onClick={() => runQuery()}
+                    onClick={() => { void runQuery(); }}
                     disabled={isExecuting}
                     style={{ padding: "0.35rem 0.85rem" }}
                   >
@@ -1414,7 +1414,7 @@ export default function DatabaseExplorer() {
 
               <textarea
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); }}
                 onKeyDown={(e) => {
                   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                     e.preventDefault();
@@ -1487,13 +1487,13 @@ export default function DatabaseExplorer() {
                     <div style={{ display: "flex", gap: "0.25rem", marginLeft: "0.5rem" }}>
                       <button type="button" className={`btn btn-small ${consoleView === "data" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
-                        onClick={() => setConsoleView("data")}
+                        onClick={() => { setConsoleView("data"); }}
                       >
                         📊 Data Grid ({queryResult.rows?.length ?? 0})
                       </button>
                       <button type="button" className={`btn btn-small ${consoleView === "plan" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
-                        onClick={() => setConsoleView("plan")}
+                        onClick={() => { setConsoleView("plan"); }}
                       >
                         ⚡ Query Plan DAG ({queryResult.queryPlan.length})
                       </button>
@@ -1605,13 +1605,13 @@ export default function DatabaseExplorer() {
                     <div style={{ display: "flex", gap: "0.25rem" }}>
                       <button type="button" className={`btn btn-small ${planViewMode === "tree" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
-                        onClick={() => setPlanViewMode("tree")}
+                        onClick={() => { setPlanViewMode("tree"); }}
                       >
                         Visual Tree
                       </button>
                       <button type="button" className={`btn btn-small ${planViewMode === "table" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
-                        onClick={() => setPlanViewMode("table")}
+                        onClick={() => { setPlanViewMode("table"); }}
                       >
                         Raw Plan Table
                       </button>
@@ -1723,7 +1723,7 @@ export default function DatabaseExplorer() {
               className="form-control"
               style={{ width: "240px" }}
               value={selectedTable}
-              onChange={(e) => setSelectedTable(e.target.value)}
+              onChange={(e) => { setSelectedTable(e.target.value); }}
             >
               {tables.map((t) => (
                 <option key={t.name} value={t.name}>
@@ -1733,7 +1733,7 @@ export default function DatabaseExplorer() {
             </select>
 
             <button type="button" className="btn btn-primary btn-small"
-              onClick={() => handleSelectTableForQuery(selectedTable)}
+              onClick={() => { handleSelectTableForQuery(selectedTable); }}
             >
               ▶ Query Table
             </button>
@@ -1881,10 +1881,10 @@ export default function DatabaseExplorer() {
               This may alter or delete stored records permanently.
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowConfirmModal(false)}>
+              <button type="button" className="btn btn-outline" onClick={() => { setShowConfirmModal(false); }}>
                 Cancel
               </button>
-              <button type="button" className="btn btn-danger" onClick={() => runQuery(query, true)}>
+              <button type="button" className="btn btn-danger" onClick={() => { void runQuery(query, true); }}>
                 Execute Mutation
               </button>
             </div>
@@ -1934,7 +1934,7 @@ export default function DatabaseExplorer() {
               <button type="button" className="btn btn-primary" onClick={copyMermaid}>
                 {copyFeedback || "📋 Copy to Clipboard"}
               </button>
-              <button type="button" className="btn btn-outline" onClick={() => setShowMermaidModal(false)}>
+              <button type="button" className="btn btn-outline" onClick={() => { setShowMermaidModal(false); }}>
                 Close
               </button>
             </div>

@@ -158,7 +158,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
             >
               <th
                 style={{ padding: "0.75rem 1rem", cursor: "pointer" }}
-                onClick={() => handleSort("title")}
+                onClick={() => { handleSort("title"); }}
               >
                 {t("history.releaseMedia")} {renderSortIndicator("title")}
               </th>
@@ -168,7 +168,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                   width: "100px",
                   cursor: "pointer",
                 }}
-                onClick={() => handleSort("totalSize")}
+                onClick={() => { handleSort("totalSize"); }}
               >
                 {t("history.size")} {renderSortIndicator("totalSize")}
               </th>
@@ -178,7 +178,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                   width: "120px",
                   cursor: "pointer",
                 }}
-                onClick={() => handleSort("uploaded")}
+                onClick={() => { handleSort("uploaded"); }}
               >
                 {t("history.uploaded")} {renderSortIndicator("uploaded")}
               </th>
@@ -188,7 +188,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                   width: "90px",
                   cursor: "pointer",
                 }}
-                onClick={() => handleSort("ratio")}
+                onClick={() => { handleSort("ratio"); }}
               >
                 {t("history.ratio")} {renderSortIndicator("ratio")}
               </th>
@@ -198,7 +198,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                   width: "100px",
                   cursor: "pointer",
                 }}
-                onClick={() => handleSort("seedingTime")}
+                onClick={() => { handleSort("seedingTime"); }}
               >
                 {t("history.seedTime")} {renderSortIndicator("seedingTime")}
               </th>
@@ -208,7 +208,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                   width: "130px",
                   cursor: "pointer",
                 }}
-                onClick={() => handleSort("dateAdded")}
+                onClick={() => { handleSort("dateAdded"); }}
               >
                 {t("history.dateAdded")} {renderSortIndicator("dateAdded")}
               </th>
@@ -218,7 +218,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                   width: "100px",
                   cursor: "pointer",
                 }}
-                onClick={() => handleSort("status")}
+                onClick={() => { handleSort("status"); }}
               >
                 {t("history.status")} {renderSortIndicator("status")}
               </th>
@@ -284,7 +284,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                                 ? "🎵"
                                 : "📦"
                         }
-                        onClick={() => onSelectItem(item)}
+                        onClick={() => { onSelectItem(item); }}
                       />
 
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -296,7 +296,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                             wordBreak: "break-word",
                             cursor: "pointer",
                           }}
-                          onClick={() => onSelectItem(item)}
+                          onClick={() => { onSelectItem(item); }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
@@ -343,7 +343,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                                   color: "inherit",
                                 }}
                                 title={arrLink.label}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); }}
                               >
                                 {item.source} ↗
                               </a>
@@ -378,8 +378,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                                 color: "var(--text-dim, #999)",
                                 cursor: "pointer",
                               }}
-                              onClick={() =>
-                                onFilterByTracker(item.primaryTracker || "")
+                              onClick={() => { onFilterByTracker(item.primaryTracker || ""); }
                               }
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
@@ -480,7 +479,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                           gap: "0.35rem",
                           whiteSpace: "nowrap",
                         }}
-                        onClick={() => onSelectItem(item)}
+                        onClick={() => { onSelectItem(item); }}
                         title={t("history.viewSynopsis")}
                       >
                         <span>ℹ️</span>
@@ -496,7 +495,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                           gap: "0.35rem",
                           whiteSpace: "nowrap",
                         }}
-                        onClick={() => onSearchItem(item.title)}
+                        onClick={() => { onSearchItem(item.title); }}
                         title={t("history.searchReleaseAgain")}
                       >
                         <span>🔍</span>
@@ -512,7 +511,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                           gap: "0.35rem",
                           whiteSpace: "nowrap",
                         }}
-                        onClick={() => onReAddItem(item.id, item.title)}
+                        onClick={() => { onReAddItem(item.id, item.title); }}
                         disabled={isReAdding || item.status === "Active"}
                         title={
                           item.status === "Active"
@@ -537,7 +536,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                           justifyContent: "center",
                           whiteSpace: "nowrap",
                         }}
-                        onClick={() => onDeleteItem(item.id, item.title)}
+                        onClick={() => { onDeleteItem(item.id, item.title); }}
                         title={t("history.deleteHistoricalRecord")}
                       >
                         ✕

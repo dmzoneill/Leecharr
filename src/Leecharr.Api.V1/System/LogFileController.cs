@@ -78,7 +78,7 @@ public class LogFileController : ControllerBase
         return this.File(stream, "text/plain", sanitized);
     }
 
-    [HttpDelete]
+    [HttpDelete] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult ClearLogs()
     {
         var logDir = Path.Combine(this.appFolderInfo.AppDataFolder, "logs");

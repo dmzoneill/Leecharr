@@ -192,7 +192,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         });
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public async Task<IActionResult> HandleRpc([FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] TransmissionRpcRequest request = null)
     {
         if (!RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider))

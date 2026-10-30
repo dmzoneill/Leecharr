@@ -108,7 +108,7 @@ function SettingsContent() {
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); };
   }, []);
 
   // Search filter across all 23 focused pages
@@ -144,13 +144,13 @@ function SettingsContent() {
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    return () => { window.removeEventListener("beforeunload", handleBeforeUnload); };
   }, [isDirty]);
 
   const handleSelectPage = (pageId: string) => {
     void confirmIfDirty(() => {
       setSearchQuery("");
-      navigate(`/settings/${pageId}`);
+      void navigate(`/settings/${pageId}`);
     });
   };
 
@@ -290,7 +290,7 @@ function SettingsContent() {
               ref={searchInputRef}
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); }}
               placeholder={t("settingsTabs.search.placeholder")}
               style={{
                 background: "transparent",
@@ -304,7 +304,7 @@ function SettingsContent() {
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
+                onClick={() => { setSearchQuery(""); }}
                 style={{
                   background: "none",
                   border: "none",
@@ -355,7 +355,7 @@ function SettingsContent() {
             </span>
             <button
               type="button"
-              onClick={() => setSearchQuery("")}
+              onClick={() => { setSearchQuery(""); }}
               className="btn btn-outline btn-small"
               style={{ fontSize: "0.75rem" }}
             >
@@ -386,7 +386,7 @@ function SettingsContent() {
                   key={page.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => handleSelectPage(page.id)}
+                  onClick={() => { handleSelectPage(page.id); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();

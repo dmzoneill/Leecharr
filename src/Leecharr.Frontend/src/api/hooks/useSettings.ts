@@ -52,7 +52,7 @@ function useConfigMutation<T>(section: string) {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["config", section] });
+      void queryClient.invalidateQueries({ queryKey: ["config", section] });
     },
   });
 }
@@ -208,8 +208,8 @@ export function useArrSync() {
   return useMutation<SyncResult, Error>({
     mutationFn: () => apiClient.post("/arrsync/sync"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["arrconnections"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["arrconnections"] });
     },
   });
 }
@@ -324,7 +324,7 @@ export function usePauseRemoteTorrent(clientId?: number) {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
     },
   });
 }
@@ -343,7 +343,7 @@ export function useResumeRemoteTorrent(clientId?: number) {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
     },
   });
 }
@@ -362,7 +362,7 @@ export function useDeleteRemoteTorrent(clientId?: number) {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
     },
   });
 }
@@ -383,10 +383,10 @@ export function useImportDownloadClientTorrent(clientId?: number) {
       return apiClient.post(`/downloadclients/${targetId}/import/${hash}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["downloadclients"],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -410,10 +410,10 @@ export function useImportDownloadClientTorrents(clientId?: number) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["downloadclients"],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -525,7 +525,7 @@ export function useSyncRss() {
   return useMutation<{ success: boolean; grabbedCount: number }, Error, void>({
     mutationFn: () => apiClient.post("/rssrules/sync"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }

@@ -375,7 +375,7 @@ export function useIdleTimer(
       onIdle: () => callbacksRef.current.onIdle?.(),
       onWarning: (sec) => callbacksRef.current.onWarning?.(sec),
       onActive: () => callbacksRef.current.onActive?.(),
-      onChange: (next) => setState(next),
+      onChange: (next) => { setState(next); },
     });
 
     trackerRef.current = tracker;

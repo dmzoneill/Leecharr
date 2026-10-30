@@ -92,7 +92,7 @@ function Activity() {
       }));
     }, 1500);
 
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, []);
 
   const currentUpload = liveStats.uploadSpeed;

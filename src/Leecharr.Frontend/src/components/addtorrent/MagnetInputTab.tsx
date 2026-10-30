@@ -126,14 +126,14 @@ export function MagnetInputTab({
             <button
               type="button"
               className="btn btn-outline btn-xs"
-              onClick={async () => {
+              onClick={() => { void (async () => {
                 try {
                   const text = await navigator.clipboard.readText();
                   if (text) setMagnetLink(text.trim());
                 } catch {
                   // clipboard access rejected or unsupported
                 }
-              }}
+              })(); }}
               style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
               title={t(
                 "addTorrent.pasteClipboardTooltip",
@@ -146,7 +146,7 @@ export function MagnetInputTab({
               <button
                 type="button"
                 className="btn btn-outline btn-xs"
-                onClick={() => setMagnetLink("")}
+                onClick={() => { setMagnetLink(""); }}
                 style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
                 title={t("addTorrent.clearInputTooltip", "Clear input")}
               >
@@ -180,7 +180,7 @@ export function MagnetInputTab({
               "magnet:?xt=urn:btih:...",
             )}
             value={magnetLink}
-            onChange={(e) => setMagnetLink(e.target.value)}
+            onChange={(e) => { setMagnetLink(e.target.value); }}
             rows={isModal ? 4 : 5}
             style={{
               width: "100%",

@@ -317,7 +317,7 @@ export function TerminalView({
       handleResize();
       termRef.current?.focus();
     }, 100);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); };
   }, [isFullscreen, handleResize]);
 
   useEffect(() => {
@@ -326,7 +326,7 @@ export function TerminalView({
       handleResize();
     });
     observer.observe(containerRef.current);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); };
   }, [handleResize]);
 
   const handleCopyPath = async () => {
@@ -434,7 +434,7 @@ export function TerminalView({
           {cwd && (
             <button
               type="button"
-              onClick={handleCopyPath}
+              onClick={(...args: Parameters<typeof handleCopyPath>) => { void handleCopyPath(...args); }}
               className="btn btn-outline"
               style={{
                 padding: "0.2rem 0.5rem",

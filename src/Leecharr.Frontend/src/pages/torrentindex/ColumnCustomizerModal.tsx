@@ -50,7 +50,7 @@ export function ColumnCustomizerModal({
       const timer = setTimeout(() => {
         searchInputRef.current?.focus();
       }, 50);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); };
     }
   }, [isOpen]);
 
@@ -160,7 +160,7 @@ export function ColumnCustomizerModal({
         className="modal column-customizer-modal"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -208,14 +208,14 @@ export function ColumnCustomizerModal({
                 "Filter columns...",
               )}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); }}
               aria-label="Filter columns by name"
             />
             {search && (
               <button
                 type="button"
                 className="column-customizer-search-clear"
-                onClick={() => setSearch("")}
+                onClick={() => { setSearch(""); }}
                 title="Clear filter"
                 aria-label="Clear filter"
               >
@@ -231,8 +231,7 @@ export function ColumnCustomizerModal({
             <button
               type="button"
               className="btn btn-small btn-outline preset-btn"
-              onClick={() =>
-                onApplyPreset ? onApplyPreset("default") : onResetToDefaults?.()
+              onClick={() => { onApplyPreset ? onApplyPreset("default") : onResetToDefaults?.(); }
               }
               title="Reset to default 11 columns"
             >
@@ -249,8 +248,7 @@ export function ColumnCustomizerModal({
             <button
               type="button"
               className="btn btn-small btn-outline preset-btn"
-              onClick={() =>
-                onApplyPreset ? onApplyPreset("all") : onSelectAll?.()
+              onClick={() => { onApplyPreset ? onApplyPreset("all") : onSelectAll?.(); }
               }
               title="Enable all 39 columns"
             >
@@ -294,7 +292,7 @@ export function ColumnCustomizerModal({
                     <button
                       type="button"
                       className="column-customizer-group-toggle"
-                      onClick={() => handleToggleGroup(group.category.id)}
+                      onClick={() => { handleToggleGroup(group.category.id); }}
                       title={
                         allInGroupSelected
                           ? `Deselect all in ${categoryLabel}`
@@ -332,7 +330,7 @@ export function ColumnCustomizerModal({
                             type="checkbox"
                             checked={isChecked}
                             disabled={isLastRemaining}
-                            onChange={() => onToggleColumn(col.key)}
+                            onChange={() => { onToggleColumn(col.key); }}
                             aria-label={col.displayLabel}
                           />
                           <span className="column-name">

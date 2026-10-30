@@ -246,8 +246,8 @@ export default function SignalRProvider({
       }
 
       if (name.includes("tracker")) {
-        queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
-        queryClient.invalidateQueries({ queryKey: ["torrents"] });
+        void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+        void queryClient.invalidateQueries({ queryKey: ["torrents"] });
         const bodyObj = message.body as Record<string, unknown> | undefined;
         const torrentId =
           typeof bodyObj?.torrentId === "number"
@@ -256,19 +256,19 @@ export default function SignalRProvider({
               ? bodyObj.TorrentId
               : undefined;
         if (torrentId) {
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["torrents", torrentId, "trackers"],
           });
         }
       } else if (name.includes("category")) {
-        queryClient.invalidateQueries({ queryKey: ["categories"] });
+        void queryClient.invalidateQueries({ queryKey: ["categories"] });
       } else if (name.includes("tag")) {
-        queryClient.invalidateQueries({ queryKey: ["tags"] });
+        void queryClient.invalidateQueries({ queryKey: ["tags"] });
       } else if (name.includes("seeding")) {
-        queryClient.invalidateQueries({ queryKey: ["seeding", "stats"] });
+        void queryClient.invalidateQueries({ queryKey: ["seeding", "stats"] });
       } else if (name.includes("schedule") || name.includes("speedschedule")) {
-        queryClient.invalidateQueries({ queryKey: ["speedschedule"] });
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({ queryKey: ["speedschedule"] });
+        void queryClient.invalidateQueries({
           queryKey: ["speedschedule", "active"],
         });
       }
@@ -287,7 +287,7 @@ export default function SignalRProvider({
     for (const [event, queryKeys] of Object.entries(EVENT_INVALIDATION_MAP)) {
       const handler = (data?: unknown) => {
         for (const key of queryKeys) {
-          queryClient.invalidateQueries({ queryKey: key });
+          void queryClient.invalidateQueries({ queryKey: key });
         }
 
         const lowerEvent = event.toLowerCase();
@@ -305,10 +305,10 @@ export default function SignalRProvider({
                   : undefined;
 
           if (torrentId) {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
               queryKey: ["torrents", torrentId],
             });
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
               queryKey: ["torrents", torrentId, "trackers"],
             });
 
@@ -333,7 +333,7 @@ export default function SignalRProvider({
                 : undefined;
 
           if (torrentId) {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
               queryKey: ["torrents", torrentId, "trackers"],
             });
           }
@@ -396,7 +396,7 @@ export default function SignalRProvider({
     // 3. Reconnection query cache synchronization
     const handleReconnected = () => {
       for (const key of RECONNECT_QUERY_KEYS) {
-        queryClient.invalidateQueries({ queryKey: key });
+        void queryClient.invalidateQueries({ queryKey: key });
       }
     };
 

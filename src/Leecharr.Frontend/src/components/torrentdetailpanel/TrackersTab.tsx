@@ -31,7 +31,7 @@ export function NextAnnounceCountdown({
     const timer = setInterval(() => {
       setNow(Date.now());
     }, 1000);
-    return () => clearInterval(timer);
+    return () => { clearInterval(timer); };
   }, []);
 
   if (!nextAnnounce) {
@@ -180,7 +180,7 @@ export function TrackersTab({
     boostTorrent.mutate(effectiveId, {
       onSuccess: (res) => {
         showToast(res.message, res.boosted ? "success" : "info");
-        refetch();
+        void refetch();
       },
       onError: (err) => {
         showToast(
@@ -334,9 +334,9 @@ export function TrackersTab({
       );
     }
     if (errors.length > 0) {
-      errors.forEach((e) => showToast(e, "error"));
+      errors.forEach((e) => { showToast(e, "error"); });
     }
-    refetch();
+    void refetch();
   };
 
   const handleDeleteTracker = (trackerId: number) => {
@@ -353,7 +353,7 @@ export function TrackersTab({
             ),
             "success",
           );
-          refetch();
+          void refetch();
         },
         onError: (err) => {
           showToast(
@@ -532,7 +532,7 @@ export function TrackersTab({
                                     data.message || "Announce queued",
                                     "success",
                                   );
-                                  refetch();
+                                  void refetch();
                                 },
                                 onError: (err) => {
                                   showToast(
@@ -559,7 +559,7 @@ export function TrackersTab({
                             padding: "0.2rem 0.45rem",
                             fontSize: "0.72rem",
                           }}
-                          onClick={() => handleDeleteTracker(tItem.id)}
+                          onClick={() => { handleDeleteTracker(tItem.id); }}
                           disabled={deleteTracker.isPending}
                           title={t(
                             "torrentDetail.removeTracker",
@@ -666,7 +666,7 @@ export function TrackersTab({
             padding: "0.35rem 0.85rem",
             whiteSpace: "nowrap",
           }}
-          onClick={handleAddAndAnnounceSelected}
+          onClick={(...args: Parameters<typeof handleAddAndAnnounceSelected>) => { void handleAddAndAnnounceSelected(...args); }}
           disabled={
             isPrivate ||
             isAddingBatch ||
@@ -717,7 +717,7 @@ export function TrackersTab({
       <ErrorBoundary title="Tracker Picker">
         <TrackerMultiSelectModal
           isOpen={showPickerModal}
-          onClose={() => setShowPickerModal(false)}
+          onClose={() => { setShowPickerModal(false); }}
           trackers={pickerTrackers}
           selectedUrls={selectedUrls}
           onToggleUrl={handleToggleUrl}

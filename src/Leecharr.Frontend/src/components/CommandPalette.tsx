@@ -105,8 +105,8 @@ export function CommandPalette({
     } catch {
       await Promise.allSettled(active.map((tor) => api.pauseTorrent(tor.id)));
     }
-    queryClient.invalidateQueries({ queryKey: ["torrents"] });
-    queryClient.invalidateQueries({ queryKey: ["seeding"] });
+    void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    void queryClient.invalidateQueries({ queryKey: ["seeding"] });
     showToast(`Paused ${active.length} torrent(s)`, "info");
   }, [torrents, showToast, queryClient]);
 
@@ -127,8 +127,8 @@ export function CommandPalette({
     } catch {
       await Promise.allSettled(paused.map((tor) => api.resumeTorrent(tor.id)));
     }
-    queryClient.invalidateQueries({ queryKey: ["torrents"] });
-    queryClient.invalidateQueries({ queryKey: ["seeding"] });
+    void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    void queryClient.invalidateQueries({ queryKey: ["seeding"] });
     showToast(`Resumed ${paused.length} torrent(s)`, "success");
   }, [torrents, showToast, queryClient]);
 
@@ -181,7 +181,7 @@ export function CommandPalette({
         keywords: ["resume", "start", "unpause", "all", "play"],
         action: () => {
           onClose();
-          handleResumeAll();
+          void handleResumeAll();
         },
       },
       {
@@ -194,7 +194,7 @@ export function CommandPalette({
         keywords: ["pause", "stop", "freeze", "halt", "all"],
         action: () => {
           onClose();
-          handlePauseAll();
+          void handlePauseAll();
         },
       },
       {
@@ -285,7 +285,7 @@ export function CommandPalette({
         keywords: ["dashboard", "home", "stats", "overview", "main"],
         action: () => {
           onClose();
-          doNavigate("/");
+          void doNavigate("/");
         },
       },
       {
@@ -304,7 +304,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/torrents");
+          void doNavigate("/torrents");
         },
       },
       {
@@ -316,7 +316,7 @@ export function CommandPalette({
         keywords: ["history", "activity", "downloads", "audit", "completed"],
         action: () => {
           onClose();
-          doNavigate("/activity/history");
+          void doNavigate("/activity/history");
         },
       },
       {
@@ -335,7 +335,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/activity/metrics");
+          void doNavigate("/activity/metrics");
         },
       },
       {
@@ -347,7 +347,7 @@ export function CommandPalette({
         keywords: ["indexers", "search", "prowlarr", "torznab", "feeds"],
         action: () => {
           onClose();
-          doNavigate("/indexers");
+          void doNavigate("/indexers");
         },
       },
       {
@@ -367,7 +367,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/peermap");
+          void doNavigate("/peermap");
         },
       },
       {
@@ -386,7 +386,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/schedule");
+          void doNavigate("/schedule");
         },
       },
       {
@@ -398,7 +398,7 @@ export function CommandPalette({
         keywords: ["statistics", "stats", "ratio", "storage", "analytics"],
         action: () => {
           onClose();
-          doNavigate("/statistics");
+          void doNavigate("/statistics");
         },
       },
       {
@@ -417,7 +417,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/trackerboost");
+          void doNavigate("/trackerboost");
         },
       },
       {
@@ -429,7 +429,7 @@ export function CommandPalette({
         keywords: ["terminal", "cli", "shell", "bash", "command line", "pty"],
         action: () => {
           onClose();
-          doNavigate("/terminal");
+          void doNavigate("/terminal");
         },
       },
       {
@@ -448,7 +448,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/files");
+          void doNavigate("/files");
         },
       },
       {
@@ -469,7 +469,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/automation");
+          void doNavigate("/automation");
         },
       },
       {
@@ -481,7 +481,7 @@ export function CommandPalette({
         keywords: ["system", "status", "health", "uptime", "version", "engine"],
         action: () => {
           onClose();
-          doNavigate("/system/status");
+          void doNavigate("/system/status");
         },
       },
       {
@@ -501,7 +501,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/system/resources");
+          void doNavigate("/system/resources");
         },
       },
       {
@@ -513,7 +513,7 @@ export function CommandPalette({
         keywords: ["backup", "restore", "database", "export", "import"],
         action: () => {
           onClose();
-          doNavigate("/system/backup");
+          void doNavigate("/system/backup");
         },
       },
       {
@@ -532,7 +532,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/system/logs");
+          void doNavigate("/system/logs");
         },
       },
       {
@@ -552,7 +552,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/system/api");
+          void doNavigate("/system/api");
         },
       },
       {
@@ -571,7 +571,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/developer/database");
+          void doNavigate("/developer/database");
         },
       },
       {
@@ -583,7 +583,7 @@ export function CommandPalette({
         keywords: ["developer", "commands", "pipeline", "queue", "tasks"],
         action: () => {
           onClose();
-          doNavigate("/developer/commands");
+          void doNavigate("/developer/commands");
         },
       },
       {
@@ -601,7 +601,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          doNavigate("/developer/events");
+          void doNavigate("/developer/events");
         },
       },
       {
@@ -613,7 +613,7 @@ export function CommandPalette({
         keywords: ["developer", "webhooks", "arr", "payload", "simulate"],
         action: () => {
           onClose();
-          doNavigate("/developer/webhooks");
+          void doNavigate("/developer/webhooks");
         },
       },
       {
@@ -625,7 +625,7 @@ export function CommandPalette({
         keywords: ["developer", "testing", "smoke", "diagnostics", "tests"],
         action: () => {
           onClose();
-          doNavigate("/developer/testing");
+          void doNavigate("/developer/testing");
         },
       },
     );
@@ -643,7 +643,7 @@ export function CommandPalette({
           keywords: ["settings", "config", page.id, ...(page.keywords || [])],
           action: () => {
             onClose();
-            doNavigate(`/settings/${page.id}`);
+            void doNavigate(`/settings/${page.id}`);
           },
         });
       }
@@ -668,7 +668,7 @@ export function CommandPalette({
         action: () => {
           onClose();
           setSelectedTorrentId(tor.id);
-          doNavigate("/torrents");
+          void doNavigate("/torrents");
         },
       });
     }
@@ -777,7 +777,7 @@ export function CommandPalette({
         className="modal-content command-palette-modal"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -832,7 +832,7 @@ export function CommandPalette({
           {query ? (
             <button
               type="button"
-              onClick={() => setQuery("")}
+              onClick={() => { setQuery(""); }}
               aria-label={t("common.clear", "Clear")}
               style={{
                 background: "transparent",
@@ -901,7 +901,7 @@ export function CommandPalette({
                       item.action();
                     }
                   }}
-                  onMouseEnter={() => setSelectedIndex(idx)}
+                  onMouseEnter={() => { setSelectedIndex(idx); }}
                   style={{
                     display: "flex",
                     alignItems: "center",

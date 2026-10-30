@@ -62,7 +62,7 @@ export default function DeveloperRepl() {
   }, []);
 
   useEffect(() => {
-    fetchHistory();
+    void fetchHistory();
   }, [fetchHistory]);
 
   const handleExecute = async () => {
@@ -84,7 +84,7 @@ export default function DeveloperRepl() {
       } else {
         setActiveTab("result");
       }
-      fetchHistory();
+      void fetchHistory();
       setActionMessage({
         text: res.success ? `Script evaluated successfully in ${res.durationMs}ms.` : `Evaluation failed: ${res.errorMessage}`,
         type: res.success ? "success" : "error",
@@ -151,7 +151,7 @@ export default function DeveloperRepl() {
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button
             type="button"
-            onClick={handleResetSession}
+            onClick={(...args: Parameters<typeof handleResetSession>) => { void handleResetSession(...args); }}
             style={{
               padding: "7px 14px",
               borderRadius: "6px",
@@ -193,7 +193,7 @@ export default function DeveloperRepl() {
           <button
             key={preset.name}
             type="button"
-            onClick={() => setCode(preset.code)}
+            onClick={() => { setCode(preset.code); }}
             style={{
               padding: "5px 12px",
               borderRadius: "6px",
@@ -236,7 +236,7 @@ export default function DeveloperRepl() {
           <textarea
             ref={textareaRef}
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => { setCode(e.target.value); }}
             onKeyDown={handleKeyDown}
             style={{
               flex: 1,
@@ -260,7 +260,7 @@ export default function DeveloperRepl() {
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }}>
             <button
               type="button"
-              onClick={handleExecute}
+              onClick={(...args: Parameters<typeof handleExecute>) => { void handleExecute(...args); }}
               disabled={isExecuting || !code.trim()}
               style={{
                 display: "inline-flex",
@@ -299,7 +299,7 @@ export default function DeveloperRepl() {
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 type="button"
-                onClick={() => setActiveTab("result")}
+                onClick={() => { setActiveTab("result"); }}
                 style={{
                   padding: "4px 10px",
                   borderRadius: "4px",
@@ -315,7 +315,7 @@ export default function DeveloperRepl() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab("logs")}
+                onClick={() => { setActiveTab("logs"); }}
                 style={{
                   padding: "4px 10px",
                   borderRadius: "4px",
@@ -379,7 +379,7 @@ export default function DeveloperRepl() {
             </h3>
             <button
               type="button"
-              onClick={handleClearHistory}
+              onClick={(...args: Parameters<typeof handleClearHistory>) => { void handleClearHistory(...args); }}
               style={{
                 background: "transparent",
                 border: "none",
@@ -405,7 +405,7 @@ export default function DeveloperRepl() {
                 key={h.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => setCode(h.code)}
+                onClick={() => { setCode(h.code); }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();

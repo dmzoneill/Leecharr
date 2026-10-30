@@ -88,7 +88,7 @@ function PeerMap() {
               t("torrents.detail.peerDisconnected", "Peer disconnected"),
             "success",
           );
-          queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+          void queryClient.invalidateQueries({ queryKey: ["peerlog"] });
         },
         onError: (err) => {
           showToast(err.message || "Failed to disconnect peer", "error");
@@ -119,8 +119,8 @@ function PeerMap() {
               t("torrents.detail.peerBanned", "Peer banned and disconnected"),
             "success",
           );
-          queryClient.invalidateQueries({ queryKey: ["peerlog"] });
-          queryClient.invalidateQueries({ queryKey: ["blocklist"] });
+          void queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+          void queryClient.invalidateQueries({ queryKey: ["blocklist"] });
         },
         onError: (err) => {
           showToast(err.message || "Failed to ban peer", "error");
@@ -152,7 +152,7 @@ function PeerMap() {
       await apiClient.post("/system/task/GeoIpUpdate/execute", {});
       showToast(t("automation.commands.GeoIpUpdate"), "success");
       await queryClient.invalidateQueries({ queryKey: ["peerlog"] });
-      refetchGraph();
+      void refetchGraph();
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Failed to trigger GeoIP update";
@@ -200,7 +200,7 @@ function PeerMap() {
   useEffect(() => {
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
-    return () => window.removeEventListener("resize", updateDimensions);
+    return () => { window.removeEventListener("resize", updateDimensions); };
   }, [updateDimensions]);
 
   useEffect(() => {
@@ -877,7 +877,7 @@ function PeerMap() {
             <button
               key={h}
               className={`peer-map-btn ${hours === h ? "peer-map-btn-active" : ""}`}
-              onClick={() => setHours(h)}
+              onClick={() => { setHours(h); }}
             >
               {h}h
             </button>
@@ -889,7 +889,7 @@ function PeerMap() {
           <label className="peer-map-label">{t("peerMap.filterSwarm")}</label>
           <select
             value={selectedTorrentFilter}
-            onChange={(e) => setSelectedTorrentFilter(e.target.value)}
+            onChange={(e) => { setSelectedTorrentFilter(e.target.value); }}
             style={{
               padding: "0.35rem 0.65rem",
               borderRadius: "6px",
@@ -924,7 +924,7 @@ function PeerMap() {
           </span>
           <button
             className="btn btn-small btn-secondary"
-            onClick={handleRefreshGeoIp}
+            onClick={(...args: Parameters<typeof handleRefreshGeoIp>) => { void handleRefreshGeoIp(...args); }}
             disabled={isUpdatingGeoIp}
             style={{
               padding: "0.3rem 0.65rem",
@@ -1015,7 +1015,7 @@ function PeerMap() {
           width={dimensions.width}
           height={dimensions.height}
           className="peer-map-svg"
-          onClick={() => setSelectedNode(null)}
+          onClick={() => { setSelectedNode(null); }}
         />
 
         {/* Floating Zoom Controls */}
@@ -1096,7 +1096,7 @@ function PeerMap() {
               boxShadow: "0 12px 35px rgba(0, 0, 0, 0.7)",
               zIndex: 10,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1132,7 +1132,7 @@ function PeerMap() {
                   cursor: "pointer",
                   color: "var(--text-muted)",
                 }}
-                onClick={() => setSelectedNode(null)}
+                onClick={() => { setSelectedNode(null); }}
                 aria-label={t("common.close", "Close")}
               >
                 ✕
@@ -1201,7 +1201,7 @@ function PeerMap() {
                 </div>
                 <button
                   className="btn btn-small btn-outline"
-                  onClick={handleRefreshGeoIp}
+                  onClick={(...args: Parameters<typeof handleRefreshGeoIp>) => { void handleRefreshGeoIp(...args); }}
                   disabled={isUpdatingGeoIp}
                   style={{
                     padding: "0.15rem 0.4rem",
@@ -1328,7 +1328,7 @@ function PeerMap() {
                     useTorrentStore
                       .getState()
                       .setSelectedTorrentId(selectedNodeTorrent.id);
-                    navigate(`/torrents?id=${selectedNodeTorrent.id}`);
+                    void navigate(`/torrents?id=${selectedNodeTorrent.id}`);
                     return;
                   }
                   const hash = selectedNode.infoHash;
@@ -1342,11 +1342,11 @@ function PeerMap() {
                       useTorrentStore
                         .getState()
                         .setSelectedTorrentId(matchedTorrent.id);
-                      navigate(`/torrents?id=${matchedTorrent.id}`);
+                      void navigate(`/torrents?id=${matchedTorrent.id}`);
                       return;
                     }
                   }
-                  navigate("/torrents");
+                  void navigate("/torrents");
                 }}
               >
                 {t("peerMap.openInTorrents")}

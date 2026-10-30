@@ -162,7 +162,7 @@ function ScheduleModal({
         className="modal"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -198,7 +198,7 @@ function ScheduleModal({
               type="text"
               placeholder={t("speedSchedule.namePlaceholder")}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); }}
               style={{ width: "100%", borderRadius: "6px" }}
             />
           </label>
@@ -226,7 +226,7 @@ function ScheduleModal({
                 <button
                   type="button"
                   className={`btn btn-small ${form.days === PRESETS.everyday ? "btn-primary" : "btn-outline"}`}
-                  onClick={() => setForm({ ...form, days: PRESETS.everyday })}
+                  onClick={() => { setForm({ ...form, days: PRESETS.everyday }); }}
                   style={{ fontSize: "0.72rem", padding: "2px 6px" }}
                 >
                   {t("speedSchedule.allDays")}
@@ -234,7 +234,7 @@ function ScheduleModal({
                 <button
                   type="button"
                   className={`btn btn-small ${form.days === PRESETS.weekdays ? "btn-primary" : "btn-outline"}`}
-                  onClick={() => setForm({ ...form, days: PRESETS.weekdays })}
+                  onClick={() => { setForm({ ...form, days: PRESETS.weekdays }); }}
                   style={{ fontSize: "0.72rem", padding: "2px 6px" }}
                 >
                   {t("speedSchedule.workdays")}
@@ -242,7 +242,7 @@ function ScheduleModal({
                 <button
                   type="button"
                   className={`btn btn-small ${form.days === PRESETS.weekends ? "btn-primary" : "btn-outline"}`}
-                  onClick={() => setForm({ ...form, days: PRESETS.weekends })}
+                  onClick={() => { setForm({ ...form, days: PRESETS.weekends }); }}
                   style={{ fontSize: "0.72rem", padding: "2px 6px" }}
                 >
                   {t("speedSchedule.weekends")}
@@ -254,7 +254,7 @@ function ScheduleModal({
                 <button
                   key={d.value}
                   className={`btn btn-small ${form.days & d.value ? "btn-primary" : "btn-outline"}`}
-                  onClick={() => toggleDay(d.value)}
+                  onClick={() => { toggleDay(d.value); }}
                   type="button"
                   style={{ minWidth: "42px", borderRadius: "4px" }}
                 >
@@ -296,8 +296,7 @@ function ScheduleModal({
                 className="form-input"
                 type="time"
                 value={form.startTime}
-                onChange={(e) =>
-                  setForm({ ...form, startTime: e.target.value })
+                onChange={(e) => { setForm({ ...form, startTime: e.target.value }); }
                 }
                 style={{ width: "100%", borderRadius: "6px" }}
               />
@@ -318,7 +317,7 @@ function ScheduleModal({
                 className="form-input"
                 type="time"
                 value={form.endTime}
-                onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                onChange={(e) => { setForm({ ...form, endTime: e.target.value }); }}
                 style={{ width: "100%", borderRadius: "6px" }}
               />
             </label>
@@ -342,14 +341,13 @@ function ScheduleModal({
                 type="number"
                 min={-1}
                 value={form.maxUploadSpeed || ""}
-                onChange={(e) =>
-                  setForm({
+                onChange={(e) => { setForm({
                     ...form,
                     maxUploadSpeed:
                       e.target.value === ""
                         ? 0
                         : Math.max(-1, Number.parseInt(e.target.value, 10) || 0),
-                  })
+                  }); }
                 }
                 placeholder="0"
                 style={{ width: "100%", borderRadius: "6px" }}
@@ -368,11 +366,10 @@ function ScheduleModal({
                 <input
                   type="checkbox"
                   checked={form.maxUploadSpeed === -1}
-                  onChange={(e) =>
-                    setForm({
+                  onChange={(e) => { setForm({
                       ...form,
                       maxUploadSpeed: e.target.checked ? -1 : 0,
-                    })
+                    }); }
                   }
                 />
                 <span>{t("speedSchedule.paused")}</span>
@@ -395,14 +392,13 @@ function ScheduleModal({
                 type="number"
                 min={-1}
                 value={form.maxDownloadSpeed || ""}
-                onChange={(e) =>
-                  setForm({
+                onChange={(e) => { setForm({
                     ...form,
                     maxDownloadSpeed:
                       e.target.value === ""
                         ? 0
                         : Math.max(-1, Number.parseInt(e.target.value, 10) || 0),
-                  })
+                  }); }
                 }
                 placeholder="0"
                 style={{ width: "100%", borderRadius: "6px" }}
@@ -421,11 +417,10 @@ function ScheduleModal({
                 <input
                   type="checkbox"
                   checked={form.maxDownloadSpeed === -1}
-                  onChange={(e) =>
-                    setForm({
+                  onChange={(e) => { setForm({
                       ...form,
                       maxDownloadSpeed: e.target.checked ? -1 : 0,
-                    })
+                    }); }
                   }
                 />
                 <span>{t("speedSchedule.paused")}</span>
@@ -450,8 +445,7 @@ function ScheduleModal({
                 className="form-input"
                 type="number"
                 value={form.priority}
-                onChange={(e) =>
-                  setForm({ ...form, priority: Number(e.target.value) })
+                onChange={(e) => { setForm({ ...form, priority: Number(e.target.value) }); }
                 }
                 style={{ width: "100%", borderRadius: "6px" }}
               />
@@ -469,8 +463,7 @@ function ScheduleModal({
               <input
                 type="checkbox"
                 checked={form.isEnabled}
-                onChange={(e) =>
-                  setForm({ ...form, isEnabled: e.target.checked })
+                onChange={(e) => { setForm({ ...form, isEnabled: e.target.checked }); }
                 }
               />
               <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
@@ -855,9 +848,9 @@ function WeeklyCalendar({
                   data-calendar-cell="true"
                   data-day-idx={dayIdx}
                   data-hour={hour}
-                  onMouseDown={(e) => handleMouseDown(e, dayIdx, hour)}
-                  onMouseEnter={() => handleMouseEnter(dayIdx, hour)}
-                  onTouchStart={(e) => handleTouchStart(e, dayIdx, hour)}
+                  onMouseDown={(e) => { handleMouseDown(e, dayIdx, hour); }}
+                  onMouseEnter={() => { handleMouseEnter(dayIdx, hour); }}
+                  onTouchStart={(e) => { handleTouchStart(e, dayIdx, hour); }}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onDoubleClick={() => {
@@ -1011,7 +1004,7 @@ function WeeklyCalendar({
             <button
               type="button"
               className="btn btn-outline btn-small"
-              onClick={() => setSelectedRange(null)}
+              onClick={() => { setSelectedRange(null); }}
             >
               {t("speedSchedule.clearSelection")}
             </button>
@@ -1144,17 +1137,15 @@ export function SpeedSchedule() {
     if (!ok) return;
 
     deleteSchedule.mutate(id, {
-      onSuccess: () =>
-        showToast(
+      onSuccess: () => { showToast(
           t("speedSchedule.deletedToast", "Speed schedule deleted"),
           "info",
-        ),
-      onError: (err: unknown) =>
-        showToast(
+        ); },
+      onError: (err: unknown) => { showToast(
           (err as Error)?.message ||
             t("speedSchedule.deleteError", "Failed to delete schedule"),
           "error",
-        ),
+        ); },
     });
   }
 
@@ -1232,7 +1223,7 @@ export function SpeedSchedule() {
         <div>
           <button
             className="btn btn-primary"
-            onClick={() => setModal({ ...EMPTY_SCHEDULE })}
+            onClick={() => { setModal({ ...EMPTY_SCHEDULE }); }}
           >
             {t("speedSchedule.addSchedule")}
           </button>
@@ -1518,7 +1509,7 @@ export function SpeedSchedule() {
                       </div>
                       <button
                         className="btn btn-primary btn-small"
-                        onClick={() => setModal({ ...EMPTY_SCHEDULE })}
+                        onClick={() => { setModal({ ...EMPTY_SCHEDULE }); }}
                       >
                         {t("speedSchedule.addFirstSchedule")}
                       </button>
@@ -1594,13 +1585,13 @@ export function SpeedSchedule() {
                         <div style={{ display: "inline-flex", gap: 6 }}>
                           <button
                             className="btn btn-small btn-outline"
-                            onClick={() => setModal({ ...s })}
+                            onClick={() => { setModal({ ...s }); }}
                           >
                             {t("common.edit")}
                           </button>
                           <button
                             className="btn btn-small btn-danger"
-                            onClick={() => handleDelete(s.id, s.name)}
+                            onClick={() => { void handleDelete(s.id, s.name); }}
                           >
                             {t("common.delete")}
                           </button>
@@ -1619,7 +1610,7 @@ export function SpeedSchedule() {
         <ScheduleModal
           schedule={modal}
           onSave={handleSave}
-          onCancel={() => setModal(null)}
+          onCancel={() => { setModal(null); }}
           isPending={createSchedule.isPending || updateSchedule.isPending}
         />
       )}

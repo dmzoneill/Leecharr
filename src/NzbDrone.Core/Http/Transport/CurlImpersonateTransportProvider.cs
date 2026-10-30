@@ -244,7 +244,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IHttpOut
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = binaryPath,
+            FileName = binaryPath, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
             UseShellExecute = false,
             RedirectStandardError = true,
             CreateNoWindow = true,

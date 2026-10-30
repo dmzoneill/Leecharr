@@ -28,7 +28,7 @@ export function useCreateAutomationScript() {
   return useMutation<AutomationScript, Error, Partial<AutomationScript>>({
     mutationFn: (script) => apiClient.post("/automation", script),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
+      void queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
     },
   });
 }
@@ -38,7 +38,7 @@ export function useUpdateAutomationScript() {
   return useMutation<AutomationScript, Error, AutomationScript>({
     mutationFn: (script) => apiClient.put("/automation", script),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
+      void queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
     },
   });
 }
@@ -48,7 +48,7 @@ export function useDeleteAutomationScript() {
   return useMutation<void, Error, number>({
     mutationFn: (id: number) => apiClient.delete(`/automation/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
+      void queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
     },
   });
 }
@@ -65,8 +65,8 @@ export function useRunAutomationScript() {
         `/automation/${id}/run${torrentId ? `?torrentId=${torrentId}` : ""}`,
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -93,7 +93,7 @@ export function useInstallMarketplaceTemplate() {
   >({
     mutationFn: (req) => apiClient.post("/automation/marketplace/install", req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
+      void queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
     },
   });
 }

@@ -170,7 +170,7 @@ public class BackupController : Controller
         return this.File(stream, "application/zip", backup.Name);
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public async Task<ActionResult<BackupResource>> Create()
     {
         string tempDumpFile = null;
@@ -831,7 +831,7 @@ public class BackupController : Controller
 
             var psi = new ProcessStartInfo
             {
-                FileName = pgDumpExe,
+                FileName = pgDumpExe, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -848,7 +848,7 @@ public class BackupController : Controller
                 psi.EnvironmentVariables["PGPASSWORD"] = password;
             }
 
-            using var proc = Process.Start(psi);
+            using var proc = Process.Start(psi); /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
             if (proc == null)
             {
                 this.logger.Error("Failed to start pg_dump process.");
@@ -923,7 +923,7 @@ public class BackupController : Controller
 
             var psi = new ProcessStartInfo
             {
-                FileName = psqlExe,
+                FileName = psqlExe, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

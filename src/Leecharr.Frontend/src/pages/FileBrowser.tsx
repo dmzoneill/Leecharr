@@ -305,7 +305,7 @@ export function FileBrowser() {
 
   const handleOpenInCli = () => {
     const target = currentPath || listing?.path || "/downloads";
-    navigate(`/developer/terminal?path=${encodeURIComponent(target)}`);
+    void navigate(`/developer/terminal?path=${encodeURIComponent(target)}`);
   };
 
   const handleDownloadFile = useCallback(
@@ -548,7 +548,7 @@ export function FileBrowser() {
       if (!targetFile || targetFile.isDirectory) {
         tbActions
           .querySelectorAll(".leecharr-tb-btn")
-          .forEach((el) => el.remove());
+          .forEach((el) => { el.remove(); });
         delete tbActions.dataset.leecharrPath;
         return;
       }
@@ -559,7 +559,7 @@ export function FileBrowser() {
 
       tbActions
         .querySelectorAll(".leecharr-tb-btn")
-        .forEach((el) => el.remove());
+        .forEach((el) => { el.remove(); });
       tbActions.dataset.leecharrPath = targetFile.path;
 
       const isPlayable = isPlayableFile(targetFile.name);
@@ -751,7 +751,7 @@ export function FileBrowser() {
         }),
         "success",
       );
-      refetch();
+      void refetch();
     } catch (err: unknown) {
       showToast(
         (err as Error)?.message ||
@@ -775,7 +775,7 @@ export function FileBrowser() {
         }),
         "success",
       );
-      refetch();
+      void refetch();
     } catch (err: unknown) {
       showToast(
         (err as Error)?.message || t("filebrowser.failedToRename", "Failed to rename"),
@@ -804,7 +804,7 @@ export function FileBrowser() {
           "info",
         );
       }
-      refetch();
+      void refetch();
     } catch (err: unknown) {
       showToast(
         (err as Error)?.message ||
@@ -905,7 +905,7 @@ export function FileBrowser() {
         }),
         "success",
       );
-      refetch();
+      void refetch();
     } catch (err: unknown) {
       showToast(
         (err as Error)?.message ||
@@ -920,7 +920,7 @@ export function FileBrowser() {
       t("filebrowser.fileUploadedSuccess", "File uploaded successfully"),
       "success",
     );
-    refetch();
+    void refetch();
   };
 
   const segments = getPathSegments(currentPath || listing?.path || "/");
@@ -1074,7 +1074,7 @@ export function FileBrowser() {
                       alignItems: "center",
                       gap: "0.35rem",
                     }}
-                    onClick={() => handlePlayFile(selectedFiles[0])}
+                    onClick={() => { handlePlayFile(selectedFiles[0]); }}
                     title={t("common.play", "Play / Stream")}
                   >
                     <span>▶</span> {t("common.play", "Play")}
@@ -1083,7 +1083,7 @@ export function FileBrowser() {
                     type="button"
                     className="btn btn-outline"
                     style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
-                    onClick={() => handleDownloadM3u(selectedFiles[0])}
+                    onClick={() => { handleDownloadM3u(selectedFiles[0]); }}
                     title={t(
                       "filebrowser.downloadM3u",
                       "Download M3U Playlist",
@@ -1095,7 +1095,7 @@ export function FileBrowser() {
                     type="button"
                     className="btn btn-outline"
                     style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
-                    onClick={() => handlePreviewFile(selectedFiles[0])}
+                    onClick={() => { handlePreviewFile(selectedFiles[0]); }}
                     title={t("common.preview", "Quick Preview")}
                   >
                     👁 {t("common.preview", "Preview")}
@@ -1112,7 +1112,7 @@ export function FileBrowser() {
                     alignItems: "center",
                     gap: "0.35rem",
                   }}
-                  onClick={() => handlePreviewFile(selectedFiles[0])}
+                  onClick={() => { handlePreviewFile(selectedFiles[0]); }}
                   title={t("common.preview", "Preview File")}
                 >
                   <span>👁</span> {t("common.preview", "Preview")}
@@ -1134,7 +1134,7 @@ export function FileBrowser() {
             type="button"
             className="btn btn-outline"
             style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
-            onClick={() => refetch()}
+            onClick={() => { void refetch(); }}
             title={t("common.refresh", "Refresh")}
           >
             🔄 {t("common.refresh", "Refresh")}
@@ -1192,7 +1192,7 @@ export function FileBrowser() {
         {!/^[a-zA-Z]:/.test(displayPath.replace(/\\/g, "/")) && (
           <button
             type="button"
-            onClick={() => navigateTo("/")}
+            onClick={() => { navigateTo("/"); }}
             style={{
               background:
                 segments.length === 0
@@ -1224,7 +1224,7 @@ export function FileBrowser() {
               )}
               <button
                 type="button"
-                onClick={() => navigateTo(seg.fullPath)}
+                onClick={() => { navigateTo(seg.fullPath); }}
                 style={{
                   background:
                     idx === segments.length - 1
@@ -1308,8 +1308,8 @@ export function FileBrowser() {
           onCopy={handleCopy}
           onPaste={handlePaste}
           onFileUploaded={handleFileUploaded}
-          onSelectionChange={(selected) => setSelectedFiles(selected || [])}
-          onRefresh={() => refetch()}
+          onSelectionChange={(selected) => { setSelectedFiles(selected || []); }}
+          onRefresh={() => { void refetch(); }}
         />
       </div>
 
@@ -1318,7 +1318,7 @@ export function FileBrowser() {
           className="modal-overlay"
           role="button"
           tabIndex={0}
-          onClick={() => setPreviewPath(null)}
+          onClick={() => { setPreviewPath(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               if (e.target === e.currentTarget) {
@@ -1343,7 +1343,7 @@ export function FileBrowser() {
             className="modal-content"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1476,7 +1476,7 @@ export function FileBrowser() {
                   type="button"
                   className="btn btn-outline"
                   style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
-                  onClick={() => handleDownloadFile(previewPath)}
+                  onClick={() => { handleDownloadFile(previewPath); }}
                 >
                   📥 {t("common.download", "Download")}
                 </button>
@@ -1484,7 +1484,7 @@ export function FileBrowser() {
                   type="button"
                   className="btn btn-outline"
                   style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
-                  onClick={() => setPreviewPath(null)}
+                  onClick={() => { setPreviewPath(null); }}
                 >
                   ✕
                 </button>
@@ -1633,7 +1633,7 @@ export function FileBrowser() {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      onClick={() => handleDownloadFile(previewPath)}
+                      onClick={() => { handleDownloadFile(previewPath); }}
                     >
                       📥 {t("filebrowser.downloadFile", "Download File")} (
                       {previewData?.size ? formatBytes(previewData.size) : ""})
@@ -1659,7 +1659,7 @@ export function FileBrowser() {
       {playingMediaFile && (
         <MediaPlayerModal
           isOpen={true}
-          onClose={() => setPlayingMediaFile(null)}
+          onClose={() => { setPlayingMediaFile(null); }}
           file={{
             path: playingMediaFile.path,
             name: playingMediaFile.name,

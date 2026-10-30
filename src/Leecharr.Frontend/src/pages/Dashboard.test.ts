@@ -55,13 +55,13 @@ function createMockTorrent(overrides: Partial<Torrent> = {}): Torrent {
   };
 }
 
-describe("Dashboard Library Size Calculations (#994)", () => {
-  it("returns 0 for empty torrent list", () => {
+void describe("Dashboard Library Size Calculations (#994)", () => {
+  void it("returns 0 for empty torrent list", () => {
     assert.strictEqual(calculateCompletedLibrarySize([]), 0);
     assert.strictEqual(calculateTotalLibrarySize([]), 0);
   });
 
-  it("calculates completed library size for seeding and completed torrents", () => {
+  void it("calculates completed library size for seeding and completed torrents", () => {
     const torrents: Torrent[] = [
       createMockTorrent({
         id: 1,
@@ -87,7 +87,7 @@ describe("Dashboard Library Size Calculations (#994)", () => {
     assert.strictEqual(calculateTotalLibrarySize(torrents), 800_000_000);
   });
 
-  it("falls back to totalSize of library if no torrents are completed yet", () => {
+  void it("falls back to totalSize of library if no torrents are completed yet", () => {
     const torrents: Torrent[] = [
       createMockTorrent({
         id: 1,
@@ -107,7 +107,7 @@ describe("Dashboard Library Size Calculations (#994)", () => {
     assert.strictEqual(calculateTotalLibrarySize(torrents), 800_000_000);
   });
 
-  it("recognizes completed torrents by dateCompleted or progress >= 1", () => {
+  void it("recognizes completed torrents by dateCompleted or progress >= 1", () => {
     const torrents: Torrent[] = [
       createMockTorrent({
         id: 1,
@@ -129,8 +129,8 @@ describe("Dashboard Library Size Calculations (#994)", () => {
   });
 });
 
-describe("Dashboard Speed Schedule Status Card (#992)", () => {
-  it("displays 'Paused' on active mode badge when isPaused is true", () => {
+void describe("Dashboard Speed Schedule Status Card (#992)", () => {
+  void it("displays 'Paused' on active mode badge when isPaused is true", () => {
     assert.strictEqual(
       getActiveSpeedScheduleMode({ isPaused: true, isThrottled: true }),
       "Paused",
@@ -141,21 +141,21 @@ describe("Dashboard Speed Schedule Status Card (#992)", () => {
     );
   });
 
-  it("displays 'Mode Throttled' when throttled and not paused", () => {
+  void it("displays 'Mode Throttled' when throttled and not paused", () => {
     assert.strictEqual(
       getActiveSpeedScheduleMode({ isPaused: false, isThrottled: true }),
       "Mode Throttled",
     );
   });
 
-  it("displays 'Mode Scheduled' when scheduler is enabled and not throttled/paused", () => {
+  void it("displays 'Mode Scheduled' when scheduler is enabled and not throttled/paused", () => {
     assert.strictEqual(
       getActiveSpeedScheduleMode({ isPaused: false, isThrottled: false }, true),
       "Mode Scheduled",
     );
   });
 
-  it("displays 'Mode Normal' when no active schedule/throttle/pause", () => {
+  void it("displays 'Mode Normal' when no active schedule/throttle/pause", () => {
     assert.strictEqual(
       getActiveSpeedScheduleMode(
         { isPaused: false, isThrottled: false },
@@ -166,16 +166,16 @@ describe("Dashboard Speed Schedule Status Card (#992)", () => {
     assert.strictEqual(getActiveSpeedScheduleMode(null, false), "Mode Normal");
   });
 
-  it("formats speed limits as 'Paused' when direction is paused", () => {
+  void it("formats speed limits as 'Paused' when direction is paused", () => {
     assert.strictEqual(formatSpeedScheduleLimit(true, 0), "Paused");
     assert.strictEqual(formatSpeedScheduleLimit(true, 1024), "Paused");
   });
 
-  it("formats speed limits with speed when direction is active and limit > 0", () => {
+  void it("formats speed limits with speed when direction is active and limit > 0", () => {
     assert.strictEqual(formatSpeedScheduleLimit(false, 2048), "2048 KB/s");
   });
 
-  it("formats speed limits as 'Unlimited' when direction is not paused and limit is 0 or null", () => {
+  void it("formats speed limits as 'Unlimited' when direction is not paused and limit is 0 or null", () => {
     assert.strictEqual(formatSpeedScheduleLimit(false, 0), "Unlimited");
     assert.strictEqual(formatSpeedScheduleLimit(false, null), "Unlimited");
     assert.strictEqual(formatSpeedScheduleLimit(false, undefined), "Unlimited");

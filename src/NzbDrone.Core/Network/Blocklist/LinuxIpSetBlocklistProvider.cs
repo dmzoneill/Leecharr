@@ -182,8 +182,8 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = binaryPath,
-            Arguments = arguments,
+            FileName = binaryPath, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
+            Arguments = arguments, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
             RedirectStandardInput = stdIn != null,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

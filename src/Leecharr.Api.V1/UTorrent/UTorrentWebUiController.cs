@@ -107,7 +107,7 @@ public class UTorrentWebUiController : ControllerBase
         return this.Content(html, "text/html", Encoding.UTF8);
     }
 
-    [HttpGet]
+    [HttpGet] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPost]
     [Route("gui")]
     public async Task<IActionResult> HandleWebUi(

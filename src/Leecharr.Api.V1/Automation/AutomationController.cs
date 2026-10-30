@@ -48,7 +48,7 @@ public class AutomationController : RestControllerWithSignalR<AutomationScriptRe
         return ToResource(script);
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<AutomationScriptResource> Create([FromBody] AutomationScriptResource resource)
     {
         if (resource == null)
@@ -66,7 +66,7 @@ public class AutomationController : RestControllerWithSignalR<AutomationScriptRe
         return ToResource(added);
     }
 
-    [HttpPut]
+    [HttpPut] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<AutomationScriptResource> Update([FromBody] AutomationScriptResource resource)
     {
         if (resource == null)

@@ -97,14 +97,14 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
           <div className="view-toggle">
             <button
               className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
-              onClick={() => onViewModeChange("grid")}
+              onClick={() => { onViewModeChange("grid"); }}
               title={t("history.postersView")}
             >
               {t("history.postersView")}
             </button>
             <button
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
-              onClick={() => onViewModeChange("table")}
+              onClick={() => { onViewModeChange("table"); }}
               title={t("history.tableView")}
             >
               {t("history.tableView")}
@@ -188,7 +188,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
                 borderRadius: "6px",
                 fontWeight: 500,
               }}
-              onClick={() => onStatusFilterChange(st)}
+              onClick={() => { onStatusFilterChange(st); }}
             >
               {st === "all"
                 ? t("common.all", "All")
@@ -221,7 +221,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
                 type="date"
                 className="form-control"
                 value={startDate || ""}
-                onChange={(e) => onStartDateChange(e.target.value)}
+                onChange={(e) => { onStartDateChange(e.target.value); }}
                 style={{
                   padding: "0.35rem 0.5rem",
                   fontSize: "0.78rem",
@@ -237,7 +237,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
                 type="date"
                 className="form-control"
                 value={endDate || ""}
-                onChange={(e) => onEndDateChange(e.target.value)}
+                onChange={(e) => { onEndDateChange(e.target.value); }}
                 style={{
                   padding: "0.35rem 0.5rem",
                   fontSize: "0.78rem",
@@ -264,7 +264,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
               className="form-control"
               placeholder={t("history.filterPlaceholder")}
               value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={(e) => { onSearchChange(e.target.value); }}
               style={{
                 width: "100%",
                 padding: "0.4rem 0.75rem",
@@ -278,7 +278,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
             {searchTerm && (
               <button
                 className="btn btn-outline"
-                onClick={() => onSearchChange("")}
+                onClick={() => { onSearchChange(""); }}
                 style={{
                   position: "absolute",
                   right: "4px",

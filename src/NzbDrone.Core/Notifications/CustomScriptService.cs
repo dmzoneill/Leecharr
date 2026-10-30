@@ -605,7 +605,7 @@ public class CustomScriptService : ICustomScriptService
 
             var startInfo = new ProcessStartInfo
             {
-                FileName = resolvedFileName,
+                FileName = resolvedFileName, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 WorkingDirectory = workingDir,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

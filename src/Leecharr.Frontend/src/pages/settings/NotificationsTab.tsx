@@ -839,13 +839,13 @@ export function NotificationsTab() {
         <Toggle
           label={t("settingsTabs.notifications.enableToast")}
           checked={form.enabled}
-          onChange={(v) => setToastPref("enabled", v)}
+          onChange={(v) => { setToastPref("enabled", v); }}
           hint={t("settingsTabs.notifications.enableToastHint")}
         />
         <SelectInput
           label={t("settingsTabs.notifications.position")}
           value={form.position}
-          onChange={(v) => setToastPref("position", v)}
+          onChange={(v) => { setToastPref("position", v); }}
           options={[
             {
               value: "top-right",
@@ -870,7 +870,7 @@ export function NotificationsTab() {
         <NumberInput
           label={t("settingsTabs.notifications.timeout")}
           value={form.autoDismissSeconds}
-          onChange={(v) => setToastPref("autoDismissSeconds", v)}
+          onChange={(v) => { setToastPref("autoDismissSeconds", v); }}
           min={1}
           max={60}
           suffix={t("settingsTabs.notifications.timeoutSuffix")}
@@ -886,25 +886,25 @@ export function NotificationsTab() {
         <Toggle
           label={t("settingsTabs.notifications.info")}
           checked={form.showInfo}
-          onChange={(v) => setToastPref("showInfo", v)}
+          onChange={(v) => { setToastPref("showInfo", v); }}
           hint={t("settingsTabs.notifications.infoHint")}
         />
         <Toggle
           label={t("settingsTabs.notifications.success")}
           checked={form.showSuccess}
-          onChange={(v) => setToastPref("showSuccess", v)}
+          onChange={(v) => { setToastPref("showSuccess", v); }}
           hint={t("settingsTabs.notifications.successHint")}
         />
         <Toggle
           label={t("settingsTabs.notifications.warning")}
           checked={form.showWarning}
-          onChange={(v) => setToastPref("showWarning", v)}
+          onChange={(v) => { setToastPref("showWarning", v); }}
           hint={t("settingsTabs.notifications.warningHint")}
         />
         <Toggle
           label={t("settingsTabs.notifications.error")}
           checked={form.showError}
-          onChange={(v) => setToastPref("showError", v)}
+          onChange={(v) => { setToastPref("showError", v); }}
           hint={t("settingsTabs.notifications.errorHint")}
         />
       </SectionCard>
@@ -928,7 +928,7 @@ export function NotificationsTab() {
                   className="provider-card"
                   role="button"
                   tabIndex={0}
-                  onClick={() => handleOpenModal(notif)}
+                  onClick={() => { handleOpenModal(notif); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
@@ -946,7 +946,7 @@ export function NotificationsTab() {
                         title={t("settingsTabs.notifications.openEndpoint", {
                           url: externalUrl,
                         })}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); }}
                         style={{ textDecoration: "none", color: "inherit" }}
                       >
                         ↗
@@ -1072,7 +1072,7 @@ export function NotificationsTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1132,7 +1132,7 @@ export function NotificationsTab() {
             <Toggle
               label={t("settingsTabs.notifications.enableConnection")}
               checked={editing.enable}
-              onChange={(v) => setEditing({ ...editing, enable: v })}
+              onChange={(v) => { setEditing({ ...editing, enable: v }); }}
               hint={t("settingsTabs.notifications.enableConnectionHint")}
             />
 
@@ -1152,14 +1152,14 @@ export function NotificationsTab() {
                 <TextInput
                   label={t("settingsTabs.notifications.botUsername")}
                   value={editing.username}
-                  onChange={(v) => setEditing({ ...editing, username: v })}
+                  onChange={(v) => { setEditing({ ...editing, username: v }); }}
                   placeholder="Leecharr"
                   hint={t("settingsTabs.notifications.discordBotUsernameHint")}
                 />
                 <TextInput
                   label={t("settingsTabs.notifications.avatarUrl")}
                   value={editing.avatarUrl}
-                  onChange={(v) => setEditing({ ...editing, avatarUrl: v })}
+                  onChange={(v) => { setEditing({ ...editing, avatarUrl: v }); }}
                   placeholder="https://..."
                   hint={t("settingsTabs.notifications.avatarUrlHint")}
                 />
@@ -1218,7 +1218,7 @@ export function NotificationsTab() {
                 <NumberInput
                   label={t("settingsTabs.notifications.priority")}
                   value={editing.priority}
-                  onChange={(v) => setEditing({ ...editing, priority: v })}
+                  onChange={(v) => { setEditing({ ...editing, priority: v }); }}
                   min={1}
                   max={10}
                   hint={t("settingsTabs.notifications.priorityHint")}
@@ -1287,7 +1287,7 @@ export function NotificationsTab() {
                 <SelectInput
                   label={t("settingsTabs.notifications.httpMethod")}
                   value={editing.method}
-                  onChange={(v) => setEditing({ ...editing, method: v })}
+                  onChange={(v) => { setEditing({ ...editing, method: v }); }}
                   options={[
                     { value: "POST", label: "POST" },
                     { value: "PUT", label: "PUT" },
@@ -1296,14 +1296,14 @@ export function NotificationsTab() {
                 <TextInput
                   label={t("settingsTabs.notifications.customHeaders")}
                   value={editing.customHeaders}
-                  onChange={(v) => setEditing({ ...editing, customHeaders: v })}
+                  onChange={(v) => { setEditing({ ...editing, customHeaders: v }); }}
                   placeholder='{"Authorization": "Bearer token", "X-Custom": "val"}'
                   hint={t("settingsTabs.notifications.customHeadersHint")}
                 />
                 <TextInput
                   label={t("settingsTabs.notifications.basicAuthUsername")}
                   value={editing.username}
-                  onChange={(v) => setEditing({ ...editing, username: v })}
+                  onChange={(v) => { setEditing({ ...editing, username: v }); }}
                   placeholder={t(
                     "settingsTabs.notifications.basicAuthUsernamePlaceholder",
                   )}
@@ -1311,7 +1311,7 @@ export function NotificationsTab() {
                 <TextInput
                   label={t("settingsTabs.notifications.basicAuthPassword")}
                   value={editing.password}
-                  onChange={(v) => setEditing({ ...editing, password: v })}
+                  onChange={(v) => { setEditing({ ...editing, password: v }); }}
                   type="password"
                   placeholder={t(
                     "settingsTabs.notifications.basicAuthPasswordPlaceholder",
@@ -1360,7 +1360,7 @@ export function NotificationsTab() {
                 <NumberInput
                   label={t("settingsTabs.notifications.port")}
                   value={editing.port}
-                  onChange={(v) => setEditing({ ...editing, port: v })}
+                  onChange={(v) => { setEditing({ ...editing, port: v }); }}
                   min={1}
                   max={65535}
                   hint={t("settingsTabs.notifications.portHint")}
@@ -1368,12 +1368,12 @@ export function NotificationsTab() {
                 <Toggle
                   label={t("settingsTabs.notifications.useSsl")}
                   checked={editing.useSsl}
-                  onChange={(v) => setEditing({ ...editing, useSsl: v })}
+                  onChange={(v) => { setEditing({ ...editing, useSsl: v }); }}
                 />
                 <TextInput
                   label={t("settingsTabs.notifications.fromAddress")}
                   value={editing.from}
-                  onChange={(v) => setEditing({ ...editing, from: v })}
+                  onChange={(v) => { setEditing({ ...editing, from: v }); }}
                   placeholder="leecharr@example.com"
                   hint={t("settingsTabs.notifications.fromAddressHint")}
                 />
@@ -1390,7 +1390,7 @@ export function NotificationsTab() {
                 <TextInput
                   label={t("settingsTabs.notifications.smtpUsername")}
                   value={editing.username}
-                  onChange={(v) => setEditing({ ...editing, username: v })}
+                  onChange={(v) => { setEditing({ ...editing, username: v }); }}
                   placeholder={t(
                     "settingsTabs.notifications.smtpUsernamePlaceholder",
                   )}
@@ -1398,7 +1398,7 @@ export function NotificationsTab() {
                 <TextInput
                   label={t("settingsTabs.notifications.smtpPassword")}
                   value={editing.password}
-                  onChange={(v) => setEditing({ ...editing, password: v })}
+                  onChange={(v) => { setEditing({ ...editing, password: v }); }}
                   type="password"
                   placeholder={t(
                     "settingsTabs.notifications.smtpPasswordPlaceholder",
@@ -1524,7 +1524,7 @@ export function NotificationsTab() {
                   {editing.tags.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => setEditing({ ...editing, tags: [] })}
+                      onClick={() => { setEditing({ ...editing, tags: [] }); }}
                       className="btn btn-outline btn-small"
                       style={{
                         padding: "0.2rem 0.5rem",
@@ -1554,44 +1554,40 @@ export function NotificationsTab() {
               <Toggle
                 label={t("settingsTabs.notifications.onGrab")}
                 checked={editing.onGrab}
-                onChange={(v) => setEditing({ ...editing, onGrab: v })}
+                onChange={(v) => { setEditing({ ...editing, onGrab: v }); }}
                 hint={t("settingsTabs.notifications.onGrabHint")}
               />
               <Toggle
                 label={t("settingsTabs.notifications.onDownloadComplete")}
                 checked={editing.onDownloadComplete}
-                onChange={(v) =>
-                  setEditing({ ...editing, onDownloadComplete: v })
+                onChange={(v) => { setEditing({ ...editing, onDownloadComplete: v }); }
                 }
                 hint={t("settingsTabs.notifications.onDownloadCompleteHint")}
               />
               <Toggle
                 label={t("settingsTabs.notifications.onSeedGoalReached")}
                 checked={editing.onSeedGoalReached}
-                onChange={(v) =>
-                  setEditing({ ...editing, onSeedGoalReached: v })
+                onChange={(v) => { setEditing({ ...editing, onSeedGoalReached: v }); }
                 }
                 hint={t("settingsTabs.notifications.onSeedGoalReachedHint")}
               />
               <Toggle
                 label={t("settingsTabs.notifications.onHealthIssue")}
                 checked={editing.onHealthIssue}
-                onChange={(v) => setEditing({ ...editing, onHealthIssue: v })}
+                onChange={(v) => { setEditing({ ...editing, onHealthIssue: v }); }}
                 hint={t("settingsTabs.notifications.onHealthIssueHint")}
               />
               <Toggle
                 label={t("settingsTabs.notifications.onHealthRestored")}
                 checked={editing.onHealthRestored}
-                onChange={(v) =>
-                  setEditing({ ...editing, onHealthRestored: v })
+                onChange={(v) => { setEditing({ ...editing, onHealthRestored: v }); }
                 }
                 hint={t("settingsTabs.notifications.onHealthRestoredHint")}
               />
               <Toggle
                 label={t("settingsTabs.notifications.onManualActionRequired")}
                 checked={editing.onManualInteractionRequired}
-                onChange={(v) =>
-                  setEditing({ ...editing, onManualInteractionRequired: v })
+                onChange={(v) => { setEditing({ ...editing, onManualInteractionRequired: v }); }
                 }
                 hint={t(
                   "settingsTabs.notifications.onManualActionRequiredHint",
@@ -1600,32 +1596,28 @@ export function NotificationsTab() {
               <Toggle
                 label={t("settingsTabs.notifications.onMediaInspected")}
                 checked={editing.onMediaInspected}
-                onChange={(v) =>
-                  setEditing({ ...editing, onMediaInspected: v })
+                onChange={(v) => { setEditing({ ...editing, onMediaInspected: v }); }
                 }
                 hint={t("settingsTabs.notifications.onMediaInspectedHint")}
               />
               <Toggle
                 label={t("settingsTabs.notifications.onExtractComplete")}
                 checked={editing.onExtractComplete}
-                onChange={(v) =>
-                  setEditing({ ...editing, onExtractComplete: v })
+                onChange={(v) => { setEditing({ ...editing, onExtractComplete: v }); }
                 }
                 hint={t("settingsTabs.notifications.onExtractCompleteHint")}
               />
               <Toggle
                 label={t("settingsTabs.notifications.onTorrentDeleted")}
                 checked={editing.onTorrentDeleted}
-                onChange={(v) =>
-                  setEditing({ ...editing, onTorrentDeleted: v })
+                onChange={(v) => { setEditing({ ...editing, onTorrentDeleted: v }); }
                 }
                 hint={t("settingsTabs.notifications.onTorrentDeletedHint")}
               />
               <Toggle
                 label={t("settingsTabs.notifications.onApplicationUpdate")}
                 checked={editing.onApplicationUpdate}
-                onChange={(v) =>
-                  setEditing({ ...editing, onApplicationUpdate: v })
+                onChange={(v) => { setEditing({ ...editing, onApplicationUpdate: v }); }
                 }
                 hint={t("settingsTabs.notifications.onApplicationUpdateHint")}
               />

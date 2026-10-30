@@ -64,7 +64,7 @@ export function DownloadClientsTab() {
 
   const trapRef = useFocusTrap<HTMLDivElement>({
     isOpen: Boolean(editing),
-    onClose: handleCloseModal,
+    onClose: (...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); },
   });
 
   const [testResults, setTestResults] = useState<
@@ -169,12 +169,11 @@ export function DownloadClientsTab() {
   const handleTest = (id: number) => {
     setTestResults((prev) => ({ ...prev, [id]: null }));
     testMutation.mutate(id, {
-      onSuccess: (data) => setTestResults((prev) => ({ ...prev, [id]: data })),
-      onError: (err) =>
-        setTestResults((prev) => ({
+      onSuccess: (data) => { setTestResults((prev) => ({ ...prev, [id]: data })); },
+      onError: (err) => { setTestResults((prev) => ({
           ...prev,
           [id]: { success: false, message: err.message },
-        })),
+        })); },
     });
   };
 
@@ -226,18 +225,16 @@ export function DownloadClientsTab() {
             className="btn btn-outline btn-small"
             onClick={() => {
               syncMutation.mutate(undefined, {
-                onSuccess: (res) =>
-                  showToast(
+                onSuccess: (res) => { showToast(
                     t("settingsTabs.downloadClients.syncComplete", {
                       count: res.syncedCount || 0,
                     }),
                     "success",
-                  ),
-                onError: (err: unknown) =>
-                  showToast(
+                  ); },
+                onError: (err: unknown) => { showToast(
                     `${t("settingsTabs.downloadClients.syncFailed")}${(err as Error)?.message || t("settingsTabs.notifications.unknownError")}`,
                     "error",
-                  ),
+                  ); },
               });
             }}
             disabled={syncMutation.isPending}
@@ -256,7 +253,7 @@ export function DownloadClientsTab() {
               className="provider-card"
               role="button"
               tabIndex={0}
-              onClick={() => handleOpenModal(client)}
+              onClick={() => { handleOpenModal(client); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -272,7 +269,7 @@ export function DownloadClientsTab() {
                     rel="noopener noreferrer"
                     className="provider-card-action"
                     title={`Open ${client.name} Web UI`}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); }}
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     ↗
@@ -307,19 +304,17 @@ export function DownloadClientsTab() {
                     if (!ok) return;
 
                     deleteMutation.mutate(client.id, {
-                      onSuccess: () =>
-                        showToast(
+                      onSuccess: () => { showToast(
                           t("settingsTabs.downloadClients.deleteSuccess", {
                             name: client.name,
                           }),
                           "info",
-                        ),
-                      onError: (err: unknown) =>
-                        showToast(
+                        ); },
+                      onError: (err: unknown) => { showToast(
                           (err as Error)?.message ||
                             t("settingsTabs.downloadClients.deleteFailed"),
                           "error",
-                        ),
+                        ); },
                     });
                   }}
                 >
@@ -377,7 +372,7 @@ export function DownloadClientsTab() {
             className="provider-card-add"
             role="button"
             tabIndex={0}
-            onClick={() => handleOpenModal(defaultClient)}
+            onClick={() => { handleOpenModal(defaultClient); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -394,7 +389,7 @@ export function DownloadClientsTab() {
       {editing && (
         <div
           className="modal-overlay"
-          onClick={handleCloseModal}
+          onClick={(...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); }}
           role="dialog"
           aria-modal="true"
         >
@@ -403,7 +398,7 @@ export function DownloadClientsTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -577,7 +572,7 @@ export function DownloadClientsTab() {
                 <button
                   type="button"
                   className="btn btn-outline btn-small"
-                  onClick={handleCloseModal}
+                  onClick={(...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); }}
                 >
                   {t("settingsTabs.categories.modal.cancel")}
                 </button>

@@ -218,7 +218,7 @@ public class FloodApiController : ControllerBase, IActionFilter
         return false;
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: API-key/emulated client API */ // nosemgrep
     [Route("api/auth/authenticate")]
     public IActionResult Authenticate([FromBody] FloodAuthRequest request = null)
     {
@@ -971,7 +971,7 @@ public class FloodApiController : ControllerBase, IActionFilter
         return this.Ok(result);
     }
 
-    [HttpPatch]
+    [HttpPatch] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPost]
     [Route("api/torrents/{hash}/contents")]
     [Route("api/torrents/contents-priority")]

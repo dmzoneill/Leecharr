@@ -111,13 +111,13 @@ export function MatrixView({
               "Search torrents or trackers...",
             )}
             value={matrixSearch}
-            onChange={(e) => setMatrixSearch(e.target.value)}
+            onChange={(e) => { setMatrixSearch(e.target.value); }}
           />
 
           <div className="view-toggle">
             <button
               className={`view-toggle-btn ${matrixViewMode === "by_torrent" ? "active" : ""}`}
-              onClick={() => setMatrixViewMode("by_torrent")}
+              onClick={() => { setMatrixViewMode("by_torrent"); }}
               title={t(
                 "trackerBoost.groupByTorrent",
                 "Group swarms by torrent download",
@@ -130,7 +130,7 @@ export function MatrixView({
             </button>
             <button
               className={`view-toggle-btn ${matrixViewMode === "by_tracker" ? "active" : ""}`}
-              onClick={() => setMatrixViewMode("by_tracker")}
+              onClick={() => { setMatrixViewMode("by_tracker"); }}
               title={t(
                 "trackerBoost.groupByTracker",
                 "Group swarms by tracker endpoint",
@@ -146,14 +146,14 @@ export function MatrixView({
           <div className="view-toggle">
             <button
               className={`view-toggle-btn ${matrixLayoutMode === "grid" ? "active" : ""}`}
-              onClick={() => setMatrixLayoutMode("grid")}
+              onClick={() => { setMatrixLayoutMode("grid"); }}
               title={t("torrents.toolbar.gridView", "Poster Card Grid View")}
             >
               {t("trackerBoost.matrix.posters", "🎬 Posters")}
             </button>
             <button
               className={`view-toggle-btn ${matrixLayoutMode === "table" ? "active" : ""}`}
-              onClick={() => setMatrixLayoutMode("table")}
+              onClick={() => { setMatrixLayoutMode("table"); }}
               title={t(
                 "torrents.toolbar.tableView",
                 "Detailed Table / List View",

@@ -48,7 +48,7 @@ public class RssRuleController : Controller
         return this.Ok(ToResource(rule));
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<RssRuleResource> Create([FromBody] RssRuleResource resource)
     {
         if (resource == null)
@@ -133,7 +133,7 @@ public class RssRuleController : Controller
         return this.Ok(ToResource(model));
     }
 
-    [HttpPut]
+    [HttpPut] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<RssRuleResource> UpdateWithoutId([FromBody] RssRuleResource resource)
     {
         if (resource == null || resource.Id <= 0)

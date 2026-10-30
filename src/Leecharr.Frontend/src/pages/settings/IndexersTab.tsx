@@ -176,12 +176,12 @@ export function IndexersTab() {
 
   const indexerTrapRef = useFocusTrap<HTMLDivElement>({
     isOpen: Boolean(editing),
-    onClose: handleCloseIndexerModal,
+    onClose: (...args: Parameters<typeof handleCloseIndexerModal>) => { void handleCloseIndexerModal(...args); },
   });
 
   const ruleTrapRef = useFocusTrap<HTMLDivElement>({
     isOpen: Boolean(editingRule),
-    onClose: handleCloseRuleModal,
+    onClose: (...args: Parameters<typeof handleCloseRuleModal>) => { void handleCloseRuleModal(...args); },
   });
 
   const [testResults, setTestResults] = useState<
@@ -642,7 +642,7 @@ export function IndexersTab() {
                     <button
                       type="button"
                       className="btn btn-danger btn-small"
-                      onClick={handleBulkDelete}
+                      onClick={(...args: Parameters<typeof handleBulkDelete>) => { void handleBulkDelete(...args); }}
                       disabled={bulkDeleteMutation.isPending}
                     >
                       {bulkDeleteMutation.isPending
@@ -717,7 +717,7 @@ export function IndexersTab() {
                         name: idx.name,
                         url: idx.url,
                       })}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); }}
                       style={{ textDecoration: "none", color: "inherit" }}
                     >
                       ↗
@@ -804,7 +804,7 @@ export function IndexersTab() {
                       e.stopPropagation();
                       handleToggleSelect(idx.id);
                     }}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); }}
                     aria-label={`Select ${idx.name}`}
                   />
                   <div
@@ -946,14 +946,13 @@ export function IndexersTab() {
                     if (!ok) return;
 
                     deleteRuleMutation.mutate(rule.id, {
-                      onSuccess: () =>
-                        showToast(
+                      onSuccess: () => { showToast(
                           t("settingsTabs.indexers.rssRuleDeleted", {
                             name: rule.name,
                             defaultValue: `RSS Rule "${rule.name}" deleted`,
                           }),
                           "info",
-                        ),
+                        ); },
                       onError: (err: unknown) => {
                         const errObj = err as Error | null;
                         showToast(
@@ -1063,7 +1062,7 @@ export function IndexersTab() {
       {editing && (
         <div
           className="modal-overlay"
-          onClick={handleCloseIndexerModal}
+          onClick={(...args: Parameters<typeof handleCloseIndexerModal>) => { void handleCloseIndexerModal(...args); }}
           role="dialog"
           aria-modal="true"
         >
@@ -1072,7 +1071,7 @@ export function IndexersTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1249,7 +1248,7 @@ export function IndexersTab() {
                 <button
                   type="button"
                   className="btn btn-outline btn-small"
-                  onClick={handleCloseIndexerModal}
+                  onClick={(...args: Parameters<typeof handleCloseIndexerModal>) => { void handleCloseIndexerModal(...args); }}
                 >
                   {t("settingsTabs.categories.modal.cancel")}
                 </button>
@@ -1277,7 +1276,7 @@ export function IndexersTab() {
       {editingRule && (
         <div
           className="modal-overlay"
-          onClick={handleCloseRuleModal}
+          onClick={(...args: Parameters<typeof handleCloseRuleModal>) => { void handleCloseRuleModal(...args); }}
           role="dialog"
           aria-modal="true"
         >
@@ -1286,7 +1285,7 @@ export function IndexersTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1310,19 +1309,18 @@ export function IndexersTab() {
             <TextInput
               label={t("settingsTabs.indexers.ruleNameLabel")}
               value={editingRule.name || ""}
-              onChange={(v) => setEditingRule({ ...editingRule, name: v })}
+              onChange={(v) => { setEditingRule({ ...editingRule, name: v }); }}
               placeholder={t("settingsTabs.indexers.ruleNamePlaceholder")}
             />
             <Toggle
               label={t("settingsTabs.indexers.enableRuleLabel")}
               checked={editingRule.isEnabled ?? true}
-              onChange={(v) => setEditingRule({ ...editingRule, isEnabled: v })}
+              onChange={(v) => { setEditingRule({ ...editingRule, isEnabled: v }); }}
             />
             <TextInput
               label={t("settingsTabs.indexers.mustContainLabel")}
               value={editingRule.mustContain || ""}
-              onChange={(v) =>
-                setEditingRule({ ...editingRule, mustContain: v })
+              onChange={(v) => { setEditingRule({ ...editingRule, mustContain: v }); }
               }
               placeholder={t("settingsTabs.indexers.mustContainPlaceholder")}
               hint={t("settingsTabs.indexers.mustContainHint")}
@@ -1330,8 +1328,7 @@ export function IndexersTab() {
             <TextInput
               label={t("settingsTabs.indexers.mustNotContainLabel")}
               value={editingRule.mustNotContain || ""}
-              onChange={(v) =>
-                setEditingRule({ ...editingRule, mustNotContain: v })
+              onChange={(v) => { setEditingRule({ ...editingRule, mustNotContain: v }); }
               }
               placeholder={t("settingsTabs.indexers.mustNotContainPlaceholder")}
               hint={t("settingsTabs.indexers.mustNotContainHint")}
@@ -1339,16 +1336,14 @@ export function IndexersTab() {
             <NumberInput
               label={t("settingsTabs.indexers.minSeedersLabel")}
               value={editingRule.minSeeders ?? 1}
-              onChange={(v) =>
-                setEditingRule({ ...editingRule, minSeeders: v })
+              onChange={(v) => { setEditingRule({ ...editingRule, minSeeders: v }); }
               }
               min={0}
             />
             <NumberInput
               label={t("settingsTabs.indexers.minSizeLabel")}
               value={editingRule.minSizeBytes ?? 0}
-              onChange={(v) =>
-                setEditingRule({ ...editingRule, minSizeBytes: v })
+              onChange={(v) => { setEditingRule({ ...editingRule, minSizeBytes: v }); }
               }
               min={0}
               hint={t("settingsTabs.indexers.minSizeConstraintHint")}
@@ -1356,8 +1351,7 @@ export function IndexersTab() {
             <NumberInput
               label={t("settings.maximumSizeBytes")}
               value={editingRule.maxSizeBytes ?? 0}
-              onChange={(v) =>
-                setEditingRule({ ...editingRule, maxSizeBytes: v })
+              onChange={(v) => { setEditingRule({ ...editingRule, maxSizeBytes: v }); }
               }
               min={0}
               hint={t("settingsTabs.indexers.maxSizeConstraintHint")}
@@ -1365,8 +1359,7 @@ export function IndexersTab() {
             <NumberInput
               label="Max Age (Days)"
               value={editingRule.maxAgeDays ?? 0}
-              onChange={(v) =>
-                setEditingRule({ ...editingRule, maxAgeDays: v })
+              onChange={(v) => { setEditingRule({ ...editingRule, maxAgeDays: v }); }
               }
               min={0}
               hint="Maximum age of releases in days to match (0 = no limit)"
@@ -1374,8 +1367,7 @@ export function IndexersTab() {
             <NumberInput
               label={t("settings.categoryID")}
               value={editingRule.categoryId ?? 0}
-              onChange={(v) =>
-                setEditingRule({ ...editingRule, categoryId: v })
+              onChange={(v) => { setEditingRule({ ...editingRule, categoryId: v }); }
               }
               min={0}
               hint={t("settingsTabs.indexers.categoryIdHint")}
@@ -1404,8 +1396,7 @@ export function IndexersTab() {
             <Toggle
               label={t("settings.freeleechOnly")}
               checked={editingRule.freeleechOnly ?? false}
-              onChange={(v) =>
-                setEditingRule({ ...editingRule, freeleechOnly: v })
+              onChange={(v) => { setEditingRule({ ...editingRule, freeleechOnly: v }); }
               }
             />
 
@@ -1429,7 +1420,7 @@ export function IndexersTab() {
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={handleCloseRuleModal}
+                onClick={(...args: Parameters<typeof handleCloseRuleModal>) => { void handleCloseRuleModal(...args); }}
               >
                 {t("settingsTabs.categories.modal.cancel")}
               </button>

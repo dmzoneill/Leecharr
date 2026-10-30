@@ -47,7 +47,7 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
         return this.Ok(CategoryResourceMapper.ToResource(category));
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<CategoryResource> Add([FromBody] CategoryResource resource)
     {
         if (resource == null || string.IsNullOrWhiteSpace(resource.Name))

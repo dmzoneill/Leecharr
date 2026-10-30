@@ -142,7 +142,7 @@ export function useClearTrackerBoostLogs() {
   return useMutation<{ success: boolean }, Error>({
     mutationFn: () => apiClient.delete("/trackerboost/logs"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost", "logs"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost", "logs"] });
     },
   });
 }

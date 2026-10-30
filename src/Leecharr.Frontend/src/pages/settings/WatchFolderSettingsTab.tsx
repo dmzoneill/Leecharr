@@ -61,7 +61,7 @@ export function WatchFolderSettingsTab() {
         watchFolderDeleteAddedTorrents: form.watchFolderDeleteAddedTorrents,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -131,7 +131,7 @@ export function WatchFolderSettingsTab() {
           <Toggle
             label={t("settingsTabs.batch2.enableWatchFolderMonitoring")}
             checked={form.watchFolderEnabled}
-            onChange={(v) => update("watchFolderEnabled", v)}
+            onChange={(v) => { update("watchFolderEnabled", v); }}
             hint={t(
               "settingsTabs.batch2.backgroundServiceWillPeriodicallyScan",
             )}
@@ -140,7 +140,7 @@ export function WatchFolderSettingsTab() {
           <TextInput
             label={t("settingsTabs.batch2.watchDirectoryPath")}
             value={form.watchFolderPath}
-            onChange={(v) => update("watchFolderPath", v)}
+            onChange={(v) => { update("watchFolderPath", v); }}
             disabled={!form.watchFolderEnabled}
             hint={t(
               "settingsTabs.batch2.filesystemDirectoryWhereTorrentFilesAreDropped",
@@ -149,7 +149,7 @@ export function WatchFolderSettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={() => setShowFolderBrowser(true)}
+                onClick={() => { setShowFolderBrowser(true); }}
                 disabled={!form.watchFolderEnabled}
                 title="Browse filesystem directories"
                 style={{
@@ -197,7 +197,7 @@ export function WatchFolderSettingsTab() {
             <button
               type="button"
               className="btn btn-outline btn-small"
-              onClick={handleScanNow}
+              onClick={(...args: Parameters<typeof handleScanNow>) => { void handleScanNow(...args); }}
               disabled={scanning || !form.watchFolderEnabled}
               title="Scan watch folder now"
               style={{
@@ -217,7 +217,7 @@ export function WatchFolderSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.scanCadenceSeconds")}
             value={form.watchFolderScanIntervalSeconds}
-            onChange={(v) => update("watchFolderScanIntervalSeconds", v)}
+            onChange={(v) => { update("watchFolderScanIntervalSeconds", v); }}
             disabled={!form.watchFolderEnabled}
             min={5}
             max={3600}
@@ -241,7 +241,7 @@ export function WatchFolderSettingsTab() {
               <Toggle
                 label={t("settingsTabs.batch2.autoStartIngestedTorrents")}
                 checked={form.watchFolderAutoStartTorrents}
-                onChange={(v) => update("watchFolderAutoStartTorrents", v)}
+                onChange={(v) => { update("watchFolderAutoStartTorrents", v); }}
                 disabled={!form.watchFolderEnabled}
                 hint={t(
                   "settingsTabs.batch2.startDownloadingImmediatelyUponImporting",
@@ -251,7 +251,7 @@ export function WatchFolderSettingsTab() {
               <Toggle
                 label={t("settingsTabs.batch2.deleteTorrentFilesAfterImport")}
                 checked={form.watchFolderDeleteAddedTorrents}
-                onChange={(v) => update("watchFolderDeleteAddedTorrents", v)}
+                onChange={(v) => { update("watchFolderDeleteAddedTorrents", v); }}
                 disabled={!form.watchFolderEnabled}
                 hint={t("settingsTabs.batch2.removeSourceTorrentFileFromDisk")}
               />
@@ -268,7 +268,7 @@ export function WatchFolderSettingsTab() {
             update("watchFolderPath", selectedPath);
             setShowFolderBrowser(false);
           }}
-          onClose={() => setShowFolderBrowser(false)}
+          onClose={() => { setShowFolderBrowser(false); }}
         />
       )}
     </div>

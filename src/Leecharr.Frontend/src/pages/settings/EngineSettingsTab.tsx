@@ -78,14 +78,14 @@ export function EngineSettingsTab() {
   } | null>(null);
 
   useEscapeKey(
-    () => setSelectedEngineForSwitch(null),
+    () => { setSelectedEngineForSwitch(null); },
     Boolean(selectedEngineForSwitch),
   );
   useEscapeKey(
-    () => setSelectedVersionForSwitch(null),
+    () => { setSelectedVersionForSwitch(null); },
     Boolean(selectedVersionForSwitch),
   );
-  useEscapeKey(() => setProbeResult(null), Boolean(probeResult));
+  useEscapeKey(() => { setProbeResult(null); }, Boolean(probeResult));
 
   useEffect(() => {
     if (config) {
@@ -463,11 +463,10 @@ export function EngineSettingsTab() {
                       <select
                         className="form-control"
                         value={currentSelectedVersion}
-                        onChange={(e) =>
-                          setSelectedEngineVersions((prev) => ({
+                        onChange={(e) => { setSelectedEngineVersions((prev) => ({
                             ...prev,
                             [engineId]: e.target.value,
-                          }))
+                          })); }
                         }
                         style={{
                           fontSize: "0.8rem",
@@ -580,12 +579,11 @@ export function EngineSettingsTab() {
                     <button
                       type="button"
                       className="btn btn-warning btn-small"
-                      onClick={() =>
-                        setSelectedVersionForSwitch({
+                      onClick={() => { setSelectedVersionForSwitch({
                           engineId,
                           fromVersion: activeVersion,
                           toVersion: currentSelectedVersion,
-                        })
+                        }); }
                       }
                       disabled={switchVersionMutation.isPending}
                       style={{ fontSize: "0.75rem", width: "100%" }}
@@ -603,9 +601,7 @@ export function EngineSettingsTab() {
                     <button
                       type="button"
                       className="btn btn-outline btn-small"
-                      onClick={() =>
-                        handleProbe(engineId, currentSelectedVersion)
-                      }
+                      onClick={() => { void handleProbe(engineId, currentSelectedVersion); }}
                       disabled={probingEngineId !== null}
                       style={{ flex: 1, fontSize: "0.75rem" }}
                     >
@@ -617,11 +613,10 @@ export function EngineSettingsTab() {
                       <button
                         type="button"
                         className="btn btn-primary btn-small"
-                        onClick={() =>
-                          setSelectedEngineForSwitch({
+                        onClick={() => { setSelectedEngineForSwitch({
                             engineId,
                             version: currentSelectedVersion,
-                          })
+                          }); }
                         }
                         disabled={!eng.isAvailable || switchMutation.isPending}
                         style={{ flex: 1, fontSize: "0.75rem" }}
@@ -652,7 +647,7 @@ export function EngineSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.ramWriteCacheMb")}
             value={form.diskCacheMb}
-            onChange={(v) => update("diskCacheMb", v)}
+            onChange={(v) => { update("diskCacheMb", v); }}
             min={16}
             max={4096}
             step={16}
@@ -663,7 +658,7 @@ export function EngineSettingsTab() {
           <SelectInput
             label={t("settingsTabs.batch2.diskCachePolicy")}
             value={form.diskCachePolicy}
-            onChange={(v) => update("diskCachePolicy", v)}
+            onChange={(v) => { update("diskCachePolicy", v); }}
             options={[
               {
                 value: "ReadsAndWrites",
@@ -683,7 +678,7 @@ export function EngineSettingsTab() {
           <SelectInput
             label={t("settingsTabs.batch2.piecePickerStrategy")}
             value={form.piecePickerStrategy}
-            onChange={(v) => update("piecePickerStrategy", v)}
+            onChange={(v) => { update("piecePickerStrategy", v); }}
             options={[
               {
                 value: "RarestFirst",
@@ -707,7 +702,7 @@ export function EngineSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.fastResumeAutosaveInterval")}
             value={form.autoSaveFastResumeIntervalSeconds}
-            onChange={(v) => update("autoSaveFastResumeIntervalSeconds", v)}
+            onChange={(v) => { update("autoSaveFastResumeIntervalSeconds", v); }}
             min={30}
             max={3600}
             suffix={t("settingsTabs.batch2.sec")}
@@ -718,7 +713,7 @@ export function EngineSettingsTab() {
           <SelectInput
             label="Fast Resume Mode"
             value={form.fastResumeMode}
-            onChange={(v) => update("fastResumeMode", v)}
+            onChange={(v) => { update("fastResumeMode", v); }}
             options={[
               {
                 value: "BestEffort",
@@ -735,7 +730,7 @@ export function EngineSettingsTab() {
           <NumberInput
             label="Stale Request Timeout"
             value={form.staleRequestTimeoutSeconds}
-            onChange={(v) => update("staleRequestTimeoutSeconds", v)}
+            onChange={(v) => { update("staleRequestTimeoutSeconds", v); }}
             min={5}
             max={120}
             suffix="s"
@@ -745,7 +740,7 @@ export function EngineSettingsTab() {
           <NumberInput
             label="Web Seed Delay"
             value={form.webSeedDelaySeconds}
-            onChange={(v) => update("webSeedDelaySeconds", v)}
+            onChange={(v) => { update("webSeedDelaySeconds", v); }}
             min={0}
             max={300}
             suffix="s"
@@ -763,7 +758,7 @@ export function EngineSettingsTab() {
           <Toggle
             label={t("settingsTabs.batch2.enableEndgameMode")}
             checked={form.endGamePickerEnabled}
-            onChange={(v) => update("endGamePickerEnabled", v)}
+            onChange={(v) => { update("endGamePickerEnabled", v); }}
             hint={t("settingsTabs.batch2.requestFinalRemainingBlocks")}
           />
         </div>
@@ -783,7 +778,7 @@ export function EngineSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.sha1HashingThreads")}
             value={form.hashingThreads}
-            onChange={(v) => update("hashingThreads", v)}
+            onChange={(v) => { update("hashingThreads", v); }}
             min={1}
             max={32}
             hint={t("settingsTabs.batch2.parallelCpuWorkers")}
@@ -792,7 +787,7 @@ export function EngineSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.posixAsyncIoThreads")}
             value={form.aioThreads}
-            onChange={(v) => update("aioThreads", v)}
+            onChange={(v) => { update("aioThreads", v); }}
             min={1}
             max={64}
             hint={t("settingsTabs.batch2.libtorrentStorageAsyncDiskIoThreads")}
@@ -801,7 +796,7 @@ export function EngineSettingsTab() {
           <SelectInput
             label="Disk I/O Write Mode"
             value={form.diskIoWriteMode}
-            onChange={(v) => update("diskIoWriteMode", v)}
+            onChange={(v) => { update("diskIoWriteMode", v); }}
             options={[
               {
                 value: "OsCacheEnabled",
@@ -822,7 +817,7 @@ export function EngineSettingsTab() {
           <NumberInput
             label="File Pool Size"
             value={form.filePoolSize}
-            onChange={(v) => update("filePoolSize", v)}
+            onChange={(v) => { update("filePoolSize", v); }}
             min={16}
             max={4096}
             hint="Maximum open file handles cached by libtorrent storage"
@@ -831,7 +826,7 @@ export function EngineSettingsTab() {
           <SelectInput
             label={t("settingsTabs.batch2.leecherChokingAlgorithm")}
             value={form.chokingAlgorithm}
-            onChange={(v) => update("chokingAlgorithm", v)}
+            onChange={(v) => { update("chokingAlgorithm", v); }}
             options={[
               {
                 value: "FixedSlots",
@@ -851,7 +846,7 @@ export function EngineSettingsTab() {
           <SelectInput
             label={t("settingsTabs.batch2.seederChokingAlgorithm")}
             value={form.seedChokingAlgorithm}
-            onChange={(v) => update("seedChokingAlgorithm", v)}
+            onChange={(v) => { update("seedChokingAlgorithm", v); }}
             options={[
               {
                 value: "RoundRobin",
@@ -871,7 +866,7 @@ export function EngineSettingsTab() {
           <SelectInput
             label="Mixed Mode Algorithm"
             value={form.mixedModeAlgorithm}
-            onChange={(v) => update("mixedModeAlgorithm", v)}
+            onChange={(v) => { update("mixedModeAlgorithm", v); }}
             options={[
               {
                 value: "PeerProportional",
@@ -905,28 +900,28 @@ export function EngineSettingsTab() {
           <Toggle
             label={t("settingsTabs.batch2.prefetchAdjacentDiskBlocks")}
             checked={form.prefetchEnabled}
-            onChange={(v) => update("prefetchEnabled", v)}
+            onChange={(v) => { update("prefetchEnabled", v); }}
             hint={t("settingsTabs.batch2.preloadDiskBlocksIntoMemory")}
           />
 
           <Toggle
             label={t("settingsTabs.batch2.scrapePausedTorrents")}
             checked={form.scrapePausedTorrentsEnabled}
-            onChange={(v) => update("scrapePausedTorrentsEnabled", v)}
+            onChange={(v) => { update("scrapePausedTorrentsEnabled", v); }}
             hint={t("settingsTabs.batch2.queryTrackerSeederLeecherCounts")}
           />
 
           <Toggle
             label="Enable RPC Whitelist"
             checked={form.rpcWhitelistEnabled}
-            onChange={(v) => update("rpcWhitelistEnabled", v)}
+            onChange={(v) => { update("rpcWhitelistEnabled", v); }}
             hint="Restrict Transmission RPC access to specified IP addresses"
           />
 
           <TextInput
             label="RPC Whitelist"
             value={form.rpcWhitelist}
-            onChange={(v) => update("rpcWhitelist", v)}
+            onChange={(v) => { update("rpcWhitelist", v); }}
             disabled={!form.rpcWhitelistEnabled}
             hint="Comma-separated list of allowed IPv4/IPv6 addresses or subnets (e.g. 127.0.0.1,::1)"
           />
@@ -939,7 +934,7 @@ export function EngineSettingsTab() {
           className="modal-overlay"
           role="button"
           tabIndex={0}
-          onClick={() => setSelectedEngineForSwitch(null)}
+          onClick={() => { setSelectedEngineForSwitch(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -951,7 +946,7 @@ export function EngineSettingsTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -999,7 +994,7 @@ export function EngineSettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={() => setSelectedEngineForSwitch(null)}
+                onClick={() => { setSelectedEngineForSwitch(null); }}
               >
                 {t("settingsTabs.categories.modal.cancel")}
               </button>
@@ -1024,7 +1019,7 @@ export function EngineSettingsTab() {
           className="modal-overlay"
           role="button"
           tabIndex={0}
-          onClick={() => setSelectedVersionForSwitch(null)}
+          onClick={() => { setSelectedVersionForSwitch(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -1036,7 +1031,7 @@ export function EngineSettingsTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1082,7 +1077,7 @@ export function EngineSettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={() => setSelectedVersionForSwitch(null)}
+                onClick={() => { setSelectedVersionForSwitch(null); }}
               >
                 {t("settingsTabs.categories.modal.cancel")}
               </button>
@@ -1107,7 +1102,7 @@ export function EngineSettingsTab() {
           className="modal-overlay"
           role="button"
           tabIndex={0}
-          onClick={() => setProbeResult(null)}
+          onClick={() => { setProbeResult(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -1119,7 +1114,7 @@ export function EngineSettingsTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1277,7 +1272,7 @@ export function EngineSettingsTab() {
               <button
                 type="button"
                 className="btn btn-primary btn-small"
-                onClick={() => setProbeResult(null)}
+                onClick={() => { setProbeResult(null); }}
               >
                 {t("settingsTabs.batch2.close")}
               </button>

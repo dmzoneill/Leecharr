@@ -29,9 +29,9 @@ export default function DeveloperCommands() {
   }, []);
 
   useEffect(() => {
-    fetchCommands();
-    const interval = setInterval(fetchCommands, 3500);
-    return () => clearInterval(interval);
+    void fetchCommands();
+    const interval = setInterval((...args: Parameters<typeof fetchCommands>) => { void fetchCommands(...args); }, 3500);
+    return () => { clearInterval(interval); };
   }, [fetchCommands]);
 
   const openExecuteModal = (cmd: DeveloperCommandDescriptor) => {
@@ -61,7 +61,7 @@ export default function DeveloperCommands() {
       });
       setActionMessage({ text: `Command '${selectedCommand.name}' dispatched successfully to queue.`, type: "success" });
       setSelectedCommand(null);
-      fetchCommands();
+      void fetchCommands();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setActionMessage({ text: msg || "Failed to execute command.", type: "error" });
@@ -98,7 +98,7 @@ export default function DeveloperCommands() {
         </div>
 
         <button
-          onClick={fetchCommands}
+          onClick={(...args: Parameters<typeof fetchCommands>) => { void fetchCommands(...args); }}
           style={{
             padding: "7px 14px",
             borderRadius: "6px",
@@ -149,7 +149,7 @@ export default function DeveloperCommands() {
               type="text"
               placeholder="Search commands..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); }}
               style={{
                 padding: "6px 10px",
                 borderRadius: "6px",
@@ -215,7 +215,7 @@ export default function DeveloperCommands() {
                   </div>
 
                   <button
-                    onClick={() => openExecuteModal(cmd)}
+                    onClick={() => { openExecuteModal(cmd); }}
                     style={{
                       padding: "6px 12px",
                       borderRadius: "6px",
@@ -363,7 +363,7 @@ export default function DeveloperCommands() {
                 Execute: {selectedCommand.name}
               </h3>
               <button
-                onClick={() => setSelectedCommand(null)}
+                onClick={() => { setSelectedCommand(null); }}
                 aria-label="Close"
                 style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "1.2rem" }}
               >
@@ -375,7 +375,7 @@ export default function DeveloperCommands() {
               {selectedCommand.description}
             </p>
 
-            <form onSubmit={handleExecute}>
+            <form onSubmit={(...args: Parameters<typeof handleExecute>) => { void handleExecute(...args); }}>
               {selectedCommand.properties.length === 0 ? (
                 <div style={{ padding: "14px", backgroundColor: "var(--bg-primary, #0f172a)", borderRadius: "6px", marginBottom: "16px", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
                   This command takes no parameters. It will execute with default system options.
@@ -391,7 +391,7 @@ export default function DeveloperCommands() {
                         <input
                           type="checkbox"
                           checked={!!formParams[p.name]}
-                          onChange={(e) => setFormParams({ ...formParams, [p.name]: e.target.checked })}
+                          onChange={(e) => { setFormParams({ ...formParams, [p.name]: e.target.checked }); }}
                         />
                       ) : (
                         <input
@@ -434,7 +434,7 @@ export default function DeveloperCommands() {
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                 <button
                   type="button"
-                  onClick={() => setSelectedCommand(null)}
+                  onClick={() => { setSelectedCommand(null); }}
                   style={{
                     padding: "8px 14px",
                     borderRadius: "6px",

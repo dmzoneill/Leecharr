@@ -134,7 +134,7 @@ export function SpeedGraph({
     });
 
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); };
   }, []);
 
   // Seed initial history from server
@@ -170,7 +170,7 @@ export function SpeedGraph({
       });
     }, 1500);
 
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, []);
 
   // Resample points according to active timeframe
@@ -381,7 +381,7 @@ export function SpeedGraph({
                 key={tf.key}
                 type="button"
                 className={`view-toggle-btn ${timeframe === tf.key ? "active" : ""}`}
-                onClick={() => setTimeframe(tf.key)}
+                onClick={() => { setTimeframe(tf.key); }}
                 style={{ padding: "0.15rem 0.45rem", fontSize: "0.72rem" }}
               >
                 {tf.label}

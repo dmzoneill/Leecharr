@@ -237,7 +237,7 @@ export function MediaPlayerModal({
         .writeText(fullUrl)
         .then(() => {
           setCopied(true);
-          setTimeout(() => setCopied(false), 2500);
+          setTimeout(() => { setCopied(false); }, 2500);
         })
         .catch(() => {});
     }
@@ -390,7 +390,7 @@ export function MediaPlayerModal({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); };
   }, [isOpen, resolvedSubtitles, activeSubtitleTrackId, handleSubtitleChange]);
 
   if (!isOpen) return null;
@@ -475,7 +475,7 @@ export function MediaPlayerModal({
           padding: 0,
           backgroundColor: "var(--bg-primary, #18191c)",
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -546,7 +546,7 @@ export function MediaPlayerModal({
             <button
               type="button"
               className={`btn btn-xs ${activeTab === "player" ? "btn-primary" : "btn-default"}`}
-              onClick={() => setActiveTab("player")}
+              onClick={() => { setActiveTab("player"); }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -560,7 +560,7 @@ export function MediaPlayerModal({
             <button
               type="button"
               className={`btn btn-xs ${activeTab === "setup" ? "btn-primary" : "btn-default"}`}
-              onClick={() => setActiveTab("setup")}
+              onClick={() => { setActiveTab("setup"); }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -633,7 +633,7 @@ export function MediaPlayerModal({
               <button
                 type="button"
                 className="btn btn-xs btn-default"
-                onClick={() => setActiveTab("player")}
+                onClick={() => { setActiveTab("player"); }}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -779,7 +779,7 @@ export function MediaPlayerModal({
                           `mpv "${getAbsoluteUrl(streamUrl)}"`,
                         );
                         setCopiedMpvCmd(true);
-                        setTimeout(() => setCopiedMpvCmd(false), 2000);
+                        setTimeout(() => { setCopiedMpvCmd(false); }, 2000);
                       }
                     }}
                   >
@@ -814,7 +814,7 @@ export function MediaPlayerModal({
                           `vlc "${getAbsoluteUrl(streamUrl)}"`,
                         );
                         setCopiedVlcCmd(true);
-                        setTimeout(() => setCopiedVlcCmd(false), 2000);
+                        setTimeout(() => { setCopiedVlcCmd(false); }, 2000);
                       }
                     }}
                   >
@@ -931,7 +931,7 @@ update-desktop-database ~/.local/share/applications/`;
                     if (navigator.clipboard?.writeText) {
                       void navigator.clipboard.writeText(script);
                       setCopiedScript(true);
-                      setTimeout(() => setCopiedScript(false), 2500);
+                      setTimeout(() => { setCopiedScript(false); }, 2500);
                     }
                   }}
                 >
@@ -1091,7 +1091,7 @@ update-desktop-database ~/.local/share/applications/`;
                   <button
                     type="button"
                     className="btn btn-default"
-                    onClick={() => setActiveTab("setup")}
+                    onClick={() => { setActiveTab("setup"); }}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -1235,7 +1235,7 @@ update-desktop-database ~/.local/share/applications/`;
                   minWidth: "140px",
                 }}
                 value={activeSubtitleTrackId}
-                onChange={(e) => handleSubtitleChange(e.target.value)}
+                onChange={(e) => { handleSubtitleChange(e.target.value); }}
               >
                 <option value="off">{t("mediaPlayer.off", "Off")}</option>
                 {Array.isArray(resolvedSubtitles) &&
@@ -1285,8 +1285,7 @@ update-desktop-database ~/.local/share/applications/`;
                       width: "auto",
                     }}
                     value={subtitleSize}
-                    onChange={(e) =>
-                      setSubtitleSize(e.target.value as SubtitleSize)
+                    onChange={(e) => { setSubtitleSize(e.target.value as SubtitleSize); }
                     }
                   >
                     <option value="small">

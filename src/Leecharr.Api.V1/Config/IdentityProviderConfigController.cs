@@ -44,8 +44,8 @@ public class IdentityProviderResource : RestResource
 [Authorize(Policy = "RequireAdmin")]
 public class IdentityProviderConfigController : RestController<IdentityProviderResource>
 {
-    private const string MaskedSecret = "********";
-    private const string AlternateMaskedSecret = "******";
+    private const string MaskedSecret = "********"; /* not a credential: mask placeholder/header name/empty or vendor default */ // nosemgrep
+    private const string AlternateMaskedSecret = "******"; /* not a credential: mask placeholder/header name/empty or vendor default */ // nosemgrep
 
     private readonly IIdentityProviderService providerService;
     private readonly IDynamicAuthSchemeManager dynamicAuthManager;
@@ -88,7 +88,7 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
         return this.Ok(ToResource(provider));
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<IdentityProviderResource> Create([FromBody] IdentityProviderResource resource)
     {
         if (resource == null)

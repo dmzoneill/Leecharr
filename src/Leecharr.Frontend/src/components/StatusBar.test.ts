@@ -5,9 +5,9 @@ import { isHealthIssue } from "./StatusBar";
 import { isHealthError } from "../pages/SystemStatus";
 import { isHealthOk } from "./HealthAlerts";
 
-describe("Health Check Serialization & Casing Support (#1011)", () => {
-  describe("StatusBar health issue detection", () => {
-    it("recognizes camelCase warning and error health check types", () => {
+void describe("Health Check Serialization & Casing Support (#1011)", () => {
+  void describe("StatusBar health issue detection", () => {
+    void it("recognizes camelCase warning and error health check types", () => {
       const warningCheck: HealthCheckResult = {
         type: "warning",
         source: "NoIndexers",
@@ -35,7 +35,7 @@ describe("Health Check Serialization & Casing Support (#1011)", () => {
       assert.strictEqual(isHealthIssue(noticeCheck), false);
     });
 
-    it("recognizes PascalCase Warning and Error health check types for backwards compatibility", () => {
+    void it("recognizes PascalCase Warning and Error health check types for backwards compatibility", () => {
       const warningCheck: HealthCheckResult = {
         type: "Warning",
         source: "NoIndexers",
@@ -63,7 +63,7 @@ describe("Health Check Serialization & Casing Support (#1011)", () => {
       assert.strictEqual(isHealthIssue(noticeCheck), false);
     });
 
-    it("calculates issue count correctly from mixed camelCase and PascalCase checks", () => {
+    void it("calculates issue count correctly from mixed camelCase and PascalCase checks", () => {
       const healthChecks: HealthCheckResult[] = [
         { type: "ok", source: "Disk", message: null },
         { type: "warning", source: "NoIndexers", message: "Warning issue" },
@@ -92,8 +92,8 @@ describe("Health Check Serialization & Casing Support (#1011)", () => {
     });
   });
 
-  describe("SystemStatus issues filter and error indicator", () => {
-    it("filters warning and error checks with camelCase serialization", () => {
+  void describe("SystemStatus issues filter and error indicator", () => {
+    void it("filters warning and error checks with camelCase serialization", () => {
       const checks: HealthCheckResult[] = [
         { type: "ok", source: "Check1", message: null },
         { type: "notice", source: "Check2", message: "Info" },
@@ -112,7 +112,7 @@ describe("Health Check Serialization & Casing Support (#1011)", () => {
       assert.strictEqual(warningOrErrorChecks[1].source, "Check4");
     });
 
-    it("distinguishes error checks case-insensitively", () => {
+    void it("distinguishes error checks case-insensitively", () => {
       assert.strictEqual(isHealthError({ type: "error" }), true);
       assert.strictEqual(isHealthError({ type: "Error" }), true);
       assert.strictEqual(isHealthError({ type: "warning" }), false);
@@ -121,8 +121,8 @@ describe("Health Check Serialization & Casing Support (#1011)", () => {
     });
   });
 
-  describe("HealthAlerts isOk check", () => {
-    it("recognizes ok case-insensitively and numeric enum 0", () => {
+  void describe("HealthAlerts isOk check", () => {
+    void it("recognizes ok case-insensitively and numeric enum 0", () => {
       assert.strictEqual(isHealthOk({ type: "ok" }), true);
       assert.strictEqual(isHealthOk({ type: "Ok" }), true);
       assert.strictEqual(isHealthOk({ type: 0 }), true);

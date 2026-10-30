@@ -59,7 +59,7 @@ export const Indexers: React.FC<IndexersProps> = ({
     if (onNavigateSettings) {
       onNavigateSettings(section);
     } else {
-      navigate(`/settings/${section}`);
+      void navigate(`/settings/${section}`);
     }
   };
 
@@ -297,7 +297,7 @@ export const Indexers: React.FC<IndexersProps> = ({
               <button
                 type="button"
                 className="btn btn-small btn-outline"
-                onClick={() => handleTest(currentIndexer.id)}
+                onClick={() => { handleTest(currentIndexer.id); }}
                 disabled={testingId === currentIndexer.id}
               >
                 {testingId === currentIndexer.id
@@ -307,7 +307,7 @@ export const Indexers: React.FC<IndexersProps> = ({
               <button
                 type="button"
                 className="btn btn-small btn-outline"
-                onClick={() => handleToggleEnable(currentIndexer)}
+                onClick={() => { handleToggleEnable(currentIndexer); }}
               >
                 {currentIndexer.enable
                   ? t("indexers.disable", "⏸ Disable")
@@ -318,7 +318,7 @@ export const Indexers: React.FC<IndexersProps> = ({
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => handleNavigateSettings("indexers")}
+            onClick={() => { handleNavigateSettings("indexers"); }}
             style={{
               backgroundColor: "rgba(255, 209, 102, 0.1)",
               color: "var(--accent, #ffd166)",
@@ -363,7 +363,7 @@ export const Indexers: React.FC<IndexersProps> = ({
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => handleNavigateSettings("indexers")}
+            onClick={() => { handleNavigateSettings("indexers"); }}
             style={{
               backgroundColor: "var(--accent, #ffd166)",
               color: "#10111a",
@@ -416,7 +416,7 @@ export const Indexers: React.FC<IndexersProps> = ({
                 key={idx.id}
                 type="button"
                 className="badge"
-                onClick={() => handleSelectIndexer(String(idx.id))}
+                onClick={() => { handleSelectIndexer(String(idx.id)); }}
                 style={{
                   padding: "0.35rem 0.75rem",
                   borderRadius: "20px",
@@ -469,7 +469,7 @@ export const Indexers: React.FC<IndexersProps> = ({
                   )
             }
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); }}
             className="form-input"
             style={{
               flex: 1,
@@ -520,7 +520,7 @@ export const Indexers: React.FC<IndexersProps> = ({
             <input
               type="checkbox"
               checked={freeleechOnly}
-              onChange={(e) => setFreeleechOnly(e.target.checked)}
+              onChange={(e) => { setFreeleechOnly(e.target.checked); }}
             />
             <span>
               {t(
@@ -549,7 +549,7 @@ export const Indexers: React.FC<IndexersProps> = ({
             <select
               id="indexerCategorySelect"
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => { setSelectedCategory(e.target.value); }}
               className="form-input"
               style={{
                 padding: "0.3rem 0.6rem",
@@ -608,7 +608,7 @@ export const Indexers: React.FC<IndexersProps> = ({
             {selectedCategory && (
               <button
                 type="button"
-                onClick={() => setSelectedCategory("")}
+                onClick={() => { setSelectedCategory(""); }}
                 style={{
                   background: "none",
                   border: "none",
@@ -984,7 +984,7 @@ export const Indexers: React.FC<IndexersProps> = ({
                               borderRadius: "4px",
                               fontWeight: 600,
                             }}
-                            onClick={() => handleGrab(rel)}
+                            onClick={() => { handleGrab(rel); }}
                             disabled={isDownloading}
                           >
                             {isDownloading

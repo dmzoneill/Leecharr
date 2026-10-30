@@ -58,7 +58,7 @@ export function ApiDocsPage() {
 
         if (copied) {
           setCopiedKey(true);
-          setTimeout(() => setCopiedKey(false), 2000);
+          setTimeout(() => { setCopiedKey(false); }, 2000);
           toast.showToast(
             t("settings.apiKeyCopied", "API key copied to clipboard"),
             "success",
@@ -139,7 +139,7 @@ export function ApiDocsPage() {
           {config?.apiKey && (
             <button
               className="btn btn-outline btn-small"
-              onClick={handleCopyKey}
+              onClick={(...args: Parameters<typeof handleCopyKey>) => { void handleCopyKey(...args); }}
               disabled={copyingKey}
               title={t(
                 "apiDocs.copyApiKeyTooltip",

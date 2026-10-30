@@ -2,22 +2,22 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { getPathSegments } from "./pathSegments";
 
-describe("getPathSegments", () => {
-  it("returns an empty array for empty, undefined, or whitespace paths", () => {
+void describe("getPathSegments", () => {
+  void it("returns an empty array for empty, undefined, or whitespace paths", () => {
     assert.deepEqual(getPathSegments(""), []);
     assert.deepEqual(getPathSegments(undefined as unknown as string), []);
     assert.deepEqual(getPathSegments("/"), []);
   });
 
-  describe("Unix paths", () => {
-    it("parses single folder path", () => {
+  void describe("Unix paths", () => {
+    void it("parses single folder path", () => {
       const segments = getPathSegments("/downloads");
       assert.deepEqual(segments, [
         { label: "downloads", fullPath: "/downloads" },
       ]);
     });
 
-    it("parses multi-level Unix paths cumulatively", () => {
+    void it("parses multi-level Unix paths cumulatively", () => {
       const segments = getPathSegments("/downloads/media/movies");
       assert.deepEqual(segments, [
         { label: "downloads", fullPath: "/downloads" },
@@ -26,7 +26,7 @@ describe("getPathSegments", () => {
       ]);
     });
 
-    it("handles trailing and consecutive slashes", () => {
+    void it("handles trailing and consecutive slashes", () => {
       const segments = getPathSegments("//downloads///media//");
       assert.deepEqual(segments, [
         { label: "downloads", fullPath: "/downloads" },
@@ -35,8 +35,8 @@ describe("getPathSegments", () => {
     });
   });
 
-  describe("Windows paths", () => {
-    it("parses Windows drive root", () => {
+  void describe("Windows paths", () => {
+    void it("parses Windows drive root", () => {
       assert.deepEqual(getPathSegments("C:\\"), [
         { label: "C:", fullPath: "C:/" },
       ]);
@@ -48,7 +48,7 @@ describe("getPathSegments", () => {
       ]);
     });
 
-    it("parses backslash-separated Windows paths cleanly", () => {
+    void it("parses backslash-separated Windows paths cleanly", () => {
       const segments = getPathSegments("C:\\Downloads\\Media");
       assert.deepEqual(segments, [
         { label: "C:", fullPath: "C:/" },
@@ -57,7 +57,7 @@ describe("getPathSegments", () => {
       ]);
     });
 
-    it("parses deep Windows paths without prepending leading slash", () => {
+    void it("parses deep Windows paths without prepending leading slash", () => {
       const segments = getPathSegments("E:\\Torrents\\Complete\\TV\\Season 1");
       assert.deepEqual(segments, [
         { label: "E:", fullPath: "E:/" },
@@ -68,7 +68,7 @@ describe("getPathSegments", () => {
       ]);
     });
 
-    it("handles mixed forward and backward slashes on Windows", () => {
+    void it("handles mixed forward and backward slashes on Windows", () => {
       const segments = getPathSegments("C:\\Downloads/Media\\Sub");
       assert.deepEqual(segments, [
         { label: "C:", fullPath: "C:/" },
@@ -78,7 +78,7 @@ describe("getPathSegments", () => {
       ]);
     });
 
-    it("handles Windows paths with trailing backslashes", () => {
+    void it("handles Windows paths with trailing backslashes", () => {
       const segments = getPathSegments("F:\\Data\\Backup\\");
       assert.deepEqual(segments, [
         { label: "F:", fullPath: "F:/" },

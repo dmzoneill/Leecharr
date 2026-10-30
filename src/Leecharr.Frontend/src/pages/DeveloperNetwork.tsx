@@ -28,9 +28,9 @@ export default function DeveloperNetwork() {
   }, [search]);
 
   useEffect(() => {
-    fetchTraffic();
-    const interval = setInterval(fetchTraffic, 2500);
-    return () => clearInterval(interval);
+    void fetchTraffic();
+    const interval = setInterval((...args: Parameters<typeof fetchTraffic>) => { void fetchTraffic(...args); }, 2500);
+    return () => { clearInterval(interval); };
   }, [fetchTraffic]);
 
   const handleClear = async () => {
@@ -79,7 +79,7 @@ export default function DeveloperNetwork() {
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button
-            onClick={() => setIsPaused(!isPaused)}
+            onClick={() => { setIsPaused(!isPaused); }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -98,7 +98,7 @@ export default function DeveloperNetwork() {
           </button>
 
           <button
-            onClick={handleClear}
+            onClick={(...args: Parameters<typeof handleClear>) => { void handleClear(...args); }}
             style={{
               padding: "7px 12px",
               borderRadius: "6px",
@@ -136,7 +136,7 @@ export default function DeveloperNetwork() {
           type="text"
           placeholder="Filter by URL, host, method, or status code..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); }}
           style={{
             flex: 1,
             padding: "8px 12px",
@@ -198,7 +198,7 @@ export default function DeveloperNetwork() {
                     return (
                       <tr
                         key={item.id}
-                        onClick={() => setSelectedItem(item)}
+                        onClick={() => { setSelectedItem(item); }}
                         style={{
                           borderBottom: "1px solid var(--border, #334155)",
                           backgroundColor: isSelected ? "rgba(59, 130, 246, 0.15)" : "transparent",
@@ -328,7 +328,7 @@ export default function DeveloperNetwork() {
               <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Request Details</h3>
               <div style={{ display: "flex", gap: "6px" }}>
                 <button
-                  onClick={() => copyAsCurl(selectedItem)}
+                  onClick={() => { copyAsCurl(selectedItem); }}
                   style={{
                     padding: "3px 8px",
                     borderRadius: "4px",
@@ -342,7 +342,7 @@ export default function DeveloperNetwork() {
                   📋 cURL
                 </button>
                 <button
-                  onClick={() => setSelectedItem(null)}
+                  onClick={() => { setSelectedItem(null); }}
                   style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "1.1rem" }}
                 >
                   ✕

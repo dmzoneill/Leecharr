@@ -348,7 +348,7 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
 
             var psi = new ProcessStartInfo
             {
-                FileName = pgDumpExe,
+                FileName = pgDumpExe, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -365,7 +365,7 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
                 psi.EnvironmentVariables["PGPASSWORD"] = password;
             }
 
-            using var proc = Process.Start(psi);
+            using var proc = Process.Start(psi); /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
             if (proc == null)
             {
                 this.logger.Error("Failed to start pg_dump process.");

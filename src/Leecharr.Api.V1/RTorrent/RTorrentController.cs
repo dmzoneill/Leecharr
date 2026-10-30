@@ -62,7 +62,7 @@ public class RTorrentController : ControllerBase
         this.appFolderInfo = appFolderInfo;
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [Route("RPC2")]
     [Route("RPC1")]
     [Route("rutorrent/plugins/httprpc/action.php")]

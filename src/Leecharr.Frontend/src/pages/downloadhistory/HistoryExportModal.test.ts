@@ -33,15 +33,15 @@ function createMockHistoryEntry(
   };
 }
 
-describe("HistoryExportModal: generateExportData", () => {
-  it("should return empty string for empty items array", () => {
+void describe("HistoryExportModal: generateExportData", () => {
+  void it("should return empty string for empty items array", () => {
     assert.strictEqual(generateExportData([], "json"), "");
     assert.strictEqual(generateExportData([], "csv"), "");
     assert.strictEqual(generateExportData([], "txt"), "");
   });
 
-  describe("JSON Export", () => {
-    it("should export full metadata including Downloaded, IndexerName, IsPrivate, and MagnetUrl", () => {
+  void describe("JSON Export", () => {
+    void it("should export full metadata including Downloaded, IndexerName, IsPrivate, and MagnetUrl", () => {
       const entry = createMockHistoryEntry({
         downloaded: 4_000_000_000,
         indexerName: "MyIndexer",
@@ -62,8 +62,8 @@ describe("HistoryExportModal: generateExportData", () => {
     });
   });
 
-  describe("CSV Export", () => {
-    it("should include Downloaded, Indexer, IsPrivate, and MagnetUrl headers", () => {
+  void describe("CSV Export", () => {
+    void it("should include Downloaded, Indexer, IsPrivate, and MagnetUrl headers", () => {
       const entry = createMockHistoryEntry();
       const csv = generateExportData([entry], "csv");
       const [headerLine] = csv.split("\n");
@@ -97,7 +97,7 @@ describe("HistoryExportModal: generateExportData", () => {
       assert.deepStrictEqual(headers, expectedHeaders);
     });
 
-    it("should populate row fields matching the new headers", () => {
+    void it("should populate row fields matching the new headers", () => {
       const entry = createMockHistoryEntry({
         id: 42,
         downloaded: 5_242_880,
@@ -124,8 +124,8 @@ describe("HistoryExportModal: generateExportData", () => {
     });
   });
 
-  describe("TXT Export", () => {
-    it("should export clean text listing title, infoHash, and magnetUrl", () => {
+  void describe("TXT Export", () => {
+    void it("should export clean text listing title, infoHash, and magnetUrl", () => {
       const entry = createMockHistoryEntry({
         title: "ArchLinux-2026.iso",
         infoHash: "deadbeef1234567890deadbeef1234567890dead",
@@ -147,7 +147,7 @@ describe("HistoryExportModal: generateExportData", () => {
       );
     });
 
-    it("should omit Magnet line when magnetUrl is not available", () => {
+    void it("should omit Magnet line when magnetUrl is not available", () => {
       const entry = createMockHistoryEntry({
         title: "Debian-12.iso",
         infoHash: "cafebabe1234567890cafebabe1234567890cafebabe",
@@ -165,7 +165,7 @@ describe("HistoryExportModal: generateExportData", () => {
       );
     });
 
-    it("should separate multiple items with empty lines", () => {
+    void it("should separate multiple items with empty lines", () => {
       const entry1 = createMockHistoryEntry({
         id: 1,
         title: "Item 1",

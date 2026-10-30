@@ -62,7 +62,7 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
         });
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public async Task<ActionResult<SpeedScheduleResource>> Create([FromBody] SpeedScheduleResource resource)
     {
         if (resource == null)

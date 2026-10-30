@@ -360,7 +360,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     const inactive = torrents.filter((t) => !isTorrentActive(t));
     if (inactive.length > 0) {
       trackBulkAction("start_all", inactive.length);
-      await Promise.all(inactive.map((t) => onResume(t.id)));
+      await Promise.all(inactive.map((t) => { onResume(t.id); }));
     }
   };
 
@@ -368,7 +368,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     const active = torrents.filter((t) => isTorrentActive(t));
     if (active.length > 0) {
       trackBulkAction("stop_all", active.length);
-      await Promise.all(active.map((t) => onPause(t.id)));
+      await Promise.all(active.map((t) => { onPause(t.id); }));
     }
   };
 
@@ -428,7 +428,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setBulkPending(true);
     try {
       trackBulkAction("start", targetIds.length);
-      await Promise.all(targetIds.map((id) => onResume(id)));
+      await Promise.all(targetIds.map((id) => { onResume(id); }));
     } finally {
       setBulkPending(false);
     }
@@ -449,7 +449,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setBulkPending(true);
     try {
       trackBulkAction("stop", targetIds.length);
-      await Promise.all(targetIds.map((id) => onPause(id)));
+      await Promise.all(targetIds.map((id) => { onPause(id); }));
     } finally {
       setBulkPending(false);
     }
@@ -515,7 +515,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
           deleteFiles,
         });
         const succeeded = res.succeededIds ?? targetIds;
-        succeeded.forEach((id) => removeTorrent(id));
+        succeeded.forEach((id) => { removeTorrent(id); });
         trackBulkAction("delete", succeeded.length);
         if (deleteFiles) {
           showToast(
@@ -537,8 +537,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
           );
         }
         clearSelection();
-        queryClient.invalidateQueries({ queryKey: ["torrents"] });
-        queryClient.invalidateQueries({ queryKey: ["diskspace"] });
+        void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+        void queryClient.invalidateQueries({ queryKey: ["diskspace"] });
       }
     } catch (err: unknown) {
       showToast(
@@ -596,19 +596,19 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
           trackViewModeChange(m);
         }}
         onAddTorrent={onOpenAddModal}
-        onImportPackage={() => setShowImportPackageModal(true)}
+        onImportPackage={() => { setShowImportPackageModal(true); }}
         onSearchIndexers={onOpenSearchModal}
-        onStartAll={handleStartAll}
-        onStopAll={handleStopAll}
+        onStartAll={(...args: Parameters<typeof handleStartAll>) => { void handleStartAll(...args); }}
+        onStopAll={(...args: Parameters<typeof handleStopAll>) => { void handleStopAll(...args); }}
         selectedCount={selectedIds.size}
         bulkPending={bulkPending}
-        onBulkStart={handleBulkStart}
-        onBulkStop={handleBulkStop}
+        onBulkStart={(...args: Parameters<typeof handleBulkStart>) => { void handleBulkStart(...args); }}
+        onBulkStop={(...args: Parameters<typeof handleBulkStop>) => { void handleBulkStop(...args); }}
         onBulkDelete={handleBulkDelete}
         onBulkClear={clearSelection}
         onBulkAddTags={handleBulkAddTags}
         onBulkRemoveTags={handleBulkRemoveTags}
-        onBulkMoveQueue={handleBulkMoveQueue}
+        onBulkMoveQueue={(...args: Parameters<typeof handleBulkMoveQueue>) => { void handleBulkMoveQueue(...args); }}
         showQuickSettings={showQuickSettings}
         onToggleQuickSettings={handleToggleQuickSettings}
         isFilterCollapsed={isFilterCollapsed}
@@ -622,8 +622,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onApplyColumnPreset={applyColumnPreset}
         onToggleCategoryColumns={toggleCategoryColumns}
         isColumnCustomizerOpen={isColumnCustomizerOpen}
-        onToggleColumnCustomizer={() =>
-          setIsColumnCustomizerOpen((prev) => !prev)
+        onToggleColumnCustomizer={() => { setIsColumnCustomizerOpen((prev) => !prev); }
         }
       />
       <QuickSettingsDrawer
@@ -675,7 +674,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   tagMatchMode={tagMatchMode}
                   selectedTag={selectedTag}
                   selectedId={currentSelectedTorrent?.id ?? null}
-                  onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
+                  onSelect={(t) => { setSelectedTorrentId(t ? t.id : null); }}
                   onPause={onPause}
                   onResume={onResume}
                   onDelete={handleRequestDelete}
@@ -705,7 +704,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   tagMatchMode={tagMatchMode}
                   selectedTag={selectedTag}
                   selectedId={currentSelectedTorrent?.id ?? null}
-                  onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
+                  onSelect={(t) => { setSelectedTorrentId(t ? t.id : null); }}
                   onPause={onPause}
                   onResume={onResume}
                   onDelete={handleRequestDelete}
@@ -721,10 +720,10 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
               <TorrentDetailPanel
                 torrent={currentSelectedTorrent}
                 torrentId={currentSelectedTorrent.id}
-                onClose={() => setSelectedTorrentId(null)}
+                onClose={() => { setSelectedTorrentId(null); }}
                 onResume={onResume}
                 onPause={onPause}
-                onDelete={(id) => handleRequestDelete({ id })}
+                onDelete={(id) => { handleRequestDelete({ id }); }}
               />
             )}
           </div>
@@ -737,7 +736,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         count={deleteModalState.count}
         isPending={bulkPending}
         onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteModalState({ isOpen: false })}
+        onCancel={() => { setDeleteModalState({ isOpen: false }); }}
       />
       {bulkTagModalState?.isOpen && (
         <BulkTagModal
@@ -755,7 +754,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       {showImportPackageModal && (
         <ImportPackageModal
           isOpen={showImportPackageModal}
-          onClose={() => setShowImportPackageModal(false)}
+          onClose={() => { setShowImportPackageModal(false); }}
         />
       )}
     </div>

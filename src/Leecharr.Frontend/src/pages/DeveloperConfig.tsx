@@ -25,7 +25,7 @@ export default function DeveloperConfig() {
   }, [unmask]);
 
   useEffect(() => {
-    fetchConfig();
+    void fetchConfig();
   }, [fetchConfig]);
 
   const copyToClipboard = (text: string, label: string) => {
@@ -80,7 +80,7 @@ export default function DeveloperConfig() {
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <button
-            onClick={() => setUnmask(!unmask)}
+            onClick={() => { setUnmask(!unmask); }}
             style={{
               padding: "7px 14px",
               borderRadius: "6px",
@@ -133,7 +133,7 @@ export default function DeveloperConfig() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           <button
-            onClick={() => setActiveTab("config")}
+            onClick={() => { setActiveTab("config"); }}
             style={{
               padding: "6px 14px",
               borderRadius: "6px",
@@ -148,7 +148,7 @@ export default function DeveloperConfig() {
             Config Keys ({entries.length})
           </button>
           <button
-            onClick={() => setActiveTab("env")}
+            onClick={() => { setActiveTab("env"); }}
             style={{
               padding: "6px 14px",
               borderRadius: "6px",
@@ -163,7 +163,7 @@ export default function DeveloperConfig() {
             Environment Variables ({envEntries.length})
           </button>
           <button
-            onClick={() => setActiveTab("host")}
+            onClick={() => { setActiveTab("host"); }}
             style={{
               padding: "6px 14px",
               borderRadius: "6px",
@@ -184,7 +184,7 @@ export default function DeveloperConfig() {
             type="text"
             placeholder="Search key or value..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); }}
             style={{
               padding: "6px 12px",
               borderRadius: "6px",
@@ -249,7 +249,7 @@ export default function DeveloperConfig() {
                     </td>
                     <td style={{ padding: "8px 14px", textAlign: "right" }}>
                       <button
-                        onClick={() => copyToClipboard(e.value, e.key)}
+                        onClick={() => { copyToClipboard(e.value, e.key); }}
                         style={{
                           padding: "3px 8px",
                           borderRadius: "4px",
@@ -299,7 +299,7 @@ export default function DeveloperConfig() {
                     <td style={{ padding: "8px 14px", fontFamily: "monospace", color: "#fff", wordBreak: "break-all" }}>{v}</td>
                     <td style={{ padding: "8px 14px", textAlign: "right" }}>
                       <button
-                        onClick={() => copyToClipboard(v, k)}
+                        onClick={() => { copyToClipboard(v, k); }}
                         style={{
                           padding: "3px 8px",
                           borderRadius: "4px",

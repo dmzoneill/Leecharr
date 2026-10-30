@@ -83,13 +83,13 @@ export function CategorySettingsTab({
 
   const trapRef = useFocusTrap<HTMLDivElement>({
     isOpen: Boolean(editingCategory),
-    onClose: handleCloseModal,
+    onClose: (...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); },
   });
 
   useModalRegistration({
     id: "category-edit-modal",
     isOpen: Boolean(editingCategory),
-    onClose: handleCloseModal,
+    onClose: (...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); },
     modalRef: trapRef,
   });
 
@@ -418,7 +418,7 @@ export function CategorySettingsTab({
                         <button
                           type="button"
                           className="btn btn-outline btn-small"
-                          onClick={() => handleOpenEdit(cat)}
+                          onClick={() => { handleOpenEdit(cat); }}
                           title={`Edit ${cat.name}`}
                           style={{
                             padding: "0.2rem 0.5rem",
@@ -430,7 +430,7 @@ export function CategorySettingsTab({
                         <button
                           type="button"
                           className="btn btn-danger btn-small"
-                          onClick={() => handleDelete(cat)}
+                          onClick={() => { void handleDelete(cat); }}
                           disabled={
                             Boolean(cat.isDefault) || deleteMutation.isPending
                           }
@@ -463,7 +463,7 @@ export function CategorySettingsTab({
       {editingCategory && (
         <div
           className="modal-overlay"
-          onClick={handleCloseModal}
+          onClick={(...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); }}
           role="dialog"
           aria-modal="true"
         >
@@ -472,7 +472,7 @@ export function CategorySettingsTab({
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -520,8 +520,7 @@ export function CategorySettingsTab({
               <TextInput
                 label={t("settingsTabs.categories.modal.savePathLabel")}
                 value={editingCategory.savePath || ""}
-                onChange={(v) =>
-                  setEditingCategory({ ...editingCategory, savePath: v })
+                onChange={(v) => { setEditingCategory({ ...editingCategory, savePath: v }); }
                 }
                 placeholder={t(
                   "settingsTabs.categories.modal.savePathPlaceholder",
@@ -531,7 +530,7 @@ export function CategorySettingsTab({
                   <button
                     type="button"
                     className="btn btn-outline btn-small"
-                    onClick={() => setShowFolderBrowser(true)}
+                    onClick={() => { setShowFolderBrowser(true); }}
                     title="Browse filesystem directories"
                     style={{
                       whiteSpace: "nowrap",
@@ -619,11 +618,10 @@ export function CategorySettingsTab({
               <NumberInput
                 label={t("settingsTabs.categories.modal.maxDownloadLabel")}
                 value={editingCategory.defaultDownloadLimit ?? 0}
-                onChange={(v) =>
-                  setEditingCategory({
+                onChange={(v) => { setEditingCategory({
                     ...editingCategory,
                     defaultDownloadLimit: v,
-                  })
+                  }); }
                 }
                 min={0}
                 suffix="KB/s"
@@ -633,11 +631,10 @@ export function CategorySettingsTab({
               <NumberInput
                 label={t("settingsTabs.categories.modal.maxUploadLabel")}
                 value={editingCategory.defaultUploadLimit ?? 0}
-                onChange={(v) =>
-                  setEditingCategory({
+                onChange={(v) => { setEditingCategory({
                     ...editingCategory,
                     defaultUploadLimit: v,
-                  })
+                  }); }
                 }
                 min={0}
                 suffix="KB/s"
@@ -655,8 +652,7 @@ export function CategorySettingsTab({
               <NumberInput
                 label={t("settingsTabs.categories.modal.targetRatioLabel")}
                 value={editingCategory.targetRatio ?? 0}
-                onChange={(v) =>
-                  setEditingCategory({ ...editingCategory, targetRatio: v })
+                onChange={(v) => { setEditingCategory({ ...editingCategory, targetRatio: v }); }
                 }
                 min={0}
                 step={0.1}
@@ -666,11 +662,10 @@ export function CategorySettingsTab({
               <NumberInput
                 label={t("settingsTabs.categories.modal.targetSeedTimeLabel")}
                 value={editingCategory.targetSeedTimeMinutes ?? 0}
-                onChange={(v) =>
-                  setEditingCategory({
+                onChange={(v) => { setEditingCategory({
                     ...editingCategory,
                     targetSeedTimeMinutes: v,
-                  })
+                  }); }
                 }
                 min={0}
                 suffix={t("settingsTabs.schedule.minuteSuffix")}
@@ -689,8 +684,7 @@ export function CategorySettingsTab({
               <Toggle
                 label={t("settingsTabs.categories.modal.autoStopLabel")}
                 checked={editingCategory.autoStop ?? false}
-                onChange={(v) =>
-                  setEditingCategory({ ...editingCategory, autoStop: v })
+                onChange={(v) => { setEditingCategory({ ...editingCategory, autoStop: v }); }
                 }
                 hint={t("settingsTabs.categories.modal.autoStopHint")}
               />
@@ -698,8 +692,7 @@ export function CategorySettingsTab({
               <Toggle
                 label={t("settingsTabs.categories.modal.defaultCategoryLabel")}
                 checked={editingCategory.isDefault ?? false}
-                onChange={(v) =>
-                  setEditingCategory({ ...editingCategory, isDefault: v })
+                onChange={(v) => { setEditingCategory({ ...editingCategory, isDefault: v }); }
                 }
                 hint={t("settingsTabs.categories.modal.defaultCategoryHint")}
               />
@@ -733,7 +726,7 @@ export function CategorySettingsTab({
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={handleCloseModal}
+                onClick={(...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); }}
                 disabled={isSaving}
               >
                 {t("settingsTabs.categories.modal.cancel")}
@@ -765,7 +758,7 @@ export function CategorySettingsTab({
               prev ? { ...prev, savePath: selectedPath } : null,
             );
           }}
-          onClose={() => setShowFolderBrowser(false)}
+          onClose={() => { setShowFolderBrowser(false); }}
         />
       )}
     </div>

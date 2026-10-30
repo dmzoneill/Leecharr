@@ -145,13 +145,13 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               className="torrent-grid-checkbox-container"
               role="button"
               tabIndex={0}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.stopPropagation();
                 }
               }}
-              onContextMenu={(e) => e.stopPropagation()}
+              onContextMenu={(e) => { e.stopPropagation(); }}
               style={{
                 position: "absolute",
                 top: "8px",
@@ -430,7 +430,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             }}
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -441,7 +441,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               <button
                 className="btn btn-small btn-success"
                 style={{ flex: 1 }}
-                onClick={() => onResume(mergedTorrent.id)}
+                onClick={() => { onResume(mergedTorrent.id); }}
               >
                 <PlayIcon size={11} /> {t("torrents.grid.resume")}
               </button>
@@ -449,7 +449,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               <button
                 className="btn btn-small"
                 style={{ flex: 1 }}
-                onClick={() => onPause(mergedTorrent.id)}
+                onClick={() => { onPause(mergedTorrent.id); }}
               >
                 <StopIcon size={11} /> {t("torrents.grid.pause")}
               </button>
@@ -557,7 +557,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   const moveTorrentQueueBatch = useMoveTorrentQueueBatch();
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const closeContextMenu = useCallback(() => { setContextMenu(null); }, []);
 
   const storeSelectedIds = useTorrentStore((state) => state.selectedIds);
   const selectedIds = propSelectedIds ?? storeSelectedIds;
@@ -575,7 +575,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
       }
     });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); };
   }, []);
 
   const filteredTorrents = useMemo(() => {
@@ -822,30 +822,23 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
           torrent={contextMenu.torrent}
           selectedTorrents={contextMenu.selectedTorrents}
           onClose={closeContextMenu}
-          onStart={(id) => (onResume ? onResume(id) : startSeeding.mutate(id))}
-          onStop={(id) => (onPause ? onPause(id) : stopSeeding.mutate(id))}
-          onUpdate={(tor) => updateTorrent.mutate(tor)}
-          onAnnounce={(id) => announceTorrent.mutate(id)}
-          onRecheck={(id) => recheckTorrent.mutate(id)}
-          onDelete={(payload) =>
-            onDelete ? onDelete(payload) : deleteTorrent.mutate(payload)
+          onStart={(id) => { if (onResume) { onResume(id); } else { startSeeding.mutate(id); } }}
+          onStop={(id) => { if (onPause) { onPause(id); } else { stopSeeding.mutate(id); } }}
+          onUpdate={(tor) => { updateTorrent.mutate(tor); }}
+          onAnnounce={(id) => { announceTorrent.mutate(id); }}
+          onRecheck={(id) => { recheckTorrent.mutate(id); }}
+          onDelete={(payload) => { if (onDelete) { onDelete(payload); } else { deleteTorrent.mutate(payload); } }
           }
-          onMoveQueue={(payload) => moveTorrentQueue.mutate(payload)}
-          onBatchStart={(ids) =>
-            ids.forEach((id) =>
-              onResume ? onResume(id) : startSeeding.mutate(id),
-            )
+          onMoveQueue={(payload) => { moveTorrentQueue.mutate(payload); }}
+          onBatchStart={(ids) => { ids.forEach((id) => { if (onResume) { onResume(id); } else { startSeeding.mutate(id); } },
+            ); }
           }
-          onBatchStop={(ids) =>
-            ids.forEach((id) =>
-              onPause ? onPause(id) : stopSeeding.mutate(id),
-            )
+          onBatchStop={(ids) => { ids.forEach((id) => { if (onPause) { onPause(id); } else { stopSeeding.mutate(id); } },
+            ); }
           }
-          onBatchAnnounce={(ids) =>
-            ids.forEach((id) => announceTorrent.mutate(id))
+          onBatchAnnounce={(ids) => { ids.forEach((id) => { announceTorrent.mutate(id); }); }
           }
-          onBatchRecheck={(ids) =>
-            ids.forEach((id) => recheckTorrent.mutate(id))
+          onBatchRecheck={(ids) => { ids.forEach((id) => { recheckTorrent.mutate(id); }); }
           }
           onBatchDelete={(payload) => {
             if (onDelete && payload.ids.length > 0) {
@@ -855,19 +848,16 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                 ids: payload.ids,
               });
             } else {
-              payload.ids.forEach((id) =>
-                deleteTorrent.mutate({ id, deleteFiles: payload.deleteFiles }),
+              payload.ids.forEach((id) => { deleteTorrent.mutate({ id, deleteFiles: payload.deleteFiles }); },
               );
             }
           }}
-          onBatchUpdate={(batchTorrents) =>
-            batchTorrents.forEach((tor) => updateTorrent.mutate(tor))
+          onBatchUpdate={(batchTorrents) => { batchTorrents.forEach((tor) => { updateTorrent.mutate(tor); }); }
           }
-          onBatchMoveQueue={(payload) =>
-            moveTorrentQueueBatch.mutate({
+          onBatchMoveQueue={(payload) => { moveTorrentQueueBatch.mutate({
               ids: payload.ids,
               position: payload.position,
-            })
+            }); }
           }
           onSearchIndexers={onSearchIndexers}
           onNavigateTab={onNavigateTab}

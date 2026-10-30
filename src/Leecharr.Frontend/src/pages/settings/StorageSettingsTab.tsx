@@ -76,7 +76,7 @@ export function StorageSettingsTab() {
         lowDiskSpaceThresholdMb: Number(form.lowDiskSpaceThresholdMb) || 500,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -110,7 +110,7 @@ export function StorageSettingsTab() {
           <TextInput
             label={t("settingsTabs.batch2.defaultCompletedDownloadDirectory")}
             value={form.downloadDir}
-            onChange={(v) => update("downloadDir", v)}
+            onChange={(v) => { update("downloadDir", v); }}
             hint={t(
               "settingsTabs.batch2.rootDirectoryWhereCompletedDownloadsArePlaced",
             )}
@@ -118,7 +118,7 @@ export function StorageSettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={() => setActiveBrowserField("downloadDir")}
+                onClick={() => { setActiveBrowserField("downloadDir"); }}
                 title="Browse filesystem directories"
                 style={{
                   whiteSpace: "nowrap",
@@ -140,14 +140,14 @@ export function StorageSettingsTab() {
               "settingsTabs.batch2.stageIncompleteDownloadsInTemporaryFolder",
             )}
             checked={form.enableIncompleteDir}
-            onChange={(v) => update("enableIncompleteDir", v)}
+            onChange={(v) => { update("enableIncompleteDir", v); }}
             hint={t("settingsTabs.batch2.keepsFilesIsolatedUntil100Verified")}
           />
 
           <TextInput
             label={t("settingsTabs.batch2.incompleteDownloadDirectory")}
             value={form.incompleteDownloadDir}
-            onChange={(v) => update("incompleteDownloadDir", v)}
+            onChange={(v) => { update("incompleteDownloadDir", v); }}
             disabled={!form.enableIncompleteDir}
             hint={t(
               "settingsTabs.batch2.pathWhereInProgressDownloadsAreWritten",
@@ -156,7 +156,7 @@ export function StorageSettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={() => setActiveBrowserField("incompleteDownloadDir")}
+                onClick={() => { setActiveBrowserField("incompleteDownloadDir"); }}
                 disabled={!form.enableIncompleteDir}
                 title="Browse filesystem directories"
                 style={{
@@ -180,7 +180,7 @@ export function StorageSettingsTab() {
               "Auto Rehash Check on Completion",
             )}
             checked={form.autoRecheckOnCompletion}
-            onChange={(v) => update("autoRecheckOnCompletion", v)}
+            onChange={(v) => { update("autoRecheckOnCompletion", v); }}
             hint={t(
               "settingsTabs.batch2.autoRecheckOnCompletionHint",
               "Automatically verify all piece hashes on disk upon download completion before moving files to the destination folder",
@@ -197,7 +197,7 @@ export function StorageSettingsTab() {
             <SelectInput
               label={t("settingsTabs.batch2.diskPreallocationMode")}
               value={form.preallocationMode}
-              onChange={(v) => update("preallocationMode", v)}
+              onChange={(v) => { update("preallocationMode", v); }}
               options={[
                 {
                   value: "Sparse",
@@ -220,7 +220,7 @@ export function StorageSettingsTab() {
             <TextInput
               label={t("settingsTabs.batch2.posixPermissionMask")}
               value={form.umask}
-              onChange={(v) => update("umask", v)}
+              onChange={(v) => { update("umask", v); }}
               hint={t("settingsTabs.batch2.octalPermissionMaskForCreatedFiles")}
             />
 
@@ -230,7 +230,7 @@ export function StorageSettingsTab() {
                 "Low Disk Space Warning Threshold (MB)",
               )}
               value={form.lowDiskSpaceThresholdMb}
-              onChange={(v) => update("lowDiskSpaceThresholdMb", v)}
+              onChange={(v) => { update("lowDiskSpaceThresholdMb", v); }}
               min={0}
               step={50}
               hint={t(
@@ -251,7 +251,7 @@ export function StorageSettingsTab() {
                 "settingsTabs.batch2.appendCustomExtensionToIncompleteFiles",
               )}
               checked={form.renamePartialFiles}
-              onChange={(v) => update("renamePartialFiles", v)}
+              onChange={(v) => { update("renamePartialFiles", v); }}
               hint={t("settingsTabs.batch2.renamesInProgressDownloadingFiles")}
             />
 
@@ -260,7 +260,7 @@ export function StorageSettingsTab() {
                 <TextInput
                   label={t("settingsTabs.batch2.incompleteFileExtension")}
                   value={form.incompleteExtension}
-                  onChange={(v) => update("incompleteExtension", v)}
+                  onChange={(v) => { update("incompleteExtension", v); }}
                   hint={t(
                     "settingsTabs.batch2.extensionSuffixAppendedDuringTransfer",
                   )}
@@ -288,7 +288,7 @@ export function StorageSettingsTab() {
             update(activeBrowserField, selectedPath);
             setActiveBrowserField(null);
           }}
-          onClose={() => setActiveBrowserField(null)}
+          onClose={() => { setActiveBrowserField(null); }}
         />
       )}
     </div>

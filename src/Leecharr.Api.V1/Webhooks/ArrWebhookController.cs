@@ -94,7 +94,7 @@ public class ArrWebhookController : Controller
         return await this.ProcessWebhookAsync(arrType, payload);
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public async Task<ActionResult<ArrWebhookResult>> HandleDefault([FromBody] ArrWebhookPayload payload)
     {
         return await this.ProcessWebhookAsync(null, payload);

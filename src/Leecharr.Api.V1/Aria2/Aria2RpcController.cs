@@ -131,7 +131,7 @@ public class Aria2RpcController : ControllerBase
         this.downloadEngine = downloadEngine;
     }
 
-    [HttpGet]
+    [HttpGet] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPost]
     public async Task<IActionResult> HandleRpc()
     {

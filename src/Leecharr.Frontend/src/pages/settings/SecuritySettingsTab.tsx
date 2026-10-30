@@ -397,7 +397,7 @@ export function SecuritySettingsTab() {
 
       await navigator.clipboard.writeText(keyToCopy);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => { setCopied(false); }, 2000);
       toast?.showToast(
         t("settingsTabs.batch2.apiKeyCopiedToClipboard"),
         "success",
@@ -430,7 +430,7 @@ export function SecuritySettingsTab() {
       },
 
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -556,7 +556,7 @@ export function SecuritySettingsTab() {
           <Toggle
             label={t("settingsTabs.batch2.enableWebUiAuthentication")}
             checked={form.authenticationEnabled}
-            onChange={(v) => update("authenticationEnabled", v)}
+            onChange={(v) => { update("authenticationEnabled", v); }}
             hint={t("settingsTabs.batch2.requireLoginBeforeAccessingWebUi")}
           />
 
@@ -564,7 +564,7 @@ export function SecuritySettingsTab() {
             <SelectInput
               label="Authentication Requirement"
               value={String(form.authenticationRequired)}
-              onChange={(v) => update("authenticationRequired", Number(v))}
+              onChange={(v) => { update("authenticationRequired", Number(v)); }}
               options={[
                 {
                   value: "1",
@@ -587,7 +587,7 @@ export function SecuritySettingsTab() {
           <SelectInput
             label="Session Inactivity Lock Timeout"
             value={String(idleTimeout)}
-            onChange={(v) => handleIdleTimeoutChange(Number(v))}
+            onChange={(v) => { handleIdleTimeoutChange(Number(v)); }}
             options={TIMEOUT_OPTIONS.map((opt) => ({
               value: String(opt.value),
               label: opt.label,
@@ -642,28 +642,28 @@ export function SecuritySettingsTab() {
           <Toggle
             label={t("settingsTabs.batch2.enableCsrfProtection")}
             checked={form.csrfProtectionEnabled}
-            onChange={(v) => update("csrfProtectionEnabled", v)}
+            onChange={(v) => { update("csrfProtectionEnabled", v); }}
             hint={t("settingsTabs.batch2.enforcesStrictOriginRefererChecks")}
           />
 
           <Toggle
             label={t("settingsTabs.batch2.enableStrictHostHeaderValidation")}
             checked={form.hostHeaderValidationEnabled}
-            onChange={(v) => update("hostHeaderValidationEnabled", v)}
+            onChange={(v) => { update("hostHeaderValidationEnabled", v); }}
             hint={t("settingsTabs.batch2.preventsDnsRebindingAttacks")}
           />
 
           <Toggle
             label={t("terminal.title")}
             checked={form.terminalAccessEnabled}
-            onChange={(v) => update("terminalAccessEnabled", v)}
+            onChange={(v) => { update("terminalAccessEnabled", v); }}
             hint={t("terminal.executeCommands")}
           />
 
           <Toggle
             label="Allow Private / LAN Network Requests"
             checked={form.allowPrivateNetworkRequests}
-            onChange={(v) => update("allowPrivateNetworkRequests", v)}
+            onChange={(v) => { update("allowPrivateNetworkRequests", v); }}
             hint="Permits connections to local and private IP addresses (localhost, Prowlarr, Sonarr, Radarr, LAN). Cloud metadata endpoints remain strictly blocked."
           />
 
@@ -672,13 +672,13 @@ export function SecuritySettingsTab() {
               <TextInput
                 label="Allowed SSRF Hostnames"
                 value={form.allowedSsrfHostnames}
-                onChange={(v) => update("allowedSsrfHostnames", v)}
+                onChange={(v) => { update("allowedSsrfHostnames", v); }}
                 hint="Comma-separated hostnames or wildcards permitted when private network requests are restricted (e.g. prowlarr, *.local, sonarr.lan)."
               />
               <TextInput
                 label="Allowed SSRF Subnets"
                 value={form.allowedSsrfSubnets}
-                onChange={(v) => update("allowedSsrfSubnets", v)}
+                onChange={(v) => { update("allowedSsrfSubnets", v); }}
                 hint="Comma-separated IP addresses or CIDR blocks permitted when private network requests are restricted (e.g. 192.168.1.0/24, 10.0.0.5)."
               />
             </>
@@ -688,7 +688,7 @@ export function SecuritySettingsTab() {
             <TextInput
               label={t("settingsTabs.batch2.allowedHostHeadersWhitelist")}
               value={form.allowedHosts}
-              onChange={(v) => update("allowedHosts", v)}
+              onChange={(v) => { update("allowedHosts", v); }}
               hint={t(
                 "settingsTabs.batch2.commaSeparatedListOfAllowedHostnames",
               )}
@@ -698,7 +698,7 @@ export function SecuritySettingsTab() {
           <TextInput
             label="Allowed CORS Origins"
             value={form.allowedCorsOrigins}
-            onChange={(v) => update("allowedCorsOrigins", v)}
+            onChange={(v) => { update("allowedCorsOrigins", v); }}
             hint="Comma-separated list of allowed CORS origins (e.g. http://localhost:3000, https://dashboard.lan)."
           />
         </div>
@@ -730,7 +730,7 @@ export function SecuritySettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => handleOpenAdd("authentik")}
+                onClick={() => { handleOpenAdd("authentik"); }}
                 style={{ fontSize: "0.8rem", padding: "4px 10px" }}
               >
                 + Authentik
@@ -738,7 +738,7 @@ export function SecuritySettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => handleOpenAdd("keycloak")}
+                onClick={() => { handleOpenAdd("keycloak"); }}
                 style={{ fontSize: "0.8rem", padding: "4px 10px" }}
               >
                 + Keycloak
@@ -746,7 +746,7 @@ export function SecuritySettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => handleOpenAdd("authelia")}
+                onClick={() => { handleOpenAdd("authelia"); }}
                 style={{ fontSize: "0.8rem", padding: "4px 10px" }}
               >
                 + Authelia
@@ -754,7 +754,7 @@ export function SecuritySettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => handleOpenAdd("google")}
+                onClick={() => { handleOpenAdd("google"); }}
                 style={{ fontSize: "0.8rem", padding: "4px 10px" }}
               >
                 + Google
@@ -762,7 +762,7 @@ export function SecuritySettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => handleOpenAdd("github")}
+                onClick={() => { handleOpenAdd("github"); }}
                 style={{ fontSize: "0.8rem", padding: "4px 10px" }}
               >
                 + GitHub
@@ -770,7 +770,7 @@ export function SecuritySettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => handleOpenAdd("apple")}
+                onClick={() => { handleOpenAdd("apple"); }}
                 style={{ fontSize: "0.8rem", padding: "4px 10px" }}
               >
                 + Apple
@@ -778,7 +778,7 @@ export function SecuritySettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => handleOpenAdd("saml")}
+                onClick={() => { handleOpenAdd("saml"); }}
                 style={{ fontSize: "0.8rem", padding: "4px 10px" }}
               >
                 + SAML 2.0
@@ -875,7 +875,7 @@ export function SecuritySettingsTab() {
                     <button
                       type="button"
                       className="btn btn-outline"
-                      onClick={() => handleOpenEdit(p)}
+                      onClick={() => { handleOpenEdit(p); }}
                       style={{ fontSize: "0.8rem", padding: "4px 10px" }}
                     >
                       ✏️ {t("settingsTabs.batch2.edit")}
@@ -883,7 +883,7 @@ export function SecuritySettingsTab() {
                     <button
                       type="button"
                       className="btn btn-danger"
-                      onClick={() => handleDeleteProvider(p.id)}
+                      onClick={() => { void handleDeleteProvider(p.id); }}
                       style={{ fontSize: "0.8rem", padding: "4px 10px" }}
                     >
                       🗑️ {t("settingsTabs.batch2.delete")}
@@ -925,7 +925,7 @@ export function SecuritySettingsTab() {
                   <button
                     type="button"
                     className="btn btn-outline"
-                    onClick={handleToggleShowApiKey}
+                    onClick={(...args: Parameters<typeof handleToggleShowApiKey>) => { void handleToggleShowApiKey(...args); }}
                     style={{
                       whiteSpace: "nowrap",
                       height: "36px",
@@ -951,7 +951,7 @@ export function SecuritySettingsTab() {
             <button
               type="button"
               className="btn btn-outline"
-              onClick={handleCopyApiKey}
+              onClick={(...args: Parameters<typeof handleCopyApiKey>) => { void handleCopyApiKey(...args); }}
               style={{ marginBottom: "0.25rem", whiteSpace: "nowrap" }}
             >
               {copied
@@ -969,7 +969,7 @@ export function SecuritySettingsTab() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => navigate("/system/api")}
+              onClick={() => { void navigate("/system/api"); }}
               style={{ marginBottom: "0.25rem", whiteSpace: "nowrap" }}
             >
               📖 {t("settingsTabs.batch2.apiDocs")}
@@ -1073,7 +1073,7 @@ export function SecuritySettingsTab() {
             <button
               type="button"
               className="btn btn-outline"
-              onClick={handleSyncBlocklist}
+              onClick={(...args: Parameters<typeof handleSyncBlocklist>) => { void handleSyncBlocklist(...args); }}
               disabled={syncBlocklistMutation.isPending}
               style={{
                 fontSize: "0.8rem",
@@ -1091,14 +1091,14 @@ export function SecuritySettingsTab() {
           <Toggle
             label="Enable Peer Blocklist"
             checked={blocklistForm.enabled}
-            onChange={(v) => updateBlocklist("enabled", v)}
+            onChange={(v) => { updateBlocklist("enabled", v); }}
             hint="Filter BitTorrent peer connections against the downloaded IP blocklist ruleset"
           />
 
           <TextInput
             label="Blocklist Feed URL"
             value={blocklistForm.url}
-            onChange={(v) => updateBlocklist("url", v)}
+            onChange={(v) => { updateBlocklist("url", v); }}
             placeholder="https://example.com/blocklist.gz"
             hint="Supports gzip (.gz), zip (.zip), P2P plaintext, and DAT blocklists (e.g., Bluetack, I-Blocklist, PeerGuardian format)"
           />
@@ -1106,7 +1106,7 @@ export function SecuritySettingsTab() {
           <Toggle
             label="Automatic Updates"
             checked={blocklistForm.autoUpdateEnabled}
-            onChange={(v) => updateBlocklist("autoUpdateEnabled", v)}
+            onChange={(v) => { updateBlocklist("autoUpdateEnabled", v); }}
             hint="Automatically refresh blocklist rules in the background using HTTP ETag and Last-Modified caching"
           />
 
@@ -1186,7 +1186,7 @@ export function SecuritySettingsTab() {
             <button
               type="button"
               className={`btn ${blocklistDirty ? "btn-primary" : "btn-outline"}`}
-              onClick={handleSaveBlocklist}
+              onClick={(...args: Parameters<typeof handleSaveBlocklist>) => { void handleSaveBlocklist(...args); }}
               disabled={!blocklistDirty || updateBlocklistMutation.isPending}
               style={{ fontSize: "0.85rem", padding: "6px 14px" }}
             >
@@ -1208,7 +1208,7 @@ export function SecuritySettingsTab() {
           >
             <button
               type="button"
-              onClick={() => setDiagnosticsOpen((prev) => !prev)}
+              onClick={() => { setDiagnosticsOpen((prev) => !prev); }}
               style={{
                 background: "none",
                 border: "none",
@@ -1269,7 +1269,7 @@ export function SecuritySettingsTab() {
                   <button
                     type="button"
                     className="btn btn-primary"
-                    onClick={handleCheckIp}
+                    onClick={(...args: Parameters<typeof handleCheckIp>) => { void handleCheckIp(...args); }}
                     disabled={testingIp || !testIpInput.trim()}
                     style={{
                       marginBottom: "0.25rem",
@@ -1386,8 +1386,7 @@ export function SecuritySettingsTab() {
               <Toggle
                 label={t("settingsTabs.batch2.enableProvider")}
                 checked={editingProvider.isEnabled ?? true}
-                onChange={(v) =>
-                  setEditingProvider((prev) => ({ ...prev, isEnabled: v }))
+                onChange={(v) => { setEditingProvider((prev) => ({ ...prev, isEnabled: v })); }
                 }
                 hint={t(
                   "settingsTabs.batch2.allowUsersToLogInWithThisProvider",
@@ -1397,8 +1396,7 @@ export function SecuritySettingsTab() {
               <TextInput
                 label={t("settingsTabs.batch2.providerName")}
                 value={editingProvider.name || ""}
-                onChange={(v) =>
-                  setEditingProvider((prev) => ({ ...prev, name: v }))
+                onChange={(v) => { setEditingProvider((prev) => ({ ...prev, name: v })); }
                 }
                 hint={t("settingsTabs.batch2.displayNameExample")}
               />
@@ -1406,8 +1404,7 @@ export function SecuritySettingsTab() {
               <TextInput
                 label={t("settingsTabs.batch2.providerIdentifier")}
                 value={editingProvider.providerId || ""}
-                onChange={(v) =>
-                  setEditingProvider((prev) => ({ ...prev, providerId: v }))
+                onChange={(v) => { setEditingProvider((prev) => ({ ...prev, providerId: v })); }
                 }
                 hint={t("settingsTabs.batch2.uniqueUrlSafeIdentifier")}
               />
@@ -1430,19 +1427,17 @@ export function SecuritySettingsTab() {
                     label: t("settingsTabs.batch2.forwardAuthReverseProxy"),
                   },
                 ]}
-                onChange={(v) =>
-                  setEditingProvider((prev) => ({
+                onChange={(v) => { setEditingProvider((prev) => ({
                     ...prev,
                     providerType: Number(v) as IdentityProviderType,
-                  }))
+                  })); }
                 }
               />
 
               <TextInput
                 label={t("settingsTabs.batch2.issuerUrlAuthority")}
                 value={editingProvider.issuerUrl || ""}
-                onChange={(v) =>
-                  setEditingProvider((prev) => ({ ...prev, issuerUrl: v }))
+                onChange={(v) => { setEditingProvider((prev) => ({ ...prev, issuerUrl: v })); }
                 }
                 hint={
                   editingProvider.providerType === 1
@@ -1456,8 +1451,7 @@ export function SecuritySettingsTab() {
                   <TextInput
                     label={t("settingsTabs.batch2.clientId")}
                     value={editingProvider.clientId || ""}
-                    onChange={(v) =>
-                      setEditingProvider((prev) => ({ ...prev, clientId: v }))
+                    onChange={(v) => { setEditingProvider((prev) => ({ ...prev, clientId: v })); }
                     }
                   />
 
@@ -1465,11 +1459,10 @@ export function SecuritySettingsTab() {
                     label={t("settingsTabs.batch2.clientSecret")}
                     type={showSecret ? "text" : "password"}
                     value={editingProvider.clientSecret || ""}
-                    onChange={(v) =>
-                      setEditingProvider((prev) => ({
+                    onChange={(v) => { setEditingProvider((prev) => ({
                         ...prev,
                         clientSecret: v,
-                      }))
+                      })); }
                     }
                     hint={t(
                       "settingsTabs.batch2.leaveBlankOrMaskedToKeepCurrentSecret",
@@ -1478,7 +1471,7 @@ export function SecuritySettingsTab() {
                       <button
                         type="button"
                         className="btn btn-outline"
-                        onClick={() => setShowSecret((prev) => !prev)}
+                        onClick={() => { setShowSecret((prev) => !prev); }}
                         style={{
                           whiteSpace: "nowrap",
                           height: "36px",
@@ -1505,8 +1498,7 @@ export function SecuritySettingsTab() {
                   <TextInput
                     label={t("settings.oAuthScopes")}
                     value={editingProvider.scopes || "openid profile email"}
-                    onChange={(v) =>
-                      setEditingProvider((prev) => ({ ...prev, scopes: v }))
+                    onChange={(v) => { setEditingProvider((prev) => ({ ...prev, scopes: v })); }
                     }
                     hint={t("settingsTabs.security.oauthScopesHint")}
                   />
@@ -1518,11 +1510,10 @@ export function SecuritySettingsTab() {
                   <TextInput
                     label="X.509 Public Signing Certificate (PEM / Base64)"
                     value={editingProvider.certificate || ""}
-                    onChange={(v) =>
-                      setEditingProvider((prev) => ({
+                    onChange={(v) => { setEditingProvider((prev) => ({
                         ...prev,
                         certificate: v,
-                      }))
+                      })); }
                     }
                     hint="IdP public certificate used to verify SAML response digital signatures"
                   />
@@ -1530,11 +1521,10 @@ export function SecuritySettingsTab() {
                   <TextInput
                     label={t("settings.idPMetadataURLXMLEndpoin")}
                     value={editingProvider.metadataUrl || ""}
-                    onChange={(v) =>
-                      setEditingProvider((prev) => ({
+                    onChange={(v) => { setEditingProvider((prev) => ({
                         ...prev,
                         metadataUrl: v,
-                      }))
+                      })); }
                     }
                     hint={t("settingsTabs.security.metadataUrlHint")}
                   />
@@ -1544,11 +1534,10 @@ export function SecuritySettingsTab() {
               <TextInput
                 label={t("settings.roleMappingRulesJSON")}
                 value={editingProvider.roleMappingRules || ""}
-                onChange={(v) =>
-                  setEditingProvider((prev) => ({
+                onChange={(v) => { setEditingProvider((prev) => ({
                     ...prev,
                     roleMappingRules: v,
-                  }))
+                  })); }
                 }
                 hint={t("settingsTabs.security.roleMappingRulesHint")}
               />
@@ -1556,8 +1545,7 @@ export function SecuritySettingsTab() {
               <TextInput
                 label={t("settings.buttonText")}
                 value={editingProvider.buttonText || ""}
-                onChange={(v) =>
-                  setEditingProvider((prev) => ({ ...prev, buttonText: v }))
+                onChange={(v) => { setEditingProvider((prev) => ({ ...prev, buttonText: v })); }
                 }
                 hint={t("settingsTabs.security.buttonTextHint")}
               />
@@ -1592,7 +1580,7 @@ export function SecuritySettingsTab() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={handleTestConnection}
+                onClick={(...args: Parameters<typeof handleTestConnection>) => { void handleTestConnection(...args); }}
                 disabled={testing}
                 style={{ fontSize: "0.85rem" }}
               >
@@ -1614,7 +1602,7 @@ export function SecuritySettingsTab() {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={handleSaveProvider}
+                  onClick={(...args: Parameters<typeof handleSaveProvider>) => { void handleSaveProvider(...args); }}
                 >
                   {t("settingsTabs.security.saveProvider")}
                 </button>

@@ -208,7 +208,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               "Search tracker hosts...",
             )}
             value={trackerSearch}
-            onChange={(e) => setTrackerSearch(e.target.value)}
+            onChange={(e) => { setTrackerSearch(e.target.value); }}
           />
           <select
             className="form-control"
@@ -218,7 +218,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               fontSize: "0.85rem",
             }}
             value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
+            onChange={(e) => { setSourceFilter(e.target.value); }}
           >
             <option value="all">
               {t("trackerBoost.allSources", "All Sources")}
@@ -242,7 +242,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
               fontSize: "0.85rem",
             }}
             value={healthFilter}
-            onChange={(e) => setHealthFilter(e.target.value)}
+            onChange={(e) => { setHealthFilter(e.target.value); }}
           >
             <option value="all">
               {t("trackerBoost.allHealth", "All Health")}
@@ -269,7 +269,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
         >
           <button
             className="btn btn-action"
-            onClick={handleCopyAllTrackers}
+            onClick={(...args: Parameters<typeof handleCopyAllTrackers>) => { void handleCopyAllTrackers(...args); }}
             title={t(
               "trackerBoost.copyAllUrls",
               "Copy all tracker URLs to clipboard",
@@ -301,7 +301,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
           )}
           <button
             className="btn btn-primary"
-            onClick={() => setIsAddingTracker(true)}
+            onClick={() => { setIsAddingTracker(true); }}
           >
             {t("trackerBoost.radar.addSingle", "+ Add Single")}
           </button>
@@ -318,7 +318,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
             className="form-control"
             placeholder="udp://tracker.example.com:1337/announce"
             value={newTrackerUrl}
-            onChange={(e) => setNewTrackerUrl(e.target.value)}
+            onChange={(e) => { setNewTrackerUrl(e.target.value); }}
             style={{ flex: 1 }}
           />
           <button
@@ -331,7 +331,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
           <button
             type="button"
             className="btn btn-outline"
-            onClick={() => setIsAddingTracker(false)}
+            onClick={() => { setIsAddingTracker(false); }}
           >
             {t("common.cancel", "Cancel")}
           </button>
@@ -446,7 +446,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
                       padding: "0.25rem 0.6rem",
                       fontSize: "0.75rem",
                     }}
-                    onClick={() => deleteTracker.mutate(tr.id)}
+                    onClick={() => { deleteTracker.mutate(tr.id); }}
                   >
                     {t("common.delete", "Delete")}
                   </button>

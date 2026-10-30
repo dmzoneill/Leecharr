@@ -57,7 +57,7 @@ class MockLocalStorage {
   }
 }
 
-describe("useIdleTimer / IdleTimerTracker", () => {
+void describe("useIdleTimer / IdleTimerTracker", () => {
   let originalWindow: unknown;
   let mockStorage: MockLocalStorage;
   let storageListeners: Array<(e: StorageEvent) => void>;
@@ -106,11 +106,11 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     delete testGlobal.__storageListeners;
   });
 
-  it("loads default timeout when localStorage is empty", () => {
+  void it("loads default timeout when localStorage is empty", () => {
     assert.equal(getStoredIdleTimeout(), DEFAULT_IDLE_TIMEOUT_SECONDS);
   });
 
-  it("loads and parses valid timeout from localStorage", () => {
+  void it("loads and parses valid timeout from localStorage", () => {
     mockStorage.setItem(IDLE_TIMEOUT_STORAGE_KEY, "300");
     assert.equal(getStoredIdleTimeout(), 300);
 
@@ -118,7 +118,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     assert.equal(getStoredIdleTimeout(), 0);
   });
 
-  it("falls back to default on invalid or corrupted storage values", () => {
+  void it("falls back to default on invalid or corrupted storage values", () => {
     mockStorage.setItem(IDLE_TIMEOUT_STORAGE_KEY, "not-a-number");
     assert.equal(getStoredIdleTimeout(), DEFAULT_IDLE_TIMEOUT_SECONDS);
 
@@ -126,7 +126,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     assert.equal(getStoredIdleTimeout(), DEFAULT_IDLE_TIMEOUT_SECONDS);
   });
 
-  it("setStoredIdleTimeout saves to localStorage and dispatches storage event", () => {
+  void it("setStoredIdleTimeout saves to localStorage and dispatches storage event", () => {
     let receivedEvent: StorageEvent | null = null;
     (testGlobal.window as MockWindow).addEventListener(
       "storage",
@@ -142,7 +142,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     assert.equal((receivedEvent as StorageEvent).newValue, "1800");
   });
 
-  it("provides expected timeout options with disabled and preset options", () => {
+  void it("provides expected timeout options with disabled and preset options", () => {
     assert.ok(TIMEOUT_OPTIONS.some((o) => o.value === 0));
     assert.ok(TIMEOUT_OPTIONS.some((o) => o.value === 300));
     assert.ok(TIMEOUT_OPTIONS.some((o) => o.value === 900));
@@ -150,7 +150,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     assert.ok(TIMEOUT_OPTIONS.some((o) => o.value === 3600));
   });
 
-  it("tracks countdown and transitions to warning window then idle state", () => {
+  void it("tracks countdown and transitions to warning window then idle state", () => {
     let idleTriggered = false;
     let warningTriggeredWith: number | null = null;
     const tracker = new IdleTimerTracker({
@@ -195,7 +195,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     }
   });
 
-  it("user activity resets timer and clears warning state", () => {
+  void it("user activity resets timer and clears warning state", () => {
     let activeTriggered = false;
     const tracker = new IdleTimerTracker({
       timeoutSeconds: 10,
@@ -221,7 +221,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     }
   });
 
-  it("user activity does NOT dismiss idle lock once already idle", () => {
+  void it("user activity does NOT dismiss idle lock once already idle", () => {
     const tracker = new IdleTimerTracker({
       timeoutSeconds: 5,
       warningSeconds: 2,
@@ -239,7 +239,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     }
   });
 
-  it("manual lock immediately locks session and manual unlock resets it", () => {
+  void it("manual lock immediately locks session and manual unlock resets it", () => {
     let idleTriggered = false;
     const tracker = new IdleTimerTracker({
       timeoutSeconds: 100,
@@ -262,7 +262,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     }
   });
 
-  it("disabled timeout (0) never triggers warning or idle", () => {
+  void it("disabled timeout (0) never triggers warning or idle", () => {
     let idleTriggered = false;
     let warningTriggered = false;
     const tracker = new IdleTimerTracker({
@@ -288,7 +288,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
     }
   });
 
-  it("synchronizes timeout changes via storage events", () => {
+  void it("synchronizes timeout changes via storage events", () => {
     const tracker = new IdleTimerTracker({
       timeoutSeconds: 900,
     });

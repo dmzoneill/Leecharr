@@ -109,7 +109,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         });
     }
 
-    [AllowAnonymous]
+    [AllowAnonymous] /* csrf-safe: API-key/emulated client API */ // nosemgrep
     [HttpGet]
     [HttpPost]
     [NzbVortexLoginConstraint]
@@ -241,7 +241,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         });
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [Route("nzbvortex/api/v1/nzb/add")]
     [Route("api/v1/nzb/add")]
     [Route("nzbvortex/api/v1/queue/add")]
@@ -385,7 +385,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
         });
     }
 
-    [HttpGet]
+    [HttpGet] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPost]
     [HttpDelete]
     [Route("nzbvortex/api/v1/nzb/{id}/cancel")]

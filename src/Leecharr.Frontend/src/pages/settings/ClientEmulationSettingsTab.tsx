@@ -263,7 +263,7 @@ export function ClientEmulationSettingsTab() {
           <Toggle
             label="Enable Client Behavior Engine"
             checked={form.clientBehaviorEngineEnabled}
-            onChange={(v) => update("clientBehaviorEngineEnabled", v)}
+            onChange={(v) => { update("clientBehaviorEngineEnabled", v); }}
             hint="Simulate realistic BitTorrent client behavioral quirks, request patterns, and timing"
           />
         </div>
@@ -311,7 +311,7 @@ export function ClientEmulationSettingsTab() {
           <SelectInput
             label={t("settingsTabs.clientEmulation.trafficPattern")}
             value={form.trafficPatternProfile}
-            onChange={(v) => update("trafficPatternProfile", v)}
+            onChange={(v) => { update("trafficPatternProfile", v); }}
             options={[
               {
                 value: "HomeUser",
@@ -335,21 +335,21 @@ export function ClientEmulationSettingsTab() {
           <TextInput
             label={t("settingsTabs.clientEmulation.customUserAgent")}
             value={form.bitTorrentUserAgent}
-            onChange={(v) => update("bitTorrentUserAgent", v)}
+            onChange={(v) => { update("bitTorrentUserAgent", v); }}
             hint={t("settingsTabs.clientEmulation.customUserAgentHint")}
           />
 
           <TextInput
             label={t("settingsTabs.clientEmulation.customPeerId")}
             value={form.peerIdPrefix}
-            onChange={(v) => update("peerIdPrefix", v)}
+            onChange={(v) => { update("peerIdPrefix", v); }}
             hint={t("settingsTabs.clientEmulation.customPeerIdHint")}
           />
 
           <NumberInput
             label="Behavior Variation Jitter"
             value={form.behaviorVariation}
-            onChange={(v) => update("behaviorVariation", v)}
+            onChange={(v) => { update("behaviorVariation", v); }}
             min={0}
             max={1}
             step={0.01}
@@ -359,7 +359,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label="Profile Switch Probability"
             value={form.switchClientProbability}
-            onChange={(v) => update("switchClientProbability", v)}
+            onChange={(v) => { update("switchClientProbability", v); }}
             min={0.01}
             max={1.0}
             step={0.01}
@@ -384,21 +384,21 @@ export function ClientEmulationSettingsTab() {
             <Toggle
               label="Realistic Variations"
               checked={form.realisticVariations}
-              onChange={(v) => update("realisticVariations", v)}
+              onChange={(v) => { update("realisticVariations", v); }}
               hint="Apply realistic variations to request and transfer behavior"
             />
 
             <Toggle
               label={t("settingsTabs.clientEmulation.diurnalPatterns")}
               checked={form.timeBasedPatterns}
-              onChange={(v) => update("timeBasedPatterns", v)}
+              onChange={(v) => { update("timeBasedPatterns", v); }}
               hint={t("settingsTabs.clientEmulation.diurnalPatternsHint")}
             />
 
             <Toggle
               label="Client Profile Dynamic Switching"
               checked={form.clientProfileSwitching}
-              onChange={(v) => update("clientProfileSwitching", v)}
+              onChange={(v) => { update("clientProfileSwitching", v); }}
               hint="Periodically switch emulation profile to mimic changing client software"
             />
           </div>
@@ -419,7 +419,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label="Swarm Adaptation Rate"
             value={form.swarmAdaptationRate}
-            onChange={(v) => update("swarmAdaptationRate", v)}
+            onChange={(v) => { update("swarmAdaptationRate", v); }}
             min={0.01}
             max={1.0}
             step={0.01}
@@ -429,7 +429,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label="Swarm Peer Analysis Depth"
             value={form.swarmPeerAnalysisDepth}
-            onChange={(v) => update("swarmPeerAnalysisDepth", v)}
+            onChange={(v) => { update("swarmPeerAnalysisDepth", v); }}
             min={1}
             max={100}
             hint="Number of peers sampled for swarm pattern analysis"
@@ -438,7 +438,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label="Seeder Upload Activity Chance"
             value={form.seederUploadActivityProbability}
-            onChange={(v) => update("seederUploadActivityProbability", v)}
+            onChange={(v) => { update("seederUploadActivityProbability", v); }}
             min={0}
             max={1}
             step={0.05}
@@ -448,7 +448,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label="Peer Idle Chance"
             value={form.peerIdleChance}
-            onChange={(v) => update("peerIdleChance", v)}
+            onChange={(v) => { update("peerIdleChance", v); }}
             min={0}
             max={1}
             step={0.05}
@@ -458,7 +458,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label="Peer Dropout Probability"
             value={form.peerDropoutProbability}
-            onChange={(v) => update("peerDropoutProbability", v)}
+            onChange={(v) => { update("peerDropoutProbability", v); }}
             min={0}
             max={1}
             step={0.01}
@@ -468,7 +468,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label="Connection Rotation Percentage"
             value={form.connectionRotationPercentage}
-            onChange={(v) => update("connectionRotationPercentage", v)}
+            onChange={(v) => { update("connectionRotationPercentage", v); }}
             min={0}
             max={1}
             step={0.05}
@@ -486,7 +486,7 @@ export function ClientEmulationSettingsTab() {
           <Toggle
             label={t("settingsTabs.clientEmulation.enableSwarmIntelligence")}
             checked={form.swarmIntelligenceEnabled}
-            onChange={(v) => update("swarmIntelligenceEnabled", v)}
+            onChange={(v) => { update("swarmIntelligenceEnabled", v); }}
             hint={t("settingsTabs.clientEmulation.enableSwarmIntelligenceHint")}
           />
         </div>
@@ -506,7 +506,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label={t("settingsTabs.clientEmulation.announceInterval")}
             value={form.announceIntervalSeconds}
-            onChange={(v) => update("announceIntervalSeconds", v)}
+            onChange={(v) => { update("announceIntervalSeconds", v); }}
             min={60}
             max={7200}
             suffix={t("settingsTabs.batch2.sec")}
@@ -516,7 +516,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label={t("settingsTabs.clientEmulation.minAnnounceClamp")}
             value={form.minAnnounceIntervalSeconds}
-            onChange={(v) => update("minAnnounceIntervalSeconds", v)}
+            onChange={(v) => { update("minAnnounceIntervalSeconds", v); }}
             min={30}
             max={1800}
             suffix={t("settingsTabs.batch2.sec")}
@@ -526,7 +526,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label={t("settingsTabs.clientEmulation.scrapeInterval")}
             value={form.scrapeIntervalSeconds}
-            onChange={(v) => update("scrapeIntervalSeconds", v)}
+            onChange={(v) => { update("scrapeIntervalSeconds", v); }}
             min={60}
             max={3600}
             suffix={t("settingsTabs.batch2.sec")}
@@ -536,7 +536,7 @@ export function ClientEmulationSettingsTab() {
           <NumberInput
             label={t("settingsTabs.clientEmulation.peersRequested")}
             value={form.peerRequestCount}
-            onChange={(v) => update("peerRequestCount", v)}
+            onChange={(v) => { update("peerRequestCount", v); }}
             min={10}
             max={500}
             hint={t("settingsTabs.clientEmulation.peersRequestedHint")}

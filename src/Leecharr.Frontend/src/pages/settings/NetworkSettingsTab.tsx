@@ -103,7 +103,7 @@ export function NetworkSettingsTab() {
         peerDscp: form.peerDscp,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -113,15 +113,14 @@ export function NetworkSettingsTab() {
     testPortMutation.mutate(
       { port: form.listeningPort },
       {
-        onSuccess: (data) => setPortTestResult(data),
-        onError: (err) =>
-          setPortTestResult({
+        onSuccess: (data) => { setPortTestResult(data); },
+        onError: (err) => { setPortTestResult({
             port: form.listeningPort,
             isOpen: false,
             message:
               err.message ||
               t("settingsTabs.batch2.portCheckFailed", "Port check failed"),
-          }),
+          }); },
       },
     );
   };
@@ -287,7 +286,7 @@ export function NetworkSettingsTab() {
             <Toggle
               label={t("settingsTabs.batch2.enableUpnpNatPmp")}
               checked={form.upnpEnabled}
-              onChange={(v) => update("upnpEnabled", v)}
+              onChange={(v) => { update("upnpEnabled", v); }}
               hint={t(
                 "settingsTabs.batch2.automaticallyNegotiatePortForwarding",
               )}
@@ -296,7 +295,7 @@ export function NetworkSettingsTab() {
             <Toggle
               label={t("settingsTabs.batch2.enableIpv6DualStack")}
               checked={form.enableIPv6}
-              onChange={(v) => update("enableIPv6", v)}
+              onChange={(v) => { update("enableIPv6", v); }}
               hint={t("settingsTabs.batch2.listensOnBothIpv4AndIpv6")}
             />
           </div>
@@ -323,7 +322,7 @@ export function NetworkSettingsTab() {
               <button
                 type="button"
                 className="btn btn-xs btn-outline"
-                onClick={() => setManualInterface(!manualInterface)}
+                onClick={() => { setManualInterface(!manualInterface); }}
                 style={{
                   fontSize: "0.75rem",
                   padding: "0.2rem 0.5rem",
@@ -346,7 +345,7 @@ export function NetworkSettingsTab() {
                     type="text"
                     className="form-input"
                     value={form.bindInterface}
-                    onChange={(e) => update("bindInterface", e.target.value)}
+                    onChange={(e) => { update("bindInterface", e.target.value); }}
                     placeholder="e.g. tun0, wg0, eth0"
                     style={{ borderRadius: "6px" }}
                   />
@@ -414,7 +413,7 @@ export function NetworkSettingsTab() {
           <Toggle
             label={t("settingsTabs.batch2.enableAutomatedVpnKillSwitch")}
             checked={form.enableVpnKillSwitch}
-            onChange={(v) => update("enableVpnKillSwitch", v)}
+            onChange={(v) => { update("enableVpnKillSwitch", v); }}
             hint={t(
               "settingsTabs.batch2.immediatelyDropAllBitTorrentTransfers",
             )}
@@ -436,7 +435,7 @@ export function NetworkSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.maximumGlobalConnections")}
             value={form.maxGlobalConnections}
-            onChange={(v) => update("maxGlobalConnections", v)}
+            onChange={(v) => { update("maxGlobalConnections", v); }}
             min={10}
             max={5000}
             hint={t(
@@ -447,7 +446,7 @@ export function NetworkSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.maxConnectionsPerTorrent")}
             value={form.maxPerTorrentConnections}
-            onChange={(v) => update("maxPerTorrentConnections", v)}
+            onChange={(v) => { update("maxPerTorrentConnections", v); }}
             min={1}
             max={500}
           />
@@ -455,7 +454,7 @@ export function NetworkSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.maxUploadSlotsPerTorrent")}
             value={form.maxUploadSlots}
-            onChange={(v) => update("maxUploadSlots", v)}
+            onChange={(v) => { update("maxUploadSlots", v); }}
             min={1}
             max={100}
           />
@@ -463,7 +462,7 @@ export function NetworkSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.maxConnectionsPerRemoteIp")}
             value={form.maxConnectionsPerIp}
-            onChange={(v) => update("maxConnectionsPerIp", v)}
+            onChange={(v) => { update("maxConnectionsPerIp", v); }}
             min={1}
             max={50}
           />
@@ -471,7 +470,7 @@ export function NetworkSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.maxHalfOpenConnections")}
             value={form.maximumHalfOpenConnections}
-            onChange={(v) => update("maximumHalfOpenConnections", v)}
+            onChange={(v) => { update("maximumHalfOpenConnections", v); }}
             min={5}
             max={500}
             hint={t("settingsTabs.batch2.maximumPendingTcpSocketHandshakes")}
@@ -480,7 +479,7 @@ export function NetworkSettingsTab() {
           <NumberInput
             label={t("settingsTabs.batch2.ipPacketDscpQosMarking")}
             value={form.peerDscp}
-            onChange={(v) => update("peerDscp", v)}
+            onChange={(v) => { update("peerDscp", v); }}
             min={0}
             max={63}
             hint={t("settingsTabs.batch2.diffServCodePoint")}

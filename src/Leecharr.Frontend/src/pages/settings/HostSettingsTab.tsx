@@ -90,7 +90,7 @@ export function HostSettingsTab() {
         redirectHttpToHttps: form.redirectHttpToHttps,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -162,7 +162,7 @@ export function HostSettingsTab() {
           <NumberInput
             label={t("settingsTabs.host.webServer.port.label")}
             value={form.port}
-            onChange={(v) => update("port", v)}
+            onChange={(v) => { update("port", v); }}
             min={1}
             max={65535}
             hint={t("settingsTabs.host.webServer.port.hint")}
@@ -171,14 +171,14 @@ export function HostSettingsTab() {
           <TextInput
             label={t("settingsTabs.host.webServer.bindAddress.label")}
             value={form.bindAddress}
-            onChange={(v) => update("bindAddress", v)}
+            onChange={(v) => { update("bindAddress", v); }}
             hint={t("settingsTabs.host.webServer.bindAddress.hint")}
           />
 
           <TextInput
             label={t("settingsTabs.host.webServer.urlBase.label")}
             value={form.urlBase}
-            onChange={(v) => update("urlBase", v)}
+            onChange={(v) => { update("urlBase", v); }}
             onBlur={() => {
               const normalized = normalizeUrlBase(form.urlBase);
               if (normalized !== form.urlBase) {
@@ -191,7 +191,7 @@ export function HostSettingsTab() {
           <SelectInput
             label={t("system.branch", "Branch")}
             value={form.branch}
-            onChange={(v) => update("branch", v)}
+            onChange={(v) => { update("branch", v); }}
             options={[
               { value: "main", label: "main" },
               { value: "develop", label: "develop" },
@@ -211,7 +211,7 @@ export function HostSettingsTab() {
           <Toggle
             label={t("settingsTabs.host.webServer.autoStart.label")}
             checked={form.autoStart}
-            onChange={(v) => update("autoStart", v)}
+            onChange={(v) => { update("autoStart", v); }}
             hint={t("settingsTabs.host.webServer.autoStart.hint")}
           />
         </div>
@@ -227,7 +227,7 @@ export function HostSettingsTab() {
           <Toggle
             label={t("settingsTabs.host.ssl.enable.label")}
             checked={form.enableSsl}
-            onChange={(v) => update("enableSsl", v)}
+            onChange={(v) => { update("enableSsl", v); }}
             hint={t("settingsTabs.host.ssl.enable.hint")}
           />
 
@@ -243,7 +243,7 @@ export function HostSettingsTab() {
                 <NumberInput
                   label={t("settingsTabs.host.ssl.port.label")}
                   value={form.sslPort}
-                  onChange={(v) => update("sslPort", v)}
+                  onChange={(v) => { update("sslPort", v); }}
                   min={1}
                   max={65535}
                   hint={t("settingsTabs.host.ssl.port.hint")}
@@ -259,7 +259,7 @@ export function HostSettingsTab() {
                   <Toggle
                     label={t("settingsTabs.host.ssl.redirect.label")}
                     checked={form.redirectHttpToHttps}
-                    onChange={(v) => update("redirectHttpToHttps", v)}
+                    onChange={(v) => { update("redirectHttpToHttps", v); }}
                     hint={t("settingsTabs.host.ssl.redirect.hint")}
                   />
                 </div>
@@ -275,21 +275,21 @@ export function HostSettingsTab() {
                 <TextInput
                   label={t("settingsTabs.host.ssl.certPath.label")}
                   value={form.sslCertPath}
-                  onChange={(v) => update("sslCertPath", v)}
+                  onChange={(v) => { update("sslCertPath", v); }}
                   hint={t("settingsTabs.host.ssl.certPath.hint")}
                 />
 
                 <TextInput
                   label={t("settingsTabs.host.ssl.keyPath.label")}
                   value={form.sslKeyPath}
-                  onChange={(v) => update("sslKeyPath", v)}
+                  onChange={(v) => { update("sslKeyPath", v); }}
                   hint={t("settingsTabs.host.ssl.keyPath.hint")}
                 />
 
                 <TextInput
                   label={t("settingsTabs.host.ssl.certPassword.label")}
                   value={form.sslCertPassword}
-                  onChange={(v) => update("sslCertPassword", v)}
+                  onChange={(v) => { update("sslCertPassword", v); }}
                   type="password"
                   hint={t("settingsTabs.host.ssl.certPassword.hint")}
                 />
@@ -308,7 +308,7 @@ export function HostSettingsTab() {
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={handleTestSsl}
+                  onClick={(...args: Parameters<typeof handleTestSsl>) => { void handleTestSsl(...args); }}
                   disabled={testingSsl}
                   style={{ minWidth: "160px" }}
                 >

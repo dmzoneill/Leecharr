@@ -52,7 +52,7 @@ export default function DeveloperDiagnostics() {
   }, []);
 
   useEffect(() => {
-    fetchDiagnostics();
+    void fetchDiagnostics();
   }, [fetchDiagnostics]);
 
   const handlePragmaOptimize = async () => {
@@ -64,7 +64,7 @@ export default function DeveloperDiagnostics() {
         readOnly: false,
       });
       setActionMessage({ text: "PRAGMA optimize completed successfully.", type: "success" });
-      fetchDiagnostics();
+      void fetchDiagnostics();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setActionMessage({ text: msg || "PRAGMA optimize failed.", type: "error" });
@@ -83,7 +83,7 @@ export default function DeveloperDiagnostics() {
         blocking: true,
       });
       setActionMessage({ text: res.message || "Garbage collection completed.", type: "success" });
-      fetchDiagnostics();
+      void fetchDiagnostics();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setActionMessage({ text: msg || "Garbage collection failed.", type: "error" });
@@ -102,7 +102,7 @@ export default function DeveloperDiagnostics() {
         readOnly: false,
       });
       setActionMessage({ text: "Database VACUUM completed successfully.", type: "success" });
-      fetchDiagnostics();
+      void fetchDiagnostics();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setActionMessage({ text: msg || "VACUUM failed.", type: "error" });
@@ -147,7 +147,7 @@ export default function DeveloperDiagnostics() {
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
             className="btn btn-outline btn-small"
-            onClick={fetchDiagnostics}
+            onClick={(...args: Parameters<typeof fetchDiagnostics>) => { void fetchDiagnostics(...args); }}
             disabled={isLoading || isActionRunning}
             title="Refresh Diagnostics"
           >
@@ -307,7 +307,7 @@ export default function DeveloperDiagnostics() {
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             <button
               className="btn btn-outline btn-small"
-              onClick={handlePragmaOptimize}
+              onClick={(...args: Parameters<typeof handlePragmaOptimize>) => { void handlePragmaOptimize(...args); }}
               disabled={isActionRunning}
               title="Run PRAGMA optimize to refresh query planner statistics"
             >
@@ -315,7 +315,7 @@ export default function DeveloperDiagnostics() {
             </button>
             <button
               className="btn btn-outline btn-small"
-              onClick={handleVacuum}
+              onClick={(...args: Parameters<typeof handleVacuum>) => { void handleVacuum(...args); }}
               disabled={isActionRunning}
               title="Defragment and reclaim unused SQLite disk space"
             >
@@ -323,7 +323,7 @@ export default function DeveloperDiagnostics() {
             </button>
             <button
               className="btn btn-outline btn-small"
-              onClick={handleCollectGarbage}
+              onClick={(...args: Parameters<typeof handleCollectGarbage>) => { void handleCollectGarbage(...args); }}
               disabled={isActionRunning}
               title="Trigger CLR Gen2 Garbage Collection"
             >

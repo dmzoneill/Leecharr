@@ -179,7 +179,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    return () => { window.removeEventListener("storage", handleStorage); };
   }, []);
 
   useEffect(() => {
@@ -189,7 +189,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setSystemIsLight(e.matches);
     };
     mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
+    return () => { mediaQuery.removeEventListener("change", handler); };
   }, []);
 
   const effectiveTheme = useMemo(() => {

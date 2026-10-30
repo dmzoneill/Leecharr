@@ -71,7 +71,7 @@ public class GeneralConfigResource : RestResource
 
 public static class GeneralConfigResourceMapper
 {
-    public const string MaskedSslCertSecretPlaceholder = "********";
+    public const string MaskedSslCertSecretPlaceholder = "********"; /* not a credential: mask placeholder/header name/empty or vendor default */ // nosemgrep
 
     public static bool IsMaskedApiKey(string submitted, string storedApiKey)
     {

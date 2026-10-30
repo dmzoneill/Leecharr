@@ -171,14 +171,14 @@ export function DhtSettingsTab() {
           <Toggle
             label={t("settings.enableMainlineDHT")}
             checked={form.enableDht}
-            onChange={(v) => update("enableDht", v)}
+            onChange={(v) => { update("enableDht", v); }}
             hint={t("settingsTabs.dht.enableDhtHint")}
           />
 
           <TextInput
             label={t("settings.bootstrapRouterNodes")}
             value={form.dhtBootstrapNodes}
-            onChange={(v) => update("dhtBootstrapNodes", v)}
+            onChange={(v) => { update("dhtBootstrapNodes", v); }}
             disabled={!form.enableDht}
             hint={t("settingsTabs.dht.bootstrapNodesHint")}
           />
@@ -193,7 +193,7 @@ export function DhtSettingsTab() {
             <NumberInput
               label={t("settings.routingTableSizeKBuckets")}
               value={form.dhtRoutingTableSize}
-              onChange={(v) => update("dhtRoutingTableSize", v)}
+              onChange={(v) => { update("dhtRoutingTableSize", v); }}
               disabled={!form.enableDht}
               min={10}
               max={1000}
@@ -202,7 +202,7 @@ export function DhtSettingsTab() {
             <NumberInput
               label={t("settings.kBucketCapacity")}
               value={form.dhtBucketSize}
-              onChange={(v) => update("dhtBucketSize", v)}
+              onChange={(v) => { update("dhtBucketSize", v); }}
               disabled={!form.enableDht}
               min={4}
               max={32}
@@ -211,7 +211,7 @@ export function DhtSettingsTab() {
             <NumberInput
               label={t("settings.maxActiveRoutingNodes")}
               value={form.dhtMaxNodes}
-              onChange={(v) => update("dhtMaxNodes", v)}
+              onChange={(v) => { update("dhtMaxNodes", v); }}
               disabled={!form.enableDht}
               min={100}
               max={10000}
@@ -220,7 +220,7 @@ export function DhtSettingsTab() {
             <NumberInput
               label={t("settings.concurrentAlphaQueries")}
               value={form.dhtConcurrentQueries}
-              onChange={(v) => update("dhtConcurrentQueries", v)}
+              onChange={(v) => { update("dhtConcurrentQueries", v); }}
               disabled={!form.enableDht}
               min={1}
               max={16}
@@ -243,7 +243,7 @@ export function DhtSettingsTab() {
               <Toggle
                 label={t("settings.rateLimitInboundDHTQueries")}
                 checked={form.dhtRateLimitEnabled}
-                onChange={(v) => update("dhtRateLimitEnabled", v)}
+                onChange={(v) => { update("dhtRateLimitEnabled", v); }}
                 disabled={!form.enableDht}
                 hint={t("settingsTabs.dht.rateLimitHint")}
               />
@@ -251,7 +251,7 @@ export function DhtSettingsTab() {
               <NumberInput
                 label={t("settings.maxDHTQueriesSec")}
                 value={form.dhtMaxQueriesPerSecond}
-                onChange={(v) => update("dhtMaxQueriesPerSecond", v)}
+                onChange={(v) => { update("dhtMaxQueriesPerSecond", v); }}
                 disabled={!form.enableDht || !form.dhtRateLimitEnabled}
                 min={5}
                 max={500}
@@ -277,7 +277,7 @@ export function DhtSettingsTab() {
             <Toggle
               label={t("settings.enablePeerExchangePEXBEP")}
               checked={form.enablePex}
-              onChange={(v) => update("enablePex", v)}
+              onChange={(v) => { update("enablePex", v); }}
               hint={t("settingsTabs.dht.pexHint")}
             />
             <div
@@ -291,7 +291,7 @@ export function DhtSettingsTab() {
               <NumberInput
                 label={t("settings.pEXBroadcastCadence")}
                 value={form.pexInterval}
-                onChange={(v) => update("pexInterval", v)}
+                onChange={(v) => { update("pexInterval", v); }}
                 disabled={!form.enablePex}
                 min={15}
                 max={300}
@@ -300,7 +300,7 @@ export function DhtSettingsTab() {
               <NumberInput
                 label={t("settings.maxPeersPerPEXFrame")}
                 value={form.pexMaxPeersPerMessage}
-                onChange={(v) => update("pexMaxPeersPerMessage", v)}
+                onChange={(v) => { update("pexMaxPeersPerMessage", v); }}
                 disabled={!form.enablePex}
                 min={10}
                 max={100}
@@ -312,7 +312,7 @@ export function DhtSettingsTab() {
             <Toggle
               label={t("settings.localPeerDiscoveryLPDLS")}
               checked={form.enableLpd}
-              onChange={(v) => update("enableLpd", v)}
+              onChange={(v) => { update("enableLpd", v); }}
               hint={t("settingsTabs.dht.lpdHint")}
             />
           </div>
@@ -326,7 +326,7 @@ export function DhtSettingsTab() {
         <TextInput
           label={t("settings.defaultTrackersCommaOrNew")}
           value={form.defaultTrackers}
-          onChange={(v) => update("defaultTrackers", v)}
+          onChange={(v) => { update("defaultTrackers", v); }}
           hint={t("settingsTabs.dht.defaultTrackersHint")}
         />
       </SectionCard>

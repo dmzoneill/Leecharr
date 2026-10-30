@@ -90,7 +90,7 @@ export const DeveloperPullRequests: React.FC = () => {
             key={s}
             type="button"
             className={`btn btn-sm ${stateFilter === s ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setStateFilter(s)}
+            onClick={() => { setStateFilter(s); }}
             style={{ textTransform: "capitalize" }}
           >
             {s}

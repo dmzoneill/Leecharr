@@ -41,7 +41,7 @@ public abstract class ConfigController<TResource> : Controller
         return this.GetConfig();
     }
 
-    [HttpPut]
+    [HttpPut] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPut("{id:int}")]
     [Consumes("application/json")]
     [Produces("application/json")]

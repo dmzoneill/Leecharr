@@ -63,7 +63,7 @@ export function CustomScriptsTab() {
         scriptTorrentDoneSeedingFilename: form.scriptTorrentDoneSeedingFilename,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -72,7 +72,7 @@ export function CustomScriptsTab() {
     <button
       type="button"
       className="btn btn-outline btn-small"
-      onClick={() => setActiveBrowserField(field)}
+      onClick={() => { setActiveBrowserField(field); }}
       title="Browse filesystem"
       style={{
         whiteSpace: "nowrap",
@@ -132,7 +132,7 @@ export function CustomScriptsTab() {
           <TextInput
             label={t("settingsTabs.customScripts.onDownloadComplete")}
             value={form.onDownloadCompleteScript}
-            onChange={(v) => update("onDownloadCompleteScript", v)}
+            onChange={(v) => { update("onDownloadCompleteScript", v); }}
             hint={t("settingsTabs.customScripts.onDownloadCompleteHint")}
             rightElement={renderBrowseButton("onDownloadCompleteScript")}
           />
@@ -140,7 +140,7 @@ export function CustomScriptsTab() {
           <TextInput
             label={t("settingsTabs.customScripts.onSeedGoalReached")}
             value={form.onSeedGoalReachedScript}
-            onChange={(v) => update("onSeedGoalReachedScript", v)}
+            onChange={(v) => { update("onSeedGoalReachedScript", v); }}
             hint={t("settingsTabs.customScripts.onSeedGoalReachedHint")}
             rightElement={renderBrowseButton("onSeedGoalReachedScript")}
           />
@@ -192,7 +192,7 @@ export function CustomScriptsTab() {
           <TextInput
             label={t("settingsTabs.customScripts.torrentDone")}
             value={form.scriptTorrentDoneFilename}
-            onChange={(v) => update("scriptTorrentDoneFilename", v)}
+            onChange={(v) => { update("scriptTorrentDoneFilename", v); }}
             hint={t("settingsTabs.customScripts.torrentDoneHint")}
             rightElement={renderBrowseButton("scriptTorrentDoneFilename")}
           />
@@ -200,7 +200,7 @@ export function CustomScriptsTab() {
           <TextInput
             label={t("settingsTabs.customScripts.torrentAdded")}
             value={form.scriptTorrentAddedFilename}
-            onChange={(v) => update("scriptTorrentAddedFilename", v)}
+            onChange={(v) => { update("scriptTorrentAddedFilename", v); }}
             hint={t("settingsTabs.customScripts.torrentAddedHint")}
             rightElement={renderBrowseButton("scriptTorrentAddedFilename")}
           />
@@ -208,7 +208,7 @@ export function CustomScriptsTab() {
           <TextInput
             label={t("settingsTabs.customScripts.torrentDoneSeeding")}
             value={form.scriptTorrentDoneSeedingFilename}
-            onChange={(v) => update("scriptTorrentDoneSeedingFilename", v)}
+            onChange={(v) => { update("scriptTorrentDoneSeedingFilename", v); }}
             hint={t("settingsTabs.customScripts.torrentDoneSeedingHint")}
             rightElement={renderBrowseButton("scriptTorrentDoneSeedingFilename")}
           />
@@ -225,7 +225,7 @@ export function CustomScriptsTab() {
             update(activeBrowserField, selectedPath);
             setActiveBrowserField(null);
           }}
-          onClose={() => setActiveBrowserField(null)}
+          onClose={() => { setActiveBrowserField(null); }}
         />
       )}
     </div>

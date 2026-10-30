@@ -34,7 +34,7 @@ class MockLocalStorage {
   }
 }
 
-describe("columnPreferences - Category column (#1007)", () => {
+void describe("columnPreferences - Category column (#1007)", () => {
   let mockStorage: MockLocalStorage;
   const originalLocalStorage = globalThis.localStorage;
 
@@ -55,7 +55,7 @@ describe("columnPreferences - Category column (#1007)", () => {
     });
   });
 
-  it("includes Category column in ALL_COLUMNS master list", () => {
+  void it("includes Category column in ALL_COLUMNS master list", () => {
     const categoryCol = ALL_COLUMNS.find((col) => col.key === "category");
     assert.ok(categoryCol, "category column must exist in ALL_COLUMNS");
     assert.deepEqual(categoryCol, {
@@ -66,13 +66,13 @@ describe("columnPreferences - Category column (#1007)", () => {
     });
   });
 
-  it("ensures ALL_COLUMNS has unique keys", () => {
+  void it("ensures ALL_COLUMNS has unique keys", () => {
     const keys = ALL_COLUMNS.map((col) => col.key);
     const uniqueKeys = new Set(keys);
     assert.equal(keys.length, uniqueKeys.size, "ALL_COLUMNS keys must be unique");
   });
 
-  it("allows Category column to be loaded from localStorage visible columns", () => {
+  void it("allows Category column to be loaded from localStorage visible columns", () => {
     mockStorage.setItem(STORAGE_KEY, JSON.stringify(["name", "category", "status"]));
     const loaded = loadVisibleColumns();
     assert.ok(loaded.has("category"), "loaded visible columns should contain category");
@@ -80,7 +80,7 @@ describe("columnPreferences - Category column (#1007)", () => {
     assert.ok(loaded.has("status"));
   });
 
-  it("allows Category column to be saved to localStorage visible columns", () => {
+  void it("allows Category column to be saved to localStorage visible columns", () => {
     saveVisibleColumns(new Set(["name", "category"]));
     const raw = mockStorage.getItem(STORAGE_KEY);
     assert.ok(raw, "localStorage should contain saved columns");
@@ -88,7 +88,7 @@ describe("columnPreferences - Category column (#1007)", () => {
     assert.ok(parsed.includes("category"), "saved columns should include category");
   });
 
-  it("recognizes Category as a valid sort key in loadTableSortPreferences", () => {
+  void it("recognizes Category as a valid sort key in loadTableSortPreferences", () => {
     mockStorage.setItem(SORT_KEY_STORAGE, "category");
     mockStorage.setItem(SORT_ASC_STORAGE, "false");
     const { sortKey, sortAsc } = loadTableSortPreferences();
@@ -96,7 +96,7 @@ describe("columnPreferences - Category column (#1007)", () => {
     assert.equal(sortAsc, false);
   });
 
-  it("preserves Category in loadColumnOrder", () => {
+  void it("preserves Category in loadColumnOrder", () => {
     mockStorage.setItem(COL_ORDER_STORAGE, JSON.stringify(["category", "name", "#"]));
     const order = loadColumnOrder();
     assert.equal(order[0], "category");
@@ -105,7 +105,7 @@ describe("columnPreferences - Category column (#1007)", () => {
   });
 });
 
-describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
+void describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
   let mockStorage: MockLocalStorage;
   const originalLocalStorage = globalThis.localStorage;
 
@@ -126,13 +126,13 @@ describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
     });
   });
 
-  it("returns default sortKey null and sortAsc true when storage is empty", () => {
+  void it("returns default sortKey null and sortAsc true when storage is empty", () => {
     const { sortKey, sortAsc } = loadTableSortPreferences();
     assert.equal(sortKey, null);
     assert.equal(sortAsc, true);
   });
 
-  it("persists sort preferences to localStorage via saveTableSortPreferences", () => {
+  void it("persists sort preferences to localStorage via saveTableSortPreferences", () => {
     saveTableSortPreferences("totalSize", false);
     assert.equal(mockStorage.getItem(SORT_KEY_STORAGE), "totalSize");
     assert.equal(mockStorage.getItem(SORT_ASC_STORAGE), "false");
@@ -142,7 +142,7 @@ describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
     assert.equal(loaded.sortAsc, false);
   });
 
-  it("clears SORT_KEY_STORAGE when saving null sortKey", () => {
+  void it("clears SORT_KEY_STORAGE when saving null sortKey", () => {
     mockStorage.setItem(SORT_KEY_STORAGE, "name");
     mockStorage.setItem(SORT_ASC_STORAGE, "true");
 
@@ -155,7 +155,7 @@ describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
     assert.equal(loaded.sortAsc, true);
   });
 
-  it("resets both sortKey and sortAsc via resetTableSortPreferences", () => {
+  void it("resets both sortKey and sortAsc via resetTableSortPreferences", () => {
     mockStorage.setItem(SORT_KEY_STORAGE, "downloadSpeed");
     mockStorage.setItem(SORT_ASC_STORAGE, "false");
 
@@ -168,7 +168,7 @@ describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
     assert.equal(loaded.sortAsc, true);
   });
 
-  it("sanitizes invalid or unknown sort keys and removes them from localStorage", () => {
+  void it("sanitizes invalid or unknown sort keys and removes them from localStorage", () => {
     mockStorage.setItem(SORT_KEY_STORAGE, "non_existent_column_key");
     mockStorage.setItem(SORT_ASC_STORAGE, "true");
 
@@ -177,7 +177,7 @@ describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
     assert.equal(mockStorage.getItem(SORT_KEY_STORAGE), null);
   });
 
-  it("accepts all sortable columns in ALL_COLUMNS as valid sort keys", () => {
+  void it("accepts all sortable columns in ALL_COLUMNS as valid sort keys", () => {
     const sortableCols = ALL_COLUMNS.filter((c) => c.sortable);
     assert.ok(sortableCols.length > 0, "must have sortable columns");
 
@@ -193,7 +193,7 @@ describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
     }
   });
 
-  it("rejects non-sortable columns and cleans up localStorage", () => {
+  void it("rejects non-sortable columns and cleans up localStorage", () => {
     const nonSortableCols = ALL_COLUMNS.filter((c) => !c.sortable);
     for (const col of nonSortableCols) {
       mockStorage.setItem(SORT_KEY_STORAGE, col.key);

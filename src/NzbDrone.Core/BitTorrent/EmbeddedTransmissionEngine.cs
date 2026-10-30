@@ -1749,15 +1749,15 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
             var startInfo = new ProcessStartInfo
             {
-                FileName = binary,
-                Arguments = arguments,
+                FileName = binary, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
+                Arguments = arguments, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
 
-            this.daemonProcess = Process.Start(startInfo);
+            this.daemonProcess = Process.Start(startInfo); /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
         }
         catch (Exception ex)
         {

@@ -5,7 +5,7 @@ if (typeof globalThis.localStorage === "undefined") {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, val: string) => store.set(key, val),
     removeItem: (key: string) => store.delete(key),
-    clear: () => store.clear(),
+    clear: () => { store.clear(); },
   };
 }
 
@@ -62,13 +62,13 @@ const allLocales = [
   { code: "vi", dict: vi },
 ];
 
-describe("AriaLiveAnnouncer localization", () => {
+void describe("AriaLiveAnnouncer localization", () => {
   beforeEach(() => {
     useI18nStore.setState({ language: "en", translations: en });
     clearListeners();
   });
 
-  it("all 20 locales define ariaLive translation keys", () => {
+  void it("all 20 locales define ariaLive translation keys", () => {
     for (const { code, dict } of allLocales) {
       const live = (dict as Record<string, unknown>).ariaLive as Record<string, string>;
       assert.ok(live, `Locale ${code} is missing ariaLive section`);
@@ -102,7 +102,7 @@ describe("AriaLiveAnnouncer localization", () => {
     }
   });
 
-  it("correctly interpolates torrent completed announcements across multiple locales", () => {
+  void it("correctly interpolates torrent completed announcements across multiple locales", () => {
     const testCases = [
       { code: "en", dict: en, torrent: "Ubuntu 24.04 ISO" },
       { code: "de", dict: de, torrent: "Debian 12 ISO" },
@@ -128,7 +128,7 @@ describe("AriaLiveAnnouncer localization", () => {
     }
   });
 
-  it("correctly interpolates torrent error announcements with custom and fallback errors", () => {
+  void it("correctly interpolates torrent error announcements with custom and fallback errors", () => {
     useI18nStore.setState({ language: "en", translations: en });
 
     const withCustomError = translate(
@@ -158,7 +158,7 @@ describe("AriaLiveAnnouncer localization", () => {
     );
   });
 
-  it("falls back to default English string when translation key is unknown", () => {
+  void it("falls back to default English string when translation key is unknown", () => {
     const fallback = 'Torrent "Test" completed, now seeding';
     const result = translate(
       "ariaLive.nonexistentKey",
@@ -169,8 +169,8 @@ describe("AriaLiveAnnouncer localization", () => {
   });
 });
 
-describe("AnnouncementQueue concurrent handling", () => {
-  it("enqueues a single message and announces it immediately", () => {
+void describe("AnnouncementQueue concurrent handling", () => {
+  void it("enqueues a single message and announces it immediately", () => {
     const received: string[] = [];
     const queue = new AnnouncementQueue({
       displayDuration: 50,
@@ -188,7 +188,7 @@ describe("AnnouncementQueue concurrent handling", () => {
     queue.clear();
   });
 
-  it("queues concurrent announcements without dropping or immediately overwriting them", async () => {
+  void it("queues concurrent announcements without dropping or immediately overwriting them", async () => {
     const updates: string[] = [];
     const queue = new AnnouncementQueue({
       displayDuration: 60,
@@ -231,7 +231,7 @@ describe("AnnouncementQueue concurrent handling", () => {
     queue.clear();
   });
 
-  it("blanks message briefly during transition to trigger screen reader mutation", async () => {
+  void it("blanks message briefly during transition to trigger screen reader mutation", async () => {
     const updates: string[] = [];
     const queue = new AnnouncementQueue({
       displayDuration: 40,
@@ -253,7 +253,7 @@ describe("AnnouncementQueue concurrent handling", () => {
     queue.clear();
   });
 
-  it("ignores empty or whitespace messages", () => {
+  void it("ignores empty or whitespace messages", () => {
     const updates: string[] = [];
     const queue = new AnnouncementQueue({
       onMessageChange: (msg) => updates.push(msg),
@@ -268,7 +268,7 @@ describe("AnnouncementQueue concurrent handling", () => {
     queue.clear();
   });
 
-  it("clear() resets queue, active message, and cancels pending timers", async () => {
+  void it("clear() resets queue, active message, and cancels pending timers", async () => {
     const updates: string[] = [];
     const queue = new AnnouncementQueue({
       displayDuration: 100,
@@ -293,7 +293,7 @@ describe("AnnouncementQueue concurrent handling", () => {
     assert.strictEqual(queue.getCurrentMessage(), "");
   });
 
-  it("announce helper dispatches announcements with correct priorities", () => {
+  void it("announce helper dispatches announcements with correct priorities", () => {
     const politeDispatched: string[] = [];
     const assertiveDispatched: string[] = [];
 

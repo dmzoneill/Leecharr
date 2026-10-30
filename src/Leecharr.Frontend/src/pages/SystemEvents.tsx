@@ -142,7 +142,7 @@ function SystemEvents() {
 
   const handleRefresh = useCallback(() => {
     setCleared(false);
-    queryClient.invalidateQueries({ queryKey: ["system", "events"] });
+    void queryClient.invalidateQueries({ queryKey: ["system", "events"] });
   }, [queryClient]);
 
   const handleClear = useCallback(() => {

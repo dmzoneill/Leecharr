@@ -46,7 +46,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
   const handleRunDiagnosis = () => {
     if (!torrent.id || diagnoseMutation.isPending) return;
     diagnoseMutation.mutate(torrent.id, {
-      onSuccess: (data) => setReport(data),
+      onSuccess: (data) => { setReport(data); },
     });
   };
 
@@ -80,7 +80,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
       {/* Collapsible Header */}
       <button
         type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => { setIsExpanded(!isExpanded); }}
         style={{
           width: "100%",
           padding: "0.5rem 0.75rem",
@@ -356,7 +356,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
               >
                 <button
                   type="button"
-                  onClick={() => announceMutation.mutate(torrent.id)}
+                  onClick={() => { announceMutation.mutate(torrent.id); }}
                   disabled={announceMutation.isPending}
                   style={{
                     padding: "0.25rem 0.5rem",
@@ -377,7 +377,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => recheckMutation.mutate(torrent.id)}
+                  onClick={() => { recheckMutation.mutate(torrent.id); }}
                   disabled={recheckMutation.isPending}
                   style={{
                     padding: "0.25rem 0.5rem",

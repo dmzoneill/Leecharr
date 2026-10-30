@@ -101,7 +101,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
           borderRadius: "10px",
           backgroundColor: "var(--bg-card)",
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -816,7 +816,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               <button
                 className="btn btn-outline"
-                onClick={() => onEnrich(item)}
+                onClick={() => { onEnrich(item); }}
                 disabled={isEnriching}
                 title={t("history.syncMetadata")}
                 style={{ fontSize: "0.85rem" }}
@@ -826,7 +826,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
               {onDelete && (
                 <button
                   className="btn btn-danger"
-                  onClick={() => onDelete(item.id, item.title)}
+                  onClick={() => { onDelete(item.id, item.title); }}
                   title={t("history.deleteHistoricalRecord")}
                   style={{ fontSize: "0.85rem" }}
                 >
@@ -847,7 +847,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
               </button>
               <button
                 className="btn btn-primary"
-                onClick={() => onReAdd(item.id, item.title)}
+                onClick={() => { onReAdd(item.id, item.title); }}
                 disabled={isReAdding || item.status === "Active"}
               >
                 {t("history.reAdd")}

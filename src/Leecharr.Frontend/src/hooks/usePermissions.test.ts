@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { getPermissions } from "./usePermissions";
 import type { CurrentUser } from "../api/types";
 
-describe("usePermissions / getPermissions", () => {
-  it("defaults to ReadOnly when user is null or undefined", () => {
+void describe("usePermissions / getPermissions", () => {
+  void it("defaults to ReadOnly when user is null or undefined", () => {
     const nullPerms = getPermissions(null);
     assert.strictEqual(nullPerms.isAdmin, false);
     assert.strictEqual(nullPerms.isOperator, false);
@@ -23,7 +23,7 @@ describe("usePermissions / getPermissions", () => {
     assert.strictEqual(undefPerms.isReadOnly, true);
   });
 
-  it("treats unauthenticated users as ReadOnly even if roles claim Admin", () => {
+  void it("treats unauthenticated users as ReadOnly even if roles claim Admin", () => {
     const unauthUser: CurrentUser = {
       isAuthenticated: false,
       username: "anonymous",
@@ -38,7 +38,7 @@ describe("usePermissions / getPermissions", () => {
     assert.strictEqual(perms.canMutateTorrents, false);
   });
 
-  it("grants full permissions to authenticated Admin user", () => {
+  void it("grants full permissions to authenticated Admin user", () => {
     const adminUser: CurrentUser = {
       isAuthenticated: true,
       username: "admin",
@@ -65,7 +65,7 @@ describe("usePermissions / getPermissions", () => {
     assert.strictEqual(perms.hasRole("User"), false);
   });
 
-  it("grants mutation permissions to authenticated Operator / User without admin privileges", () => {
+  void it("grants mutation permissions to authenticated Operator / User without admin privileges", () => {
     const user: CurrentUser = {
       isAuthenticated: true,
       username: "operator1",
@@ -92,7 +92,7 @@ describe("usePermissions / getPermissions", () => {
     assert.strictEqual(perms.hasRole("Admin"), false);
   });
 
-  it("treats authenticated ReadOnly user with only read permissions", () => {
+  void it("treats authenticated ReadOnly user with only read permissions", () => {
     const readOnlyUser: CurrentUser = {
       isAuthenticated: true,
       username: "viewer",
@@ -118,7 +118,7 @@ describe("usePermissions / getPermissions", () => {
     assert.strictEqual(perms.hasRole("readonly"), true);
   });
 
-  it("defaults authenticated user with empty roles to ReadOnly", () => {
+  void it("defaults authenticated user with empty roles to ReadOnly", () => {
     const noRoleUser: CurrentUser = {
       isAuthenticated: true,
       username: "unknown",
@@ -133,7 +133,7 @@ describe("usePermissions / getPermissions", () => {
     assert.strictEqual(perms.canMutateTorrents, false);
   });
 
-  it("grants full permissions when authenticationEnabled is false", () => {
+  void it("grants full permissions when authenticationEnabled is false", () => {
     const authDisabledUser: CurrentUser = {
       isAuthenticated: false,
       username: "anonymous",

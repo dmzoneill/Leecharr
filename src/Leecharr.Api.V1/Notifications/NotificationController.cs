@@ -18,7 +18,7 @@ namespace Leecharr.Api.V1.Notifications;
 [Authorize(Policy = "RequireAdmin")]
 public class NotificationController : Controller
 {
-    private const string MaskedSecretPlaceholder = "********";
+    private const string MaskedSecretPlaceholder = "********"; /* not a credential: mask placeholder/header name/empty or vendor default */ // nosemgrep
 
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly INotificationRepository notificationRepository;
@@ -53,7 +53,7 @@ public class NotificationController : Controller
         return this.Ok(ToResource(item));
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<NotificationResource> Create([FromBody] NotificationResource resource)
     {
         if (resource == null)

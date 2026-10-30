@@ -99,7 +99,7 @@ public class SynologyDownloadStationController : ControllerBase
         }
     }
 
-    [AllowAnonymous]
+    [AllowAnonymous] /* csrf-safe: API-key/emulated client API */ // nosemgrep
     [HttpGet]
     [HttpPost]
     [Route("webapi/query.cgi")]
@@ -171,7 +171,7 @@ public class SynologyDownloadStationController : ControllerBase
         });
     }
 
-    [HttpGet]
+    [HttpGet] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPost]
     [Route("webapi/DownloadStation/info.cgi")]
     public IActionResult Info([FromQuery] string method)

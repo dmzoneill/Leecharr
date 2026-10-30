@@ -236,7 +236,7 @@ export function TrackerBoost() {
       >
         <button
           className={`btn ${activeTab === "booster" ? "btn-primary" : ""}`}
-          onClick={() => setActiveTab("booster")}
+          onClick={() => { setActiveTab("booster"); }}
           style={{
             padding: "0.5rem 1.15rem",
             fontSize: "0.88rem",
@@ -247,7 +247,7 @@ export function TrackerBoost() {
         </button>
         <button
           className={`btn ${activeTab === "matrix" ? "btn-primary" : ""}`}
-          onClick={() => setActiveTab("matrix")}
+          onClick={() => { setActiveTab("matrix"); }}
           style={{
             padding: "0.5rem 1.15rem",
             fontSize: "0.88rem",
@@ -258,7 +258,7 @@ export function TrackerBoost() {
         </button>
         <button
           className={`btn ${activeTab === "radar" ? "btn-primary" : ""}`}
-          onClick={() => setActiveTab("radar")}
+          onClick={() => { setActiveTab("radar"); }}
           style={{
             padding: "0.5rem 1.15rem",
             fontSize: "0.88rem",
@@ -271,7 +271,7 @@ export function TrackerBoost() {
         </button>
         <button
           className={`btn ${activeTab === "logs" ? "btn-primary" : ""}`}
-          onClick={() => setActiveTab("logs")}
+          onClick={() => { setActiveTab("logs"); }}
           style={{
             padding: "0.5rem 1.15rem",
             fontSize: "0.88rem",
@@ -285,7 +285,7 @@ export function TrackerBoost() {
         </button>
         <button
           className={`btn ${activeTab === "settings" ? "btn-primary" : ""}`}
-          onClick={() => setActiveTab("settings")}
+          onClick={() => { setActiveTab("settings"); }}
           style={{
             padding: "0.5rem 1.15rem",
             fontSize: "0.88rem",
@@ -314,7 +314,7 @@ export function TrackerBoost() {
       )}
 
       {activeTab === "radar" && (
-        <RadarView onOpenBulkImport={() => setShowBulkImportModal(true)} />
+        <RadarView onOpenBulkImport={() => { setShowBulkImportModal(true); }} />
       )}
 
       {activeTab === "logs" && <LogViewer />}
@@ -323,7 +323,7 @@ export function TrackerBoost() {
 
       <BulkImportModal
         isOpen={showBulkImportModal}
-        onClose={() => setShowBulkImportModal(false)}
+        onClose={() => { setShowBulkImportModal(false); }}
       />
     </div>
   );
