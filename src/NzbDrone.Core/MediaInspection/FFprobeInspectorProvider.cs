@@ -340,12 +340,12 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                             vCodec.ValueKind == JsonValueKind.String)
                         {
                             var vc = vCodec.GetString() ?? string.Empty;
-                            info.VideoCodec = vc.ToUpperInvariant() switch
+                            var upperVc = vc.ToUpperInvariant();
+                            info.VideoCodec = upperVc switch
                             {
                                 "HEVC" => "HEVC / H.265",
                                 "H264" => "AVC / H.264",
-                                "AV1" => "AV1",
-                                "VP9" => "VP9",
+                                "AV1" or "VP9" => upperVc,
                                 "MPEG4" => "MPEG-4",
                                 _ => vc,
                             };
@@ -931,15 +931,13 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
         if (stream.TryGetProperty("codec_name", out var aCodec) && aCodec.ValueKind == JsonValueKind.String)
         {
             var rawCodec = aCodec.GetString() ?? string.Empty;
-            ac = rawCodec.ToUpperInvariant() switch
+            var upperCodec = rawCodec.ToUpperInvariant();
+            ac = upperCodec switch
             {
                 "EAC3" => "E-AC3 / DD+",
                 "AC3" => "AC3 / Dolby Digital",
                 "TRUEHD" => "Dolby TrueHD",
-                "DTS" => "DTS",
-                "FLAC" => "FLAC",
-                "AAC" => "AAC",
-                "MP3" => "MP3",
+                "DTS" or "FLAC" or "AAC" or "MP3" => upperCodec,
                 "OPUS" => "Opus",
                 _ => rawCodec,
             };
