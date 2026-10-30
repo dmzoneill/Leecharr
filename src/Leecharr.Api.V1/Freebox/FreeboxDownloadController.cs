@@ -532,9 +532,9 @@ public class FreeboxDownloadController : ControllerBase
         var token = this.Request.Headers["X-Fbx-App-Auth"].ToString();
         if (!string.IsNullOrEmpty(token) &&
             (AuthenticatedSessions.IsValid(token) ||
-             (this.configFileProvider != null &&
-              !string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
-              RpcAuthenticationHelper.FixedTimeEquals(token, this.configFileProvider.ApiKey))))
+                (this.configFileProvider != null &&
+                !string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
+                RpcAuthenticationHelper.FixedTimeEquals(token, this.configFileProvider.ApiKey))))
         {
             return true;
         }

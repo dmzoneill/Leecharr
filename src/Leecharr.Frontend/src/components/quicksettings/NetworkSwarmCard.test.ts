@@ -15,7 +15,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 // Require after polyfilling localStorage so ApiClient initialization succeeds
- 
+
 const { GLOBAL_CONN_OPTIONS, PER_TORRENT_CONN_OPTIONS } = require("./NetworkSwarmCard");
 
 void describe("NetworkSwarmCard connection options", () => {

@@ -432,9 +432,9 @@ public class SabnzbdApiController : ControllerBase
         var finishedTorrents = this.torrentService.GetAll()
             .Where(t => IsComplete(t) &&
                         (t.Status == TorrentStatus.Stopped ||
-                         t.Status == TorrentStatus.Seeding ||
-                         t.Status == TorrentStatus.Completed ||
-                         t.Status == TorrentStatus.Paused))
+                            t.Status == TorrentStatus.Seeding ||
+                            t.Status == TorrentStatus.Completed ||
+                            t.Status == TorrentStatus.Paused))
             .OrderByDescending(t => t.DateCompleted ?? t.DateAdded)
             .Select(t =>
             {

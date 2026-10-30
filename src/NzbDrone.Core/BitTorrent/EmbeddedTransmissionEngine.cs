@@ -1048,7 +1048,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         if (resultObj is JsonElement resultElement)
         {
             return resultElement.ValueKind == JsonValueKind.String &&
-                   string.Equals(resultElement.GetString(), "success", StringComparison.OrdinalIgnoreCase);
+                    string.Equals(resultElement.GetString(), "success", StringComparison.OrdinalIgnoreCase);
         }
 
         return string.Equals(resultObj.ToString(), "success", StringComparison.OrdinalIgnoreCase);

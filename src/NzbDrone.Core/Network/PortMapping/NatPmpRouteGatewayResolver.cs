@@ -226,7 +226,7 @@ internal static class NatPmpRouteGatewayResolver
             }
 
             var matchesInterface = IPAddress.TryParse(parts[3], out var ifaceIp) &&
-                                   InterfaceHasUnicastAddress(interfaceName, ifaceIp);
+                                    InterfaceHasUnicastAddress(interfaceName, ifaceIp);
 
             if (!matchesInterface)
             {
