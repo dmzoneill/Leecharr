@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.24](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.24) - 2026-10-30
+
+### 🔧 Maintenance & Improvements
+- refactor(ffprobe): merge same-value codec switch arms into or-patterns (#1933)
+
 ## [v3.0.23](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.23) - 2026-10-30
 
 ### 🐛 Bug Fixes
