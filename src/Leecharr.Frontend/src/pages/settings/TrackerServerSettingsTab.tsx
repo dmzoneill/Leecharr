@@ -79,7 +79,7 @@ export function TrackerServerSettingsTab() {
         trackerRateLimitPerMinute: form.trackerRateLimitPerMinute,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -235,7 +235,7 @@ export function TrackerServerSettingsTab() {
           <Toggle
             label={t("settingsTabs.trackerServer.enableServer")}
             checked={form.trackerServerEnabled}
-            onChange={(v) => update("trackerServerEnabled", v)}
+            onChange={(v) => { update("trackerServerEnabled", v); }}
             hint={t("settingsTabs.trackerServer.enableServerHint")}
           />
 
@@ -249,7 +249,7 @@ export function TrackerServerSettingsTab() {
             <TextInput
               label={t("settingsTabs.trackerServer.bindAddress")}
               value={form.trackerBindAddress}
-              onChange={(v) => update("trackerBindAddress", v)}
+              onChange={(v) => { update("trackerBindAddress", v); }}
               disabled={!form.trackerServerEnabled}
               hint={t("settingsTabs.trackerServer.bindAddressHint")}
             />
@@ -257,7 +257,7 @@ export function TrackerServerSettingsTab() {
             <NumberInput
               label={t("settingsTabs.trackerServer.announceInterval")}
               value={form.trackerAnnounceInterval}
-              onChange={(v) => update("trackerAnnounceInterval", v)}
+              onChange={(v) => { update("trackerAnnounceInterval", v); }}
               disabled={!form.trackerServerEnabled}
               min={60}
               max={7200}
@@ -283,13 +283,13 @@ export function TrackerServerSettingsTab() {
                 <Toggle
                   label={t("settingsTabs.trackerServer.enableHttp")}
                   checked={form.trackerHttpEnabled}
-                  onChange={(v) => update("trackerHttpEnabled", v)}
+                  onChange={(v) => { update("trackerHttpEnabled", v); }}
                   disabled={!form.trackerServerEnabled}
                 />
                 <NumberInput
                   label={t("settingsTabs.trackerServer.httpPort")}
                   value={form.trackerHttpPort}
-                  onChange={(v) => update("trackerHttpPort", v)}
+                  onChange={(v) => { update("trackerHttpPort", v); }}
                   disabled={
                     !form.trackerServerEnabled || !form.trackerHttpEnabled
                   }
@@ -303,13 +303,13 @@ export function TrackerServerSettingsTab() {
                 <Toggle
                   label={t("settingsTabs.trackerServer.enableUdp")}
                   checked={form.trackerUdpEnabled}
-                  onChange={(v) => update("trackerUdpEnabled", v)}
+                  onChange={(v) => { update("trackerUdpEnabled", v); }}
                   disabled={!form.trackerServerEnabled}
                 />
                 <NumberInput
                   label={t("settingsTabs.trackerServer.udpPort")}
                   value={form.trackerUdpPort}
-                  onChange={(v) => update("trackerUdpPort", v)}
+                  onChange={(v) => { update("trackerUdpPort", v); }}
                   disabled={
                     !form.trackerServerEnabled || !form.trackerUdpEnabled
                   }
@@ -337,14 +337,14 @@ export function TrackerServerSettingsTab() {
               <Toggle
                 label={t("settingsTabs.trackerServer.enableScrape")}
                 checked={form.trackerEnableScrape}
-                onChange={(v) => update("trackerEnableScrape", v)}
+                onChange={(v) => { update("trackerEnableScrape", v); }}
                 disabled={!form.trackerServerEnabled}
               />
 
               <Toggle
                 label={t("settingsTabs.trackerServer.privateMode")}
                 checked={form.trackerPrivateMode}
-                onChange={(v) => update("trackerPrivateMode", v)}
+                onChange={(v) => { update("trackerPrivateMode", v); }}
                 disabled={!form.trackerServerEnabled}
                 hint={t("settingsTabs.trackerServer.privateModeHint")}
               />
@@ -352,7 +352,7 @@ export function TrackerServerSettingsTab() {
               <Toggle
                 label={t("settingsTabs.trackerServer.logAnnounces")}
                 checked={form.trackerLogAnnounces}
-                onChange={(v) => update("trackerLogAnnounces", v)}
+                onChange={(v) => { update("trackerLogAnnounces", v); }}
                 disabled={!form.trackerServerEnabled}
                 hint={t("settingsTabs.trackerServer.logAnnouncesHint")}
               />
@@ -360,7 +360,7 @@ export function TrackerServerSettingsTab() {
               <NumberInput
                 label={t("settingsTabs.trackerServer.rateLimit")}
                 value={form.trackerRateLimitPerMinute}
-                onChange={(v) => update("trackerRateLimitPerMinute", v)}
+                onChange={(v) => { update("trackerRateLimitPerMinute", v); }}
                 disabled={!form.trackerServerEnabled}
                 min={10}
                 max={1000}

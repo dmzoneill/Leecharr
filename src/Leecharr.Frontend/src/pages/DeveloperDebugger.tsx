@@ -104,13 +104,13 @@ export default function DeveloperDebugger() {
   }, [selectedSnapshot]);
 
   useEffect(() => {
-    fetchAll();
-    const interval = setInterval(fetchAll, 5000);
-    return () => clearInterval(interval);
+    void fetchAll();
+    const interval = setInterval((...args: Parameters<typeof fetchAll>) => { void fetchAll(...args); }, 5000);
+    return () => { clearInterval(interval); };
   }, [fetchAll]);
 
   useEffect(() => {
-    fetchSource(selectedFilePath);
+    void fetchSource(selectedFilePath);
   }, [selectedFilePath, fetchSource]);
 
   const filteredFiles = useMemo(() => {
@@ -146,7 +146,7 @@ export default function DeveloperDebugger() {
       try {
         await apiClient.delete(`/system/developer/debugger/tracepoints/${existing.id}`);
         setActionMessage({ text: `Removed breakpoint at line ${lineNum}`, type: "success" });
-        fetchAll();
+        void fetchAll();
       } catch {
         setActionMessage({ text: "Failed to remove breakpoint.", type: "error" });
       }
@@ -157,7 +157,7 @@ export default function DeveloperDebugger() {
           lineNumber: lineNum,
         });
         setActionMessage({ text: `Set breakpoint at line ${lineNum}`, type: "success" });
-        fetchAll();
+        void fetchAll();
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         setActionMessage({ text: msg || "Failed to set breakpoint.", type: "error" });
@@ -178,7 +178,7 @@ export default function DeveloperDebugger() {
       setNewCondition("");
       setSelectedFilePath(newFilePath);
       setActionMessage({ text: `Tracepoint added at ${newFilePath}:${newLineNumber}`, type: "success" });
-      fetchAll();
+      void fetchAll();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setActionMessage({ text: msg || "Failed to add tracepoint.", type: "error" });
@@ -189,7 +189,7 @@ export default function DeveloperDebugger() {
     try {
       await apiClient.delete(`/system/developer/debugger/tracepoints/${id}`);
       setActionMessage({ text: "Tracepoint removed.", type: "success" });
-      fetchAll();
+      void fetchAll();
     } catch {
       setActionMessage({ text: "Failed to remove tracepoint.", type: "error" });
     }
@@ -227,7 +227,7 @@ export default function DeveloperDebugger() {
         ),
       });
       setActionMessage({ text: "Simulated tracepoint snapshot injected.", type: "success" });
-      fetchAll();
+      void fetchAll();
     } catch {
       setActionMessage({ text: "Failed to inject test snapshot.", type: "error" });
     }
@@ -262,7 +262,7 @@ export default function DeveloperDebugger() {
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button
             type="button"
-            onClick={() => setShowAddModal(true)}
+            onClick={() => { setShowAddModal(true); }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -282,7 +282,7 @@ export default function DeveloperDebugger() {
 
           <button
             type="button"
-            onClick={handleSimulateSnapshot}
+            onClick={(...args: Parameters<typeof handleSimulateSnapshot>) => { void handleSimulateSnapshot(...args); }}
             style={{
               padding: "7px 12px",
               borderRadius: "6px",
@@ -299,7 +299,7 @@ export default function DeveloperDebugger() {
 
           <button
             type="button"
-            onClick={fetchAll}
+            onClick={(...args: Parameters<typeof fetchAll>) => { void fetchAll(...args); }}
             style={{
               padding: "7px 12px",
               borderRadius: "6px",
@@ -352,7 +352,7 @@ export default function DeveloperDebugger() {
 
           <select
             value={selectedFilePath}
-            onChange={(e) => setSelectedFilePath(e.target.value)}
+            onChange={(e) => { setSelectedFilePath(e.target.value); }}
             style={{
               flex: 1,
               padding: "7px 12px",
@@ -379,7 +379,7 @@ export default function DeveloperDebugger() {
             type="text"
             placeholder="Filter files..."
             value={fileFilter}
-            onChange={(e) => setFileFilter(e.target.value)}
+            onChange={(e) => { setFileFilter(e.target.value); }}
             style={{
               padding: "6px 12px",
               borderRadius: "6px",
@@ -481,7 +481,7 @@ export default function DeveloperDebugger() {
                         <td
                           role="button"
                           tabIndex={0}
-                          onClick={() => handleToggleBreakpoint(lineNum)}
+                          onClick={() => { void handleToggleBreakpoint(lineNum); }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
@@ -664,7 +664,7 @@ export default function DeveloperDebugger() {
               {snapshots.length > 0 && (
                 <button
                   type="button"
-                  onClick={handleClearSnapshots}
+                  onClick={(...args: Parameters<typeof handleClearSnapshots>) => { void handleClearSnapshots(...args); }}
                   style={{
                     background: "transparent",
                     border: "none",
@@ -808,7 +808,7 @@ export default function DeveloperDebugger() {
               </div>
             </div>
 
-            <form onSubmit={handleAddTracepoint} style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.83rem" }}>
+            <form onSubmit={(...args: Parameters<typeof handleAddTracepoint>) => { void handleAddTracepoint(...args); }} style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.83rem" }}>
               <div>
                 <label htmlFor="debugger-target-file-path" style={{ display: "block", color: "var(--text-secondary, #94a3b8)", marginBottom: "4px" }}>
                   Target File Path
@@ -817,7 +817,7 @@ export default function DeveloperDebugger() {
                   id="debugger-target-file-path"
                   type="text"
                   value={newFilePath}
-                  onChange={(e) => setNewFilePath(e.target.value)}
+                  onChange={(e) => { setNewFilePath(e.target.value); }}
                   style={{
                     width: "100%",
                     padding: "8px 10px",
@@ -841,7 +841,7 @@ export default function DeveloperDebugger() {
                   id="debugger-line-number"
                   type="number"
                   value={newLineNumber}
-                  onChange={(e) => setNewLineNumber(Number(e.target.value))}
+                  onChange={(e) => { setNewLineNumber(Number(e.target.value)); }}
                   style={{
                     width: "100%",
                     padding: "8px 10px",
@@ -866,7 +866,7 @@ export default function DeveloperDebugger() {
                   type="text"
                   placeholder="e.g. torrent.Id > 0"
                   value={newCondition}
-                  onChange={(e) => setNewCondition(e.target.value)}
+                  onChange={(e) => { setNewCondition(e.target.value); }}
                   style={{
                     width: "100%",
                     padding: "8px 10px",
@@ -884,7 +884,7 @@ export default function DeveloperDebugger() {
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "12px" }}>
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => { setShowAddModal(false); }}
                   style={{
                     padding: "7px 14px",
                     borderRadius: "6px",

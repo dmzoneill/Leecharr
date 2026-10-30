@@ -62,7 +62,7 @@ export function LoggingTab() {
         uiRefreshRateSec: form.uiRefreshRateSec,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -146,14 +146,14 @@ export function LoggingTab() {
           <Toggle
             label={t("settingsTabs.logging.enableFileLogging")}
             checked={form.logToFile}
-            onChange={(v) => update("logToFile", v)}
+            onChange={(v) => { update("logToFile", v); }}
             hint={t("settingsTabs.logging.enableFileLoggingHint")}
           />
 
           <SelectInput
             label={t("settingsTabs.logging.diskLogLevel")}
             value={form.fileLogLevel}
-            onChange={(v) => update("fileLogLevel", v)}
+            onChange={(v) => { update("fileLogLevel", v); }}
             options={[
               {
                 value: "Trace",
@@ -181,14 +181,14 @@ export function LoggingTab() {
           <Toggle
             label={t("settingsTabs.logging.enableDebugMode")}
             checked={form.debugMode}
-            onChange={(v) => update("debugMode", v)}
+            onChange={(v) => { update("debugMode", v); }}
             hint={t("settingsTabs.logging.enableDebugModeHint")}
           />
 
           <NumberInput
             label={t("settingsTabs.logging.uiRefreshRate")}
             value={form.uiRefreshRateSec}
-            onChange={(v) => update("uiRefreshRateSec", v)}
+            onChange={(v) => { update("uiRefreshRateSec", v); }}
             min={1}
             max={60}
             suffix={t("settingsTabs.notifications.timeoutSuffix")}
@@ -234,7 +234,7 @@ export function LoggingTab() {
               className="form-select"
               value={testLogLevel}
               aria-label={t("settingsTabs.logging.testLogLevelLabel")}
-              onChange={(e) => setTestLogLevel(e.target.value)}
+              onChange={(e) => { setTestLogLevel(e.target.value); }}
               style={{
                 borderRadius: "6px",
                 padding: "0.4rem 0.6rem",
@@ -250,7 +250,7 @@ export function LoggingTab() {
             <button
               type="button"
               className="btn btn-outline"
-              onClick={handleTestLog}
+              onClick={(...args: Parameters<typeof handleTestLog>) => { void handleTestLog(...args); }}
               disabled={testingLog}
             >
               {testingLog
@@ -311,7 +311,7 @@ export function LoggingTab() {
           <button
             type="button"
             className="btn btn-outline"
-            onClick={handleVacuum}
+            onClick={(...args: Parameters<typeof handleVacuum>) => { void handleVacuum(...args); }}
             disabled={vacuuming}
           >
             {vacuuming

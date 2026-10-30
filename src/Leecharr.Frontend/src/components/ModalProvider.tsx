@@ -189,7 +189,7 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
+    return () => { window.removeEventListener("keydown", handleKeyDown, true); };
   }, []);
 
   const value: ModalContextValue = {
@@ -242,7 +242,7 @@ export function useModalRegistration({
 
     const unregister = registerModal({
       id,
-      onClose: () => onCloseRef.current(),
+      onClose: () => { onCloseRef.current(); },
       modalRef,
       triggerElement: trigger,
     });
@@ -265,7 +265,7 @@ export function useModalRegistration({
       }
     }, 50);
 
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); };
   }, [isOpen, modalRef]);
 
   return {

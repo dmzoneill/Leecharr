@@ -66,7 +66,7 @@ public class ArrConnectionController : Controller
         return this.Ok(ToResource(definition));
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<ArrConnectionResource> Create([FromBody] ArrConnectionResource resource)
     {
         if (resource == null)

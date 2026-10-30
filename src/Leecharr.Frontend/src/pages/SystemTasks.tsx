@@ -243,8 +243,8 @@ function SystemTasks() {
     onSuccess: (_, task) => {
       const taskLabel = formatTaskName(task.name || task.typeName, t);
       trackSystemMaintenanceAction("task_run", task.name || task.typeName);
-      queryClient.invalidateQueries({ queryKey: ["system", "tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["system", "commands"] });
+      void queryClient.invalidateQueries({ queryKey: ["system", "tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["system", "commands"] });
       showToast(
         taskLabel ? `Task started: ${taskLabel}` : "Task queued for execution",
         "success",
@@ -267,8 +267,8 @@ function SystemTasks() {
       return apiClient.delete(`/system/command/${commandId}`);
     },
     onSuccess: (_, commandId) => {
-      queryClient.invalidateQueries({ queryKey: ["system", "commands"] });
-      queryClient.invalidateQueries({ queryKey: ["system", "tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["system", "commands"] });
+      void queryClient.invalidateQueries({ queryKey: ["system", "tasks"] });
       showToast(`Command #${commandId} cancelled`, "success");
     },
     onError: (err: unknown, commandId) => {
@@ -447,7 +447,7 @@ function SystemTasks() {
                           alignItems: "center",
                           gap: "0.3rem",
                         }}
-                        onClick={() => executeMutation.mutate(task)}
+                        onClick={() => { executeMutation.mutate(task); }}
                         disabled={executeMutation.isPending}
                         title="Execute task now"
                       >
@@ -586,7 +586,7 @@ function SystemTasks() {
                             color: "var(--danger, #ef4444)",
                             borderColor: "var(--danger, #ef4444)",
                           }}
-                          onClick={() => cancelMutation.mutate(cmd.id)}
+                          onClick={() => { cancelMutation.mutate(cmd.id); }}
                           disabled={
                             cancelMutation.isPending &&
                             cancelMutation.variables === cmd.id

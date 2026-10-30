@@ -123,7 +123,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         return next.filter((p) => p.time >= cutoff);
       });
     }, 1500);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, []);
 
   const formatSize = (bytes: number) => {
@@ -965,7 +965,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   key={tf}
                   type="button"
                   className={`view-toggle-btn ${timeframe === tf ? "active" : ""}`}
-                  onClick={() => setTimeframe(tf)}
+                  onClick={() => { setTimeframe(tf); }}
                   style={{ padding: "0.15rem 0.4rem", fontSize: "0.7rem" }}
                 >
                   {tf}

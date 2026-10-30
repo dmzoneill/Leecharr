@@ -8,8 +8,8 @@ import {
   formatSpeedLimit,
 } from "./BandwidthCard";
 
-describe("BandwidthCard step configuration & formatters (#1026)", () => {
-  it("defines monotonic download and upload steps starting from 0", () => {
+void describe("BandwidthCard step configuration & formatters (#1026)", () => {
+  void it("defines monotonic download and upload steps starting from 0", () => {
     assert.strictEqual(DL_STEPS[0], 0);
     assert.strictEqual(UL_STEPS[0], 0);
 
@@ -28,7 +28,7 @@ describe("BandwidthCard step configuration & formatters (#1026)", () => {
     }
   });
 
-  it("maps values to nearest step index", () => {
+  void it("maps values to nearest step index", () => {
     assert.strictEqual(valueToStepIndex(0, DL_STEPS), 0);
     assert.strictEqual(valueToStepIndex(-10, DL_STEPS), 0);
     assert.strictEqual(valueToStepIndex(1000, DL_STEPS), 15);
@@ -41,7 +41,7 @@ describe("BandwidthCard step configuration & formatters (#1026)", () => {
     assert.strictEqual(valueToStepIndex(50000, UL_STEPS), UL_STEPS.length - 1);
   });
 
-  it("formats speed limit correctly", () => {
+  void it("formats speed limit correctly", () => {
     assert.strictEqual(formatSpeedLimit(0), "∞");
     assert.strictEqual(formatSpeedLimit(-1), "∞");
     assert.strictEqual(formatSpeedLimit(50), "50 KB/s");
@@ -53,8 +53,8 @@ describe("BandwidthCard step configuration & formatters (#1026)", () => {
   });
 });
 
-describe("BandwidthCard slider commit and pointer interaction semantics (#1026)", () => {
-  it("resolves fresh step value directly from event target without stale closure", () => {
+void describe("BandwidthCard slider commit and pointer interaction semantics (#1026)", () => {
+  void it("resolves fresh step value directly from event target without stale closure", () => {
     // Simulating slider track click or key release where React closure holds old state
     const initialServerDl = 0;
     let localDlState = initialServerDl; // simulated React state closure
@@ -95,7 +95,7 @@ describe("BandwidthCard slider commit and pointer interaction semantics (#1026)"
     assert.strictEqual(localDlState, 1000);
   });
 
-  it("handles keyboard navigation keyup using event target step value", () => {
+  void it("handles keyboard navigation keyup using event target step value", () => {
     const initialServerUl = 500; // index 10
     const localUlRef = { current: initialServerUl };
     let committedValue: number | null = null;
@@ -122,7 +122,7 @@ describe("BandwidthCard slider commit and pointer interaction semantics (#1026)"
     assert.strictEqual(localUlRef.current, 600);
   });
 
-  it("commits and clears drag state via pointer capture / blur fallback", () => {
+  void it("commits and clears drag state via pointer capture / blur fallback", () => {
     let capturedPointerId: number | null = null;
     let releasedPointerId: number | null = null;
     let isDragging = false;

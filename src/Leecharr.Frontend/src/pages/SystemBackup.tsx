@@ -112,22 +112,20 @@ function SystemBackup() {
       : base;
   };
 
-  useEscapeKey(() => setConfirmDelete(null), confirmDelete !== null);
-  useEscapeKey(() => setConfirmRestore(null), confirmRestore !== null);
+  useEscapeKey(() => { setConfirmDelete(null); }, confirmDelete !== null);
+  useEscapeKey(() => { setConfirmRestore(null); }, confirmRestore !== null);
 
   const handleCreateBackup = () => {
     trackSystemMaintenanceAction("backup_create");
     createBackup.mutate(undefined, {
-      onSuccess: () =>
-        showToast(
+      onSuccess: () => { showToast(
           t("system.backupCreatedSuccess", "Backup created successfully"),
           "success",
-        ),
-      onError: () =>
-        showToast(
+        ); },
+      onError: () => { showToast(
           t("system.backupCreateFailed", "Failed to create backup"),
           "error",
-        ),
+        ); },
     });
   };
 
@@ -141,11 +139,10 @@ function SystemBackup() {
         );
         setConfirmDelete(null);
       },
-      onError: () =>
-        showToast(
+      onError: () => { showToast(
           t("system.backupDeleteFailed", "Failed to delete backup"),
           "error",
-        ),
+        ); },
     });
   };
 
@@ -310,8 +307,7 @@ function SystemBackup() {
                         href={getDownloadUrl(backup.id)}
                         className="torrent-link"
                         download
-                        onClick={() =>
-                          trackSystemMaintenanceAction("backup_download")
+                        onClick={() => { trackSystemMaintenanceAction("backup_download"); }
                         }
                         style={{
                           display: "inline-flex",
@@ -332,7 +328,7 @@ function SystemBackup() {
                       >
                         <button
                           className="btn btn-small btn-outline"
-                          onClick={() => setConfirmRestore(backup)}
+                          onClick={() => { setConfirmRestore(backup); }}
                           title={t("system.restoreSnapshot")}
                           disabled={restoreBackup.isPending}
                         >
@@ -340,7 +336,7 @@ function SystemBackup() {
                         </button>
                         <button
                           className="btn btn-small btn-danger"
-                          onClick={() => setConfirmDelete(backup.id)}
+                          onClick={() => { setConfirmDelete(backup.id); }}
                           title={t("system.deleteSnapshot")}
                           disabled={deleteBackup.isPending}
                         >
@@ -362,7 +358,7 @@ function SystemBackup() {
           className="modal-overlay"
           role="button"
           tabIndex={0}
-          onClick={() => setConfirmDelete(null)}
+          onClick={() => { setConfirmDelete(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -374,7 +370,7 @@ function SystemBackup() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -415,13 +411,13 @@ function SystemBackup() {
             >
               <button
                 className="btn btn-outline btn-small"
-                onClick={() => setConfirmDelete(null)}
+                onClick={() => { setConfirmDelete(null); }}
               >
                 {t("common.cancel")}
               </button>
               <button
                 className="btn btn-danger btn-small"
-                onClick={() => handleDeleteBackup(confirmDelete)}
+                onClick={() => { handleDeleteBackup(confirmDelete); }}
                 disabled={deleteBackup.isPending}
               >
                 {deleteBackup.isPending
@@ -439,7 +435,7 @@ function SystemBackup() {
           className="modal-overlay"
           role="button"
           tabIndex={0}
-          onClick={() => setConfirmRestore(null)}
+          onClick={() => { setConfirmRestore(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -451,7 +447,7 @@ function SystemBackup() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -504,13 +500,13 @@ function SystemBackup() {
             >
               <button
                 className="btn btn-outline btn-small"
-                onClick={() => setConfirmRestore(null)}
+                onClick={() => { setConfirmRestore(null); }}
               >
                 {t("common.cancel")}
               </button>
               <button
                 className="btn btn-danger btn-small"
-                onClick={() => handleRestoreBackup(confirmRestore)}
+                onClick={() => { void handleRestoreBackup(confirmRestore); }}
                 disabled={restoreBackup.isPending}
               >
                 {restoreBackup.isPending

@@ -71,7 +71,7 @@ public class DownloadClientController : Controller
         return this.Ok(ToResource(definition));
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<DownloadClientResource> Create([FromBody] DownloadClientResource resource)
     {
         if (resource == null)

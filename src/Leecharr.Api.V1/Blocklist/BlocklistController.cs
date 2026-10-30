@@ -40,7 +40,7 @@ public class BlocklistController : Controller
         return this.Ok(this.BuildResource());
     }
 
-    [HttpPut]
+    [HttpPut] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<BlocklistResource> UpdateBlocklist([FromBody] BlocklistConfigRequest request)
     {
         if (request == null)

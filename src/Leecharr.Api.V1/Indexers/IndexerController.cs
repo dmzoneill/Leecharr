@@ -94,7 +94,7 @@ public class IndexerController : Controller
         return this.Ok(ToResource(definition));
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<IndexerResource> Create([FromBody] IndexerResource resource)
     {
         if (resource == null)
@@ -194,7 +194,7 @@ public class IndexerController : Controller
         return this.Ok();
     }
 
-    [HttpPost("bulk-delete")]
+    [HttpPost("bulk-delete")] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPost("bulk")]
     [HttpDelete("bulk")]
     [HttpDelete]

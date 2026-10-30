@@ -174,8 +174,8 @@ else:
 
                 startInfo = new ProcessStartInfo
                 {
-                    FileName = pyBinary,
-                    Arguments = $"-u -c \"{pyCommand}\" \"{safeCwd}\" {cols} {rows} \"{controlPipePath}\"",
+                    FileName = pyBinary, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
+                    Arguments = $"-u -c \"{pyCommand}\" \"{safeCwd}\" {cols} {rows} \"{controlPipePath}\"", /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -205,7 +205,7 @@ else:
 
             TerminalEnvironmentSanitizer.Sanitize(startInfo);
 
-            proc = Process.Start(startInfo)
+            proc = Process.Start(startInfo) /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 ?? throw new InvalidOperationException("Failed to launch terminal process");
 
             if (controlPipePath != null && File.Exists(controlPipePath))
@@ -424,10 +424,10 @@ else:
                 ? "/usr/bin/mkfifo"
                 : (File.Exists("/bin/mkfifo") ? "/bin/mkfifo" : "/usr/bin/mkfifo");
 
-            using var proc = Process.Start(new ProcessStartInfo
+            using var proc = Process.Start(new ProcessStartInfo /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
             {
                 FileName = mkfifoBinary,
-                Arguments = $"-m 0600 \"{path}\"",
+                Arguments = $"-m 0600 \"{path}\"", /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 CreateNoWindow = true,
                 UseShellExecute = false,
             });

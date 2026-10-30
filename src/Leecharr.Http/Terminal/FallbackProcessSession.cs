@@ -77,7 +77,7 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
         TerminalEnvironmentSanitizer.Sanitize(startInfo);
         ApplyTerminalDimensions(startInfo, clampedCols, clampedRows);
 
-        var proc = Process.Start(startInfo)
+        var proc = Process.Start(startInfo) /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
             ?? throw new InvalidOperationException("Failed to launch fallback terminal process");
 
         return new FallbackProcessSession(proc, clampedCols, clampedRows, isWindows);

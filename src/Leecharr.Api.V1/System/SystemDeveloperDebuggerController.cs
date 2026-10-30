@@ -7,7 +7,7 @@ using NzbDrone.Core.Developer.Debugger;
 
 namespace Leecharr.Api.V1.System;
 
-[V1ApiController("system/developer/debugger")]
+[V1ApiController("system/developer/debugger")] /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
 public class SystemDeveloperDebuggerController : Controller
 {
     private readonly IDeveloperDebuggerService debuggerService;

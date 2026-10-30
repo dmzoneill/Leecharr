@@ -52,7 +52,7 @@ export function IdleLockModal({
           resumeButtonRef.current?.focus();
         }
       }, 50);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); };
     }
   }, [isOpen, requiresPassword]);
 
@@ -68,7 +68,7 @@ export function IdleLockModal({
     };
 
     window.addEventListener("keydown", handleKeyResume);
-    return () => window.removeEventListener("keydown", handleKeyResume);
+    return () => { window.removeEventListener("keydown", handleKeyResume); };
   }, [isOpen, requiresPassword, onUnlock]);
 
   // Trap Escape key and prevent propagation (or unlock if screen saver)
@@ -87,7 +87,7 @@ export function IdleLockModal({
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
+    return () => { window.removeEventListener("keydown", handleKeyDown, true); };
   }, [isOpen, requiresPassword, onUnlock]);
 
   const handleUnlock = useCallback(
@@ -173,7 +173,7 @@ export function IdleLockModal({
         className="idle-lock-card"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -286,7 +286,7 @@ export function IdleLockModal({
 
         {/* Unlock Form */}
         <form
-          onSubmit={handleUnlock}
+          onSubmit={(...args: Parameters<typeof handleUnlock>) => { void handleUnlock(...args); }}
           style={{
             width: "100%",
             display: "flex",
@@ -320,7 +320,7 @@ export function IdleLockModal({
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() => setShowPassword((prev) => !prev)}
+                onClick={() => { setShowPassword((prev) => !prev); }}
                 title={showPassword ? "Hide password" : "Show password"}
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 style={{
@@ -431,7 +431,7 @@ export function IdleCountdownModal({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); };
   }, [isOpen, onStayLoggedIn]);
 
   if (!isOpen) {
@@ -449,7 +449,7 @@ export function IdleCountdownModal({
       tabIndex={0}
       aria-modal="true"
       aria-labelledby="idle-countdown-title"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.stopPropagation();

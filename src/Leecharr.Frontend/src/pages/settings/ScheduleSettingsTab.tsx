@@ -73,7 +73,7 @@ export function ScheduleSettingsTab() {
         schedulerSunday: form.schedulerSunday,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -136,7 +136,7 @@ export function ScheduleSettingsTab() {
           <Toggle
             label={t("settingsTabs.schedule.enable")}
             checked={form.schedulerEnabled}
-            onChange={(v) => update("schedulerEnabled", v)}
+            onChange={(v) => { update("schedulerEnabled", v); }}
             hint={t("settingsTabs.schedule.enableHint")}
           />
 
@@ -150,7 +150,7 @@ export function ScheduleSettingsTab() {
             <NumberInput
               label={t("settingsTabs.schedule.startHour")}
               value={form.schedulerStartHour}
-              onChange={(v) => update("schedulerStartHour", v)}
+              onChange={(v) => { update("schedulerStartHour", v); }}
               disabled={!form.schedulerEnabled}
               min={0}
               max={23}
@@ -160,7 +160,7 @@ export function ScheduleSettingsTab() {
             <NumberInput
               label={t("settingsTabs.schedule.startMinute")}
               value={form.schedulerStartMinute}
-              onChange={(v) => update("schedulerStartMinute", v)}
+              onChange={(v) => { update("schedulerStartMinute", v); }}
               disabled={!form.schedulerEnabled}
               min={0}
               max={59}
@@ -170,7 +170,7 @@ export function ScheduleSettingsTab() {
             <NumberInput
               label={t("settingsTabs.schedule.endHour")}
               value={form.schedulerEndHour}
-              onChange={(v) => update("schedulerEndHour", v)}
+              onChange={(v) => { update("schedulerEndHour", v); }}
               disabled={!form.schedulerEnabled}
               min={0}
               max={23}
@@ -180,7 +180,7 @@ export function ScheduleSettingsTab() {
             <NumberInput
               label={t("settingsTabs.schedule.endMinute")}
               value={form.schedulerEndMinute}
-              onChange={(v) => update("schedulerEndMinute", v)}
+              onChange={(v) => { update("schedulerEndMinute", v); }}
               disabled={!form.schedulerEnabled}
               min={0}
               max={59}
@@ -216,7 +216,7 @@ export function ScheduleSettingsTab() {
                   key={key}
                   label={label}
                   checked={form[key]}
-                  onChange={(v) => update(key, v)}
+                  onChange={(v) => { update(key, v); }}
                   disabled={!form.schedulerEnabled}
                 />
               ))}

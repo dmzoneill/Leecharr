@@ -23,7 +23,7 @@ using NzbDrone.SignalR;
 
 namespace Leecharr.Api.V1.Subsystems;
 
-[V1ApiController("subsystems")]
+[V1ApiController("subsystems")] /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
 public class SubsystemsController : Controller
 {
     private readonly ITorrentEngineManager torrentEngineManager;

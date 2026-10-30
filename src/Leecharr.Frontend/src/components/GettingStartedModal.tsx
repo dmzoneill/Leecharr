@@ -258,7 +258,7 @@ export function GettingStartedModal({
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); };
   }, [isOpen, handleClose]);
 
   if (!isOpen) return null;
@@ -295,9 +295,8 @@ export function GettingStartedModal({
     setIndexerTestResult(null);
     const payload = normalizeIndexerPayload(indexerForm);
     testIndexerMutation.mutate(payload, {
-      onSuccess: (data) => setIndexerTestResult(data),
-      onError: (err) =>
-        setIndexerTestResult({ success: false, message: err.message }),
+      onSuccess: (data) => { setIndexerTestResult(data); },
+      onError: (err) => { setIndexerTestResult({ success: false, message: err.message }); },
     });
   };
 
@@ -344,21 +343,19 @@ export function GettingStartedModal({
     setResult(null);
     if (form.id && isMaskedApiKey(form.apiKey)) {
       testArrByIdMutation.mutate(form.id, {
-        onSuccess: (data) => setResult(data),
-        onError: (err) =>
-          setResult({
+        onSuccess: (data) => { setResult(data); },
+        onError: (err) => { setResult({
             success: false,
             message: err.message || "Connection failed",
-          }),
+          }); },
       });
     } else {
       testArrMutation.mutate(form, {
-        onSuccess: (data) => setResult(data),
-        onError: (err) =>
-          setResult({
+        onSuccess: (data) => { setResult(data); },
+        onError: (err) => { setResult({
             success: false,
             message: err.message || "Connection failed",
-          }),
+          }); },
       });
     }
   };
@@ -439,7 +436,7 @@ export function GettingStartedModal({
         className="modal"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -483,7 +480,7 @@ export function GettingStartedModal({
             <button
               type="button"
               className={`wizard-mode-btn ${mode === "readonly" ? "active" : ""}`}
-              onClick={() => setMode("readonly")}
+              onClick={() => { setMode("readonly"); }}
               title="Tour mode with example preview"
             >
               👁️ {t("gettingStarted.guideMode")}
@@ -491,7 +488,7 @@ export function GettingStartedModal({
             <button
               type="button"
               className={`wizard-mode-btn ${mode === "interactive" ? "active" : ""}`}
-              onClick={() => setMode("interactive")}
+              onClick={() => { setMode("interactive"); }}
               title="Live setup to test and save credentials"
             >
               ⚡ {t("gettingStarted.liveSetupMode")}
@@ -561,7 +558,7 @@ export function GettingStartedModal({
                 key={s.id}
                 type="button"
                 className={`wizard-step-tab ${isActive ? "active" : isCompleted ? "completed" : ""}`}
-                onClick={() => setCurrentStep(idx)}
+                onClick={() => { setCurrentStep(idx); }}
               >
                 {t(s.shortNameKey)}
               </button>
@@ -1173,8 +1170,7 @@ export function GettingStartedModal({
                   >
                     <button
                       className="btn btn-secondary"
-                      onClick={() =>
-                        handleTestArr(sonarrForm, setSonarrTestResult)
+                      onClick={() => { handleTestArr(sonarrForm, setSonarrTestResult); }
                       }
                       disabled={isTestingArr}
                     >
@@ -1184,7 +1180,7 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(sonarrForm, setSonarrTestResult)}
+                      onClick={() => { handleSaveArr(sonarrForm, setSonarrTestResult); }}
                       disabled={isSavingArr}
                     >
                       {isSavingArr
@@ -1436,8 +1432,7 @@ export function GettingStartedModal({
                   >
                     <button
                       className="btn btn-secondary"
-                      onClick={() =>
-                        handleTestArr(radarrForm, setRadarrTestResult)
+                      onClick={() => { handleTestArr(radarrForm, setRadarrTestResult); }
                       }
                       disabled={isTestingArr}
                     >
@@ -1447,7 +1442,7 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(radarrForm, setRadarrTestResult)}
+                      onClick={() => { handleSaveArr(radarrForm, setRadarrTestResult); }}
                       disabled={isSavingArr}
                     >
                       {isSavingArr
@@ -1699,8 +1694,7 @@ export function GettingStartedModal({
                   >
                     <button
                       className="btn btn-secondary"
-                      onClick={() =>
-                        handleTestArr(lidarrForm, setLidarrTestResult)
+                      onClick={() => { handleTestArr(lidarrForm, setLidarrTestResult); }
                       }
                       disabled={isTestingArr}
                     >
@@ -1710,7 +1704,7 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(lidarrForm, setLidarrTestResult)}
+                      onClick={() => { handleSaveArr(lidarrForm, setLidarrTestResult); }}
                       disabled={isSavingArr}
                     >
                       {isSavingArr
@@ -1837,7 +1831,7 @@ export function GettingStartedModal({
             <input
               type="checkbox"
               checked={dontShowAgain}
-              onChange={(e) => handleDontShowChange(e.target.checked)}
+              onChange={(e) => { handleDontShowChange(e.target.checked); }}
               style={{
                 cursor: "pointer",
                 accentColor: "var(--accent, #5b8def)",

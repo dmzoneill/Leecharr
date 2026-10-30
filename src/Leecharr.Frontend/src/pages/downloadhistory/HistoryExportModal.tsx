@@ -210,7 +210,7 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
           backgroundColor: "var(--bg-card)",
           boxShadow: "0 8px 30px rgba(0, 0, 0, 0.4)",
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -267,7 +267,7 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
                 name="exportFormat"
                 value="json"
                 checked={exportFormat === "json"}
-                onChange={() => setExportFormat("json")}
+                onChange={() => { setExportFormat("json"); }}
               />
               JSON
             </label>
@@ -284,7 +284,7 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
                 name="exportFormat"
                 value="csv"
                 checked={exportFormat === "csv"}
-                onChange={() => setExportFormat("csv")}
+                onChange={() => { setExportFormat("csv"); }}
               />
               CSV
             </label>
@@ -301,7 +301,7 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
                 name="exportFormat"
                 value="txt"
                 checked={exportFormat === "txt"}
-                onChange={() => setExportFormat("txt")}
+                onChange={() => { setExportFormat("txt"); }}
               />
               TXT
             </label>
@@ -320,7 +320,7 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
               <input
                 type="checkbox"
                 checked={includeMetadata}
-                onChange={(e) => setIncludeMetadata(e.target.checked)}
+                onChange={(e) => { setIncludeMetadata(e.target.checked); }}
               />
               {t(
                 "history.includeEnrichedMetadata",
@@ -372,7 +372,7 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
           <button className="btn btn-outline" onClick={onClose}>
             {t("common.cancel", "Cancel")}
           </button>
-          <button className="btn btn-outline" onClick={handleCopyToClipboard}>
+          <button className="btn btn-outline" onClick={(...args: Parameters<typeof handleCopyToClipboard>) => { void handleCopyToClipboard(...args); }}>
             📋 {t("history.copyToClipboard", "Copy")}
           </button>
           <button className="btn btn-primary" onClick={handleDownload}>

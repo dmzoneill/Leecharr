@@ -104,7 +104,7 @@ export function SubsystemsTab() {
         {t("settingsTabs.subsystems.errorLoading")}
         {(error as Error)?.message}
         <button
-          onClick={() => refetch()}
+          onClick={() => { void refetch(); }}
           style={{ marginLeft: "1rem", padding: "0.25rem 0.75rem" }}
         >
           {t("settingsTabs.subsystems.retry")}
@@ -168,7 +168,7 @@ export function SubsystemsTab() {
           {allCategories.map((cat) => (
             <button
               key={cat}
-              onClick={() => setActiveCategoryFilter(cat)}
+              onClick={() => { setActiveCategoryFilter(cat); }}
               style={{
                 padding: "0.35rem 0.85rem",
                 borderRadius: "20px",
@@ -400,9 +400,7 @@ export function SubsystemsTab() {
                     <button
                       type="button"
                       disabled={isProbing}
-                      onClick={() =>
-                        handleProbe(subsystem.id, provider.providerId)
-                      }
+                      onClick={() => { void handleProbe(subsystem.id, provider.providerId); }}
                       style={{
                         flex: 1,
                         padding: "0.4rem 0.6rem",
@@ -537,7 +535,7 @@ export function SubsystemsTab() {
             >
               <button
                 type="button"
-                onClick={() => setSelectedForSwitch(null)}
+                onClick={() => { setSelectedForSwitch(null); }}
                 style={{
                   padding: "0.5rem 1rem",
                   backgroundColor: "transparent",
@@ -552,7 +550,7 @@ export function SubsystemsTab() {
               <button
                 type="button"
                 disabled={switchSubsystem.isPending}
-                onClick={handleExecuteSwitch}
+                onClick={(...args: Parameters<typeof handleExecuteSwitch>) => { void handleExecuteSwitch(...args); }}
                 style={{
                   padding: "0.5rem 1.25rem",
                   backgroundColor: "var(--accent-gold, #ffd166)",
@@ -701,7 +699,7 @@ export function SubsystemsTab() {
             >
               <button
                 type="button"
-                onClick={() => setProbeResult(null)}
+                onClick={() => { setProbeResult(null); }}
                 style={{
                   padding: "0.5rem 1.25rem",
                   backgroundColor: "var(--bg-card-hover, #23284b)",

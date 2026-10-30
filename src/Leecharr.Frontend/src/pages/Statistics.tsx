@@ -113,26 +113,26 @@ function Statistics() {
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button
             className={`btn ${activeTab === "overview" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("overview")}
+            onClick={() => { setActiveTab("overview"); }}
           >
             {t("statistics.overviewTab")}
           </button>
           <button
             className={`btn ${activeTab === "achievements" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("achievements")}
+            onClick={() => { setActiveTab("achievements"); }}
           >
             {t("statistics.achievementsTab")} ({achievements.unlockedCount}/
             {achievements.totalCount})
           </button>
           <button
             className={`btn ${activeTab === "buffers" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("buffers")}
+            onClick={() => { setActiveTab("buffers"); }}
           >
             {t("statistics.trackerBuffersTab")}
           </button>
           <button
             className={`btn ${activeTab === "simulator" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("simulator")}
+            onClick={() => { setActiveTab("simulator"); }}
           >
             {t("statistics.simulatorTab")}
           </button>
@@ -204,7 +204,7 @@ function Statistics() {
 
             <button
               className="btn btn-outline btn-small"
-              onClick={() => setActiveTab("achievements")}
+              onClick={() => { setActiveTab("achievements"); }}
             >
               {t("statistics.viewHallOfFame")}
             </button>

@@ -86,7 +86,7 @@ export function ConnectionsTab() {
 
   const trapRef = useFocusTrap<HTMLDivElement>({
     isOpen: Boolean(editing),
-    onClose: handleCloseModal,
+    onClose: (...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); },
   });
 
   const [testResults, setTestResults] = useState<
@@ -141,7 +141,7 @@ export function ConnectionsTab() {
 
   const mappingTrapRef = useFocusTrap<HTMLDivElement>({
     isOpen: Boolean(editingMapping),
-    onClose: handleCloseMappingModal,
+    onClose: (...args: Parameters<typeof handleCloseMappingModal>) => { void handleCloseMappingModal(...args); },
   });
 
   const handleOpenAddMapping = () => {
@@ -289,12 +289,11 @@ export function ConnectionsTab() {
   const handleTest = (id: number) => {
     setTestResults((prev) => ({ ...prev, [id]: null }));
     testMutation.mutate(id, {
-      onSuccess: (data) => setTestResults((prev) => ({ ...prev, [id]: data })),
-      onError: (err) =>
-        setTestResults((prev) => ({
+      onSuccess: (data) => { setTestResults((prev) => ({ ...prev, [id]: data })); },
+      onError: (err) => { setTestResults((prev) => ({
           ...prev,
           [id]: { success: false, message: err.message },
-        })),
+        })); },
     });
   };
 
@@ -302,9 +301,8 @@ export function ConnectionsTab() {
     if (!editing) return;
     setModalTestResult(null);
     testDirectMutation.mutate(editing, {
-      onSuccess: (data) => setModalTestResult(data),
-      onError: (err) =>
-        setModalTestResult({ success: false, message: err.message }),
+      onSuccess: (data) => { setModalTestResult(data); },
+      onError: (err) => { setModalTestResult({ success: false, message: err.message }); },
     });
   };
 
@@ -339,7 +337,7 @@ export function ConnectionsTab() {
           >
             <button
               className="btn btn-outline btn-small"
-              onClick={() => syncMutation.mutate()}
+              onClick={() => { syncMutation.mutate(); }}
               disabled={syncMutation.isPending}
             >
               {syncMutation.isPending
@@ -407,7 +405,7 @@ export function ConnectionsTab() {
               className="provider-card"
               role="button"
               tabIndex={0}
-              onClick={() => handleOpenModal(conn)}
+              onClick={() => { handleOpenModal(conn); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -426,7 +424,7 @@ export function ConnectionsTab() {
                       name: conn.name,
                       url: conn.externalUrl || conn.url,
                     })}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); }}
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     ↗
@@ -458,19 +456,17 @@ export function ConnectionsTab() {
                     if (!ok) return;
 
                     deleteMutation.mutate(conn.id, {
-                      onSuccess: () =>
-                        showToast(
+                      onSuccess: () => { showToast(
                           t("settingsTabs.connections.deleted", {
                             name: conn.name,
                           }),
                           "info",
-                        ),
-                      onError: (err: unknown) =>
-                        showToast(
+                        ); },
+                      onError: (err: unknown) => { showToast(
                           (err as Error)?.message ||
                             t("settingsTabs.connections.deleteFailed"),
                           "error",
-                        ),
+                        ); },
                     });
                   }}
                 >
@@ -568,7 +564,7 @@ export function ConnectionsTab() {
             className="provider-card-add"
             role="button"
             tabIndex={0}
-            onClick={() => handleOpenModal(defaultConnection)}
+            onClick={() => { handleOpenModal(defaultConnection); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -697,14 +693,14 @@ export function ConnectionsTab() {
                         type="button"
                         className="btn btn-outline btn-small"
                         style={{ marginRight: "0.5rem" }}
-                        onClick={() => handleOpenEditMapping(m)}
+                        onClick={() => { handleOpenEditMapping(m); }}
                       >
                         {t("settingsTabs.categories.table.edit")}
                       </button>
                       <button
                         type="button"
                         className="btn btn-outline btn-small btn-danger"
-                        onClick={() => handleDeleteMapping(m)}
+                        onClick={() => { void handleDeleteMapping(m); }}
                       >
                         {t("settingsTabs.categories.table.delete")}
                       </button>
@@ -720,7 +716,7 @@ export function ConnectionsTab() {
       {editing && (
         <div
           className="modal-overlay"
-          onClick={handleCloseModal}
+          onClick={(...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); }}
           role="dialog"
           aria-modal="true"
         >
@@ -729,7 +725,7 @@ export function ConnectionsTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -753,7 +749,7 @@ export function ConnectionsTab() {
             <TextInput
               label={t("settingsTabs.categories.table.name")}
               value={editing.name || ""}
-              onChange={(v) => setEditing({ ...editing, name: v })}
+              onChange={(v) => { setEditing({ ...editing, name: v }); }}
               placeholder={t("settings.sonarr")}
             />
             <SelectInput
@@ -785,7 +781,7 @@ export function ConnectionsTab() {
             <TextInput
               label={t("settingsTabs.indexers.urlLabel")}
               value={editing.url || ""}
-              onChange={(v) => setEditing({ ...editing, url: v })}
+              onChange={(v) => { setEditing({ ...editing, url: v }); }}
               placeholder="http://localhost:8989"
             />
             <TextInput
@@ -794,8 +790,7 @@ export function ConnectionsTab() {
                 "Public / External URL (Optional)",
               )}
               value={editing.externalUrl || ""}
-              onChange={(v) =>
-                setEditing({ ...editing, externalUrl: v, publicUrl: v })
+              onChange={(v) => { setEditing({ ...editing, externalUrl: v, publicUrl: v }); }
               }
               placeholder="https://my-domain.com:8989"
               hint={t(
@@ -806,55 +801,54 @@ export function ConnectionsTab() {
             <TextInput
               label={t("settingsTabs.indexers.apiKeyLabel")}
               value={editing.apiKey || ""}
-              onChange={(v) => setEditing({ ...editing, apiKey: v })}
+              onChange={(v) => { setEditing({ ...editing, apiKey: v }); }}
               type="password"
             />
             <TextInput
               label={t("settingsTabs.connections.category")}
               value={editing.category || ""}
-              onChange={(v) => setEditing({ ...editing, category: v })}
+              onChange={(v) => { setEditing({ ...editing, category: v }); }}
               placeholder="tv"
               hint={t("settingsTabs.connections.categoryHint")}
             />
             <TextInput
               label={t("settingsTabs.connections.savePath")}
               value={editing.savePath || ""}
-              onChange={(v) => setEditing({ ...editing, savePath: v })}
+              onChange={(v) => { setEditing({ ...editing, savePath: v }); }}
               placeholder="/downloads/tv"
               hint={t("settingsTabs.connections.savePathHint")}
             />
             <Toggle
               label={t("settingsTabs.notifications.enableConnection")}
               checked={editing.enable ?? true}
-              onChange={(v) => setEditing({ ...editing, enable: v })}
+              onChange={(v) => { setEditing({ ...editing, enable: v }); }}
             />
             <Toggle
               label={t("settings.syncEnabled")}
               checked={editing.syncEnabled ?? true}
-              onChange={(v) => setEditing({ ...editing, syncEnabled: v })}
+              onChange={(v) => { setEditing({ ...editing, syncEnabled: v }); }}
             />
             <Toggle
               label={t("settingsTabs.connections.syncCategories")}
               checked={editing.syncCategories ?? true}
-              onChange={(v) => setEditing({ ...editing, syncCategories: v })}
+              onChange={(v) => { setEditing({ ...editing, syncCategories: v }); }}
             />
             <Toggle
               label={t("settings.autoAdd")}
               checked={editing.enableAutomaticAdd ?? true}
-              onChange={(v) =>
-                setEditing({ ...editing, enableAutomaticAdd: v })
+              onChange={(v) => { setEditing({ ...editing, enableAutomaticAdd: v }); }
               }
             />
             <Toggle
               label={t("settings.webhook")}
               checked={editing.webhookEnabled ?? true}
-              onChange={(v) => setEditing({ ...editing, webhookEnabled: v })}
+              onChange={(v) => { setEditing({ ...editing, webhookEnabled: v }); }}
             />
             {editing.webhookEnabled !== false && (
               <TextInput
                 label={t("settings.webhookHost")}
                 value={editing.webhookHost || ""}
-                onChange={(v) => setEditing({ ...editing, webhookHost: v })}
+                onChange={(v) => { setEditing({ ...editing, webhookHost: v }); }}
                 placeholder="Leecharr"
                 hint={t("settingsTabs.connections.webhookHostHint")}
               />
@@ -915,7 +909,7 @@ export function ConnectionsTab() {
                 <button
                   type="button"
                   className="btn btn-outline btn-small"
-                  onClick={handleCloseModal}
+                  onClick={(...args: Parameters<typeof handleCloseModal>) => { void handleCloseModal(...args); }}
                 >
                   {t("settingsTabs.categories.modal.cancel")}
                 </button>
@@ -939,7 +933,7 @@ export function ConnectionsTab() {
       {editingMapping && (
         <div
           className="modal-overlay"
-          onClick={handleCloseMappingModal}
+          onClick={(...args: Parameters<typeof handleCloseMappingModal>) => { void handleCloseMappingModal(...args); }}
           role="dialog"
           aria-modal="true"
         >
@@ -948,7 +942,7 @@ export function ConnectionsTab() {
             className="modal"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -972,8 +966,7 @@ export function ConnectionsTab() {
             <TextInput
               label={t("settingsTabs.connections.host")}
               value={editingMapping.host || ""}
-              onChange={(v) =>
-                setEditingMapping({ ...editingMapping, host: v })
+              onChange={(v) => { setEditingMapping({ ...editingMapping, host: v }); }
               }
               placeholder="*"
               hint={t("settingsTabs.connections.hostHint")}
@@ -981,8 +974,7 @@ export function ConnectionsTab() {
             <TextInput
               label={t("settingsTabs.connections.remotePath")}
               value={editingMapping.remotePath || ""}
-              onChange={(v) =>
-                setEditingMapping({ ...editingMapping, remotePath: v })
+              onChange={(v) => { setEditingMapping({ ...editingMapping, remotePath: v }); }
               }
               placeholder="/downloads/"
               hint={t("settingsTabs.connections.remotePathHint")}
@@ -990,8 +982,7 @@ export function ConnectionsTab() {
             <TextInput
               label={t("settingsTabs.connections.localPath")}
               value={editingMapping.localPath || ""}
-              onChange={(v) =>
-                setEditingMapping({ ...editingMapping, localPath: v })
+              onChange={(v) => { setEditingMapping({ ...editingMapping, localPath: v }); }
               }
               placeholder="/data/downloads/"
               hint={t("settingsTabs.connections.localPathHint")}
@@ -1008,7 +999,7 @@ export function ConnectionsTab() {
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={handleCloseMappingModal}
+                onClick={(...args: Parameters<typeof handleCloseMappingModal>) => { void handleCloseMappingModal(...args); }}
               >
                 {t("settingsTabs.categories.modal.cancel")}
               </button>

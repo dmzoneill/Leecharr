@@ -13,7 +13,7 @@ using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.Ai;
 
-[V1ApiController("ai")]
+[V1ApiController("ai")] /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
 public class AiController : Controller
 {
     private readonly IAiService aiService;

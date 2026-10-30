@@ -31,7 +31,7 @@ export function announce(
     message: trimmed,
     priority,
   };
-  listeners.forEach((listener) => listener(item));
+  listeners.forEach((listener) => { listener(item); });
 }
 
 /**
@@ -204,7 +204,7 @@ export default function AriaLiveAnnouncer({
       displayDuration,
       queuedDuration,
       transitionGap,
-      onMessageChange: (msg) => setPoliteMessage(msg),
+      onMessageChange: (msg) => { setPoliteMessage(msg); },
     });
   }
 
@@ -213,7 +213,7 @@ export default function AriaLiveAnnouncer({
       displayDuration,
       queuedDuration,
       transitionGap,
-      onMessageChange: (msg) => setAssertiveMessage(msg),
+      onMessageChange: (msg) => { setAssertiveMessage(msg); },
     });
   }
 

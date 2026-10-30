@@ -812,7 +812,7 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = fileName,
+                    FileName = fileName, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 },

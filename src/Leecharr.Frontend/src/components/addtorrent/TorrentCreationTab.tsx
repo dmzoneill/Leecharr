@@ -270,7 +270,7 @@ export function TorrentCreationTab({
           <input
             type="text"
             value={createPath}
-            onChange={(e) => setCreatePath(e.target.value)}
+            onChange={(e) => { setCreatePath(e.target.value); }}
             placeholder={t(
               "addTorrent.sourcePathPlaceholder",
               "/downloads/complete/MyMovie or /data/file.iso",
@@ -303,7 +303,7 @@ export function TorrentCreationTab({
           <input
             type="text"
             value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
+            onChange={(e) => { setCreateName(e.target.value); }}
             placeholder={t(
               "addTorrent.torrentNamePlaceholder",
               "Defaults to file / folder name",
@@ -343,7 +343,7 @@ export function TorrentCreationTab({
           </label>
           <select
             value={createPieceLength}
-            onChange={(e) => setCreatePieceLength(Number.parseInt(e.target.value, 10))}
+            onChange={(e) => { setCreatePieceLength(Number.parseInt(e.target.value, 10)); }}
             className="form-input"
             style={{
               width: "100%",
@@ -388,7 +388,7 @@ export function TorrentCreationTab({
             type="checkbox"
             id="createPrivateCheck"
             checked={createIsPrivate}
-            onChange={(e) => setCreateIsPrivate(e.target.checked)}
+            onChange={(e) => { setCreateIsPrivate(e.target.checked); }}
           />
           <label
             htmlFor="createPrivateCheck"
@@ -424,7 +424,7 @@ export function TorrentCreationTab({
         <textarea
           rows={3}
           value={createTrackers}
-          onChange={(e) => setCreateTrackers(e.target.value)}
+          onChange={(e) => { setCreateTrackers(e.target.value); }}
           placeholder="http://tracker.example.com:80/announce&#10;udp://tracker.opentrackr.org:1337/announce"
           className="form-input"
           style={{
@@ -455,7 +455,7 @@ export function TorrentCreationTab({
         <textarea
           rows={2}
           value={createWebSeeds}
-          onChange={(e) => setCreateWebSeeds(e.target.value)}
+          onChange={(e) => { setCreateWebSeeds(e.target.value); }}
           placeholder="https://cdn.example.com/downloads/MyMovie.mkv"
           className="form-input"
           style={{
@@ -493,7 +493,7 @@ export function TorrentCreationTab({
           <input
             type="text"
             value={createComment}
-            onChange={(e) => setCreateComment(e.target.value)}
+            onChange={(e) => { setCreateComment(e.target.value); }}
             placeholder={t(
               "addTorrent.commentPlaceholder",
               "Optional description or license info",
@@ -526,7 +526,7 @@ export function TorrentCreationTab({
           <input
             type="text"
             value={createOutputPath}
-            onChange={(e) => setCreateOutputPath(e.target.value)}
+            onChange={(e) => { setCreateOutputPath(e.target.value); }}
             placeholder={t(
               "addTorrent.outputPathPlaceholder",
               "Optional destination for .torrent file",
@@ -593,7 +593,7 @@ export function TorrentCreationTab({
                   <button
                     type="button"
                     className="btn btn-primary"
-                    onClick={() => handleDownloadTorrent(createResult)}
+                    onClick={() => { handleDownloadTorrent(createResult); }}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -648,7 +648,7 @@ export function TorrentCreationTab({
         <button
           type="button"
           className="btn btn-primary"
-          onClick={handleCreateTorrent}
+          onClick={(...args: Parameters<typeof handleCreateTorrent>) => { void handleCreateTorrent(...args); }}
           disabled={isCreating || !createPath.trim()}
           style={{ borderRadius: "6px", padding: "0.45rem 1.25rem" }}
         >

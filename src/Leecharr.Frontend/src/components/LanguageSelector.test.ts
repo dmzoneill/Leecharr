@@ -47,8 +47,8 @@ const allLocales = [
   { code: "vi", dict: vi },
 ];
 
-describe("LanguageSelector & i18n languageTitle", () => {
-  it("all 20 locales define common.languageTitle with {name} and {nativeName} placeholders", () => {
+void describe("LanguageSelector & i18n languageTitle", () => {
+  void it("all 20 locales define common.languageTitle with {name} and {nativeName} placeholders", () => {
     for (const { code, dict } of allLocales) {
       const title = dict.common.languageTitle;
       assert.ok(
@@ -67,7 +67,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
     }
   });
 
-  it("correctly interpolates active language name and nativeName in English", () => {
+  void it("correctly interpolates active language name and nativeName in English", () => {
     useI18nStore.setState({ language: "en", translations: en });
     const active = languages.find((l) => l.code === "en") ?? languages[0];
     const interpolated = translate(
@@ -81,7 +81,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
     assert.strictEqual(interpolated, "Language: English (English)");
   });
 
-  it("correctly interpolates active language in German and French", () => {
+  void it("correctly interpolates active language in German and French", () => {
     useI18nStore.setState({ language: "de", translations: de });
     const activeDe = languages.find((l) => l.code === "de") ?? languages[0];
     const deTitle = translate(
@@ -107,7 +107,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
     assert.strictEqual(frTitle, "Langue : French (Français)");
   });
 
-  it("falls back gracefully if translation string lacks placeholder", () => {
+  void it("falls back gracefully if translation string lacks placeholder", () => {
     const active = languages.find((l) => l.code === "en") ?? languages[0];
     const defaultTitle = `Language: ${active.name} (${active.nativeName})`;
     const brokenTitle = "Language Title"; // simulates broken un-interpolated value
@@ -121,7 +121,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
     assert.strictEqual(titleTooltip, "Language: English (English)");
   });
 
-  it("keyboard navigation wraps indices correctly on ArrowDown and ArrowUp", () => {
+  void it("keyboard navigation wraps indices correctly on ArrowDown and ArrowUp", () => {
     const listCount = 5;
     const nextDown = (current: number) =>
       current < 0 || current >= listCount - 1 ? 0 : current + 1;
@@ -139,7 +139,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
     assert.strictEqual(nextUp(-1), 4);
   });
 
-  it("filtering languages works across name, nativeName, and code", () => {
+  void it("filtering languages works across name, nativeName, and code", () => {
     const filter = (search: string) =>
       languages.filter(
         (l) =>
@@ -157,7 +157,7 @@ describe("LanguageSelector & i18n languageTitle", () => {
   });
 });
 
-describe("ErrorBoundary & route/modal error boundary localization (#1034)", () => {
+void describe("ErrorBoundary & route/modal error boundary localization (#1034)", () => {
   const errorKeys = [
     "defaultTitle",
     "trackerServer",
@@ -176,7 +176,7 @@ describe("ErrorBoundary & route/modal error boundary localization (#1034)", () =
     "keyboardShortcuts",
   ] as const;
 
-  it("all 20 locales define errors.defaultTitle and all 14 route/modal error keys", () => {
+  void it("all 20 locales define errors.defaultTitle and all 14 route/modal error keys", () => {
     for (const { code, dict } of allLocales) {
       assert.ok(dict.errors, `Locale ${code} is missing errors dictionary`);
       for (const key of errorKeys) {
@@ -189,7 +189,7 @@ describe("ErrorBoundary & route/modal error boundary localization (#1034)", () =
     }
   });
 
-  it("errors.defaultTitle returns descriptive error message without masking by 'common.error'", () => {
+  void it("errors.defaultTitle returns descriptive error message without masking by 'common.error'", () => {
     useI18nStore.setState({ language: "en", translations: en });
     const enTitle = translate("errors.defaultTitle", "An unexpected UI error occurred");
     assert.strictEqual(enTitle, "An unexpected UI error occurred");
@@ -201,7 +201,7 @@ describe("ErrorBoundary & route/modal error boundary localization (#1034)", () =
     assert.notStrictEqual(deTitle, "Fehler");
   });
 
-  it("translates route and modal error boundary titles across locales", () => {
+  void it("translates route and modal error boundary titles across locales", () => {
     useI18nStore.setState({ language: "en", translations: en });
     assert.strictEqual(
       translate("errors.trackerServer"),

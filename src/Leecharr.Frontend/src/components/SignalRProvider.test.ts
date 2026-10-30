@@ -5,7 +5,7 @@ if (typeof globalThis.localStorage === "undefined") {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, val: string) => store.set(key, val),
     removeItem: (key: string) => store.delete(key),
-    clear: () => store.clear(),
+    clear: () => { store.clear(); },
   };
 }
 
@@ -30,8 +30,8 @@ import {
 import { signalRManager } from "../api/signalr";
 import * as signalR from "@microsoft/signalr";
 
-describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
-  it("does not map speedPulse in EVENT_INVALIDATION_MAP to prevent 1-second query invalidation storm", () => {
+void describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
+  void it("does not map speedPulse in EVENT_INVALIDATION_MAP to prevent 1-second query invalidation storm", () => {
     // speedPulse is high-frequency ephemeral telemetry updated directly in useTorrentStore
     // It should NEVER trigger REST query invalidations against /api/v1/seeding/stats
     assert.equal(
@@ -46,14 +46,14 @@ describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
     );
   });
 
-  it("maps SeedingStatsUpdated to invalidating seeding stats", () => {
+  void it("maps SeedingStatsUpdated to invalidating seeding stats", () => {
     // Persistent seeding stats changes should still invalidate seeding stats queries
     assert.deepEqual(EVENT_INVALIDATION_MAP.SeedingStatsUpdated, [
       ["seeding", "stats"],
     ]);
   });
 
-  it("contains necessary entity invalidation mappings", () => {
+  void it("contains necessary entity invalidation mappings", () => {
     assert.deepEqual(EVENT_INVALIDATION_MAP.TorrentAdded, [
       ["torrents"],
       ["trackerboost"],
@@ -96,7 +96,7 @@ describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
     ]);
   });
 
-  it("RECONNECT_QUERY_KEYS includes seeding stats and torrents for reconnect resync", () => {
+  void it("RECONNECT_QUERY_KEYS includes seeding stats and torrents for reconnect resync", () => {
     const hasSeedingStats = RECONNECT_QUERY_KEYS.some(
       (key) => key.length === 2 && key[0] === "seeding" && key[1] === "stats"
     );
@@ -107,7 +107,7 @@ describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
     assert.equal(hasTorrents, true);
   });
 
-  it("isHandledByNamedEvent correctly classifies events", () => {
+  void it("isHandledByNamedEvent correctly classifies events", () => {
     assert.equal(isHandledByNamedEvent("speedPulse"), true);
     assert.equal(isHandledByNamedEvent("speed_update"), true);
     assert.equal(isHandledByNamedEvent("TorrentAdded"), true);
@@ -126,8 +126,8 @@ describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
   });
 });
 
-describe("SignalRProvider and signalRManager Reconnection Cache Synchronization (#1023)", () => {
-  it("registers onReconnected handler with signalRManager and unsubscribes properly", () => {
+void describe("SignalRProvider and signalRManager Reconnection Cache Synchronization (#1023)", () => {
+  void it("registers onReconnected handler with signalRManager and unsubscribes properly", () => {
     let _callCount = 0;
     const unsub = signalRManager.onReconnected(() => {
       _callCount++;
@@ -137,7 +137,7 @@ describe("SignalRProvider and signalRManager Reconnection Cache Synchronization 
     unsub();
   });
 
-  it("invalidates all RECONNECT_QUERY_KEYS on reconnection", () => {
+  void it("invalidates all RECONNECT_QUERY_KEYS on reconnection", () => {
     const invalidatedKeys: Array<unknown> = [];
     const mockQueryClient = {
       invalidateQueries: ({ queryKey }: { queryKey: readonly unknown[] }) => {
@@ -171,7 +171,7 @@ describe("SignalRProvider and signalRManager Reconnection Cache Synchronization 
     unsub();
   });
 
-  it("startWithRetry requests stateSnapshot and triggers onReconnected on reconnection even when coldStartRetryCount is 0", async () => {
+  void it("startWithRetry requests stateSnapshot and triggers onReconnected on reconnection even when coldStartRetryCount is 0", async () => {
     let snapshotRequested = false;
     let reconnectedConnectionId: string | undefined;
 

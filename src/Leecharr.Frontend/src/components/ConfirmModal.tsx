@@ -88,7 +88,7 @@ export function ConfirmModal({
         className="modal-content"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();

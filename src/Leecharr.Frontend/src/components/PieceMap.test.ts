@@ -5,7 +5,7 @@ if (typeof globalThis.localStorage === "undefined") {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, val: string) => store.set(key, val),
     removeItem: (key: string) => store.delete(key),
-    clear: () => store.clear(),
+    clear: () => { store.clear(); },
   };
 }
 
@@ -19,15 +19,15 @@ import {
   FILE_PALETTE,
 } from "./PieceMap";
 
-describe("PieceMap File Boundaries and Colors (#1024)", () => {
-  describe("computeFileBoundaries", () => {
-    it("returns empty array when files is null, undefined, or empty", () => {
+void describe("PieceMap File Boundaries and Colors (#1024)", () => {
+  void describe("computeFileBoundaries", () => {
+    void it("returns empty array when files is null, undefined, or empty", () => {
       assert.deepEqual(computeFileBoundaries(null, 16384), []);
       assert.deepEqual(computeFileBoundaries(undefined, 16384), []);
       assert.deepEqual(computeFileBoundaries([], 16384), []);
     });
 
-    it("uses backend pieceOffset and pieceCount when present", () => {
+    void it("uses backend pieceOffset and pieceCount when present", () => {
       const files: TorrentFileInfo[] = [
         {
           id: 1,
@@ -71,7 +71,7 @@ describe("PieceMap File Boundaries and Colors (#1024)", () => {
       assert.strictEqual(boundaries[2].colorIndex, 2);
     });
 
-    it("handles non-contiguous or reordered files based on backend offsets", () => {
+    void it("handles non-contiguous or reordered files based on backend offsets", () => {
       const files: TorrentFileInfo[] = [
         {
           id: 2,
@@ -99,7 +99,7 @@ describe("PieceMap File Boundaries and Colors (#1024)", () => {
       assert.strictEqual(boundaries[1].endPiece, 49);
     });
 
-    it("handles 0-count empty files correctly without crashing or negative ranges", () => {
+    void it("handles 0-count empty files correctly without crashing or negative ranges", () => {
       const files: TorrentFileInfo[] = [
         {
           id: 1,
@@ -116,7 +116,7 @@ describe("PieceMap File Boundaries and Colors (#1024)", () => {
       assert.strictEqual(boundaries[0].endPiece, 12);
     });
 
-    it("falls back to sequential byte calculation when pieceOffset/pieceCount are missing", () => {
+    void it("falls back to sequential byte calculation when pieceOffset/pieceCount are missing", () => {
       const files: TorrentFileInfo[] = [
         {
           id: 1,
@@ -151,25 +151,25 @@ describe("PieceMap File Boundaries and Colors (#1024)", () => {
     });
   });
 
-  describe("hexToRgba", () => {
-    it("converts 6-digit hex color to rgba with specified alpha", () => {
+  void describe("hexToRgba", () => {
+    void it("converts 6-digit hex color to rgba with specified alpha", () => {
       assert.strictEqual(hexToRgba("#3498db", 0.18), "rgba(52, 152, 219, 0.18)");
       assert.strictEqual(hexToRgba("#e74c3c", 1), "rgba(231, 76, 60, 1)");
     });
 
-    it("converts 3-digit hex color to rgba", () => {
+    void it("converts 3-digit hex color to rgba", () => {
       assert.strictEqual(hexToRgba("#fff", 0.5), "rgba(255, 255, 255, 0.5)");
     });
 
-    it("returns raw string if not starting with #", () => {
+    void it("returns raw string if not starting with #", () => {
       assert.strictEqual(hexToRgba("rgb(1, 2, 3)", 0.5), "rgb(1, 2, 3)");
     });
   });
 
-  describe("getFileBlockColor", () => {
+  void describe("getFileBlockColor", () => {
     const fileColor = FILE_PALETTE[0]; // "#3498db"
 
-    it("returns solid opaque color for completed blocks", () => {
+    void it("returns solid opaque color for completed blocks", () => {
       const resString = getFileBlockColor("complete", false, fileColor);
       assert.strictEqual(resString.fillColor, fileColor);
       assert.strictEqual(resString.strokeColor, fileColor);
@@ -183,7 +183,7 @@ describe("PieceMap File Boundaries and Colors (#1024)", () => {
       assert.strictEqual(resIsComplete.strokeColor, fileColor);
     });
 
-    it("dims missing blocks with low alpha while preserving file boundary stroke", () => {
+    void it("dims missing blocks with low alpha while preserving file boundary stroke", () => {
       const resMissing = getFileBlockColor("missing", false, fileColor);
       assert.strictEqual(resMissing.fillColor, hexToRgba(fileColor, 0.18));
       assert.strictEqual(resMissing.strokeColor, hexToRgba(fileColor, 0.35));
@@ -193,7 +193,7 @@ describe("PieceMap File Boundaries and Colors (#1024)", () => {
       assert.strictEqual(resNumericZero.strokeColor, hexToRgba(fileColor, 0.35));
     });
 
-    it("returns semi-transparent fill and solid stroke for active downloading blocks", () => {
+    void it("returns semi-transparent fill and solid stroke for active downloading blocks", () => {
       const resActive = getFileBlockColor("active", false, fileColor);
       assert.strictEqual(resActive.fillColor, hexToRgba(fileColor, 0.55));
       assert.strictEqual(resActive.strokeColor, fileColor);

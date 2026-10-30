@@ -45,7 +45,7 @@ function SystemStatus() {
     let pollInterval: ReturnType<typeof setInterval> | null = null;
 
     const initialDelay = setTimeout(() => {
-      pollInterval = setInterval(async () => {
+      pollInterval = setInterval(() => { void (async () => {
         try {
           await apiClient.get("/system/status");
           if (isMounted) {
@@ -56,7 +56,7 @@ function SystemStatus() {
         } catch {
           // Service is still restarting
         }
-      }, 2000);
+      })(); }, 2000);
     }, 3000);
 
     return () => {
@@ -200,7 +200,7 @@ function SystemStatus() {
             <button
               type="button"
               className="btn btn-small"
-              onClick={handleRestart}
+              onClick={(...args: Parameters<typeof handleRestart>) => { void handleRestart(...args); }}
               disabled={
                 systemAction !== "idle" ||
                 restartSystem.isPending ||
@@ -222,7 +222,7 @@ function SystemStatus() {
             <button
               type="button"
               className="btn btn-small"
-              onClick={handleShutdown}
+              onClick={(...args: Parameters<typeof handleShutdown>) => { void handleShutdown(...args); }}
               disabled={
                 systemAction !== "idle" ||
                 restartSystem.isPending ||
@@ -963,7 +963,7 @@ function SystemStatus() {
                 <button
                   type="button"
                   className="btn btn-small"
-                  onClick={handleRestart}
+                  onClick={(...args: Parameters<typeof handleRestart>) => { void handleRestart(...args); }}
                   disabled={
                     systemAction !== "idle" ||
                     restartSystem.isPending ||
@@ -985,7 +985,7 @@ function SystemStatus() {
                 <button
                   type="button"
                   className="btn btn-small"
-                  onClick={handleShutdown}
+                  onClick={(...args: Parameters<typeof handleShutdown>) => { void handleShutdown(...args); }}
                   disabled={
                     systemAction !== "idle" ||
                     restartSystem.isPending ||

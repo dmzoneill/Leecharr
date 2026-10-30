@@ -107,7 +107,7 @@ export function SpeedSettingsTab() {
         speedVariationMax: form.speedVariationMax,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -145,7 +145,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label={t("settingsTabs.globalMaxDownloadSpeed")}
             value={form.maxDownloadSpeedKbps}
-            onChange={(v) => update("maxDownloadSpeedKbps", v)}
+            onChange={(v) => { update("maxDownloadSpeedKbps", v); }}
             min={0}
             max={10000000}
             step={100}
@@ -156,7 +156,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label={t("settingsTabs.globalMaxUploadSpeed")}
             value={form.maxUploadSpeedKbps}
-            onChange={(v) => update("maxUploadSpeedKbps", v)}
+            onChange={(v) => { update("maxUploadSpeedKbps", v); }}
             min={0}
             max={10000000}
             step={100}
@@ -174,7 +174,7 @@ export function SpeedSettingsTab() {
           <Toggle
             label={t("settingsTabs.engageAlternativeSpeedLimits")}
             checked={form.alternativeSpeedEnabled}
-            onChange={(v) => update("alternativeSpeedEnabled", v)}
+            onChange={(v) => { update("alternativeSpeedEnabled", v); }}
             hint={t("settingsTabs.engageAlternativeSpeedLimitsHint")}
           />
 
@@ -188,7 +188,7 @@ export function SpeedSettingsTab() {
             <NumberInput
               label={t("settingsTabs.alternativeDownloadCap")}
               value={form.altDownloadSpeedKbps}
-              onChange={(v) => update("altDownloadSpeedKbps", v)}
+              onChange={(v) => { update("altDownloadSpeedKbps", v); }}
               min={-1}
               max={10000000}
               step={100}
@@ -199,7 +199,7 @@ export function SpeedSettingsTab() {
             <NumberInput
               label={t("settingsTabs.alternativeUploadCap")}
               value={form.altUploadSpeedKbps}
-              onChange={(v) => update("altUploadSpeedKbps", v)}
+              onChange={(v) => { update("altUploadSpeedKbps", v); }}
               min={-1}
               max={10000000}
               step={100}
@@ -224,7 +224,7 @@ export function SpeedSettingsTab() {
           <SelectInput
             label={t("settingsTabs.uploadDistributionCurve")}
             value={form.uploadDistributionAlgorithm}
-            onChange={(v) => update("uploadDistributionAlgorithm", v)}
+            onChange={(v) => { update("uploadDistributionAlgorithm", v); }}
             options={[
               {
                 value: "Equal",
@@ -245,7 +245,7 @@ export function SpeedSettingsTab() {
           <SelectInput
             label={t("settingsTabs.downloadDistributionCurve")}
             value={form.downloadDistributionAlgorithm}
-            onChange={(v) => update("downloadDistributionAlgorithm", v)}
+            onChange={(v) => { update("downloadDistributionAlgorithm", v); }}
             options={[
               {
                 value: "Equal",
@@ -266,7 +266,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label={t("settingsTabs.distributionSpreadFactor")}
             value={form.uploadDistributionSpreadPercentage}
-            onChange={(v) => update("uploadDistributionSpreadPercentage", v)}
+            onChange={(v) => { update("uploadDistributionSpreadPercentage", v); }}
             min={10}
             max={90}
             suffix="%"
@@ -276,7 +276,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label={t("settingsTabs.distributionSpreadFactor")}
             value={form.downloadDistributionSpreadPercentage}
-            onChange={(v) => update("downloadDistributionSpreadPercentage", v)}
+            onChange={(v) => { update("downloadDistributionSpreadPercentage", v); }}
             min={10}
             max={90}
             suffix="%"
@@ -299,7 +299,7 @@ export function SpeedSettingsTab() {
           <SelectInput
             label="Upload Redistribution Mode"
             value={form.uploadRedistributionMode}
-            onChange={(v) => update("uploadRedistributionMode", v)}
+            onChange={(v) => { update("uploadRedistributionMode", v); }}
             options={[
               { value: "tick", label: "Per Engine Tick" },
               { value: "random", label: "Random Interval" },
@@ -310,7 +310,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label="Upload Custom Interval"
             value={form.uploadCustomIntervalMinutes}
-            onChange={(v) => update("uploadCustomIntervalMinutes", v)}
+            onChange={(v) => { update("uploadCustomIntervalMinutes", v); }}
             min={1}
             max={60}
             suffix="min"
@@ -319,7 +319,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label="Upload Stopped Min Allocation"
             value={form.uploadStoppedMinPercentage}
-            onChange={(v) => update("uploadStoppedMinPercentage", v)}
+            onChange={(v) => { update("uploadStoppedMinPercentage", v); }}
             min={0}
             max={100}
             suffix="%"
@@ -328,7 +328,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label="Upload Stopped Max Allocation"
             value={form.uploadStoppedMaxPercentage}
-            onChange={(v) => update("uploadStoppedMaxPercentage", v)}
+            onChange={(v) => { update("uploadStoppedMaxPercentage", v); }}
             min={0}
             max={100}
             suffix="%"
@@ -337,7 +337,7 @@ export function SpeedSettingsTab() {
           <SelectInput
             label="Download Redistribution Mode"
             value={form.downloadRedistributionMode}
-            onChange={(v) => update("downloadRedistributionMode", v)}
+            onChange={(v) => { update("downloadRedistributionMode", v); }}
             options={[
               { value: "tick", label: "Per Engine Tick" },
               { value: "random", label: "Random Interval" },
@@ -348,7 +348,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label="Download Custom Interval"
             value={form.downloadCustomIntervalMinutes}
-            onChange={(v) => update("downloadCustomIntervalMinutes", v)}
+            onChange={(v) => { update("downloadCustomIntervalMinutes", v); }}
             min={1}
             max={60}
             suffix="min"
@@ -357,7 +357,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label="Download Stopped Min Allocation"
             value={form.downloadStoppedMinPercentage}
-            onChange={(v) => update("downloadStoppedMinPercentage", v)}
+            onChange={(v) => { update("downloadStoppedMinPercentage", v); }}
             min={0}
             max={100}
             suffix="%"
@@ -366,7 +366,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label="Download Stopped Max Allocation"
             value={form.downloadStoppedMaxPercentage}
-            onChange={(v) => update("downloadStoppedMaxPercentage", v)}
+            onChange={(v) => { update("downloadStoppedMaxPercentage", v); }}
             min={0}
             max={100}
             suffix="%"
@@ -375,7 +375,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label="Speed Variation Min Jitter"
             value={form.speedVariationMin}
-            onChange={(v) => update("speedVariationMin", v)}
+            onChange={(v) => { update("speedVariationMin", v); }}
             min={0}
             max={1}
             step={0.05}
@@ -384,7 +384,7 @@ export function SpeedSettingsTab() {
           <NumberInput
             label="Speed Variation Max Jitter"
             value={form.speedVariationMax}
-            onChange={(v) => update("speedVariationMax", v)}
+            onChange={(v) => { update("speedVariationMax", v); }}
             min={0}
             max={1}
             step={0.05}

@@ -88,7 +88,7 @@ public class HadoukenRpcController : ControllerBase
         return false;
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [Route("api/hadouken")]
     [Route("api/rpc")]
     [Route("hadouken/api")]

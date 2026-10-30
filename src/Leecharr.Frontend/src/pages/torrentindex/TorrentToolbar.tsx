@@ -304,7 +304,7 @@ export function TorrentToolbar({
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={() => onBulkMoveQueue("top")}
+                  onClick={() => { onBulkMoveQueue("top"); }}
                   disabled={bulkPending}
                   title={t("torrents.contextMenu.top", {
                     defaultValue: "Move to Top",
@@ -316,7 +316,7 @@ export function TorrentToolbar({
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={() => onBulkMoveQueue("up")}
+                  onClick={() => { onBulkMoveQueue("up"); }}
                   disabled={bulkPending}
                   title={t("torrents.contextMenu.up", {
                     defaultValue: "Move Up",
@@ -328,7 +328,7 @@ export function TorrentToolbar({
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={() => onBulkMoveQueue("down")}
+                  onClick={() => { onBulkMoveQueue("down"); }}
                   disabled={bulkPending}
                   title={t("torrents.contextMenu.down", {
                     defaultValue: "Move Down",
@@ -340,7 +340,7 @@ export function TorrentToolbar({
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={() => onBulkMoveQueue("bottom")}
+                  onClick={() => { onBulkMoveQueue("bottom"); }}
                   disabled={bulkPending}
                   title={t("torrents.contextMenu.bottom", {
                     defaultValue: "Move to Bottom",
@@ -469,13 +469,13 @@ export function TorrentToolbar({
           className="search-input"
           placeholder={t("torrents.toolbar.filterPlaceholder")}
           value={filter}
-          onChange={(e) => onFilterChange(e.target.value)}
+          onChange={(e) => { onFilterChange(e.target.value); }}
         />
         <div className="view-toggle">
           <button
             type="button"
             className={`view-toggle-btn${viewMode === "table" ? " active" : ""}`}
-            onClick={() => onViewModeChange("table")}
+            onClick={() => { onViewModeChange("table"); }}
             title={t("torrents.toolbar.tableView")}
           >
             <TableIcon size={13} /> {t("torrents.toolbar.table")}
@@ -483,7 +483,7 @@ export function TorrentToolbar({
           <button
             type="button"
             className={`view-toggle-btn${viewMode === "grid" ? " active" : ""}`}
-            onClick={() => onViewModeChange("grid")}
+            onClick={() => { onViewModeChange("grid"); }}
             title={t("torrents.toolbar.gridView")}
           >
             <GridIcon size={13} /> {t("torrents.toolbar.grid")}

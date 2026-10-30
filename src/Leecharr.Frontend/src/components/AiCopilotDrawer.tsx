@@ -488,9 +488,9 @@ export const AiCopilotDrawer: React.FC = () => {
   }, [isOpen]);
 
   useEffect(() => {
-    const handleOpen = () => setIsOpen(true);
-    const handleToggle = () => setIsOpen((prev) => !prev);
-    const handleClose = () => setIsOpen(false);
+    const handleOpen = () => { setIsOpen(true); };
+    const handleToggle = () => { setIsOpen((prev) => !prev); };
+    const handleClose = () => { setIsOpen(false); };
 
     window.addEventListener("open-copilot-drawer", handleOpen);
     window.addEventListener("toggle-copilot-drawer", handleToggle);
@@ -648,7 +648,7 @@ export const AiCopilotDrawer: React.FC = () => {
     parseMutation.mutate(
       { releaseName: releaseInput.trim() },
       {
-        onSuccess: (data) => setParsedResult(data),
+        onSuccess: (data) => { setParsedResult(data); },
       },
     );
   };
@@ -725,7 +725,7 @@ export const AiCopilotDrawer: React.FC = () => {
             : rawLines.map(() => 0),
       },
       {
-        onSuccess: (data) => setSecurityResult(data),
+        onSuccess: (data) => { setSecurityResult(data); },
       },
     );
   };
@@ -905,7 +905,7 @@ export const AiCopilotDrawer: React.FC = () => {
               style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}
             >
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => { setIsExpanded(!isExpanded); }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -920,7 +920,7 @@ export const AiCopilotDrawer: React.FC = () => {
                 {isExpanded ? "🗗" : "🗖"}
               </button>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => { setIsOpen(false); }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -950,7 +950,7 @@ export const AiCopilotDrawer: React.FC = () => {
             }}
           >
             <button
-              onClick={() => setActiveTab("chat")}
+              onClick={() => { setActiveTab("chat"); }}
               style={{
                 padding: "0.25rem 0.6rem",
                 borderRadius: "5px",
@@ -965,7 +965,7 @@ export const AiCopilotDrawer: React.FC = () => {
               💬 {t("copilot.tabChat")}
             </button>
             <button
-              onClick={() => setActiveTab("parse")}
+              onClick={() => { setActiveTab("parse"); }}
               style={{
                 padding: "0.25rem 0.6rem",
                 borderRadius: "5px",
@@ -980,7 +980,7 @@ export const AiCopilotDrawer: React.FC = () => {
               🏷️ {t("copilot.tabParse")}
             </button>
             <button
-              onClick={() => setActiveTab("security")}
+              onClick={() => { setActiveTab("security"); }}
               style={{
                 padding: "0.25rem 0.6rem",
                 borderRadius: "5px",
@@ -1030,10 +1030,9 @@ export const AiCopilotDrawer: React.FC = () => {
                   {t("copilot.quick")}
                 </span>
                 <button
-                  onClick={() =>
-                    handlePromptPill(
+                  onClick={() => { handlePromptPill(
                       "How do I optimize my BitTorrent download speeds?",
-                    )
+                    ); }
                   }
                   disabled={chatMutation.isPending}
                   style={{
@@ -1051,10 +1050,9 @@ export const AiCopilotDrawer: React.FC = () => {
                   {t("copilot.speedTips")}
                 </button>
                 <button
-                  onClick={() =>
-                    handlePromptPill(
+                  onClick={() => { handlePromptPill(
                       "Explain what Endgame mode and Rarest-First piece picking do in Leecharr.",
-                    )
+                    ); }
                   }
                   disabled={chatMutation.isPending}
                   style={{
@@ -1072,10 +1070,9 @@ export const AiCopilotDrawer: React.FC = () => {
                   {t("copilot.piecePickers")}
                 </button>
                 <button
-                  onClick={() =>
-                    handlePromptPill(
+                  onClick={() => { handlePromptPill(
                       "How does VPN kill switch and interface binding work?",
-                    )
+                    ); }
                   }
                   disabled={chatMutation.isPending}
                   style={{
@@ -1234,7 +1231,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   ref={chatInputRef}
                   type="text"
                   value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
+                  onChange={(e) => { setInputMessage(e.target.value); }}
                   placeholder={t("copilot.inputPlaceholder")}
                   style={{
                     flex: 1,
@@ -1306,7 +1303,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   <input
                     type="text"
                     value={releaseInput}
-                    onChange={(e) => setReleaseInput(e.target.value)}
+                    onChange={(e) => { setReleaseInput(e.target.value); }}
                     placeholder={t("copilot.rawScenePlaceholder")}
                     style={{
                       flex: 1,
@@ -1568,7 +1565,7 @@ export const AiCopilotDrawer: React.FC = () => {
                 <textarea
                   rows={4}
                   value={securityInput}
-                  onChange={(e) => setSecurityInput(e.target.value)}
+                  onChange={(e) => { setSecurityInput(e.target.value); }}
                   placeholder={t("copilot.fileListPlaceholder")}
                   style={{
                     width: "100%",

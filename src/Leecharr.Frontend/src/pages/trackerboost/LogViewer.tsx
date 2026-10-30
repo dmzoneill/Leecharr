@@ -101,7 +101,7 @@ export function LogViewer() {
               fontSize: "0.82rem",
             }}
             value={logCategoryFilter}
-            onChange={(e) => setLogCategoryFilter(e.target.value)}
+            onChange={(e) => { setLogCategoryFilter(e.target.value); }}
           >
             <option value="all">
               {t("trackerBoost.allCategories", "All Categories")}
@@ -134,7 +134,7 @@ export function LogViewer() {
               fontSize: "0.82rem",
             }}
             value={logLevelFilter}
-            onChange={(e) => setLogLevelFilter(e.target.value)}
+            onChange={(e) => { setLogLevelFilter(e.target.value); }}
           >
             <option value="all">
               {t("trackerBoost.allLevels", "All Levels")}
@@ -166,7 +166,7 @@ export function LogViewer() {
               "Search logs, hosts, hashes...",
             )}
             value={logSearch}
-            onChange={(e) => setLogSearch(e.target.value)}
+            onChange={(e) => { setLogSearch(e.target.value); }}
           />
         </div>
 
@@ -190,7 +190,7 @@ export function LogViewer() {
             <input
               type="checkbox"
               checked={logAutoRefresh}
-              onChange={(e) => setLogAutoRefresh(e.target.checked)}
+              onChange={(e) => { setLogAutoRefresh(e.target.checked); }}
             />
             <span>{t("trackerBoost.liveRefresh", "Live Refresh (3s)")}</span>
           </label>
@@ -198,7 +198,7 @@ export function LogViewer() {
           <button
             className="btn btn-outline"
             style={{ fontSize: "0.82rem", padding: "0.4rem 0.75rem" }}
-            onClick={() => refetchLogs()}
+            onClick={() => { void refetchLogs(); }}
             title={t("common.refresh", "Refresh log entries")}
           >
             {t("trackerBoost.logs.refreshBtn", "🔄 Refresh")}

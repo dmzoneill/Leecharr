@@ -562,10 +562,10 @@ export function PieceMap({
   useEffect(() => {
     if (viewMode === "bar") {
       const animId = requestAnimationFrame(renderBar);
-      return () => cancelAnimationFrame(animId);
+      return () => { cancelAnimationFrame(animId); };
     } else {
       const animId = requestAnimationFrame(renderGrid);
-      return () => cancelAnimationFrame(animId);
+      return () => { cancelAnimationFrame(animId); };
     }
   }, [
     viewMode,
@@ -741,7 +741,7 @@ export function PieceMap({
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "bar" ? "active" : ""}`}
-              onClick={() => setViewMode("bar")}
+              onClick={() => { setViewMode("bar"); }}
               style={{ padding: "0.15rem 0.4rem", fontSize: "0.7rem" }}
               title={t("torrents.detail.pieceMapLinearBarView")}
             >
@@ -750,7 +750,7 @@ export function PieceMap({
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
-              onClick={() => setViewMode("grid")}
+              onClick={() => { setViewMode("grid"); }}
               style={{ padding: "0.15rem 0.4rem", fontSize: "0.7rem" }}
               title={t("torrents.detail.pieceMapMatrixGridView")}
             >
@@ -766,7 +766,7 @@ export function PieceMap({
             <button
               type="button"
               className={`view-toggle-btn ${colorMode === "status" ? "active" : ""}`}
-              onClick={() => setColorMode("status")}
+              onClick={() => { setColorMode("status"); }}
               style={{
                 padding: "0.15rem 0.4rem",
                 fontSize: "0.7rem",
@@ -783,7 +783,7 @@ export function PieceMap({
             <button
               type="button"
               className={`view-toggle-btn ${colorMode === "rarity" ? "active" : ""}`}
-              onClick={() => setColorMode("rarity")}
+              onClick={() => { setColorMode("rarity"); }}
               style={{
                 padding: "0.15rem 0.4rem",
                 fontSize: "0.7rem",
@@ -800,7 +800,7 @@ export function PieceMap({
             <button
               type="button"
               className={`view-toggle-btn ${colorMode === "files" ? "active" : ""}`}
-              onClick={() => setColorMode("files")}
+              onClick={() => { setColorMode("files"); }}
               style={{
                 padding: "0.15rem 0.4rem",
                 fontSize: "0.7rem",
@@ -908,7 +908,7 @@ export function PieceMap({
             {selectedFileIndex !== null && (
               <button
                 type="button"
-                onClick={() => setSelectedFileIndex(null)}
+                onClick={() => { setSelectedFileIndex(null); }}
                 style={{
                   background: "none",
                   border: "none",
@@ -933,9 +933,9 @@ export function PieceMap({
                 <button
                   key={fb.file.id || idx}
                   type="button"
-                  onMouseEnter={() => setHoveredFileIndex(idx)}
-                  onMouseLeave={() => setHoveredFileIndex(null)}
-                  onClick={() => setSelectedFileIndex(isSelected ? null : idx)}
+                  onMouseEnter={() => { setHoveredFileIndex(idx); }}
+                  onMouseLeave={() => { setHoveredFileIndex(null); }}
+                  onClick={() => { setSelectedFileIndex(isSelected ? null : idx); }}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",

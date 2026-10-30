@@ -39,7 +39,7 @@ export const QuickSettingsDrawer: React.FC<QuickSettingsDrawerProps> = ({
             <button
               type="button"
               className="btn btn-small btn-outline quick-settings-header-btn"
-              onClick={() => onNavigateSettings("speed")}
+              onClick={() => { onNavigateSettings("speed"); }}
               title={t("quickSettings.openFullSettingsTitle")}
             >
               {t("quickSettings.viewAllSettings")}

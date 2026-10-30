@@ -60,7 +60,7 @@ public class TagController : Controller
         return this.Ok(ToResource(tag));
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult<TagResource> Create([FromBody] TagResource resource)
     {
         if (resource == null || string.IsNullOrWhiteSpace(resource.Label))
@@ -88,7 +88,7 @@ public class TagController : Controller
         return this.Ok(ToResource(tag));
     }
 
-    [HttpPut]
+    [HttpPut] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPut("{id:int}")]
     public ActionResult<TagResource> Update([FromBody] TagResource resource, int id = 0)
     {

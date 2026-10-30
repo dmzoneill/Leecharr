@@ -107,7 +107,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
         <DiskStorageBadge
           compact
           onClick={
-            onNavigateSettings ? () => onNavigateSettings("storage") : undefined
+            onNavigateSettings ? () => { onNavigateSettings("storage"); } : undefined
           }
         />
       </div>
@@ -129,8 +129,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
                   key={p.label}
                   type="button"
                   className={`preset-chip ${active ? "active" : ""}`}
-                  onClick={() =>
-                    handleSeedUpdate({ globalSeedRatioLimit: p.value })
+                  onClick={() => { handleSeedUpdate({ globalSeedRatioLimit: p.value }); }
                   }
                   title={
                     p.value === 0
@@ -157,12 +156,11 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
             <input
               type="checkbox"
               checked={isSequential}
-              onChange={(e) =>
-                handleBtUpdate({
+              onChange={(e) => { handleBtUpdate({
                   piecePickerStrategy: e.target.checked
                     ? "Sequential"
                     : "RarestFirst",
-                })
+                }); }
               }
             />
             <span>{t("quickSettings.sequentialPiecePicking")}</span>

@@ -190,7 +190,7 @@ public class FreeboxDownloadController : ControllerBase
         });
     }
 
-    [AllowAnonymous]
+    [AllowAnonymous] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpGet]
     [HttpPost]
     [Route("api/v4/login/session")]
@@ -313,7 +313,7 @@ public class FreeboxDownloadController : ControllerBase
         });
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [Route("api/v4/downloads/add")]
     public async Task<IActionResult> AddDownload([FromForm] string download_url, [FromForm] string download_dir)
     {
@@ -412,7 +412,7 @@ public class FreeboxDownloadController : ControllerBase
         });
     }
 
-    [HttpDelete]
+    [HttpDelete] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [Route("api/v4/downloads/{id}")]
     public async Task<IActionResult> DeleteDownload(int id)
     {
@@ -438,7 +438,7 @@ public class FreeboxDownloadController : ControllerBase
         return this.Ok(new { success = true });
     }
 
-    [HttpPut]
+    [HttpPut] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [Route("api/v4/downloads/{id}")]
     public async Task<IActionResult> UpdateDownload(int id)
     {

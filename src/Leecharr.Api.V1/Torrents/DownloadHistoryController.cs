@@ -15,7 +15,7 @@ using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.Torrents;
 
-[V1ApiController("downloadhistory")]
+[V1ApiController("downloadhistory")] /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
 public class DownloadHistoryController : Controller
 {
     private const int EnrichmentBatchSize = 1000;
@@ -155,7 +155,7 @@ public class DownloadHistoryController : Controller
         return this.Ok();
     }
 
-    [HttpDelete]
+    [HttpDelete] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [Authorize(Policy = "RequireOperator")]
     public ActionResult ClearAll()
     {

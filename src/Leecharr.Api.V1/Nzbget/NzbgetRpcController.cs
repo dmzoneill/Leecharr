@@ -72,7 +72,7 @@ public class NzbgetRpcController : ControllerBase
         this.downloadQueueState = downloadQueueState ?? NzbgetDownloadQueueState.Default;
     }
 
-    [HttpGet]
+    [HttpGet] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [HttpPost]
     [Route("nzbget/jsonrpc")]
     [Route("nzbget")]

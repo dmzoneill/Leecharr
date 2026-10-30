@@ -163,7 +163,7 @@ export function SystemResources() {
                   fontSize: "0.75rem",
                   minWidth: "36px",
                 }}
-                onClick={() => setRefreshInterval(btn.val as number | false)}
+                onClick={() => { setRefreshInterval(btn.val as number | false); }}
               >
                 {btn.label}
               </button>
@@ -172,7 +172,7 @@ export function SystemResources() {
 
           <button
             className="btn btn-small"
-            onClick={() => refetch()}
+            onClick={() => { void refetch(); }}
             disabled={isFetching}
             style={{
               display: "inline-flex",
@@ -897,7 +897,7 @@ export function SystemResources() {
               placeholder={t("system.filterTorrents")}
               className="form-control"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); }}
               style={{
                 padding: "0.3rem 0.6rem",
                 fontSize: "0.8rem",
@@ -924,7 +924,7 @@ export function SystemResources() {
                     fontSize: "0.75rem",
                     textTransform: "capitalize",
                   }}
-                  onClick={() => setStatusFilter(st)}
+                  onClick={() => { setStatusFilter(st); }}
                 >
                   {st}
                 </button>
@@ -1172,7 +1172,7 @@ export function SystemResources() {
                           fontSize: "0.75rem",
                           padding: "0.2rem 0.5rem",
                         }}
-                        onClick={() => setSelectedTorrent(torrent)}
+                        onClick={() => { setSelectedTorrent(torrent); }}
                       >
                         {t("system.inspect")}
                       </button>
@@ -1191,7 +1191,7 @@ export function SystemResources() {
           className="modal-backdrop"
           role="button"
           tabIndex={0}
-          onClick={() => setSelectedTorrent(null)}
+          onClick={() => { setSelectedTorrent(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -1215,7 +1215,7 @@ export function SystemResources() {
             className="modal-content"
             role="button"
             tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1262,7 +1262,7 @@ export function SystemResources() {
               </div>
               <button
                 className="btn btn-small btn-link"
-                onClick={() => setSelectedTorrent(null)}
+                onClick={() => { setSelectedTorrent(null); }}
                 style={{ fontSize: "1.1rem", padding: "0 0.4rem" }}
               >
                 ✕
@@ -1399,7 +1399,7 @@ export function SystemResources() {
               </div>
               <button
                 className="btn btn-primary btn-small"
-                onClick={() => setSelectedTorrent(null)}
+                onClick={() => { setSelectedTorrent(null); }}
               >
                 {t("common.close")}
               </button>

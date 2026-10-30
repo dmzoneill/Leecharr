@@ -82,7 +82,7 @@ export function useUpdateBlocklistConfig() {
     mutationFn: updateBlocklistConfig,
     onSuccess: (data) => {
       queryClient.setQueryData(["blocklist"], data);
-      queryClient.invalidateQueries({ queryKey: ["blocklist"] });
+      void queryClient.invalidateQueries({ queryKey: ["blocklist"] });
     },
   });
 }
@@ -92,7 +92,7 @@ export function useSyncBlocklist() {
   return useMutation<BlocklistSyncResponse, Error, void>({
     mutationFn: syncBlocklist,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["blocklist"] });
+      void queryClient.invalidateQueries({ queryKey: ["blocklist"] });
     },
   });
 }

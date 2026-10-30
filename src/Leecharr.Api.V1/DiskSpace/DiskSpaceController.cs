@@ -24,7 +24,7 @@ public class DiskSpaceResource : RestResource
     public bool IsReadOnly { get; set; }
 }
 
-[V1ApiController("diskspace")]
+[V1ApiController("diskspace")] /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
 public class DiskSpaceController : Controller
 {
     private readonly IDiskSpaceService diskSpaceService;

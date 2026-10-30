@@ -27,8 +27,8 @@ export const DeveloperUml: React.FC = () => {
   useEffect(() => {
     apiClient
       .get<string[]>("/system/developer/uml/subsystems")
-      .then((subs) => setAvailableSubsystems(subs))
-      .catch(() => setAvailableSubsystems(["all", "torrents", "trackers", "indexers", "authentication", "automation", "notifications", "network", "storage"]));
+      .then((subs) => { setAvailableSubsystems(subs); })
+      .catch(() => { setAvailableSubsystems(["all", "torrents", "trackers", "indexers", "authentication", "automation", "notifications", "network", "storage"]); });
   }, []);
 
   useEffect(() => {
@@ -99,7 +99,7 @@ export const DeveloperUml: React.FC = () => {
               id="diagram-type"
               className="form-control"
               value={diagramType}
-              onChange={(e) => setDiagramType(e.target.value)}
+              onChange={(e) => { setDiagramType(e.target.value); }}
               style={{
                 background: "var(--bg-lighter, #1c1917)",
                 color: "var(--text-color, #f5f5f4)",
@@ -124,7 +124,7 @@ export const DeveloperUml: React.FC = () => {
               id="diagram-subsystem"
               className="form-control"
               value={subsystem}
-              onChange={(e) => setSubsystem(e.target.value)}
+              onChange={(e) => { setSubsystem(e.target.value); }}
               disabled={diagramType === "api" || diagramType === "frontend"}
               style={{
                 background: "var(--bg-lighter, #1c1917)",
@@ -148,7 +148,7 @@ export const DeveloperUml: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={includeInterfaces}
-                  onChange={(e) => setIncludeInterfaces(e.target.checked)}
+                  onChange={(e) => { setIncludeInterfaces(e.target.checked); }}
                 />
                 Interfaces
               </label>
@@ -156,7 +156,7 @@ export const DeveloperUml: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={includeMethods}
-                  onChange={(e) => setIncludeMethods(e.target.checked)}
+                  onChange={(e) => { setIncludeMethods(e.target.checked); }}
                 />
                 Methods
               </label>

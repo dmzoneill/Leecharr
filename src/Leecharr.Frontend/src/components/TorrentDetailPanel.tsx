@@ -152,7 +152,7 @@ class TabErrorBoundary extends React.Component<
           <button
             type="button"
             className="btn btn-small"
-            onClick={() => this.setState({ hasError: false, error: null })}
+            onClick={() => { this.setState({ hasError: false, error: null }); }}
           >
             {translate("components.retryTab", "Retry Tab")}
           </button>
@@ -254,7 +254,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
       }
     } else {
       startSeeding.mutate(currentTorrent.id, {
-        onSuccess: () => showToast("Torrent resumed", "success"),
+        onSuccess: () => { showToast("Torrent resumed", "success"); },
         onError: (err: unknown) => {
           const msg = err instanceof Error ? err.message : "Failed to start torrent";
           showToast(msg, "error");
@@ -276,7 +276,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
       }
     } else {
       stopSeeding.mutate(currentTorrent.id, {
-        onSuccess: () => showToast("Torrent paused", "info"),
+        onSuccess: () => { showToast("Torrent paused", "info"); },
         onError: (err: unknown) => {
           const msg = err instanceof Error ? err.message : "Failed to pause torrent";
           showToast(msg, "error");
@@ -287,7 +287,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
 
   const handleRecheck = () => {
     recheckTorrent.mutate(currentTorrent.id, {
-      onSuccess: () => showToast("Piece recheck initiated", "success"),
+      onSuccess: () => { showToast("Piece recheck initiated", "success"); },
       onError: (err: unknown) => {
         const msg = err instanceof Error ? err.message : "Failed to initiate recheck";
         showToast(msg, "error");
@@ -297,7 +297,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
 
   const handleAnnounce = () => {
     announceTorrent.mutate(currentTorrent.id, {
-      onSuccess: () => showToast("Tracker announce sent", "success"),
+      onSuccess: () => { showToast("Tracker announce sent", "success"); },
       onError: (err: unknown) => {
         const msg = err instanceof Error ? err.message : "Failed to announce to trackers";
         showToast(msg, "error");
@@ -388,7 +388,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
               type="button"
               className="btn btn-small btn-success"
               disabled={isStartStopPending}
-              onClick={handleStart}
+              onClick={(...args: Parameters<typeof handleStart>) => { void handleStart(...args); }}
             >
               {startPending ? (
                 <>
@@ -407,7 +407,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
               type="button"
               className="btn btn-small btn-danger"
               disabled={isStartStopPending}
-              onClick={handleStop}
+              onClick={(...args: Parameters<typeof handleStop>) => { void handleStop(...args); }}
             >
               {stopPending ? (
                 <>
@@ -467,7 +467,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
             <button
               type="button"
               className="btn btn-small btn-danger"
-              onClick={() => onDelete(currentTorrent.id)}
+              onClick={() => { onDelete(currentTorrent.id); }}
               title={t("torrents.actions.delete", {
                 defaultValue: "Delete Torrent",
               })}
@@ -495,7 +495,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
             key={tTab.key}
             type="button"
             className={`tab-btn${tab === tTab.key ? " tab-btn-active" : ""}`}
-            onClick={() => setTab(tTab.key)}
+            onClick={() => { setTab(tTab.key); }}
           >
             {TAB_ICONS[tTab.key]}
             <span>{getTabLabel(tTab.key, t)}</span>

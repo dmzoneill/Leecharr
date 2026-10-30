@@ -14,7 +14,7 @@ export const useAppStore = create<AppState>((set) => ({
   apiKey: "",
   isConnected: false,
   currentUser: null,
-  setApiKey: (key: string) => set({ apiKey: key }),
-  setConnected: (connected: boolean) => set({ isConnected: connected }),
-  setCurrentUser: (user: CurrentUser | null) => set({ currentUser: user }),
+  setApiKey: (key: string) => { set({ apiKey: key }); },
+  setConnected: (connected: boolean) => { set({ isConnected: connected }); },
+  setCurrentUser: (user: CurrentUser | null) => { set({ currentUser: user }); },
 }));

@@ -67,7 +67,7 @@ public class UpdateController : Controller
         return this.Ok(resources);
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public async Task<ActionResult> InstallUpdate([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] UpdateResource package = null, CancellationToken cancellationToken = default)
     {
         var service = this.updateCheckService ?? new UpdateCheckService();

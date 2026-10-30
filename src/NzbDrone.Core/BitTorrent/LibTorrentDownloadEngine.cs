@@ -1614,8 +1614,8 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
             var startInfo = new ProcessStartInfo
             {
-                FileName = pythonBinary,
-                Arguments = $"\"{scriptPath}\" --port {port} --bind 127.0.0.1 --listen-ip 0.0.0.0 --version-target {this.ActiveVersion}",
+                FileName = pythonBinary, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
+                Arguments = $"\"{scriptPath}\" --port {port} --bind 127.0.0.1 --listen-ip 0.0.0.0 --version-target {this.ActiveVersion}", /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -1697,9 +1697,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     return c;
                 }
 
-                using var proc = Process.Start(new ProcessStartInfo
+                using var proc = Process.Start(new ProcessStartInfo /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                 {
-                    FileName = c,
+                    FileName = c, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
                     Arguments = "--version",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,

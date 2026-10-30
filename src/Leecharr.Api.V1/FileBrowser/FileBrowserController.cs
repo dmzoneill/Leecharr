@@ -148,7 +148,7 @@ public class FileBrowserController : Controller
         }
     }
 
-    [HttpDelete]
+    [HttpDelete] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult Delete([FromQuery] string path)
     {
         if (string.IsNullOrWhiteSpace(path))

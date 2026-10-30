@@ -428,7 +428,7 @@ export function AiTab() {
                   >
                     <button
                       type="button"
-                      onClick={() => handleProbe(provider.providerId)}
+                      onClick={() => { void handleProbe(provider.providerId); }}
                       disabled={isProbing}
                       className="btn btn-outline btn-small"
                       style={{
@@ -460,9 +460,7 @@ export function AiTab() {
                     {!isActive && (
                       <button
                         type="button"
-                        onClick={() =>
-                          handleSwitchProvider(provider.providerId)
-                        }
+                        onClick={() => { void handleSwitchProvider(provider.providerId); }}
                         disabled={switchSubsystem.isPending}
                         className="btn btn-primary btn-small"
                         style={{ fontSize: "0.75rem", fontWeight: 700 }}
@@ -515,7 +513,7 @@ export function AiTab() {
               </h4>
               <button
                 type="button"
-                onClick={() => handleProbe("Ollama")}
+                onClick={() => { void handleProbe("Ollama"); }}
                 disabled={probeLoadingId === "Ollama"}
                 className="btn btn-outline btn-small"
                 style={{
@@ -560,8 +558,7 @@ export function AiTab() {
                 <input
                   type="text"
                   value={formData.ollamaHost}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ollamaHost: e.target.value })
+                  onChange={(e) => { setFormData({ ...formData, ollamaHost: e.target.value }); }
                   }
                   placeholder="http://127.0.0.1:11434"
                   className="form-control"
@@ -574,8 +571,7 @@ export function AiTab() {
                 <input
                   type="text"
                   value={formData.ollamaModel}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ollamaModel: e.target.value })
+                  onChange={(e) => { setFormData({ ...formData, ollamaModel: e.target.value }); }
                   }
                   placeholder="llama3, mistral, deepseek-r1"
                   className="form-control"
@@ -613,7 +609,7 @@ export function AiTab() {
               </h4>
               <button
                 type="button"
-                onClick={() => handleProbe("Gemini")}
+                onClick={() => { void handleProbe("Gemini"); }}
                 disabled={probeLoadingId === "Gemini"}
                 className="btn btn-outline btn-small"
                 style={{
@@ -658,8 +654,7 @@ export function AiTab() {
                 <input
                   type="password"
                   value={formData.geminiApiKey}
-                  onChange={(e) =>
-                    setFormData({ ...formData, geminiApiKey: e.target.value })
+                  onChange={(e) => { setFormData({ ...formData, geminiApiKey: e.target.value }); }
                   }
                   placeholder={t("settingsTabs.ai.geminiApiKeyPlaceholder")}
                   className="form-control"
@@ -671,8 +666,7 @@ export function AiTab() {
                 </label>
                 <select
                   value={formData.geminiModel}
-                  onChange={(e) =>
-                    setFormData({ ...formData, geminiModel: e.target.value })
+                  onChange={(e) => { setFormData({ ...formData, geminiModel: e.target.value }); }
                   }
                   className="form-control"
                 >
@@ -719,7 +713,7 @@ export function AiTab() {
               </h4>
               <button
                 type="button"
-                onClick={() => handleProbe("OnnxLocal")}
+                onClick={() => { void handleProbe("OnnxLocal"); }}
                 disabled={probeLoadingId === "OnnxLocal"}
                 className="btn btn-outline btn-small"
                 style={{
@@ -756,8 +750,7 @@ export function AiTab() {
               <input
                 type="text"
                 value={formData.onnxModelPath}
-                onChange={(e) =>
-                  setFormData({ ...formData, onnxModelPath: e.target.value })
+                onChange={(e) => { setFormData({ ...formData, onnxModelPath: e.target.value }); }
                 }
                 placeholder="/config/models/leecharr-ai.onnx"
                 className="form-control"
@@ -788,11 +781,10 @@ export function AiTab() {
             <input
               type="checkbox"
               checked={formData.enableCopilotButton}
-              onChange={(e) =>
-                setFormData({
+              onChange={(e) => { setFormData({
                   ...formData,
                   enableCopilotButton: e.target.checked,
-                })
+                }); }
               }
             />
             <span
@@ -829,11 +821,10 @@ export function AiTab() {
             <input
               type="checkbox"
               checked={formData.enableNaturalSearch}
-              onChange={(e) =>
-                setFormData({
+              onChange={(e) => { setFormData({
                   ...formData,
                   enableNaturalSearch: e.target.checked,
-                })
+                }); }
               }
             />
             <span
@@ -870,11 +861,10 @@ export function AiTab() {
             <input
               type="checkbox"
               checked={formData.enableSwarmDiagnostics}
-              onChange={(e) =>
-                setFormData({
+              onChange={(e) => { setFormData({
                   ...formData,
                   enableSwarmDiagnostics: e.target.checked,
-                })
+                }); }
               }
             />
             <span
@@ -946,11 +936,10 @@ export function AiTab() {
               max="1"
               step="0.05"
               value={formData.malwareRiskThreshold ?? 0.7}
-              onChange={(e) =>
-                setFormData({
+              onChange={(e) => { setFormData({
                   ...formData,
                   malwareRiskThreshold: Number.parseFloat(e.target.value),
-                })
+                }); }
               }
               style={{
                 width: "100%",
@@ -980,11 +969,10 @@ export function AiTab() {
               <input
                 type="checkbox"
                 checked={formData.autoQuarantineHighRisk ?? false}
-                onChange={(e) =>
-                  setFormData({
+                onChange={(e) => { setFormData({
                     ...formData,
                     autoQuarantineHighRisk: e.target.checked,
-                  })
+                  }); }
                 }
               />
               <span

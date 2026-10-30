@@ -78,7 +78,7 @@ export function PendingChangesModal({
         className="modal"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -154,7 +154,7 @@ export function useUnsavedGuard(dirty: boolean) {
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+    return () => { window.removeEventListener("beforeunload", handler); };
   }, [dirty]);
 
   return {
@@ -338,12 +338,11 @@ export function NumberInput({
       type="number"
       className="form-input"
       value={Number.isNaN(value) ? "" : value}
-      onChange={(e) =>
-        onChange(
+      onChange={(e) => { onChange(
           step && step < 1
             ? Number.parseFloat(e.target.value) || 0
             : Number.parseInt(e.target.value, 10) || 0,
-        )
+        ); }
       }
       min={min}
       max={max}
@@ -412,7 +411,7 @@ export function TextInput({
               type={type || "text"}
               className="form-input"
               value={value ?? ""}
-              onChange={(e) => onChange(e.target.value)}
+              onChange={(e) => { onChange(e.target.value); }}
               onBlur={onBlur}
               placeholder={placeholder}
               disabled={disabled}
@@ -425,7 +424,7 @@ export function TextInput({
             type={type || "text"}
             className="form-input"
             value={value ?? ""}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => { onChange(e.target.value); }}
             onBlur={onBlur}
             placeholder={placeholder}
             disabled={disabled}
@@ -479,7 +478,7 @@ export function Toggle({
             userSelect: "none",
             flex: 1,
           }}
-          onClick={() => !disabled && onChange(!checked)}
+          onClick={() => { if (!disabled) onChange(!checked); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -503,7 +502,7 @@ export function Toggle({
             checked={checked}
             disabled={disabled}
             aria-label={label}
-            onChange={(e) => onChange(e.target.checked)}
+            onChange={(e) => { onChange(e.target.checked); }}
           />
           <span className="toggle-slider" />
         </label>
@@ -542,7 +541,7 @@ export function SelectInput({
         <select
           className="form-select"
           value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => { onChange(e.target.value); }}
           disabled={disabled}
           style={{ borderRadius: "6px" }}
         >

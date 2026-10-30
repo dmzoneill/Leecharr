@@ -234,7 +234,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         className="modal-content indexer-search-modal"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -276,7 +276,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
             >
               <button
                 type="button"
-                onClick={() => setIsAiExpanded(!isAiExpanded)}
+                onClick={() => { setIsAiExpanded(!isAiExpanded); }}
                 style={{
                   width: "100%",
                   padding: "0.5rem 0.75rem",
@@ -374,7 +374,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     <input
                       type="text"
                       value={naturalQuery}
-                      onChange={(e) => setNaturalQuery(e.target.value)}
+                      onChange={(e) => { setNaturalQuery(e.target.value); }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleAiNaturalParse(e);
                       }}
@@ -392,7 +392,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     />
                     <button
                       type="button"
-                      onClick={() => handleAiNaturalParse()}
+                      onClick={() => { handleAiNaturalParse(); }}
                       disabled={
                         !naturalQuery.trim() || naturalSearchMutation.isPending
                       }
@@ -590,7 +590,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               type="text"
               placeholder={t("indexers.searchPlaceholder")}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); }}
               className="search-input"
             />
             <button
@@ -617,7 +617,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               <input
                 type="checkbox"
                 checked={freeleechOnly}
-                onChange={(e) => setFreeleechOnly(e.target.checked)}
+                onChange={(e) => { setFreeleechOnly(e.target.checked); }}
               />
               {t("indexers.freeleechOnly100")}
             </label>
@@ -640,7 +640,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               <select
                 id="indexerModalCategorySelect"
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => { setCategory(e.target.value); }}
                 style={{
                   padding: "0.25rem 0.5rem",
                   fontSize: "0.8rem",
@@ -678,7 +678,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               {category && (
                 <button
                   type="button"
-                  onClick={() => setCategory("")}
+                  onClick={() => { setCategory(""); }}
                   style={{
                     background: "none",
                     border: "none",
@@ -760,7 +760,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     </div>
                     <button
                       className="btn btn-grab"
-                      onClick={() => handleGrab(r)}
+                      onClick={() => { handleGrab(r); }}
                       disabled={isGrabbing}
                     >
                       {isGrabbing ? t("indexers.grabbing") : t("indexers.grab")}

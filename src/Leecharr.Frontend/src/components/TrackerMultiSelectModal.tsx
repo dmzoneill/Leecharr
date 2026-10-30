@@ -252,7 +252,7 @@ export function TrackerMultiSelectModal({
         className="card"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -355,7 +355,7 @@ export function TrackerMultiSelectModal({
                 "Search by domain, protocol, status...",
               )}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); }}
               style={{
                 flex: "1 1 240px",
                 padding: "0.4rem 0.75rem",
@@ -366,7 +366,7 @@ export function TrackerMultiSelectModal({
             <select
               className="form-control"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); }}
               style={{
                 width: "160px",
                 padding: "0.4rem 0.6rem",
@@ -424,7 +424,7 @@ export function TrackerMultiSelectModal({
                 type="button"
                 className="btn btn-small btn-success"
                 style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
-                onClick={() => onSelectBatch(verifiedUnattached)}
+                onClick={() => { onSelectBatch(verifiedUnattached); }}
               >
                 {t("torrentDetail.verifiedSwarmsBtn", {
                   count: verifiedUnattached.length,
@@ -438,7 +438,7 @@ export function TrackerMultiSelectModal({
                 type="button"
                 className="btn btn-small btn-primary"
                 style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
-                onClick={() => onSelectBatch(onlineUnattached)}
+                onClick={() => { onSelectBatch(onlineUnattached); }}
               >
                 {t("torrentDetail.allOnlineBtn", {
                   count: onlineUnattached.length,
@@ -715,7 +715,7 @@ export function TrackerMultiSelectModal({
               "Or enter custom URL (e.g. udp://tracker.example.com:1337/announce)...",
             )}
             value={customUrl}
-            onChange={(e) => setCustomUrl(e.target.value)}
+            onChange={(e) => { setCustomUrl(e.target.value); }}
             style={{ flex: 1, fontSize: "0.82rem", padding: "0.35rem 0.6rem" }}
           />
           <button
@@ -766,10 +766,10 @@ export function TrackerMultiSelectModal({
             <button
               type="button"
               className="btn btn-small btn-success"
-              onClick={async () => {
+              onClick={() => { void (async () => {
                 await onAddAndAnnounce();
                 onClose();
-              }}
+              })(); }}
               disabled={isAdding || selectedUrls.size === 0}
               style={{ fontSize: "0.82rem" }}
             >

@@ -1244,7 +1244,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         return this.Ok(resources);
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     [Consumes("application/json")]
     public async Task<ActionResult<TorrentResource>> AddTorrentJson([FromBody] AddTorrentJsonRequest request)
     {

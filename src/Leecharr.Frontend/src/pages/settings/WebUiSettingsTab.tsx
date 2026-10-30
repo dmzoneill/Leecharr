@@ -169,7 +169,7 @@ export function WebUiSettingsTab() {
           <SelectInput
             label={t("settingsTabs.webUi.themeSection.surfaceLabel")}
             value={form.themeStyle}
-            onChange={(v) => update("themeStyle", v)}
+            onChange={(v) => { update("themeStyle", v); }}
             options={[
               {
                 value: "dark",
@@ -210,7 +210,7 @@ export function WebUiSettingsTab() {
           <SelectInput
             label={t("settingsTabs.webUi.themeSection.accentLabel")}
             value={form.colorScheme}
-            onChange={(v) => update("colorScheme", v)}
+            onChange={(v) => { update("colorScheme", v); }}
             options={[
               {
                 value: "auto",

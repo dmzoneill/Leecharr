@@ -75,7 +75,7 @@ export function ProxySettingsTab() {
         forceProxy: form.proxyType === "none" ? false : form.forceProxy,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => { setDirty(false); },
       },
     );
   };
@@ -115,7 +115,7 @@ export function ProxySettingsTab() {
           <SelectInput
             label={t("settings.proxyProtocolType")}
             value={form.proxyType}
-            onChange={(v) => update("proxyType", v)}
+            onChange={(v) => { update("proxyType", v); }}
             options={[
               { value: "none", label: t("settingsTabs.proxy.typeNone") },
               { value: "socks5", label: t("settingsTabs.proxy.typeSocks5") },
@@ -127,7 +127,7 @@ export function ProxySettingsTab() {
           <TextInput
             label={t("settings.proxyHostnameOrIP")}
             value={form.proxyHost}
-            onChange={(v) => update("proxyHost", v)}
+            onChange={(v) => { update("proxyHost", v); }}
             disabled={!isProxyActive}
             hint={t("settingsTabs.proxy.hostHint")}
           />
@@ -135,7 +135,7 @@ export function ProxySettingsTab() {
           <NumberInput
             label={t("settings.proxyPort")}
             value={form.proxyPort}
-            onChange={(v) => update("proxyPort", v)}
+            onChange={(v) => { update("proxyPort", v); }}
             disabled={!isProxyActive}
             min={1}
             max={65535}
@@ -154,7 +154,7 @@ export function ProxySettingsTab() {
             <Toggle
               label={t("settings.enableProxyAuthentication")}
               checked={form.proxyAuthEnabled}
-              onChange={(v) => update("proxyAuthEnabled", v)}
+              onChange={(v) => { update("proxyAuthEnabled", v); }}
             />
 
             {form.proxyAuthEnabled && (
@@ -169,13 +169,13 @@ export function ProxySettingsTab() {
                 <TextInput
                   label={t("settings.proxyUsername")}
                   value={form.proxyUsername}
-                  onChange={(v) => update("proxyUsername", v)}
+                  onChange={(v) => { update("proxyUsername", v); }}
                 />
 
                 <TextInput
                   label={t("settings.proxyPassword")}
                   value={form.proxyPassword}
-                  onChange={(v) => update("proxyPassword", v)}
+                  onChange={(v) => { update("proxyPassword", v); }}
                   type="password"
                 />
               </div>
@@ -198,14 +198,14 @@ export function ProxySettingsTab() {
           <Toggle
             label={t("settings.anonymousMode")}
             checked={form.anonymousMode}
-            onChange={(v) => update("anonymousMode", v)}
+            onChange={(v) => { update("anonymousMode", v); }}
             hint={t("settingsTabs.proxy.anonymousModeHint")}
           />
 
           <Toggle
             label={t("settings.strictProxyEnforcementKill")}
             checked={form.forceProxy}
-            onChange={(v) => update("forceProxy", v)}
+            onChange={(v) => { update("forceProxy", v); }}
             disabled={!isProxyActive}
             hint={t("settingsTabs.proxy.forceProxyHint")}
           />

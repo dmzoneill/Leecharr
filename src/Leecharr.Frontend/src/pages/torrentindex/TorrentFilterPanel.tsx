@@ -141,7 +141,7 @@ export function TorrentFilterPanel({
             <button
               type="button"
               className={`filter-panel-item${selectedState === state ? " active" : ""}`}
-              onClick={() => onSelectState(state)}
+              onClick={() => { onSelectState(state); }}
             >
               <span className="filter-panel-label">
                 {STATE_FILTER_ICONS[state]} {getStateLabel(state)}
@@ -163,7 +163,7 @@ export function TorrentFilterPanel({
               <button
                 type="button"
                 className={`filter-panel-item${selectedPrivacy === "All" ? " active" : ""}`}
-                onClick={() => onSelectPrivacy("All")}
+                onClick={() => { onSelectPrivacy("All"); }}
               >
                 <span className="filter-panel-label">
                   <AllIcon size={13} /> {t("torrents.filters.allSwarms")}
@@ -175,7 +175,7 @@ export function TorrentFilterPanel({
               <button
                 type="button"
                 className={`filter-panel-item${selectedPrivacy === "Private" ? " active" : ""}`}
-                onClick={() => onSelectPrivacy("Private")}
+                onClick={() => { onSelectPrivacy("Private"); }}
               >
                 <span
                   className="filter-panel-label"
@@ -198,7 +198,7 @@ export function TorrentFilterPanel({
               <button
                 type="button"
                 className={`filter-panel-item${selectedPrivacy === "Public" ? " active" : ""}`}
-                onClick={() => onSelectPrivacy("Public")}
+                onClick={() => { onSelectPrivacy("Public"); }}
               >
                 <span
                   className="filter-panel-label"
@@ -228,7 +228,7 @@ export function TorrentFilterPanel({
           <button
             type="button"
             className={`filter-panel-item${selectedTracker === "All" ? " active" : ""}`}
-            onClick={() => onSelectTracker("All")}
+            onClick={() => { onSelectTracker("All"); }}
           >
             <span className="filter-panel-label">
               <AllIcon size={13} /> {t("torrents.filters.all")}
@@ -241,7 +241,7 @@ export function TorrentFilterPanel({
             <button
               type="button"
               className={`filter-panel-item${selectedTracker === domain ? " active" : ""}`}
-              onClick={() => onSelectTracker(domain)}
+              onClick={() => { onSelectTracker(domain); }}
             >
               <span
                 className="filter-panel-label"
@@ -281,7 +281,7 @@ export function TorrentFilterPanel({
           alignItems: "center",
           justifyContent: "space-between",
         }}
-        onClick={() => setIsTagOpen(!isTagOpen)}
+        onClick={() => { setIsTagOpen(!isTagOpen); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -352,7 +352,7 @@ export function TorrentFilterPanel({
               >
                 <button
                   type="button"
-                  onClick={() => onTagMatchModeChange("OR")}
+                  onClick={() => { onTagMatchModeChange("OR"); }}
                   style={{
                     padding: "2px 8px",
                     fontSize: "0.7rem",
@@ -374,7 +374,7 @@ export function TorrentFilterPanel({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onTagMatchModeChange("AND")}
+                  onClick={() => { onTagMatchModeChange("AND"); }}
                   style={{
                     padding: "2px 8px",
                     fontSize: "0.7rem",

@@ -176,7 +176,7 @@ export function useInstallUpdate() {
   return useMutation<InstallUpdateResponse, Error, { version?: string } | void>({
     mutationFn: (data) => apiClient.post("/update", data ?? {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["updates"] });
+      void queryClient.invalidateQueries({ queryKey: ["updates"] });
     },
   });
 }

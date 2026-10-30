@@ -110,7 +110,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
   const logPath = appData ? `${appData}/logs` : "{appData}/logs";
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["logfiles"] });
+    void queryClient.invalidateQueries({ queryKey: ["logfiles"] });
   };
 
   const handleClear = () => {
@@ -369,7 +369,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
         cancelText={t("common.cancel", "Cancel")}
         danger={true}
         onConfirm={handleConfirmClear}
-        onCancel={() => setShowConfirmClear(false)}
+        onCancel={() => { setShowConfirmClear(false); }}
       />
     </>
   );

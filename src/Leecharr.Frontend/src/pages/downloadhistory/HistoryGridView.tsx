@@ -47,7 +47,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
       }
     });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); };
   }, []);
 
   const gridGap = 20;
@@ -139,7 +139,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                         "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
                       cursor: "pointer",
                     }}
-                    onClick={() => onSelectItem(item)}
+                    onClick={() => { onSelectItem(item); }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
@@ -462,7 +462,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                           paddingTop: "0.4rem",
                           borderTop: "1px solid var(--border-light)",
                         }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.stopPropagation();
@@ -480,7 +480,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                             justifyContent: "center",
                             gap: "0.35rem",
                           }}
-                          onClick={() => onSearchItem(item.title)}
+                          onClick={() => { onSearchItem(item.title); }}
                           title={t("history.searchAgain")}
                         >
                           <span>🔍</span> <span>{t("history.search")}</span>
@@ -496,7 +496,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                             justifyContent: "center",
                             gap: "0.35rem",
                           }}
-                          onClick={() => onReAddItem(item.id, item.title)}
+                          onClick={() => { onReAddItem(item.id, item.title); }}
                           disabled={isReAdding || item.status === "Active"}
                           title={
                             item.status === "Active"
@@ -518,7 +518,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                             alignItems: "center",
                             justifyContent: "center",
                           }}
-                          onClick={() => onSelectItem(item)}
+                          onClick={() => { onSelectItem(item); }}
                           title={t("history.viewFullMedia")}
                         >
                           ℹ️
@@ -534,7 +534,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                               alignItems: "center",
                               justifyContent: "center",
                             }}
-                            onClick={() => onDeleteItem(item.id, item.title)}
+                            onClick={() => { onDeleteItem(item.id, item.title); }}
                             title={t("history.deleteHistoricalRecord")}
                           >
                             ✕

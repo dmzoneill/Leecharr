@@ -527,8 +527,7 @@ export function FilesTab({
       setFilePriority.mutate(
         { torrentId: effectiveId, fileId, priority },
         {
-          onError: (error) =>
-            showToast(error.message || "Failed to update file priority", "error"),
+          onError: (error) => { showToast(error.message || "Failed to update file priority", "error"); },
         },
       );
     },
@@ -553,8 +552,7 @@ export function FilesTab({
           files: targetFiles.map((f) => ({ fileId: f.id, priority })),
         },
         {
-          onError: (error) =>
-            showToast(error.message || "Failed to update file priorities", "error"),
+          onError: (error) => { showToast(error.message || "Failed to update file priorities", "error"); },
         },
       );
     },
@@ -948,7 +946,7 @@ export function FilesTab({
             onClick={() => {
               void navigator.clipboard.writeText(savePath);
               setCopiedPath(true);
-              setTimeout(() => setCopiedPath(false), 2000);
+              setTimeout(() => { setCopiedPath(false); }, 2000);
             }}
             title={t("torrents.detail.copyPathTooltip")}
           >
@@ -1025,7 +1023,7 @@ export function FilesTab({
             type="text"
             placeholder={t("torrents.detail.filterFilesPlaceholder")}
             value={filterQuery}
-            onChange={(e) => setFilterQuery(e.target.value)}
+            onChange={(e) => { setFilterQuery(e.target.value); }}
             style={{
               backgroundColor: "var(--bg-primary, #10111A)",
               border: "1px solid var(--border)",
@@ -1187,7 +1185,7 @@ export function FilesTab({
                     fontSize: "0.8rem",
                     cursor: "pointer",
                   }}
-                  onClick={() => setFocusedIndex(virtualRow.index)}
+                  onClick={() => { setFocusedIndex(virtualRow.index); }}
                 >
                   {/* Selective Download Checkbox */}
                   <td style={{ textAlign: "center", padding: "0.4rem 0.2rem" }}>
@@ -1197,7 +1195,7 @@ export function FilesTab({
                       ref={(input) => {
                         if (input) input.indeterminate = isIndeterminate;
                       }}
-                      onChange={() => handleToggleNodeCheckbox(node)}
+                      onChange={() => { handleToggleNodeCheckbox(node); }}
                       title={
                         isFolder
                           ? t(
@@ -1226,7 +1224,7 @@ export function FilesTab({
                       {isFolder ? (
                         <button
                           type="button"
-                          onClick={() => toggleFolder(node.fullPath)}
+                          onClick={() => { toggleFolder(node.fullPath); }}
                           style={{
                             background: "none",
                             border: "none",
@@ -1290,7 +1288,7 @@ export function FilesTab({
 
                       <button
                         type="button"
-                        onClick={(e) => handleStartRename(node, e)}
+                        onClick={(e) => { handleStartRename(node, e); }}
                         title={
                           node.isFolder
                             ? t("torrents.detail.renameFolder")
@@ -1529,7 +1527,7 @@ export function FilesTab({
             justifyContent: "center",
             backdropFilter: "blur(4px)",
           }}
-          onClick={() => !isRenaming && setRenamingNode(null)}
+          onClick={() => { if (!isRenaming) setRenamingNode(null); }}
           onKeyDown={(e) => {
             if (e.key === "Escape" && !isRenaming) {
               setRenamingNode(null);
@@ -1548,7 +1546,7 @@ export function FilesTab({
               maxWidth: "480px",
               boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.stopPropagation();
@@ -1580,7 +1578,7 @@ export function FilesTab({
             <input
               type="text"
               value={renameInput}
-              onChange={(e) => setRenameInput(e.target.value)}
+              onChange={(e) => { setRenameInput(e.target.value); }}
               className="input-text"
               style={{
                 width: "100%",
@@ -1608,7 +1606,7 @@ export function FilesTab({
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => setRenamingNode(null)}
+                onClick={() => { setRenamingNode(null); }}
                 disabled={isRenaming}
               >
                 {t("common.cancel")}
@@ -1616,7 +1614,7 @@ export function FilesTab({
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={handleConfirmRename}
+                onClick={(...args: Parameters<typeof handleConfirmRename>) => { void handleConfirmRename(...args); }}
                 disabled={
                   isRenaming ||
                   !renameInput.trim() ||
@@ -1634,7 +1632,7 @@ export function FilesTab({
       {selectedMediaFile && (
         <MediaPlayerModal
           isOpen={Boolean(selectedMediaFile)}
-          onClose={() => setSelectedMediaFile(null)}
+          onClose={() => { setSelectedMediaFile(null); }}
           torrent={torrent ?? { id: effectiveId, name: "" }}
           file={selectedMediaFile}
         />

@@ -15,16 +15,16 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 // Require after polyfilling localStorage so ApiClient initialization succeeds
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const { GLOBAL_CONN_OPTIONS, PER_TORRENT_CONN_OPTIONS } = require("./NetworkSwarmCard");
 
-describe("NetworkSwarmCard connection options", () => {
-  it("defines standard connection presets", () => {
+void describe("NetworkSwarmCard connection options", () => {
+  void it("defines standard connection presets", () => {
     assert.deepStrictEqual(GLOBAL_CONN_OPTIONS, [100, 200, 300, 500, 1000]);
     assert.deepStrictEqual(PER_TORRENT_CONN_OPTIONS, [20, 50, 80, 100, 200]);
   });
 
-  it("identifies custom global connection limits not in preset list", () => {
+  void it("identifies custom global connection limits not in preset list", () => {
     const customLimits = [150, 250, 400, 600, 800, 1500];
     for (const limit of customLimits) {
       assert.strictEqual(
@@ -35,7 +35,7 @@ describe("NetworkSwarmCard connection options", () => {
     }
   });
 
-  it("identifies preset global connection limits", () => {
+  void it("identifies preset global connection limits", () => {
     for (const preset of GLOBAL_CONN_OPTIONS) {
       assert.strictEqual(
         GLOBAL_CONN_OPTIONS.includes(preset),
@@ -45,7 +45,7 @@ describe("NetworkSwarmCard connection options", () => {
     }
   });
 
-  it("identifies custom per-torrent connection limits not in preset list", () => {
+  void it("identifies custom per-torrent connection limits not in preset list", () => {
     const customLimits = [10, 30, 60, 150, 250];
     for (const limit of customLimits) {
       assert.strictEqual(
@@ -56,7 +56,7 @@ describe("NetworkSwarmCard connection options", () => {
     }
   });
 
-  it("identifies preset per-torrent connection limits", () => {
+  void it("identifies preset per-torrent connection limits", () => {
     for (const preset of PER_TORRENT_CONN_OPTIONS) {
       assert.strictEqual(
         PER_TORRENT_CONN_OPTIONS.includes(preset),

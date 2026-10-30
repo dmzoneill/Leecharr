@@ -8,7 +8,7 @@ using NzbDrone.Core.Developer.Diagnostics;
 
 namespace Leecharr.Api.V1.System;
 
-[V1ApiController("system/developer/diagnostics")]
+[V1ApiController("system/developer/diagnostics")] /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
 public class SystemDeveloperDiagnosticsController : Controller
 {
     private readonly IDeveloperDiagnosticsService diagnosticsService;

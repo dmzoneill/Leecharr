@@ -98,7 +98,7 @@ function SystemUpdates() {
 
   const handleCheckForUpdates = () => {
     trackSystemLifecycle("update_check");
-    queryClient.invalidateQueries({ queryKey: ["updates"] });
+    void queryClient.invalidateQueries({ queryKey: ["updates"] });
   };
 
   const handleInitiateInstall = (update?: UpdateEntry) => {
@@ -244,7 +244,7 @@ function SystemUpdates() {
             {!isUpToDate && latestUpdate && (
               <button
                 className="btn btn-primary btn-small"
-                onClick={() => handleInitiateInstall(latestUpdate)}
+                onClick={() => { handleInitiateInstall(latestUpdate); }}
                 disabled={installUpdate.isPending}
                 style={{
                   display: "inline-flex",
@@ -339,7 +339,7 @@ function SystemUpdates() {
                         )}
                         <button
                           className="btn btn-primary btn-small"
-                          onClick={() => handleInitiateInstall(update)}
+                          onClick={() => { handleInitiateInstall(update); }}
                           disabled={installUpdate.isPending}
                           style={{
                             display: "inline-flex",

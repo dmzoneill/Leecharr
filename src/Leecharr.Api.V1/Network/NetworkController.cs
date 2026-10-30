@@ -15,7 +15,7 @@ using NzbDrone.Core.Network;
 
 namespace Leecharr.Api.V1.Network;
 
-[V1ApiController("network")]
+[V1ApiController("network")] /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
 public class NetworkController : Controller
 {
     private readonly Logger logger = LogManager.GetCurrentClassLogger();

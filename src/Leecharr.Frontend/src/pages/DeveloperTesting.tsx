@@ -48,7 +48,7 @@ export default function DeveloperTesting() {
   }, [selectedTest]);
 
   useEffect(() => {
-    fetchTestsAndHistory();
+    void fetchTestsAndHistory();
   }, [fetchTestsAndHistory]);
 
   const categories = ["All", ...Array.from(new Set(tests.map((t) => t.category)))];
@@ -148,7 +148,7 @@ export default function DeveloperTesting() {
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button
-            onClick={handleRunAll}
+            onClick={(...args: Parameters<typeof handleRunAll>) => { void handleRunAll(...args); }}
             disabled={isRunningAll || isLoading}
             style={{
               display: "inline-flex",
@@ -169,7 +169,7 @@ export default function DeveloperTesting() {
           </button>
 
           <button
-            onClick={fetchTestsAndHistory}
+            onClick={(...args: Parameters<typeof fetchTestsAndHistory>) => { void fetchTestsAndHistory(...args); }}
             disabled={isLoading}
             style={{
               padding: "7px 12px",
@@ -281,7 +281,7 @@ export default function DeveloperTesting() {
         {categories.map((cat) => (
           <button
             key={cat}
-            onClick={() => setSelectedCategory(cat)}
+            onClick={() => { setSelectedCategory(cat); }}
             style={{
               padding: "5px 12px",
               borderRadius: "20px",
@@ -345,7 +345,7 @@ export default function DeveloperTesting() {
                     return (
                       <tr
                         key={test.id}
-                        onClick={() => setSelectedTest(test)}
+                        onClick={() => { setSelectedTest(test); }}
                         style={{
                           borderBottom: "1px solid var(--border, #334155)",
                           backgroundColor: isSelected ? "rgba(59, 130, 246, 0.15)" : "transparent",
@@ -450,7 +450,7 @@ export default function DeveloperTesting() {
                 </div>
 
                 <button
-                  onClick={() => handleRunSingle(selectedTest.id)}
+                  onClick={() => { void handleRunSingle(selectedTest.id); }}
                   disabled={runningTestId === selectedTest.id || isRunningAll}
                   style={{
                     padding: "6px 14px",
@@ -568,7 +568,7 @@ export default function DeveloperTesting() {
               <span>📜</span> Execution History
             </h3>
             <button
-              onClick={handleClearHistory}
+              onClick={(...args: Parameters<typeof handleClearHistory>) => { void handleClearHistory(...args); }}
               style={{
                 background: "transparent",
                 border: "none",

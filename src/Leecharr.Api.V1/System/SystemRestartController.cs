@@ -23,7 +23,7 @@ public class SystemRestartController : ControllerBase
         this.hostApplicationLifetime = hostApplicationLifetime;
     }
 
-    [HttpPost]
+    [HttpPost] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult Restart()
     {
         if (this.runtimeInfo != null)

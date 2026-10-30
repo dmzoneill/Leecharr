@@ -124,10 +124,10 @@ export function useSetFilePriority() {
         priority,
       }),
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", vars.torrentId, "files"],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -142,10 +142,10 @@ export function useSetFilesPriority() {
     mutationFn: ({ torrentId, files }) =>
       apiClient.put(`/torrent/${torrentId}/files/priorities`, { files }),
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", vars.torrentId, "files"],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -166,11 +166,11 @@ export function useDeleteTorrentTracker() {
     mutationFn: ({ torrentId, trackerId }) =>
       apiClient.delete(`/torrent/${torrentId}/trackers/${trackerId}`),
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", vars.torrentId, "trackers"],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
     },
   });
 }
@@ -190,7 +190,7 @@ export function useCreateCategory() {
     mutationFn: (data: Partial<Category>) =>
       apiClient.post("/categories", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      void queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 }
@@ -200,7 +200,7 @@ export function useUpdateCategory() {
   return useMutation<Category, Error, { id: number; data: Partial<Category> }>({
     mutationFn: ({ id, data }) => apiClient.put(`/categories/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      void queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 }
@@ -210,7 +210,7 @@ export function useDeleteCategory() {
   return useMutation<void, Error, number>({
     mutationFn: (id: number) => apiClient.delete(`/categories/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      void queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 }
@@ -228,11 +228,11 @@ export function useAddTorrentTracker() {
         tier: tier ?? 1,
       }),
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", vars.torrentId, "trackers"],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
     },
   });
 }
@@ -250,14 +250,14 @@ export function useAnnounceTorrentTracker() {
         {},
       ),
     onSuccess: (_, { torrentId }) => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", torrentId, "trackers"],
       });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", torrentId, "logs"],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents", torrentId] });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents", torrentId] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -270,7 +270,7 @@ export function useAddTorrent() {
       const tagList = input.tags ?? input.tagIds;
       if (input.files && input.files.length > 0) {
         const formData = new FormData();
-        input.files.forEach((file) => formData.append("file", file));
+        input.files.forEach((file) => { formData.append("file", file); });
         if (input.category) formData.append("category", input.category);
         if (isPaused) formData.append("paused", "true");
         if (input.savePath) formData.append("savePath", input.savePath);
@@ -287,7 +287,7 @@ export function useAddTorrent() {
           formData.append("uploadLimit", String(input.uploadLimit));
         }
         if (tagList && tagList.length > 0) {
-          tagList.forEach((tagId) => formData.append("tags", String(tagId)));
+          tagList.forEach((tagId) => { formData.append("tags", String(tagId)); });
         }
         return apiClient.postForm<AddTorrentResult>(
           "/torrents/upload",
@@ -315,8 +315,8 @@ export function useUpdateTorrent() {
   return useMutation<Torrent, Error, Torrent>({
     mutationFn: (torrent) => apiClient.put(`/torrent/${torrent.id}`, torrent),
     onSuccess: (_, torrent) => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents", torrent.id] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents", torrent.id] });
     },
   });
 }
@@ -343,7 +343,7 @@ export function useAnnounceTorrent() {
   return useMutation({
     mutationFn: (id: number) => apiClient.post(`/torrent/${id}/announce`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -370,8 +370,8 @@ export function useRecheckTorrent() {
           },
         ]);
       }
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents", id] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents", id] });
     },
   });
 }
@@ -382,7 +382,7 @@ export function useMoveTorrentQueue() {
     mutationFn: ({ id, position }: { id: number; position: string }) =>
       apiClient.put(`/torrent/${id}/queue`, { position }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -393,7 +393,7 @@ export function useMoveTorrentQueueBatch() {
     mutationFn: ({ ids, position }: { ids: number[]; position: string }) =>
       apiClient.post(`/torrent/queue/batch`, { ids, position }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -422,9 +422,9 @@ export function useResumeTorrent() {
           },
         ]);
       }
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents", id] });
-      queryClient.invalidateQueries({ queryKey: ["seeding"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents", id] });
+      void queryClient.invalidateQueries({ queryKey: ["seeding"] });
     },
   });
 }
@@ -454,9 +454,9 @@ export function usePauseTorrent() {
           },
         ]);
       }
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents", id] });
-      queryClient.invalidateQueries({ queryKey: ["seeding"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents", id] });
+      void queryClient.invalidateQueries({ queryKey: ["seeding"] });
     },
   });
 }
@@ -474,8 +474,8 @@ export function useStartAllSeeding() {
   return useMutation({
     mutationFn: () => apiClient.post("/seeding/start-all"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["seeding"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["seeding"] });
     },
   });
 }
@@ -485,8 +485,8 @@ export function useStopAllSeeding() {
   return useMutation({
     mutationFn: () => apiClient.post("/seeding/stop-all"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["seeding"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["seeding"] });
     },
   });
 }
@@ -543,10 +543,10 @@ export function useDisconnectPeer() {
     mutationFn: ({ torrentId, ip }) =>
       apiClient.post(`/torrent/${torrentId}/peers/disconnect`, { ip }),
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", vars.torrentId, "peers"],
       });
-      queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+      void queryClient.invalidateQueries({ queryKey: ["peerlog"] });
     },
   });
 }
@@ -561,11 +561,11 @@ export function useBanPeer() {
     mutationFn: ({ torrentId, ip }) =>
       apiClient.post(`/torrent/${torrentId}/peers/ban`, { ip }),
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", vars.torrentId, "peers"],
       });
-      queryClient.invalidateQueries({ queryKey: ["peerlog"] });
-      queryClient.invalidateQueries({ queryKey: ["blocklist"] });
+      void queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+      void queryClient.invalidateQueries({ queryKey: ["blocklist"] });
     },
   });
 }
@@ -713,9 +713,9 @@ export function useBulkTorrentAction() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["seeding"] });
-      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["seeding"] });
+      void queryClient.invalidateQueries({ queryKey: ["tags"] });
     },
   });
 }
@@ -765,8 +765,8 @@ export function useReAddHistoryTorrent() {
   return useMutation<Torrent, Error, number>({
     mutationFn: (id: number) => apiClient.post(`/downloadhistory/${id}/readd`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -776,7 +776,7 @@ export function useDeleteHistoryTorrent() {
   return useMutation<{ success: boolean }, Error, number>({
     mutationFn: (id: number) => apiClient.delete(`/downloadhistory/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
     },
   });
 }
@@ -786,7 +786,7 @@ export function useClearDownloadHistory() {
   return useMutation<{ success: boolean; clearedCount: number }, Error, void>({
     mutationFn: () => apiClient.delete("/downloadhistory"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
     },
   });
 }
@@ -796,7 +796,7 @@ export function useEnrichHistoryTorrent() {
   return useMutation<DownloadHistoryEntry, Error, number>({
     mutationFn: (id: number) => apiClient.post(`/downloadhistory/${id}/enrich`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
     },
   });
 }
@@ -806,7 +806,7 @@ export function useEnrichAllHistory() {
   return useMutation<{ message: string }, Error, void>({
     mutationFn: () => apiClient.post("/downloadhistory/enrich-all"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
     },
   });
 }
@@ -817,8 +817,8 @@ export function useReconcileDownloadHistory() {
     {
       mutationFn: () => apiClient.post("/downloadhistory/reconcile"),
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
-        queryClient.invalidateQueries({ queryKey: ["torrents"] });
+        void queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
+        void queryClient.invalidateQueries({ queryKey: ["torrents"] });
       },
     },
   );
@@ -858,8 +858,8 @@ export function useDownloadIndexerRelease() {
   return useMutation<Torrent, Error, DownloadReleaseRequest>({
     mutationFn: (req) => apiClient.post("/indexers/download", req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["downloadhistory"] });
     },
   });
 }
@@ -915,7 +915,7 @@ export function useUpdateTrackerBoostSettings() {
   return useMutation<TrackerBoostSettings, Error, TrackerBoostSettings>({
     mutationFn: (settings) => apiClient.put("/trackerboost/settings", settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
     },
   });
 }
@@ -934,7 +934,7 @@ export function useScanTrackerBoostTrackers() {
   return useMutation<{ success: boolean; testedCount: number }, Error, void>({
     mutationFn: () => apiClient.post("/trackerboost/scan"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
     },
   });
 }
@@ -945,7 +945,7 @@ export function useHarvestDownloadTrackers() {
     {
       mutationFn: () => apiClient.post("/trackerboost/harvest/downloads"),
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+        void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
       },
     },
   );
@@ -957,7 +957,7 @@ export function useHarvestProwlarrTrackers() {
     {
       mutationFn: () => apiClient.post("/trackerboost/harvest/prowlarr"),
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+        void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
       },
     },
   );
@@ -969,7 +969,7 @@ export function useHarvestFeedTrackers() {
     {
       mutationFn: () => apiClient.post("/trackerboost/harvest/feeds"),
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+        void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
       },
     },
   );
@@ -981,12 +981,12 @@ export function useBoostTorrent() {
     mutationFn: (torrentId) =>
       apiClient.post(`/trackerboost/boost/${torrentId}`),
     onSuccess: (_, torrentId) => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({
         queryKey: ["trackerboost", "check", torrentId],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({
         queryKey: ["torrents", torrentId, "trackers"],
       });
     },
@@ -1007,11 +1007,11 @@ export function useBoostHash() {
       );
     },
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({
         queryKey: ["trackerboost", "check-hash", vars.infoHash],
       });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -1025,21 +1025,21 @@ export function useInjectTrackerToTorrent() {
   >({
     mutationFn: (payload) => apiClient.post("/trackerboost/inject", payload),
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
       if (vars.torrentId) {
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: ["trackerboost", "check", vars.torrentId],
         });
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: ["torrents", vars.torrentId, "trackers"],
         });
       }
       if (vars.infoHash) {
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: ["trackerboost", "check-hash", vars.infoHash],
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -1049,8 +1049,8 @@ export function useBoostAllTorrents() {
   return useMutation<SwarmBoostResult[], Error, void>({
     mutationFn: () => apiClient.post("/trackerboost/boost-all"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
@@ -1060,7 +1060,7 @@ export function useAddTrackerBoostTracker() {
   return useMutation<TrackerBoostTracker, Error, { url: string }>({
     mutationFn: (payload) => apiClient.post("/trackerboost/trackers", payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
     },
   });
 }
@@ -1070,7 +1070,7 @@ export function useDeleteTrackerBoostTracker() {
   return useMutation<{ success: boolean }, Error, number>({
     mutationFn: (id) => apiClient.delete(`/trackerboost/trackers/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
     },
   });
 }
@@ -1085,7 +1085,7 @@ export function useBulkImportTrackerBoostTrackers() {
     mutationFn: (payload) =>
       apiClient.post("/trackerboost/trackers/bulk", payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackerboost"] });
     },
   });
 }
@@ -1146,7 +1146,7 @@ export function useResetTrackerMetric() {
     mutationFn: (id: number) =>
       apiClient.post(`/trackermetrics/${id}/reset`, {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackermetrics"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackermetrics"] });
     },
   });
 }
@@ -1156,7 +1156,7 @@ export function useDeleteTrackerMetric() {
   return useMutation<{ success: boolean; message: string }, Error, number>({
     mutationFn: (id: number) => apiClient.delete(`/trackermetrics/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trackermetrics"] });
+      void queryClient.invalidateQueries({ queryKey: ["trackermetrics"] });
     },
   });
 }
@@ -1189,9 +1189,9 @@ export function useSwitchTorrentEngine() {
       return apiClient.post(`/torrentengine/switch${params}`, req);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["config"] });
     },
   });
 }
@@ -1202,9 +1202,9 @@ export function useSwitchTorrentEngineVersion() {
     mutationFn: (req: SwitchEngineVersionRequest) =>
       apiClient.post("/torrentengine/version", req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
-      queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+      void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      void queryClient.invalidateQueries({ queryKey: ["config"] });
     },
   });
 }
@@ -1251,14 +1251,14 @@ export function useSwitchSubsystem() {
         providerId: req.providerId,
       }),
     onSuccess: (_, req) => {
-      queryClient.invalidateQueries({ queryKey: ["subsystems"] });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({ queryKey: ["subsystems"] });
+      void queryClient.invalidateQueries({
         queryKey: ["subsystems", req.subsystemId],
       });
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      void queryClient.invalidateQueries({ queryKey: ["config"] });
       if (req.subsystemId === "bittorrent") {
-        queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
-        queryClient.invalidateQueries({ queryKey: ["torrents"] });
+        void queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+        void queryClient.invalidateQueries({ queryKey: ["torrents"] });
       }
     },
   });

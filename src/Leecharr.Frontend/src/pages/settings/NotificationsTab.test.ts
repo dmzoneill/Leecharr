@@ -9,8 +9,8 @@ import {
 } from "./NotificationsTab";
 import type { NotificationResource } from "../../api/types";
 
-describe("NotificationsTab - CustomScript and Tags (#984)", () => {
-  it("provides proper default form state for CustomScript", () => {
+void describe("NotificationsTab - CustomScript and Tags (#984)", () => {
+  void it("provides proper default form state for CustomScript", () => {
     const form = getDefaultFormForImplementation("CustomScript");
     assert.strictEqual(form.implementation, "CustomScript");
     assert.strictEqual(form.name, "Custom Script");
@@ -20,7 +20,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
     assert.deepStrictEqual(form.tags, []);
   });
 
-  it("parses CustomScript notification resource into form state with path and arguments", () => {
+  void it("parses CustomScript notification resource into form state with path and arguments", () => {
     const notif: Partial<NotificationResource> = {
       id: 42,
       name: "My Notification Script",
@@ -43,7 +43,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
     assert.deepStrictEqual(form.tags, [1, 5, 9]);
   });
 
-  it("parses alternative property names for CustomScript settings", () => {
+  void it("parses alternative property names for CustomScript settings", () => {
     const notif: Partial<NotificationResource> = {
       id: 43,
       name: "Alias Script",
@@ -61,7 +61,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
     assert.deepStrictEqual(form.tags, [3]);
   });
 
-  it("parses raw string settings for CustomScript if not formatted as JSON", () => {
+  void it("parses raw string settings for CustomScript if not formatted as JSON", () => {
     const notif: Partial<NotificationResource> = {
       id: 44,
       name: "Raw Script Path",
@@ -75,7 +75,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
     assert.strictEqual(form.arguments, "");
   });
 
-  it("builds correct payload for CustomScript without falling back to Webhook", () => {
+  void it("builds correct payload for CustomScript without falling back to Webhook", () => {
     const form = getDefaultFormForImplementation("CustomScript");
     form.id = 10;
     form.name = "Production Script";
@@ -97,7 +97,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
     assert.strictEqual(parsedSettings.method, undefined);
   });
 
-  it("validates that CustomScript requires path", () => {
+  void it("validates that CustomScript requires path", () => {
     const form = getDefaultFormForImplementation("CustomScript");
     form.name = "My Script";
     form.path = "   ";
@@ -114,7 +114,7 @@ describe("NotificationsTab - CustomScript and Tags (#984)", () => {
     );
   });
 
-  it("returns script path in getNotificationSummary for CustomScript", () => {
+  void it("returns script path in getNotificationSummary for CustomScript", () => {
     const notif: Partial<NotificationResource> = {
       name: "Custom Script",
       implementation: "CustomScript",

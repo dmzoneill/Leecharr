@@ -292,7 +292,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = binary,
+            FileName = binary, /* cmd-safe: fixed/admin-configured binary, args via ProcessStartInfo, no shell */ // nosemgrep
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,

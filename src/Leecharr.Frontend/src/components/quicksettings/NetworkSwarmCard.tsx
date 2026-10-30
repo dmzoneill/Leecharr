@@ -106,8 +106,7 @@ export const NetworkSwarmCard: React.FC = () => {
         <button
           type="button"
           className={`quick-vpn-badge ${vpnKillSwitch ? "vpn-active" : ""}`}
-          onClick={() =>
-            handleNetUpdate({ enableVpnKillSwitch: !vpnKillSwitch })
+          onClick={() => { handleNetUpdate({ enableVpnKillSwitch: !vpnKillSwitch }); }
           }
           title={
             vpnKillSwitch
@@ -142,10 +141,9 @@ export const NetworkSwarmCard: React.FC = () => {
               <select
                 className="quick-select"
                 value={globalConns}
-                onChange={(e) =>
-                  handleNetUpdate({
+                onChange={(e) => { handleNetUpdate({
                     maxGlobalConnections: Number.parseInt(e.target.value, 10),
-                  })
+                  }); }
                 }
               >
                 {!GLOBAL_CONN_OPTIONS.includes(globalConns) && (
@@ -170,10 +168,9 @@ export const NetworkSwarmCard: React.FC = () => {
               <select
                 className="quick-select"
                 value={perTorrentConns}
-                onChange={(e) =>
-                  handleNetUpdate({
+                onChange={(e) => { handleNetUpdate({
                     maxPerTorrentConnections: Number.parseInt(e.target.value, 10),
-                  })
+                  }); }
                 }
               >
                 {!PER_TORRENT_CONN_OPTIONS.includes(perTorrentConns) && (
@@ -205,8 +202,7 @@ export const NetworkSwarmCard: React.FC = () => {
               <input
                 type="checkbox"
                 checked={dht}
-                onChange={(e) =>
-                  handleBtUpdate({ enableDht: e.target.checked })
+                onChange={(e) => { handleBtUpdate({ enableDht: e.target.checked }); }
                 }
               />
               <span>{t("quickSettings.dht")}</span>
@@ -218,8 +214,7 @@ export const NetworkSwarmCard: React.FC = () => {
               <input
                 type="checkbox"
                 checked={pex}
-                onChange={(e) =>
-                  handleBtUpdate({ enablePex: e.target.checked })
+                onChange={(e) => { handleBtUpdate({ enablePex: e.target.checked }); }
                 }
               />
               <span>{t("quickSettings.pex")}</span>
@@ -231,8 +226,7 @@ export const NetworkSwarmCard: React.FC = () => {
               <input
                 type="checkbox"
                 checked={lpd}
-                onChange={(e) =>
-                  handleBtUpdate({ enableLpd: e.target.checked })
+                onChange={(e) => { handleBtUpdate({ enableLpd: e.target.checked }); }
                 }
               />
               <span>{t("quickSettings.lpd")}</span>

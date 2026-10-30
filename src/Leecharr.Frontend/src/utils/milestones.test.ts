@@ -57,20 +57,20 @@ function createMockTorrent(overrides: Partial<Torrent> = {}): Torrent {
   };
 }
 
-describe("formatters: formatRatio and formatBytes", () => {
-  it("formatRatio should return '-' for Infinity or NaN", () => {
+void describe("formatters: formatRatio and formatBytes", () => {
+  void it("formatRatio should return '-' for Infinity or NaN", () => {
     assert.equal(formatRatio(Infinity), "-");
     assert.equal(formatRatio(-Infinity), "-");
     assert.equal(formatRatio(NaN), "-");
   });
 
-  it("formatRatio should format finite numbers to two decimals", () => {
+  void it("formatRatio should format finite numbers to two decimals", () => {
     assert.equal(formatRatio(0), "0.00");
     assert.equal(formatRatio(1.5), "1.50");
     assert.equal(formatRatio(10.256), "10.26");
   });
 
-  it("formatBytes should format negative values with minus prefix", () => {
+  void it("formatBytes should format negative values with minus prefix", () => {
     const hundredGb = 100 * 1024 * 1024 * 1024;
     assert.equal(formatBytes(-hundredGb), "-100.0 GB");
     assert.equal(formatBytes(hundredGb), "100.0 GB");
@@ -80,8 +80,8 @@ describe("formatters: formatRatio and formatBytes", () => {
   });
 });
 
-describe("milestones: getTorrentBadges", () => {
-  it("should not award ratio badges when ratio is Infinity", () => {
+void describe("milestones: getTorrentBadges", () => {
+  void it("should not award ratio badges when ratio is Infinity", () => {
     const torrent = createMockTorrent({
       ratio: Infinity,
       downloaded: 0,
@@ -96,7 +96,7 @@ describe("milestones: getTorrentBadges", () => {
     assert.equal(ratioBadges.length, 0);
   });
 
-  it("should not award ratio badges when ratio is NaN", () => {
+  void it("should not award ratio badges when ratio is NaN", () => {
     const torrent = createMockTorrent({
       ratio: NaN,
       downloaded: 0,
@@ -111,7 +111,7 @@ describe("milestones: getTorrentBadges", () => {
     assert.equal(ratioBadges.length, 0);
   });
 
-  it("should not award ratio badges when traffic volume is below 10 MB threshold", () => {
+  void it("should not award ratio badges when traffic volume is below 10 MB threshold", () => {
     const torrent = createMockTorrent({
       ratio: 15.0, // High ratio but trivial traffic
       downloaded: 1024, // 1 KB
@@ -126,7 +126,7 @@ describe("milestones: getTorrentBadges", () => {
     assert.equal(ratioBadges.length, 0);
   });
 
-  it("should award Diamond ratio badge when ratio >= 10.0 and meaningful traffic exists", () => {
+  void it("should award Diamond ratio badge when ratio >= 10.0 and meaningful traffic exists", () => {
     const torrent = createMockTorrent({
       ratio: 12.5,
       downloaded: 100 * 1024 * 1024, // 100 MB
@@ -141,7 +141,7 @@ describe("milestones: getTorrentBadges", () => {
     assert.equal(diamondBadge.title, "Diamond Ratio: 12.50");
   });
 
-  it("should award Gold ratio badge when ratio >= 5.0 and < 10.0", () => {
+  void it("should award Gold ratio badge when ratio >= 5.0 and < 10.0", () => {
     const torrent = createMockTorrent({
       ratio: 5.5,
       downloaded: 50 * 1024 * 1024,
@@ -156,8 +156,8 @@ describe("milestones: getTorrentBadges", () => {
   });
 });
 
-describe("milestones: calculateAchievements", () => {
-  it("should not unlock ratio achievements when library only has Infinity or NaN ratios", () => {
+void describe("milestones: calculateAchievements", () => {
+  void it("should not unlock ratio achievements when library only has Infinity or NaN ratios", () => {
     const torrents: Torrent[] = [
       createMockTorrent({
         id: 1,
@@ -203,7 +203,7 @@ describe("milestones: calculateAchievements", () => {
     }
   });
 
-  it("should unlock ratio achievements when qualifying torrent meets thresholds", () => {
+  void it("should unlock ratio achievements when qualifying torrent meets thresholds", () => {
     const torrents: Torrent[] = [
       createMockTorrent({
         id: 1,
@@ -232,8 +232,8 @@ describe("milestones: calculateAchievements", () => {
   });
 });
 
-describe("milestones: calculateTrackerBuffers", () => {
-  it("should calculate negative bufferBytes when downloaded exceeds uploaded (true deficit)", () => {
+void describe("milestones: calculateTrackerBuffers", () => {
+  void it("should calculate negative bufferBytes when downloaded exceeds uploaded (true deficit)", () => {
     const torrents: Torrent[] = [
       createMockTorrent({
         trackerUrl: "https://private-tracker.org/announce",
@@ -256,7 +256,7 @@ describe("milestones: calculateTrackerBuffers", () => {
     assert.equal(summary.ratio, 50 / 150);
   });
 
-  it("should calculate positive bufferBytes when uploaded exceeds downloaded", () => {
+  void it("should calculate positive bufferBytes when uploaded exceeds downloaded", () => {
     const torrents: Torrent[] = [
       createMockTorrent({
         trackerUrl: "https://private-tracker.org/announce",
@@ -277,7 +277,7 @@ describe("milestones: calculateTrackerBuffers", () => {
     assert.ok(summary.bufferBytes > 0);
   });
 
-  it("should have zero bufferBytes when uploaded equals downloaded", () => {
+  void it("should have zero bufferBytes when uploaded equals downloaded", () => {
     const torrents: Torrent[] = [
       createMockTorrent({
         trackerUrl: "https://tracker.net/announce",
@@ -293,8 +293,8 @@ describe("milestones: calculateTrackerBuffers", () => {
   });
 });
 
-describe("milestones: calculateHnrStatus", () => {
-  it("should not clear HNR when ratio is Infinity", () => {
+void describe("milestones: calculateHnrStatus", () => {
+  void it("should not clear HNR when ratio is Infinity", () => {
     const torrent = createMockTorrent({
       isPrivate: true,
       status: "Seeding",
@@ -308,7 +308,7 @@ describe("milestones: calculateHnrStatus", () => {
     assert.equal(status.isCleared, false);
   });
 
-  it("should return cleared for public torrents without HnR rules", () => {
+  void it("should return cleared for public torrents without HnR rules", () => {
     const torrent = createMockTorrent({
       isPrivate: false,
       seedingTime: 120,
@@ -323,7 +323,7 @@ describe("milestones: calculateHnrStatus", () => {
     assert.equal(status.label, "Public Swarm (No HnR rules)");
   });
 
-  it("should not clear HNR for incomplete private torrent even with ratio >= 1.0", () => {
+  void it("should not clear HNR for incomplete private torrent even with ratio >= 1.0", () => {
     const torrent = createMockTorrent({
       isPrivate: true,
       status: "Downloading",
@@ -343,7 +343,7 @@ describe("milestones: calculateHnrStatus", () => {
     );
   });
 
-  it("should clear HNR for completed private torrent with ratio >= 1.0", () => {
+  void it("should clear HNR for completed private torrent with ratio >= 1.0", () => {
     const torrent = createMockTorrent({
       isPrivate: true,
       status: "Seeding",
@@ -359,7 +359,7 @@ describe("milestones: calculateHnrStatus", () => {
     assert.equal(status.label, "Cleared (1.0+ Ratio)");
   });
 
-  it("should clear HNR for completed private torrent with seed time met", () => {
+  void it("should clear HNR for completed private torrent with seed time met", () => {
     const torrent = createMockTorrent({
       isPrivate: true,
       status: "Seeding",

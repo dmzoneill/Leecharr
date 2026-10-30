@@ -162,7 +162,7 @@ export function QueueSettingsTab() {
           <NumberInput
             label={t("settingsTabs.queue.maxActiveDownloads")}
             value={form.downloadQueueSize}
-            onChange={(v) => update("downloadQueueSize", v)}
+            onChange={(v) => { update("downloadQueueSize", v); }}
             min={0}
             max={100}
             hint={t("settingsTabs.queue.maxActiveDownloadsHint")}
@@ -171,7 +171,7 @@ export function QueueSettingsTab() {
           <NumberInput
             label={t("settingsTabs.queue.maxActiveSeeds")}
             value={form.seedQueueSize}
-            onChange={(v) => update("seedQueueSize", v)}
+            onChange={(v) => { update("seedQueueSize", v); }}
             min={0}
             max={500}
             hint={t("settingsTabs.queue.maxActiveSeedsHint")}
@@ -187,7 +187,7 @@ export function QueueSettingsTab() {
           <Toggle
             label={t("settingsTabs.queue.ignoreStalled")}
             checked={form.queueStalledEnabled}
-            onChange={(v) => update("queueStalledEnabled", v)}
+            onChange={(v) => { update("queueStalledEnabled", v); }}
             hint={t("settingsTabs.queue.ignoreStalledHint")}
           />
 
@@ -201,7 +201,7 @@ export function QueueSettingsTab() {
             <NumberInput
               label={t("settingsTabs.queue.stalledTimeout")}
               value={form.queueStalledMinutes}
-              onChange={(v) => update("queueStalledMinutes", v)}
+              onChange={(v) => { update("queueStalledMinutes", v); }}
               disabled={!form.queueStalledEnabled}
               min={1}
               max={1440}
@@ -212,7 +212,7 @@ export function QueueSettingsTab() {
             <NumberInput
               label={t("settingsTabs.queue.idleSeedingTimeout")}
               value={form.idleSeedingLimitMinutes}
-              onChange={(v) => update("idleSeedingLimitMinutes", v)}
+              onChange={(v) => { update("idleSeedingLimitMinutes", v); }}
               min={0}
               max={10080}
               suffix={t("settingsTabs.queue.minutes")}
@@ -236,7 +236,7 @@ export function QueueSettingsTab() {
           <NumberInput
             label={t("settingsTabs.queue.globalShareRatio")}
             value={form.globalSeedRatioLimit}
-            onChange={(v) => update("globalSeedRatioLimit", v)}
+            onChange={(v) => { update("globalSeedRatioLimit", v); }}
             min={0}
             max={100}
             step={0.1}
@@ -246,7 +246,7 @@ export function QueueSettingsTab() {
           <SelectInput
             label={t("settingsTabs.queue.actionOnShareGoal")}
             value={form.globalShareLimitAction}
-            onChange={(v) => update("globalShareLimitAction", v)}
+            onChange={(v) => { update("globalShareLimitAction", v); }}
             options={[
               { value: "Pause", label: t("settingsTabs.queue.actionPause") },
               {
@@ -281,7 +281,7 @@ export function QueueSettingsTab() {
           <SelectInput
             label={t("settingsTabs.queue.actionOnCompletion")}
             value={form.autoShutdownAction}
-            onChange={(v) => update("autoShutdownAction", v)}
+            onChange={(v) => { update("autoShutdownAction", v); }}
             options={[
               { value: "None", label: t("settingsTabs.queue.actionNone") },
               {
@@ -307,7 +307,7 @@ export function QueueSettingsTab() {
           <SelectInput
             label={t("settingsTabs.queue.completionCondition")}
             value={form.autoShutdownCondition}
-            onChange={(v) => update("autoShutdownCondition", v)}
+            onChange={(v) => { update("autoShutdownCondition", v); }}
             disabled={form.autoShutdownAction === "None"}
             options={[
               {

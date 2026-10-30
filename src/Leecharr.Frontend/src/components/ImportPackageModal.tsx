@@ -246,7 +246,7 @@ export function ImportPackageModal({
         className="modal"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -606,7 +606,7 @@ export function ImportPackageModal({
                   style={{ width: "100%", boxSizing: "border-box" }}
                   placeholder="e.g. /downloads or leave blank for default library root"
                   value={destinationPath}
-                  onChange={(e) => setDestinationPath(e.target.value)}
+                  onChange={(e) => { setDestinationPath(e.target.value); }}
                   disabled={isUploading}
                 />
                 <span
@@ -626,7 +626,7 @@ export function ImportPackageModal({
               <div>
                 <button
                   type="button"
-                  onClick={() => setShowAdvancedMapping(!showAdvancedMapping)}
+                  onClick={() => { setShowAdvancedMapping(!showAdvancedMapping); }}
                   style={{
                     background: "none",
                     border: "none",
@@ -675,7 +675,7 @@ export function ImportPackageModal({
                         }}
                         placeholder="e.g. C:\Torrents"
                         value={sourcePrefix}
-                        onChange={(e) => setSourcePrefix(e.target.value)}
+                        onChange={(e) => { setSourcePrefix(e.target.value); }}
                         disabled={isUploading}
                       />
                     </div>
@@ -702,7 +702,7 @@ export function ImportPackageModal({
                         }}
                         placeholder="e.g. /downloads/complete"
                         value={destinationPrefix}
-                        onChange={(e) => setDestinationPrefix(e.target.value)}
+                        onChange={(e) => { setDestinationPrefix(e.target.value); }}
                         disabled={isUploading}
                       />
                     </div>

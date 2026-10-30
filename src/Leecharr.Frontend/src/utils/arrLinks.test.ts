@@ -29,8 +29,8 @@ function createMockArrConnection(
   };
 }
 
-describe("arrLinks: getArrInstanceUrl", () => {
-  it("should return null when source is null, empty, or whitespace", () => {
+void describe("arrLinks: getArrInstanceUrl", () => {
+  void it("should return null when source is null, empty, or whitespace", () => {
     const connections = [createMockArrConnection()];
 
     assert.equal(getArrInstanceUrl(null, connections), null);
@@ -39,11 +39,11 @@ describe("arrLinks: getArrInstanceUrl", () => {
     assert.equal(getArrInstanceUrl("   ", connections), null);
   });
 
-  it("should return null when connections array is null or undefined", () => {
+  void it("should return null when connections array is null or undefined", () => {
     assert.equal(getArrInstanceUrl("sonarr", undefined), null);
   });
 
-  it("should NOT match connections with null, empty, or whitespace arrType and name", () => {
+  void it("should NOT match connections with null, empty, or whitespace arrType and name", () => {
     const emptyConnection = createMockArrConnection({
       id: 99,
       name: "",
@@ -93,7 +93,7 @@ describe("arrLinks: getArrInstanceUrl", () => {
     );
   });
 
-  it("should match connection by exact arrType (case-insensitive)", () => {
+  void it("should match connection by exact arrType (case-insensitive)", () => {
     const connections = [
       createMockArrConnection({
         arrType: "Sonarr",
@@ -111,7 +111,7 @@ describe("arrLinks: getArrInstanceUrl", () => {
     );
   });
 
-  it("should match connection by exact name (case-insensitive)", () => {
+  void it("should match connection by exact name (case-insensitive)", () => {
     const connections = [
       createMockArrConnection({
         name: "Anime-Stack",
@@ -126,7 +126,7 @@ describe("arrLinks: getArrInstanceUrl", () => {
     );
   });
 
-  it("should match connection by substring in source", () => {
+  void it("should match connection by substring in source", () => {
     const connections = [
       createMockArrConnection({
         arrType: "Radarr",
@@ -140,7 +140,7 @@ describe("arrLinks: getArrInstanceUrl", () => {
     );
   });
 
-  it("should ignore disabled connections", () => {
+  void it("should ignore disabled connections", () => {
     const connections = [
       createMockArrConnection({
         enable: false,
@@ -152,7 +152,7 @@ describe("arrLinks: getArrInstanceUrl", () => {
     assert.equal(getArrInstanceUrl("sonarr", connections), null);
   });
 
-  it("should normalize URLs without protocol or with trailing slashes", () => {
+  void it("should normalize URLs without protocol or with trailing slashes", () => {
     const connections = [
       createMockArrConnection({
         arrType: "Sonarr",
@@ -167,8 +167,8 @@ describe("arrLinks: getArrInstanceUrl", () => {
   });
 });
 
-describe("arrLinks: getDownloadClientUrl", () => {
-  it("should build URL with host, port, and scheme", () => {
+void describe("arrLinks: getDownloadClientUrl", () => {
+  void it("should build URL with host, port, and scheme", () => {
     const url = getDownloadClientUrl({
       host: "localhost",
       port: 8080,
@@ -177,7 +177,7 @@ describe("arrLinks: getDownloadClientUrl", () => {
     assert.equal(url, "http://localhost:8080");
   });
 
-  it("should support HTTPS when useSsl is true", () => {
+  void it("should support HTTPS when useSsl is true", () => {
     const url = getDownloadClientUrl({
       host: "myclient.seedarr.net",
       port: 443,
@@ -186,7 +186,7 @@ describe("arrLinks: getDownloadClientUrl", () => {
     assert.equal(url, "https://myclient.seedarr.net:443");
   });
 
-  it("should support urlBase and strip leading/trailing slashes", () => {
+  void it("should support urlBase and strip leading/trailing slashes", () => {
     const url1 = getDownloadClientUrl({
       host: "10.0.0.5",
       port: 8080,
@@ -204,14 +204,14 @@ describe("arrLinks: getDownloadClientUrl", () => {
     assert.equal(url2, "http://10.0.0.5:9091/transmission/web");
   });
 
-  it("should return empty string when host is empty or null", () => {
+  void it("should return empty string when host is empty or null", () => {
     assert.equal(getDownloadClientUrl({ host: "" }), "");
     assert.equal(getDownloadClientUrl({ host: undefined }), "");
   });
 });
 
-describe("arrLinks: getMediaDeepLink", () => {
-  it("should build deep link for Sonarr series with mediaId", () => {
+void describe("arrLinks: getMediaDeepLink", () => {
+  void it("should build deep link for Sonarr series with mediaId", () => {
     const connections = [
       createMockArrConnection({
         arrType: "Sonarr",
@@ -233,7 +233,7 @@ describe("arrLinks: getMediaDeepLink", () => {
     assert.equal(link.appName, "Sonarr");
   });
 
-  it("should build deep link for Radarr movie with mediaId", () => {
+  void it("should build deep link for Radarr movie with mediaId", () => {
     const connections = [
       createMockArrConnection({
         arrType: "Radarr",
@@ -255,7 +255,7 @@ describe("arrLinks: getMediaDeepLink", () => {
     assert.equal(link.appName, "Radarr");
   });
 
-  it("should return null when no connection matches source", () => {
+  void it("should return null when no connection matches source", () => {
     const connections = [
       createMockArrConnection({
         arrType: "Sonarr",
@@ -274,15 +274,15 @@ describe("arrLinks: getMediaDeepLink", () => {
   });
 });
 
-describe("arrLinks: getMusicBrainzUrl", () => {
-  it("should return null when musicBrainzId is null, undefined, or empty", () => {
+void describe("arrLinks: getMusicBrainzUrl", () => {
+  void it("should return null when musicBrainzId is null, undefined, or empty", () => {
     assert.equal(getMusicBrainzUrl(null), null);
     assert.equal(getMusicBrainzUrl(undefined), null);
     assert.equal(getMusicBrainzUrl(""), null);
     assert.equal(getMusicBrainzUrl("   "), null);
   });
 
-  it("should return MusicBrainz URL for valid ID", () => {
+  void it("should return MusicBrainz URL for valid ID", () => {
     assert.equal(
       getMusicBrainzUrl("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
       "https://musicbrainz.org/release-group/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -290,8 +290,8 @@ describe("arrLinks: getMusicBrainzUrl", () => {
   });
 });
 
-describe("arrLinks: getTmdbUrl", () => {
-  it("should return null when tmdbId is null, undefined, 0, or empty", () => {
+void describe("arrLinks: getTmdbUrl", () => {
+  void it("should return null when tmdbId is null, undefined, 0, or empty", () => {
     assert.equal(getTmdbUrl(null), null);
     assert.equal(getTmdbUrl(undefined), null);
     assert.equal(getTmdbUrl(0), null);
@@ -299,21 +299,21 @@ describe("arrLinks: getTmdbUrl", () => {
     assert.equal(getTmdbUrl("   "), null);
   });
 
-  it("should return movie URL when mediaType is 'movie'", () => {
+  void it("should return movie URL when mediaType is 'movie'", () => {
     assert.equal(
       getTmdbUrl(27205, "movie"),
       "https://www.themoviedb.org/movie/27205",
     );
   });
 
-  it("should return tv URL when mediaType is 'tv'", () => {
+  void it("should return tv URL when mediaType is 'tv'", () => {
     assert.equal(
       getTmdbUrl(1399, "tv"),
       "https://www.themoviedb.org/tv/1399",
     );
   });
 
-  it("should infer movie URL when arrType is 'Radarr'", () => {
+  void it("should infer movie URL when arrType is 'Radarr'", () => {
     assert.equal(
       getTmdbUrl(27205, null, "Radarr"),
       "https://www.themoviedb.org/movie/27205",
@@ -324,7 +324,7 @@ describe("arrLinks: getTmdbUrl", () => {
     );
   });
 
-  it("should infer tv URL when arrType is 'Sonarr'", () => {
+  void it("should infer tv URL when arrType is 'Sonarr'", () => {
     assert.equal(
       getTmdbUrl(1399, null, "Sonarr"),
       "https://www.themoviedb.org/tv/1399",
@@ -335,14 +335,14 @@ describe("arrLinks: getTmdbUrl", () => {
     );
   });
 
-  it("should infer movie URL when mediaType is passed as 'Radarr'", () => {
+  void it("should infer movie URL when mediaType is passed as 'Radarr'", () => {
     assert.equal(
       getTmdbUrl(27205, "Radarr"),
       "https://www.themoviedb.org/movie/27205",
     );
   });
 
-  it("should default to tv URL when neither mediaType nor arrType indicate movie", () => {
+  void it("should default to tv URL when neither mediaType nor arrType indicate movie", () => {
     assert.equal(
       getTmdbUrl(1399),
       "https://www.themoviedb.org/tv/1399",

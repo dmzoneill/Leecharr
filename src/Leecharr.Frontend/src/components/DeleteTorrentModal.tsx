@@ -64,7 +64,7 @@ export function DeleteTorrentModal({
       const timer = setTimeout(() => {
         confirmButtonRef.current?.focus();
       }, 50);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); };
     }
   }, [isOpen]);
 
@@ -128,7 +128,7 @@ export function DeleteTorrentModal({
         className="modal-content modal"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();
@@ -295,7 +295,7 @@ export function DeleteTorrentModal({
               type="checkbox"
               id="deleteFilesCheckbox"
               checked={deleteFiles}
-              onChange={(e) => setDeleteFiles(e.target.checked)}
+              onChange={(e) => { setDeleteFiles(e.target.checked); }}
               disabled={isPending}
               style={{
                 cursor: isPending ? "not-allowed" : "pointer",
@@ -351,7 +351,7 @@ export function DeleteTorrentModal({
             ref={confirmButtonRef}
             type="button"
             className="btn btn-danger"
-            onClick={handleConfirm}
+            onClick={(...args: Parameters<typeof handleConfirm>) => { void handleConfirm(...args); }}
             disabled={isPending || !canDeleteTorrent}
             title={
               !canDeleteTorrent

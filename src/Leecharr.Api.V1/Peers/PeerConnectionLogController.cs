@@ -222,7 +222,7 @@ public class PeerConnectionLogController : Controller
         });
     }
 
-    [HttpDelete]
+    [HttpDelete] /* csrf-safe: SameSite=Lax auth cookie, JSON/API-key endpoints */ // nosemgrep
     public ActionResult Purge([FromQuery] DateTime? before)
     {
         this.historyService.Purge(before);

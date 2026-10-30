@@ -80,7 +80,7 @@ export function PromptModal({
           inputRef.current.select();
         }
       }, 50);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); };
     }
   }, [isOpen]);
 
@@ -133,7 +133,7 @@ export function PromptModal({
         className="modal-content"
         role="button"
         tabIndex={0}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.stopPropagation();

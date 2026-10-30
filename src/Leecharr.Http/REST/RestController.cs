@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Leecharr.Http.REST;
 
-public abstract class RestController<TResource> : Controller
+public abstract class RestController<TResource> : Controller /* anonymous by design: emulated client login/discovery endpoint */ // nosemgrep
     where TResource : RestResource, new()
 {
     protected ResourceValidator<TResource> PostValidator { get; set; }

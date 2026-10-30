@@ -115,7 +115,7 @@ export function PeersTab({
                 t("torrents.detail.peerDisconnected", "Peer disconnected"),
               "success",
             );
-            refetch();
+            void refetch();
           },
           onError: (err) => {
             showToast(err.message || "Failed to disconnect peer", "error");
@@ -142,7 +142,7 @@ export function PeersTab({
                 t("torrents.detail.peerBanned", "Peer banned and disconnected"),
               "success",
             );
-            refetch();
+            void refetch();
           },
           onError: (err) => {
             showToast(err.message || "Failed to ban peer", "error");
@@ -166,7 +166,7 @@ export function PeersTab({
         queryKey: ["torrents", effectiveId, "peers"],
       });
       await queryClient.invalidateQueries({ queryKey: ["peerlog"] });
-      refetch();
+      void refetch();
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Failed to trigger GeoIP update";
@@ -219,7 +219,7 @@ export function PeersTab({
         >
           <button
             className="btn btn-small btn-secondary"
-            onClick={handleRefreshGeoIp}
+            onClick={(...args: Parameters<typeof handleRefreshGeoIp>) => { void handleRefreshGeoIp(...args); }}
             disabled={isUpdatingGeoIp}
             style={{
               fontSize: "0.75rem",
@@ -267,7 +267,7 @@ export function PeersTab({
         </span>
         <button
           className="btn btn-small btn-secondary"
-          onClick={handleRefreshGeoIp}
+          onClick={(...args: Parameters<typeof handleRefreshGeoIp>) => { void handleRefreshGeoIp(...args); }}
           disabled={isUpdatingGeoIp}
           style={{
             fontSize: "0.75rem",
@@ -463,7 +463,7 @@ export function PeersTab({
                           alignItems: "center",
                           gap: "0.3rem",
                         }}
-                        onClick={() => handleDisconnect(p.ip)}
+                        onClick={() => { handleDisconnect(p.ip); }}
                         disabled={
                           !effectiveId ||
                           (activeAction?.ip === p.ip &&
@@ -493,7 +493,7 @@ export function PeersTab({
                           alignItems: "center",
                           gap: "0.3rem",
                         }}
-                        onClick={() => handleBan(p.ip)}
+                        onClick={() => { handleBan(p.ip); }}
                         disabled={
                           !effectiveId ||
                           (activeAction?.ip === p.ip &&

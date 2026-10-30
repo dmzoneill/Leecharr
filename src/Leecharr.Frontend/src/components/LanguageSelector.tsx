@@ -174,7 +174,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         ref={buttonRef}
         type="button"
         className="language-selector-btn"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { setIsOpen(!isOpen); }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         title={titleTooltip}
@@ -232,10 +232,10 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                   tabIndex={0}
                   aria-selected={isSelected}
                   className={`language-selector-item ${isSelected ? "active" : ""} ${isHighlighted ? "highlighted" : ""}`}
-                  onClick={() => handleSelect(lang.code)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                  onFocus={() => setHighlightedIndex(index)}
-                  onKeyDown={(e) => handleOptionKeyDown(e, lang.code, index)}
+                  onClick={() => { handleSelect(lang.code); }}
+                  onMouseEnter={() => { setHighlightedIndex(index); }}
+                  onFocus={() => { setHighlightedIndex(index); }}
+                  onKeyDown={(e) => { handleOptionKeyDown(e, lang.code, index); }}
                 >
                   <div className="language-selector-item-left">
                     <span className="language-selector-flag">{lang.flag}</span>

@@ -136,7 +136,7 @@ export function LogTab({
         .writeText(text)
         .then(() => {
           setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
+          setTimeout(() => { setCopied(false); }, 2000);
         })
         .catch((err) => {
           console.warn("Failed to copy logs to clipboard:", err);
@@ -202,7 +202,7 @@ export function LogTab({
           <button
             className={`btn btn-xs ${isLive ? "btn-outline" : "btn-primary"}`}
             style={{ fontSize: "0.72rem", padding: "0.15rem 0.4rem" }}
-            onClick={() => setIsLive(!isLive)}
+            onClick={() => { setIsLive(!isLive); }}
           >
             {isLive
               ? `⏸ ${t("torrents.detail.pauseLogs")}`
@@ -211,7 +211,7 @@ export function LogTab({
           <button
             className="btn btn-outline btn-xs"
             style={{ fontSize: "0.72rem", padding: "0.15rem 0.4rem" }}
-            onClick={() => refetch()}
+            onClick={() => { void refetch(); }}
           >
             🔄 {t("torrents.detail.refresh")}
           </button>
@@ -241,7 +241,7 @@ export function LogTab({
           className="form-control"
           placeholder={t("torrents.detail.filterLogsPlaceholder")}
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); }}
           style={{
             flex: "1 1 120px",
             padding: "0.2rem 0.45rem",
@@ -257,7 +257,7 @@ export function LogTab({
               key={lvl}
               className={`btn btn-xs ${levelFilter === lvl ? "btn-primary" : "btn-outline"}`}
               style={{ fontSize: "0.68rem", padding: "0.1rem 0.35rem" }}
-              onClick={() => setLevelFilter(lvl)}
+              onClick={() => { setLevelFilter(lvl); }}
             >
               {lvl}
             </button>
@@ -267,7 +267,7 @@ export function LogTab({
           <select
             className="form-control"
             value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
+            onChange={(e) => { setSourceFilter(e.target.value); }}
             style={{
               padding: "0.1rem 0.35rem",
               fontSize: "0.68rem",

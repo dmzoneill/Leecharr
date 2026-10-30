@@ -1674,12 +1674,12 @@ if (torrent) {
     if (finalScript.id && finalScript.id > 0) {
       trackAutomationAction("update", String(finalScript.trigger || "manual"));
       updateScript.mutate(finalScript as AutomationScript, {
-        onSuccess: () => setEditorOpen(false),
+        onSuccess: () => { setEditorOpen(false); },
       });
     } else {
       trackAutomationAction("create", String(finalScript.trigger || "manual"));
       createScript.mutate(finalScript, {
-        onSuccess: () => setEditorOpen(false),
+        onSuccess: () => { setEditorOpen(false); },
       });
     }
   }
@@ -1849,19 +1849,19 @@ if (torrent) {
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <button
             className={`btn ${activeTab === "scripts" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("scripts")}
+            onClick={() => { setActiveTab("scripts"); }}
           >
             {t("automation.tabs.visual")} ({scriptList.length})
           </button>
           <button
             className={`btn ${activeTab === "history" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("history")}
+            onClick={() => { setActiveTab("history"); }}
           >
             {t("automation.tabs.logs")}
           </button>
           <button
             className={`btn ${activeTab === "marketplace" ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setActiveTab("marketplace")}
+            onClick={() => { setActiveTab("marketplace"); }}
           >
             {t("automation.tabs.marketplace")} ({templateList.length})
           </button>
@@ -1891,13 +1891,13 @@ if (torrent) {
                 className="input"
                 style={{ width: "240px" }}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); }}
               />
               <select
                 className="input"
                 style={{ width: "190px" }}
                 value={selectedTriggerFilter}
-                onChange={(e) => setSelectedTriggerFilter(e.target.value)}
+                onChange={(e) => { setSelectedTriggerFilter(e.target.value); }}
               >
                 <option value="All">{t("automation.ui.allTriggers")}</option>
                 {Object.entries(getTriggerLabels(t)).map(([k, label]) => (
@@ -1911,13 +1911,13 @@ if (torrent) {
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
                 className="btn btn-primary"
-                onClick={() => openNewScript("Yaml")}
+                onClick={() => { openNewScript("Yaml"); }}
               >
                 ✨ + {t("automation.tabs.visual")}
               </button>
               <button
                 className="btn btn-secondary"
-                onClick={() => openNewScript("JavaScript")}
+                onClick={() => { openNewScript("JavaScript"); }}
               >
                 {t("automation.ui.javascriptScript")}
               </button>
@@ -1964,13 +1964,13 @@ if (torrent) {
               >
                 <button
                   className="btn btn-primary"
-                  onClick={() => openNewScript("Yaml")}
+                  onClick={() => { openNewScript("Yaml"); }}
                 >
                   {t("automation.ui.buildVisualPipeline")}
                 </button>
                 <button
                   className="btn btn-secondary"
-                  onClick={() => setActiveTab("marketplace")}
+                  onClick={() => { setActiveTab("marketplace"); }}
                 >
                   {t("automation.ui.browseMarketplace")}
                 </button>
@@ -2037,7 +2037,7 @@ if (torrent) {
                         <input
                           type="checkbox"
                           checked={script.isEnabled}
-                          onChange={() => handleToggleEnabled(script)}
+                          onChange={() => { handleToggleEnabled(script); }}
                         />
                         <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>
                           {script.isEnabled ? "Active" : "Disabled"}
@@ -2161,7 +2161,7 @@ if (torrent) {
                       )}
                       <button
                         className="btn btn-sm btn-secondary"
-                        onClick={() => handleRunNow(script.id)}
+                        onClick={() => { handleRunNow(script.id); }}
                         disabled={isRunningId === script.id}
                         title={t("automation.ui.triggerRunImmediately")}
                       >
@@ -2169,13 +2169,13 @@ if (torrent) {
                       </button>
                       <button
                         className="btn btn-sm btn-secondary"
-                        onClick={() => openEditScript(script)}
+                        onClick={() => { openEditScript(script); }}
                       >
                         {t("automation.ui.edit")}
                       </button>
                       <button
                         className="btn btn-sm btn-danger"
-                        onClick={() => handleDeleteScript(script.id)}
+                        onClick={() => { void handleDeleteScript(script.id); }}
                         title={t("automation.ui.deleteScript")}
                       >
                         {t("automation.ui.text3")}
@@ -2356,7 +2356,7 @@ if (torrent) {
                 <button
                   key={cat}
                   className={`btn btn-sm ${selectedCategoryFilter === cat ? "btn-primary" : "btn-secondary"}`}
-                  onClick={() => setSelectedCategoryFilter(cat)}
+                  onClick={() => { setSelectedCategoryFilter(cat); }}
                 >
                   {cat}
                 </button>
@@ -2369,7 +2369,7 @@ if (torrent) {
               className="input"
               style={{ width: "240px" }}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); }}
             />
           </div>
 
@@ -2603,7 +2603,7 @@ if (torrent) {
                   borderRadius: "6px",
                   fontSize: "1rem",
                 }}
-                onClick={() => setEditorOpen(false)}
+                onClick={() => { setEditorOpen(false); }}
                 aria-label={t("common.close", "Close")}
               >
                 ✕
@@ -2640,11 +2640,10 @@ if (torrent) {
                     type="text"
                     className="form-control"
                     value={editingScript.name || ""}
-                    onChange={(e) =>
-                      setEditingScript({
+                    onChange={(e) => { setEditingScript({
                         ...editingScript,
                         name: e.target.value,
-                      })
+                      }); }
                     }
                     placeholder={t("automation.ui.eg4kMovieAutozapBackup")}
                   />
@@ -2669,11 +2668,10 @@ if (torrent) {
                   <select
                     className="form-control"
                     value={editingScript.trigger?.toString()}
-                    onChange={(e) =>
-                      setEditingScript({
+                    onChange={(e) => { setEditingScript({
                         ...editingScript,
                         trigger: e.target.value as AutomationTrigger,
-                      })
+                      }); }
                     }
                   >
                     {Object.entries(getTriggerLabels(t)).map(([k, label]) => (
@@ -2743,11 +2741,10 @@ if (torrent) {
                   type="text"
                   className="form-control"
                   value={editingScript.description || ""}
-                  onChange={(e) =>
-                    setEditingScript({
+                  onChange={(e) => { setEditingScript({
                       ...editingScript,
                       description: e.target.value,
-                    })
+                    }); }
                   }
                   placeholder={t("automation.ui.summaryOfWhatThisAutomation")}
                 />
@@ -4297,11 +4294,10 @@ if (torrent) {
                       resize: "vertical",
                     }}
                     value={editingScript.code || ""}
-                    onChange={(e) =>
-                      setEditingScript({
+                    onChange={(e) => { setEditingScript({
                         ...editingScript,
                         code: e.target.value,
-                      })
+                      }); }
                     }
                     onKeyDown={(e) => {
                       if (e.key === "Escape") {
@@ -4382,10 +4378,9 @@ if (torrent) {
                       className="form-control"
                       style={{ width: "320px", fontSize: "0.825rem" }}
                       value={testTorrentId}
-                      onChange={(e) =>
-                        setTestTorrentId(
+                      onChange={(e) => { setTestTorrentId(
                           e.target.value ? Number(e.target.value) : undefined,
-                        )
+                        ); }
                       }
                     >
                       <option value="">
@@ -4511,7 +4506,7 @@ if (torrent) {
                 type="button"
                 className="btn btn-secondary"
                 style={{ padding: "0.5rem 1.25rem" }}
-                onClick={() => setEditorOpen(false)}
+                onClick={() => { setEditorOpen(false); }}
               >
                 {t("automation.ui.cancel")}
               </button>
@@ -4576,7 +4571,7 @@ if (torrent) {
                   justifyContent: "center",
                   borderRadius: "6px",
                 }}
-                onClick={() => setLogModalOpen(false)}
+                onClick={() => { setLogModalOpen(false); }}
                 aria-label={t("common.close", "Close")}
               >
                 ✕
@@ -4637,7 +4632,7 @@ if (torrent) {
               <button
                 className="btn btn-secondary"
                 style={{ padding: "0.45rem 1.25rem" }}
-                onClick={() => setLogModalOpen(false)}
+                onClick={() => { setLogModalOpen(false); }}
               >
                 {t("automation.ui.close")}
               </button>
@@ -4699,7 +4694,7 @@ if (torrent) {
                 type="text"
                 className="form-control"
                 value={customInstallName}
-                onChange={(e) => setCustomInstallName(e.target.value)}
+                onChange={(e) => { setCustomInstallName(e.target.value); }}
               />
             </div>
 
@@ -4744,11 +4739,10 @@ if (torrent) {
                         type={field.type === "password" ? "password" : "text"}
                         className="form-control"
                         value={templateInputs[field.key] || ""}
-                        onChange={(e) =>
-                          setTemplateInputs({
+                        onChange={(e) => { setTemplateInputs({
                             ...templateInputs,
                             [field.key]: e.target.value,
-                          })
+                          }); }
                         }
                         placeholder={field.description}
                       />
@@ -4778,7 +4772,7 @@ if (torrent) {
               <button
                 className="btn btn-secondary"
                 style={{ padding: "0.45rem 1.25rem" }}
-                onClick={() => setInstallModalOpen(false)}
+                onClick={() => { setInstallModalOpen(false); }}
               >
                 {t("automation.ui.cancel")}
               </button>

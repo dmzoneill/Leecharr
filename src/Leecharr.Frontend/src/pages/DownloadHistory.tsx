@@ -101,9 +101,9 @@ export default function DownloadHistory() {
         isReconciling={isReconciling}
         onEnrichAll={handleEnrichAll}
         isEnrichingAll={isEnrichingAll}
-        onClearAll={handleClearAll}
+        onClearAll={(...args: Parameters<typeof handleClearAll>) => { void handleClearAll(...args); }}
         isClearing={isClearing}
-        onOpenExport={() => setIsExportOpen(true)}
+        onOpenExport={() => { setIsExportOpen(true); }}
         totalCount={totalCount}
         startDate={startDate}
         endDate={endDate}
@@ -178,7 +178,7 @@ export default function DownloadHistory() {
           onSearchItem={setSearchModalQuery}
           onReAddItem={handleReAdd}
           isReAdding={isReAdding}
-          onDeleteItem={handleDelete}
+          onDeleteItem={(...args: Parameters<typeof handleDelete>) => { void handleDelete(...args); }}
           onFilterByGenre={setSearchTerm}
         />
       )}
@@ -192,7 +192,7 @@ export default function DownloadHistory() {
           onSearchItem={setSearchModalQuery}
           onReAddItem={handleReAdd}
           isReAdding={isReAdding}
-          onDeleteItem={handleDelete}
+          onDeleteItem={(...args: Parameters<typeof handleDelete>) => { void handleDelete(...args); }}
           onFilterByTracker={setSearchTerm}
         />
       )}
@@ -200,7 +200,7 @@ export default function DownloadHistory() {
       {/* Media Detail Modal */}
       <HistoryDetailModal
         item={selectedDetailItem}
-        onClose={() => setSelectedDetailItem(null)}
+        onClose={() => { setSelectedDetailItem(null); }}
         arrConnections={arrConnections}
         indexers={indexers}
         onEnrich={handleEnrich}
@@ -208,14 +208,14 @@ export default function DownloadHistory() {
         onSearch={setSearchModalQuery}
         onReAdd={handleReAdd}
         isReAdding={isReAdding}
-        onDelete={handleDelete}
+        onDelete={(...args: Parameters<typeof handleDelete>) => { void handleDelete(...args); }}
         onFilterByTracker={setSearchTerm}
       />
 
       {/* Export Modal */}
       <HistoryExportModal
         isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
+        onClose={() => { setIsExportOpen(false); }}
         items={filteredHistory}
       />
 
@@ -223,7 +223,7 @@ export default function DownloadHistory() {
       {searchModalQuery && (
         <IndexerSearchModal
           initialQuery={searchModalQuery}
-          onClose={() => setSearchModalQuery(null)}
+          onClose={() => { setSearchModalQuery(null); }}
           onTorrentAdded={() => {
             setSearchModalQuery(null);
             showToast(

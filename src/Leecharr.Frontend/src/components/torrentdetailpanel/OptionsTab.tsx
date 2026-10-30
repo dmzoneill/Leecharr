@@ -106,7 +106,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         targetSeedTimeMinutes: Math.max(0, targetSeedTimeMinutes),
         shareLimitAction,
       },
-      { onSuccess: () => setDirty(false) },
+      { onSuccess: () => { setDirty(false); } },
     );
   };
 
@@ -190,7 +190,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             <select
               className="form-select"
               value={priority}
-              onChange={(e) => mark(setPriority)(e.target.value)}
+              onChange={(e) => { mark(setPriority)(e.target.value); }}
               style={{
                 width: "135px",
                 padding: "0.25rem 0.5rem",
@@ -332,7 +332,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 id="opt-active-seeding"
                 type="checkbox"
                 checked={active}
-                onChange={(e) => mark(setActive)(e.target.checked)}
+                onChange={(e) => { mark(setActive)(e.target.checked); }}
               />
               <span className="toggle-slider" />
             </label>
@@ -360,7 +360,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 id="opt-super-seeding"
                 type="checkbox"
                 checked={initialSeeding}
-                onChange={(e) => mark(setInitialSeeding)(e.target.checked)}
+                onChange={(e) => { mark(setInitialSeeding)(e.target.checked); }}
               />
               <span className="toggle-slider" />
             </label>
@@ -376,7 +376,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             </label>
             <select
               value={shareLimitAction}
-              onChange={(e) => mark(setShareLimitAction)(e.target.value)}
+              onChange={(e) => { mark(setShareLimitAction)(e.target.value); }}
               className="input-select"
               style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
             >
@@ -468,7 +468,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 id="opt-force-start"
                 type="checkbox"
                 checked={forceStart}
-                onChange={(e) => mark(setForceStart)(e.target.checked)}
+                onChange={(e) => { mark(setForceStart)(e.target.checked); }}
               />
               <span className="toggle-slider" />
             </label>
@@ -496,7 +496,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 id="opt-sequential-download"
                 type="checkbox"
                 checked={sequentialDownload}
-                onChange={(e) => mark(setSequentialDownload)(e.target.checked)}
+                onChange={(e) => { mark(setSequentialDownload)(e.target.checked); }}
               />
               <span className="toggle-slider" />
             </label>
@@ -539,7 +539,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 id="opt-private-swarm"
                 type="checkbox"
                 checked={isPrivate}
-                onChange={(e) => mark(setIsPrivate)(e.target.checked)}
+                onChange={(e) => { mark(setIsPrivate)(e.target.checked); }}
               />
               <span className="toggle-slider" />
             </label>
@@ -561,7 +561,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               type="text"
               className="form-input"
               value={label}
-              onChange={(e) => mark(setLabel)(e.target.value)}
+              onChange={(e) => { mark(setLabel)(e.target.value); }}
               placeholder={t("torrents.detail.labelPlaceholder")}
               style={{
                 width: "135px",

@@ -62,7 +62,7 @@ export function IndexerSearchTab({
       const timer = setTimeout(() => {
         setActiveSearchTerm(trimmed);
       }, 350);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); };
     }
   }, [searchQuery, activeSearchTerm]);
 
@@ -189,7 +189,7 @@ export function IndexerSearchTab({
             "Search releases (e.g. Ubuntu, Debian, 1080p, 4k)...",
           )}
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => { setSearchQuery(e.target.value); }}
           style={{
             flex: 1,
             minWidth: "240px",
@@ -205,10 +205,9 @@ export function IndexerSearchTab({
           <select
             className="form-control"
             value={selectedIndexerId ?? ""}
-            onChange={(e) =>
-              setSelectedIndexerId(
+            onChange={(e) => { setSelectedIndexerId(
                 e.target.value ? Number(e.target.value) : undefined,
-              )
+              ); }
             }
             style={{
               backgroundColor: "var(--bg-primary, #10111a)",
@@ -538,7 +537,7 @@ export function IndexerSearchTab({
                           padding: "0.3rem 0.65rem",
                           borderRadius: "4px",
                         }}
-                        onClick={() => handleAddRelease(rel)}
+                        onClick={() => { handleAddRelease(rel); }}
                         disabled={isDownloading}
                       >
                         {isDownloading

@@ -165,7 +165,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
           rows={8}
           placeholder="udp://tracker.opentrackr.org:1337/announce&#10;http://tracker.example.com/announce&#10;udp://open.stealth.si:80/announce"
           value={bulkImportText}
-          onChange={(e) => setBulkImportText(e.target.value)}
+          onChange={(e) => { setBulkImportText(e.target.value); }}
           style={{ fontFamily: "monospace", fontSize: "0.82rem" }}
         />
 
@@ -182,7 +182,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={handleBulkImportTrackers}
+            onClick={(...args: Parameters<typeof handleBulkImportTrackers>) => { void handleBulkImportTrackers(...args); }}
             disabled={isBulkImporting || !bulkImportText.trim()}
           >
             {isBulkImporting
@@ -213,7 +213,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
   const [localShowModal, setLocalShowModal] = useState(false);
 
   const isModalOpen = showModal ?? localShowModal;
-  const handleClose = onCloseModal ?? (() => setLocalShowModal(false));
+  const handleClose = onCloseModal ?? (() => { setLocalShowModal(false); });
 
   const handleToggleSetting = (key: keyof TrackerBoostSettings) => {
     if (!settings) return;
@@ -379,7 +379,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
               id="tb-auto-boost-enabled"
               type="checkbox"
               checked={settings?.autoBoostEnabled ?? true}
-              onChange={() => handleToggleSetting("autoBoostEnabled")}
+              onChange={() => { handleToggleSetting("autoBoostEnabled"); }}
               style={{ width: "1.1rem", height: "1.1rem" }}
             />
             <div>
@@ -412,7 +412,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
               id="tb-auto-harvest-enabled"
               type="checkbox"
               checked={settings?.autoHarvestEnabled ?? true}
-              onChange={() => handleToggleSetting("autoHarvestEnabled")}
+              onChange={() => { handleToggleSetting("autoHarvestEnabled"); }}
               style={{ width: "1.1rem", height: "1.1rem" }}
             />
             <div>
@@ -445,7 +445,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
               id="tb-only-verified"
               type="checkbox"
               checked={settings?.onlyVerified ?? true}
-              onChange={() => handleToggleSetting("onlyVerified")}
+              onChange={() => { handleToggleSetting("onlyVerified"); }}
               style={{ width: "1.1rem", height: "1.1rem" }}
             />
             <div>
@@ -528,7 +528,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
           </h3>
           <button
             className="btn btn-primary"
-            onClick={() => setLocalShowModal(true)}
+            onClick={() => { setLocalShowModal(true); }}
           >
             {t(
               "trackerBoost.settings.bulkImportTrackersBtn",

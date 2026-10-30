@@ -48,7 +48,7 @@ export function SettingsDirtyProvider({
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    return () => { window.removeEventListener("beforeunload", handleBeforeUnload); };
   }, [isDirty]);
 
   const confirmIfDirty = useCallback(

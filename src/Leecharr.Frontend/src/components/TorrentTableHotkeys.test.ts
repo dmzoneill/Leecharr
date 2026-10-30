@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-describe("TorrentTable Hotkey Guard (#1032)", () => {
+void describe("TorrentTable Hotkey Guard (#1032)", () => {
   function shouldIgnoreKeyDown(
     target: {
       closest?: (sel: string) => unknown;
@@ -81,7 +81,7 @@ describe("TorrentTable Hotkey Guard (#1032)", () => {
     return el;
   }
 
-  it("ignores hotkeys when target is inside .detail-panel (e.g. file row or table wrap)", () => {
+  void it("ignores hotkeys when target is inside .detail-panel (e.g. file row or table wrap)", () => {
     const panel = createMockElement({ className: "detail-panel" });
     const wrap = createMockElement({ className: "detail-panel-table-wrap" }, panel);
     const row = createMockElement({ className: "torrent-table-row", tagName: "tr" }, wrap);
@@ -89,14 +89,14 @@ describe("TorrentTable Hotkey Guard (#1032)", () => {
     assert.strictEqual(shouldIgnoreKeyDown(row, null), true);
   });
 
-  it("ignores hotkeys when activeElement is focused inside .detail-panel", () => {
+  void it("ignores hotkeys when activeElement is focused inside .detail-panel", () => {
     const panel = createMockElement({ className: "detail-panel" });
     const fileContainer = createMockElement({ className: "detail-panel-table-wrap" }, panel);
 
     assert.strictEqual(shouldIgnoreKeyDown(null, fileContainer), true);
   });
 
-  it("ignores hotkeys when target is inside .quick-settings-drawer", () => {
+  void it("ignores hotkeys when target is inside .quick-settings-drawer", () => {
     const drawer = createMockElement({ className: "quick-settings-drawer" });
     const card = createMockElement({ className: "quick-settings-grid" }, drawer);
     const btn = createMockElement({ className: "btn btn-primary", tagName: "button" }, card);
@@ -104,33 +104,33 @@ describe("TorrentTable Hotkey Guard (#1032)", () => {
     assert.strictEqual(shouldIgnoreKeyDown(btn, null), true);
   });
 
-  it("ignores hotkeys when activeElement is inside .quick-settings-drawer", () => {
+  void it("ignores hotkeys when activeElement is inside .quick-settings-drawer", () => {
     const drawer = createMockElement({ className: "quick-settings-drawer" });
     const input = createMockElement({ className: "slider-input", tagName: "input" }, drawer);
 
     assert.strictEqual(shouldIgnoreKeyDown(null, input), true);
   });
 
-  it("ignores hotkeys when inside generic [data-panel]", () => {
+  void it("ignores hotkeys when inside generic [data-panel]", () => {
     const panel = createMockElement({ hasDataPanel: true });
     const child = createMockElement({ className: "item" }, panel);
 
     assert.strictEqual(shouldIgnoreKeyDown(child, null), true);
   });
 
-  it("processes hotkeys when target is within main torrent table", () => {
+  void it("processes hotkeys when target is within main torrent table", () => {
     const tableWrap = createMockElement({ className: "torrent-table-wrapper" });
     const row = createMockElement({ className: "torrent-row" }, tableWrap);
 
     assert.strictEqual(shouldIgnoreKeyDown(row, null), false);
   });
 
-  it("ignores hotkeys if any modal dialog is open", () => {
+  void it("ignores hotkeys if any modal dialog is open", () => {
     const tableWrap = createMockElement({ className: "torrent-table-wrapper" });
     assert.strictEqual(shouldIgnoreKeyDown(tableWrap, null, true), true);
   });
 
-  it("ignores hotkeys if target is input, textarea, select, or contentEditable", () => {
+  void it("ignores hotkeys if target is input, textarea, select, or contentEditable", () => {
     const input = createMockElement({ tagName: "input" });
     const textarea = createMockElement({ tagName: "textarea" });
     const select = createMockElement({ tagName: "select" });
@@ -143,8 +143,8 @@ describe("TorrentTable Hotkey Guard (#1032)", () => {
   });
 });
 
-describe("TorrentTable Queue Reorder / Batch Move Ordering (#1005)", () => {
-  it("preserves queue order regardless of table sort order and never reverses batch", () => {
+void describe("TorrentTable Queue Reorder / Batch Move Ordering (#1005)", () => {
+  void it("preserves queue order regardless of table sort order and never reverses batch", () => {
     const torrents = [
       { id: 10, queuePosition: 1, name: "Zebra" },
       { id: 20, queuePosition: 2, name: "Alpha" },

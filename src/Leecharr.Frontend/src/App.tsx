@@ -306,7 +306,7 @@ export function App() {
         user.requiresPassword &&
         window.location.pathname !== "/login"
       ) {
-        navigate("/login");
+        void navigate("/login");
       }
     } catch (err: unknown) {
       // Auth might not be enabled or user not logged in
@@ -314,13 +314,13 @@ export function App() {
         (err as Error)?.message?.includes("401") &&
         window.location.pathname !== "/login"
       ) {
-        navigate("/login");
+        void navigate("/login");
       }
     }
   }, [updateCurrentUser, navigate]);
 
   useEffect(() => {
-    loadUser();
+    void loadUser();
   }, [loadUser]);
 
   useEffect(() => {
@@ -330,7 +330,7 @@ export function App() {
       currentUser.requiresPassword &&
       location.pathname !== "/login"
     ) {
-      navigate("/login");
+      void navigate("/login");
     }
   }, [currentUser, location.pathname, navigate]);
 
@@ -351,7 +351,7 @@ export function App() {
     try {
       await api.logout();
       updateCurrentUser(null);
-      navigate("/login");
+      void navigate("/login");
     } catch (err: unknown) {
       console.error("Logout failed", getErrorMessage(err));
     }
@@ -424,7 +424,7 @@ export function App() {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => { document.removeEventListener("mousedown", handleClickOutside); };
   }, []);
 
   const toggleSidebar = useCallback(() => {
@@ -532,15 +532,15 @@ export function App() {
   }
 
   const refreshServerData = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["torrents"] });
-    queryClient.invalidateQueries({ queryKey: ["categories"] });
-    queryClient.invalidateQueries({ queryKey: ["speedschedule"] });
-    queryClient.invalidateQueries({ queryKey: ["subsystems"] });
-    queryClient.invalidateQueries({ queryKey: ["config"] });
-    queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
-    queryClient.invalidateQueries({ queryKey: ["health"] });
-    queryClient.invalidateQueries({ queryKey: ["system", "status"] });
-    queryClient.invalidateQueries({ queryKey: ["diskspace"] });
+    void queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    void queryClient.invalidateQueries({ queryKey: ["categories"] });
+    void queryClient.invalidateQueries({ queryKey: ["speedschedule"] });
+    void queryClient.invalidateQueries({ queryKey: ["subsystems"] });
+    void queryClient.invalidateQueries({ queryKey: ["config"] });
+    void queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+    void queryClient.invalidateQueries({ queryKey: ["health"] });
+    void queryClient.invalidateQueries({ queryKey: ["system", "status"] });
+    void queryClient.invalidateQueries({ queryKey: ["diskspace"] });
   }, [queryClient]);
 
   const { showToast } = useToast();
@@ -582,7 +582,7 @@ export function App() {
   const handleUnlockSession = useCallback(() => {
     setIsManuallyLocked(false);
     unlockSession();
-    loadUser();
+    void loadUser();
     showToast(
       t("auth.sessionUnlocked", "Session unlocked successfully"),
       "success",
@@ -655,7 +655,7 @@ export function App() {
 
   const guardedNavigate = useCallback(
     (to: string) => {
-      void confirmIfDirty(() => navigate(to));
+      void confirmIfDirty(() => { void navigate(to); });
     },
     [confirmIfDirty, navigate],
   );
@@ -821,7 +821,7 @@ export function App() {
     };
 
     window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+    return () => { window.removeEventListener("keydown", handleGlobalKeyDown); };
   }, [guardedNavigate, location.pathname, openShortcutsModal]);
 
   useEffect(() => {
@@ -939,8 +939,8 @@ export function App() {
       <ErrorBoundary title={t("errors.login")}>
         <LoginPage
           onLoginSuccess={() => {
-            loadUser();
-            navigate("/");
+            void loadUser();
+            void navigate("/");
           }}
         />
       </ErrorBoundary>
@@ -960,7 +960,7 @@ export function App() {
             className="sidebar-logo"
             role="button"
             tabIndex={0}
-            onClick={() => guardedNavigate("/")}
+            onClick={() => { guardedNavigate("/"); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -998,7 +998,7 @@ export function App() {
           <button
             type="button"
             className="mobile-sidebar-close-btn"
-            onClick={() => setIsMobileMenuOpen(false)}
+            onClick={() => { setIsMobileMenuOpen(false); }}
             aria-label="Close navigation"
           >
             ✕
@@ -1009,7 +1009,7 @@ export function App() {
           {/* Dashboard */}
           <SidebarNavItem
             active={activeNav === "dashboard"}
-            onClick={() => guardedNavigate("/")}
+            onClick={() => { guardedNavigate("/"); }}
             title={t("nav.dashboard")}
             icon={<DashboardIcon size={16} />}
             label={t("nav.dashboard")}
@@ -1018,7 +1018,7 @@ export function App() {
           {/* Torrents (Primary Client / Transfers) */}
           <SidebarNavItem
             active={activeNav === "torrents"}
-            onClick={() => guardedNavigate("/torrents")}
+            onClick={() => { guardedNavigate("/torrents"); }}
             title={t("nav.torrents")}
             icon={<TorrentIcon size={16} />}
             label={t("nav.torrents")}
@@ -1028,7 +1028,7 @@ export function App() {
               <SidebarNavItem
                 sub
                 active={activeSubNav === "all"}
-                onClick={() => guardedNavigate("/torrents")}
+                onClick={() => { guardedNavigate("/torrents"); }}
                 title={t("nav.torrents")}
                 icon={<DashboardIcon size={14} />}
                 label={t("nav.torrents")}
@@ -1036,7 +1036,7 @@ export function App() {
               <SidebarNavItem
                 sub
                 active={activeSubNav === "add"}
-                onClick={() => guardedNavigate("/torrents/add")}
+                onClick={() => { guardedNavigate("/torrents/add"); }}
                 title={t("modals.addTorrent")}
                 icon={<span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>}
                 label={t("modals.addTorrent")}
@@ -1047,7 +1047,7 @@ export function App() {
           {/* Activity (History & Real-time Metrics) */}
           <SidebarNavItem
             active={activeNav === "activity"}
-            onClick={() => guardedNavigate("/activity/history")}
+            onClick={() => { guardedNavigate("/activity/history"); }}
             title={t("nav.activity")}
             icon={<ActivityIcon size={16} />}
             label={t("nav.activity")}
@@ -1057,7 +1057,7 @@ export function App() {
               <SidebarNavItem
                 sub
                 active={activeSubNav === "history"}
-                onClick={() => guardedNavigate("/activity/history")}
+                onClick={() => { guardedNavigate("/activity/history"); }}
                 title={t("nav.history")}
                 icon={<HistoryIcon />}
                 label={t("nav.history")}
@@ -1067,7 +1067,7 @@ export function App() {
                   <SidebarNavItem
                     sub
                     active={location.pathname === "/activity/client/all"}
-                    onClick={() => guardedNavigate("/activity/client/all")}
+                    onClick={() => { guardedNavigate("/activity/client/all"); }}
                     title="All Clients"
                     icon={<DownloadAgentIcon size={14} />}
                     label="All Clients"
@@ -1080,7 +1080,7 @@ export function App() {
                     key={client.id}
                     sub
                     active={location.pathname === `/activity/client/${client.id}`}
-                    onClick={() => guardedNavigate(`/activity/client/${client.id}`)}
+                    onClick={() => { guardedNavigate(`/activity/client/${client.id}`); }}
                     title={client.name}
                     icon={<DownloadAgentIcon size={14} />}
                     label={client.name}
@@ -1089,7 +1089,7 @@ export function App() {
               <SidebarNavItem
                 sub
                 active={activeSubNav === "metrics"}
-                onClick={() => guardedNavigate("/activity/metrics")}
+                onClick={() => { guardedNavigate("/activity/metrics"); }}
                 title={t("nav.statistics")}
                 icon={<StatsIcon size={14} />}
                 label={t("nav.statistics")}
@@ -1100,7 +1100,7 @@ export function App() {
           {/* Indexer Search & Discovery */}
           <SidebarNavItem
             active={activeNav === "indexers"}
-            onClick={() => guardedNavigate("/indexers")}
+            onClick={() => { guardedNavigate("/indexers"); }}
             title={t("nav.indexers")}
             icon={<SearchIcon size={16} />}
             label={t("nav.indexers")}
@@ -1109,7 +1109,7 @@ export function App() {
           {/* Peer Map */}
           <SidebarNavItem
             active={activeNav === "peermap"}
-            onClick={() => guardedNavigate("/peermap")}
+            onClick={() => { guardedNavigate("/peermap"); }}
             title={t("nav.peerMap")}
             icon={<PeerMapIcon size={16} />}
             label={t("nav.peerMap")}
@@ -1118,7 +1118,7 @@ export function App() {
           {/* Schedule */}
           <SidebarNavItem
             active={activeNav === "schedule"}
-            onClick={() => guardedNavigate("/schedule")}
+            onClick={() => { guardedNavigate("/schedule"); }}
             title={t("nav.speedSchedule")}
             icon={<ScheduleIcon size={16} />}
             label={t("nav.speedSchedule")}
@@ -1127,7 +1127,7 @@ export function App() {
           {/* Statistics */}
           <SidebarNavItem
             active={activeNav === "statistics"}
-            onClick={() => guardedNavigate("/statistics")}
+            onClick={() => { guardedNavigate("/statistics"); }}
             title={t("nav.statistics")}
             icon={<StatsIcon size={16} />}
             label={t("nav.statistics")}
@@ -1136,7 +1136,7 @@ export function App() {
           {/* Tracker Server & Swarms */}
           <SidebarNavItem
             activeParent={activeNav === "tracker"}
-            onClick={() => guardedNavigate("/tracker/inbuilt")}
+            onClick={() => { guardedNavigate("/tracker/inbuilt"); }}
             title="Tracker Endpoints, Swarms & Live Metrics"
             icon={<TrackerIcon />}
             label="Tracker"
@@ -1146,7 +1146,7 @@ export function App() {
               <SidebarNavItem
                 sub
                 active={activeSubNav === "inbuilt"}
-                onClick={() => guardedNavigate("/tracker/inbuilt")}
+                onClick={() => { guardedNavigate("/tracker/inbuilt"); }}
                 title="Inbuilt Tracker Server & Swarms"
                 icon={<TrackerIcon />}
                 label="Inbuilt"
@@ -1154,7 +1154,7 @@ export function App() {
               <SidebarNavItem
                 sub
                 active={activeSubNav === "boost"}
-                onClick={() => guardedNavigate("/tracker/trackerboost")}
+                onClick={() => { guardedNavigate("/tracker/trackerboost"); }}
                 title="Tracker Boost Swarm Optimization & Discovery"
                 icon={<TrackerBoostIcon size={14} />}
                 label={t("nav.trackerBoost")}
@@ -1162,7 +1162,7 @@ export function App() {
               <SidebarNavItem
                 sub
                 active={activeSubNav === "metrics"}
-                onClick={() => guardedNavigate("/tracker/metrics")}
+                onClick={() => { guardedNavigate("/tracker/metrics"); }}
                 title="Tracker Live Telemetry & Metrics"
                 icon={<StatsIcon size={14} />}
                 label="Tracker Metrics"
@@ -1173,7 +1173,7 @@ export function App() {
           {/* File Browser */}
           <SidebarNavItem
             active={activeNav === "files"}
-            onClick={() => guardedNavigate("/files")}
+            onClick={() => { guardedNavigate("/files"); }}
             title={t("nav.browseFiles")}
             icon={<FolderIcon size={16} />}
             label={t("nav.fileBrowser")}
@@ -1182,7 +1182,7 @@ export function App() {
           {/* Automation & DSL Engine */}
           <SidebarNavItem
             active={activeNav === "automation"}
-            onClick={() => guardedNavigate("/automation")}
+            onClick={() => { guardedNavigate("/automation"); }}
             title="Automation Scripting Engine & Marketplace"
             icon={<AutomationIcon size={16} />}
             label="Automation"
@@ -1191,7 +1191,7 @@ export function App() {
           {/* Settings */}
           <SidebarNavItem
             activeParent={activeNav === "settings"}
-            onClick={() => guardedNavigate("/settings/host")}
+            onClick={() => { guardedNavigate("/settings/host"); }}
             title={t("nav.settings")}
             icon={<SettingsIcon size={16} />}
             label={t("nav.settings")}
@@ -1249,7 +1249,7 @@ export function App() {
                         <SidebarSettingsSubItem
                           key={page.id}
                           active={activeSubNav === page.id}
-                          onClick={() => guardedNavigate(`/settings/${page.id}`)}
+                          onClick={() => { guardedNavigate(`/settings/${page.id}`); }}
                           title={t(page.description)}
                           icon={page.icon}
                           label={t(page.shortLabel)}
@@ -1265,7 +1265,7 @@ export function App() {
           {/* System */}
           <SidebarNavItem
             active={activeNav === "system"}
-            onClick={() => guardedNavigate("/system/status")}
+            onClick={() => { guardedNavigate("/system/status"); }}
             title={t("nav.system")}
             icon={<SystemIcon size={16} />}
             label={t("nav.system")}
@@ -1276,7 +1276,7 @@ export function App() {
                 key={item.id}
                 sub
                 active={activeSubNav === item.id}
-                onClick={() => guardedNavigate(`/system/${item.id}`)}
+                onClick={() => { guardedNavigate(`/system/${item.id}`); }}
                 title={item.label}
                 icon={item.icon ? <span style={{ marginRight: "6px" }}>{item.icon}</span> : undefined}
                 label={item.label}
@@ -1286,7 +1286,7 @@ export function App() {
           {/* Developer Tools */}
           <SidebarNavItem
             active={activeNav === "developer"}
-            onClick={() => guardedNavigate("/developer/database")}
+            onClick={() => { guardedNavigate("/developer/database"); }}
             title={t("nav.developer", "Developer Tools")}
             icon={<CodeIcon size={16} />}
             label={t("nav.developer", "Developer")}
@@ -1297,7 +1297,7 @@ export function App() {
                 key={item.id}
                 sub
                 active={activeSubNav === item.id}
-                onClick={() => guardedNavigate(`/developer/${item.id}`)}
+                onClick={() => { guardedNavigate(`/developer/${item.id}`); }}
                 title={item.label}
                 icon={item.icon ? <span style={{ marginRight: "6px" }}>{item.icon}</span> : undefined}
                 label={item.label}
@@ -1311,7 +1311,7 @@ export function App() {
           className="sidebar-backdrop"
           role="button"
           tabIndex={0}
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={() => { setIsMobileMenuOpen(false); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -1444,7 +1444,7 @@ export function App() {
             </button>
             <button
               className="btn btn-small"
-              onClick={() => setShowGettingStartedModal(true)}
+              onClick={() => { setShowGettingStartedModal(true); }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1464,8 +1464,8 @@ export function App() {
             <button
               type="button"
               className="topbar-apikey-btn"
-              onClick={handleCopyApiKey}
-              onMouseEnter={handleMouseEnterTopKey}
+              onClick={(...args: Parameters<typeof handleCopyApiKey>) => { void handleCopyApiKey(...args); }}
+              onMouseEnter={(...args: Parameters<typeof handleMouseEnterTopKey>) => { void handleMouseEnterTopKey(...args); }}
               onMouseLeave={handleMouseLeaveTopKey}
               title={t(
                 "apiDocs.copyApiKeyTooltip",
@@ -1529,7 +1529,7 @@ export function App() {
                 <button
                   type="button"
                   className="topbar-btn"
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  onClick={() => { setShowProfileMenu(!showProfileMenu); }}
                   title={currentUser.displayName || currentUser.username}
                   aria-expanded={showProfileMenu}
                   style={{
@@ -1579,7 +1579,7 @@ export function App() {
                     role="button"
                     tabIndex={0}
                     style={{ minWidth: "210px" }}
-                    onClick={() => setShowProfileMenu(false)}
+                    onClick={() => { setShowProfileMenu(false); }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         setShowProfileMenu(false);
@@ -1617,14 +1617,14 @@ export function App() {
                     <button
                       type="button"
                       className="topbar-dropdown-item"
-                      onClick={() => guardedNavigate("/system/status")}
+                      onClick={() => { guardedNavigate("/system/status"); }}
                     >
                       🖥️ {t("nav.systemStatus", "System Status")}
                     </button>
                     <button
                       type="button"
                       className="topbar-dropdown-item"
-                      onClick={() => guardedNavigate("/settings/host")}
+                      onClick={() => { guardedNavigate("/settings/host"); }}
                     >
                       ⚙️ {t("nav.settings", "Settings")}
                     </button>
@@ -1638,7 +1638,7 @@ export function App() {
                     <button
                       type="button"
                       className="topbar-dropdown-item"
-                      onClick={() => setShowGettingStartedModal(true)}
+                      onClick={() => { setShowGettingStartedModal(true); }}
                     >
                       🚀 {t("nav.gettingStarted", "Getting Started Guide")}
                     </button>
@@ -1648,7 +1648,7 @@ export function App() {
                     <button
                       type="button"
                       className="topbar-dropdown-item topbar-dropdown-danger"
-                      onClick={handleLogout}
+                      onClick={(...args: Parameters<typeof handleLogout>) => { void handleLogout(...args); }}
                     >
                       🚪 {t("nav.signOut", "Sign Out")}
                     </button>
@@ -1718,7 +1718,7 @@ export function App() {
             </div>
             <button
               type="button"
-              onClick={() => reconnect()}
+              onClick={() => { void reconnect(); }}
               className="btn btn-small"
               style={{
                 backgroundColor: isReconnecting ? "#f59e0b" : "#ef4444",
@@ -1748,9 +1748,8 @@ export function App() {
                     <div className="content-area" style={{ padding: "1.5rem" }}>
                       <Dashboard
                         torrents={torrents}
-                        onNavigateTorrents={() => guardedNavigate("/torrents")}
-                        onNavigateSettings={(tab) =>
-                          guardedNavigate(`/settings/${tab}`)
+                        onNavigateTorrents={() => { guardedNavigate("/torrents"); }}
+                        onNavigateSettings={(tab) => { guardedNavigate(`/settings/${tab}`); }
                         }
                       />
                     </div>
@@ -1766,9 +1765,9 @@ export function App() {
                   <ErrorBoundary title={t("errors.torrents")}>
                     <TorrentIndex
                       torrents={torrents}
-                      onPause={handlePause}
-                      onResume={handleResume}
-                      onDelete={handleDelete}
+                      onPause={(...args: Parameters<typeof handlePause>) => { void handlePause(...args); }}
+                      onResume={(...args: Parameters<typeof handleResume>) => { void handleResume(...args); }}
+                      onDelete={(...args: Parameters<typeof handleDelete>) => { void handleDelete(...args); }}
                       onOpenAddModal={openAddModal}
                       onOpenSearchModal={openSearchModal}
                       onNavigateTab={(nav, subNav) => {
@@ -1789,7 +1788,7 @@ export function App() {
                   <ErrorBoundary title={t("errors.addTorrent")}>
                     <AddTorrentPage
                       onSuccess={() => {
-                        navigate("/torrents");
+                        void navigate("/torrents");
                         refreshServerData();
                       }}
                     />
@@ -2221,7 +2220,7 @@ export function App() {
         <ErrorBoundary title={t("errors.addTorrentModal")}>
           <AddTorrentModal
             isOpen={showAddModal}
-            onClose={() => setShowAddModal(false)}
+            onClose={() => { setShowAddModal(false); }}
             onSuccess={() => {
               setShowAddModal(false);
               refreshServerData();
@@ -2234,7 +2233,7 @@ export function App() {
       {showSearchModal && (
         <ErrorBoundary title={t("errors.searchModal")}>
           <IndexerSearchModal
-            onClose={() => setShowSearchModal(false)}
+            onClose={() => { setShowSearchModal(false); }}
             onTorrentAdded={refreshServerData}
           />
         </ErrorBoundary>
@@ -2245,9 +2244,9 @@ export function App() {
         <GettingStartedModal
           isOpen={showGettingStartedModal}
           onClose={closeGettingStartedModal}
-          onNavigateSettings={(tab) => guardedNavigate(`/settings/${tab}`)}
-          onNavigateTorrents={() => guardedNavigate("/torrents")}
-          onNavigateIndexers={() => guardedNavigate("/indexers")}
+          onNavigateSettings={(tab) => { guardedNavigate(`/settings/${tab}`); }}
+          onNavigateTorrents={() => { guardedNavigate("/torrents"); }}
+          onNavigateIndexers={() => { guardedNavigate("/indexers"); }}
           instanceUuid={generalConfig?.instanceUuid}
         />
       </ErrorBoundary>
@@ -2261,12 +2260,12 @@ export function App() {
       <ErrorBoundary title={t("errors.commandPalette")}>
         <CommandPalette
           isOpen={showCommandPalette}
-          onClose={() => setShowCommandPalette(false)}
+          onClose={() => { setShowCommandPalette(false); }}
           onNavigate={guardedNavigate}
           onOpenAddTorrent={openAddModal}
           onOpenIndexerSearch={openSearchModal}
           onOpenShortcuts={openShortcutsModal}
-          onOpenGettingStarted={() => setShowGettingStartedModal(true)}
+          onOpenGettingStarted={() => { setShowGettingStartedModal(true); }}
         />
       </ErrorBoundary>
 
@@ -2274,7 +2273,7 @@ export function App() {
       <ErrorBoundary title={t("errors.keyboardShortcuts")}>
         <KeyboardShortcutsModal
           isOpen={showShortcutsModal}
-          onClose={() => setShowShortcutsModal(false)}
+          onClose={() => { setShowShortcutsModal(false); }}
         />
       </ErrorBoundary>
 
@@ -2284,7 +2283,7 @@ export function App() {
         currentUser={currentUser}
         lockReason={lockReason}
         onUnlock={handleUnlockSession}
-        onLogout={handleLogout}
+        onLogout={(...args: Parameters<typeof handleLogout>) => { void handleLogout(...args); }}
       />
       <IdleCountdownModal
         isOpen={
@@ -2293,12 +2292,12 @@ export function App() {
           Boolean(currentUser && location.pathname !== "/login")
         }
         remainingSeconds={remainingSeconds}
-        onStayLoggedIn={handleStayLoggedIn}
+        onStayLoggedIn={(...args: Parameters<typeof handleStayLoggedIn>) => { void handleStayLoggedIn(...args); }}
         onLockNow={() => {
           setLockReason("idle");
           lockSession();
         }}
-        onLogout={handleLogout}
+        onLogout={(...args: Parameters<typeof handleLogout>) => { void handleLogout(...args); }}
       />
 
       {/* Screen Reader Live Telemetry Announcer */}

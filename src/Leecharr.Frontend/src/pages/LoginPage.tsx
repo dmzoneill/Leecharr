@@ -252,7 +252,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         )}
 
         {/* Local Login Form */}
-        <form onSubmit={handleLocalSubmit}>
+        <form onSubmit={(...args: Parameters<typeof handleLocalSubmit>) => { void handleLocalSubmit(...args); }}>
           <div style={{ marginBottom: "16px" }}>
             <label
               style={{
@@ -268,7 +268,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             <input
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => { setUsername(e.target.value); }}
               placeholder={t("auth.adminPlaceholder") || "admin"}
               style={{
                 width: "100%",
@@ -299,7 +299,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); }}
               placeholder="••••••••"
               style={{
                 width: "100%",
@@ -336,7 +336,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <input
                 type="checkbox"
                 checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
+                onChange={(e) => { setRememberMe(e.target.checked); }}
                 style={{
                   accentColor: "#5B8DEF",
                   width: "16px",

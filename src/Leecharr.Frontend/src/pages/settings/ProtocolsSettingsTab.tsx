@@ -229,7 +229,7 @@ export function ProtocolsSettingsTab() {
           <SelectInput
             label={t("settings.protocolEncryptionMSEPE")}
             value={form.encryptionMode}
-            onChange={(v) => update("encryptionMode", v)}
+            onChange={(v) => { update("encryptionMode", v); }}
             options={[
               {
                 value: "preferEncrypted",
@@ -253,7 +253,7 @@ export function ProtocolsSettingsTab() {
           <NumberInput
             label={t("settings.transportConnectionTimeout")}
             value={form.transportConnectionTimeoutSeconds}
-            onChange={(v) => update("transportConnectionTimeoutSeconds", v)}
+            onChange={(v) => { update("transportConnectionTimeoutSeconds", v); }}
             min={5}
             max={120}
             suffix={t("settingsTabs.batch2.sec")}
@@ -288,43 +288,43 @@ export function ProtocolsSettingsTab() {
             <Toggle
               label={t("settings.utMetadataBEP9")}
               checked={form.extensionUtMetadata}
-              onChange={(v) => update("extensionUtMetadata", v)}
+              onChange={(v) => { update("extensionUtMetadata", v); }}
               hint={t("settingsTabs.protocols.utMetadataHint")}
             />
             <Toggle
               label={t("settings.utPexBEP11")}
               checked={form.extensionUtPex}
-              onChange={(v) => update("extensionUtPex", v)}
+              onChange={(v) => { update("extensionUtPex", v); }}
               hint={t("settingsTabs.protocols.utPexHint")}
             />
             <Toggle
               label={t("settings.ltDonthaveBEP54")}
               checked={form.extensionLtDontHave}
-              onChange={(v) => update("extensionLtDontHave", v)}
+              onChange={(v) => { update("extensionLtDontHave", v); }}
               hint={t("settingsTabs.protocols.ltDontHaveHint")}
             />
             <Toggle
               label={t("settings.fastExtensionBEP6")}
               checked={form.extensionFastExtension}
-              onChange={(v) => update("extensionFastExtension", v)}
+              onChange={(v) => { update("extensionFastExtension", v); }}
               hint={t("settingsTabs.protocols.fastExtensionHint")}
             />
             <Toggle
               label={t("settings.privateTorrentsBEP27")}
               checked={form.enableBep27PrivateTorrents}
-              onChange={(v) => update("enableBep27PrivateTorrents", v)}
+              onChange={(v) => { update("enableBep27PrivateTorrents", v); }}
               hint={t("settingsTabs.protocols.privateTorrentsHint")}
             />
             <Toggle
               label={t("settings.uTPLEDBATBEP29")}
               checked={form.utpEnabled}
-              onChange={(v) => update("utpEnabled", v)}
+              onChange={(v) => { update("utpEnabled", v); }}
               hint={t("settingsTabs.protocols.utpLedbatHint")}
             />
             <Toggle
               label={t("settings.tCPFallback")}
               checked={form.tcpFallback}
-              onChange={(v) => update("tcpFallback", v)}
+              onChange={(v) => { update("tcpFallback", v); }}
               hint={t("settingsTabs.protocols.tcpFallbackHint")}
             />
           </div>
@@ -345,7 +345,7 @@ export function ProtocolsSettingsTab() {
           <NumberInput
             label={t("settings.handshakeTimeout")}
             value={form.handshakeTimeoutSeconds}
-            onChange={(v) => update("handshakeTimeoutSeconds", v)}
+            onChange={(v) => { update("handshakeTimeoutSeconds", v); }}
             min={5}
             max={120}
             suffix={t("settingsTabs.batch2.sec")}
@@ -355,7 +355,7 @@ export function ProtocolsSettingsTab() {
           <NumberInput
             label={t("settings.messageReadTimeout")}
             value={form.messageReadTimeoutSeconds}
-            onChange={(v) => update("messageReadTimeoutSeconds", v)}
+            onChange={(v) => { update("messageReadTimeoutSeconds", v); }}
             min={10}
             max={300}
             suffix={t("settingsTabs.batch2.sec")}
@@ -365,7 +365,7 @@ export function ProtocolsSettingsTab() {
           <NumberInput
             label={t("settings.keepaliveInterval")}
             value={form.keepAliveIntervalSeconds}
-            onChange={(v) => update("keepAliveIntervalSeconds", v)}
+            onChange={(v) => { update("keepAliveIntervalSeconds", v); }}
             min={30}
             max={600}
             suffix={t("settingsTabs.batch2.sec")}
@@ -375,7 +375,7 @@ export function ProtocolsSettingsTab() {
           <NumberInput
             label={t("settings.peerReContactCooldown")}
             value={form.peerContactIntervalSeconds}
-            onChange={(v) => update("peerContactIntervalSeconds", v)}
+            onChange={(v) => { update("peerContactIntervalSeconds", v); }}
             min={10}
             max={300}
             suffix={t("settingsTabs.batch2.sec")}
@@ -398,26 +398,26 @@ export function ProtocolsSettingsTab() {
           <Toggle
             label={t("settings.enableMultiTrackerManagemen")}
             checked={form.multiTrackerEnabled}
-            onChange={(v) => update("multiTrackerEnabled", v)}
+            onChange={(v) => { update("multiTrackerEnabled", v); }}
           />
 
           <Toggle
             label={t("settings.automaticTierFailover")}
             checked={form.multiTrackerFailoverEnabled}
-            onChange={(v) => update("multiTrackerFailoverEnabled", v)}
+            onChange={(v) => { update("multiTrackerFailoverEnabled", v); }}
             hint={t("settingsTabs.protocols.failoverHint")}
           />
 
           <Toggle
             label={t("settings.announceToAllTiersInParal")}
             checked={form.announceToAllTiers}
-            onChange={(v) => update("announceToAllTiers", v)}
+            onChange={(v) => { update("announceToAllTiers", v); }}
           />
 
           <Toggle
             label={t("settings.announceToAllTrackersInTi")}
             checked={form.announceToAllInTier}
-            onChange={(v) => update("announceToAllInTier", v)}
+            onChange={(v) => { update("announceToAllInTier", v); }}
           />
         </div>
 
@@ -435,7 +435,7 @@ export function ProtocolsSettingsTab() {
             <NumberInput
               label={t("settingsTabs.protocols.failoverMaxConsecutiveFailures")}
               value={form.failoverMaxConsecutiveFailures}
-              onChange={(v) => update("failoverMaxConsecutiveFailures", v)}
+              onChange={(v) => { update("failoverMaxConsecutiveFailures", v); }}
               min={1}
               max={100}
               hint={t(
@@ -446,7 +446,7 @@ export function ProtocolsSettingsTab() {
             <NumberInput
               label={t("settingsTabs.protocols.failoverBackoffBaseSeconds")}
               value={form.failoverBackoffBaseSeconds}
-              onChange={(v) => update("failoverBackoffBaseSeconds", v)}
+              onChange={(v) => { update("failoverBackoffBaseSeconds", v); }}
               min={1}
               max={3600}
               suffix={t("settingsTabs.batch2.sec")}
@@ -456,7 +456,7 @@ export function ProtocolsSettingsTab() {
             <NumberInput
               label={t("settingsTabs.protocols.failoverMaxBackoffSeconds")}
               value={form.failoverMaxBackoffSeconds}
-              onChange={(v) => update("failoverMaxBackoffSeconds", v)}
+              onChange={(v) => { update("failoverMaxBackoffSeconds", v); }}
               min={1}
               max={86400}
               suffix={t("settingsTabs.batch2.sec")}

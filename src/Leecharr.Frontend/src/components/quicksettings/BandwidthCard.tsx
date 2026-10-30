@@ -212,7 +212,7 @@ export const BandwidthCard: React.FC = () => {
             <button
               type="button"
               className={`quick-slider-bound ${localDl === 0 ? "active" : ""}`}
-              onClick={() => setDlDirect(0)}
+              onClick={() => { setDlDirect(0); }}
               title={t("quickSettings.setDownloadToUnlimited")}
               aria-label={t("quickSettings.setDownloadToUnlimited")}
             >
@@ -267,7 +267,7 @@ export const BandwidthCard: React.FC = () => {
             <button
               type="button"
               className={`quick-slider-bound ${localDl === DL_STEPS[DL_STEPS.length - 1] ? "active" : ""}`}
-              onClick={() => setDlDirect(DL_STEPS[DL_STEPS.length - 1])}
+              onClick={() => { setDlDirect(DL_STEPS[DL_STEPS.length - 1]); }}
               title={t("quickSettings.setDownloadToMax", {
                 0: formatSpeedLimit(DL_STEPS[DL_STEPS.length - 1]),
                 limit: formatSpeedLimit(DL_STEPS[DL_STEPS.length - 1]),
@@ -291,7 +291,7 @@ export const BandwidthCard: React.FC = () => {
             <button
               type="button"
               className={`quick-slider-bound ${localUl === 0 ? "active" : ""}`}
-              onClick={() => setUlDirect(0)}
+              onClick={() => { setUlDirect(0); }}
               title={t("quickSettings.setUploadToUnlimited")}
               aria-label={t("quickSettings.setUploadToUnlimited")}
             >
@@ -346,7 +346,7 @@ export const BandwidthCard: React.FC = () => {
             <button
               type="button"
               className={`quick-slider-bound ${localUl === UL_STEPS[UL_STEPS.length - 1] ? "active" : ""}`}
-              onClick={() => setUlDirect(UL_STEPS[UL_STEPS.length - 1])}
+              onClick={() => { setUlDirect(UL_STEPS[UL_STEPS.length - 1]); }}
               title={t("quickSettings.setUploadToMax", {
                 0: formatSpeedLimit(UL_STEPS[UL_STEPS.length - 1]),
                 limit: formatSpeedLimit(UL_STEPS[UL_STEPS.length - 1]),

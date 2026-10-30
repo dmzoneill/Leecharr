@@ -20,8 +20,8 @@ function createMockSchedule(
   };
 }
 
-describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
-  it("treats full-day bounds (00:00 to 24:00) as active across all 24 hours", () => {
+void describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
+  void it("treats full-day bounds (00:00 to 24:00) as active across all 24 hours", () => {
     const schedule = createMockSchedule({
       startTime: "00:00",
       endTime: "24:00",
@@ -42,7 +42,7 @@ describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
     }
   });
 
-  it("treats full-day bounds (00:00 to 23:59) as active across all 24 hours", () => {
+  void it("treats full-day bounds (00:00 to 23:59) as active across all 24 hours", () => {
     const schedule = createMockSchedule({
       startTime: "00:00",
       endTime: "23:59",
@@ -58,7 +58,7 @@ describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
     }
   });
 
-  it("does not treat identical non-full-day start and end times (e.g. 14:00 to 14:00) as a 24-hour schedule", () => {
+  void it("does not treat identical non-full-day start and end times (e.g. 14:00 to 14:00) as a 24-hour schedule", () => {
     const schedule = createMockSchedule({
       startTime: "14:00",
       endTime: "14:00",
@@ -75,7 +75,7 @@ describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
     }
   });
 
-  it("does not treat 00:00 to 00:00 as a 24-hour schedule, only hour 0 is active", () => {
+  void it("does not treat 00:00 to 00:00 as a 24-hour schedule, only hour 0 is active", () => {
     const schedule = createMockSchedule({
       startTime: "00:00",
       endTime: "00:00",
@@ -92,7 +92,7 @@ describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
     }
   });
 
-  it("correctly matches fractional currentHour when startH === endH", () => {
+  void it("correctly matches fractional currentHour when startH === endH", () => {
     const schedule = createMockSchedule({
       startTime: "14:00",
       endTime: "14:00",
@@ -107,7 +107,7 @@ describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
     assert.strictEqual(isScheduleInSlot(schedule, 13.75, 2), false);
   });
 
-  it("correctly handles regular daytime windows (e.g. 09:00 to 17:00)", () => {
+  void it("correctly handles regular daytime windows (e.g. 09:00 to 17:00)", () => {
     const schedule = createMockSchedule({
       startTime: "09:00",
       endTime: "17:00",
@@ -120,7 +120,7 @@ describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
     assert.strictEqual(isScheduleInSlot(schedule, 17, 2), false);
   });
 
-  it("correctly handles overnight windows spanning midnight (e.g. 22:00 to 04:00)", () => {
+  void it("correctly handles overnight windows spanning midnight (e.g. 22:00 to 04:00)", () => {
     const schedule = createMockSchedule({
       startTime: "22:00",
       endTime: "04:00",
@@ -139,8 +139,8 @@ describe("SpeedSchedule: isScheduleInSlot (#995)", () => {
   });
 });
 
-describe("SpeedSchedule: isHourInSchedule", () => {
-  it("returns false if schedule is disabled regardless of slot match", () => {
+void describe("SpeedSchedule: isHourInSchedule", () => {
+  void it("returns false if schedule is disabled regardless of slot match", () => {
     const disabled = createMockSchedule({
       startTime: "00:00",
       endTime: "24:00",
@@ -150,7 +150,7 @@ describe("SpeedSchedule: isHourInSchedule", () => {
     assert.strictEqual(isHourInSchedule(disabled, 12, 127), false);
   });
 
-  it("returns true if schedule is enabled and slot matches", () => {
+  void it("returns true if schedule is enabled and slot matches", () => {
     const enabled = createMockSchedule({
       startTime: "00:00",
       endTime: "24:00",
