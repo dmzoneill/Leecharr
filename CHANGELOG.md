@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.23](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.23) - 2026-10-30
+
+### 🐛 Bug Fixes
+- fix(codacy): batch 2 - C# security findings and TS promise/void-expression cleanup (#1931)
+
+### 🔧 Maintenance & Improvements
+- style(lint): fix EditorConfig and dotnet-format whitespace in files touched by Codacy batch 2 (#1932)
+
 ## [v3.0.22](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.22) - 2026-10-30
 
 ### 🔧 Maintenance & Improvements
