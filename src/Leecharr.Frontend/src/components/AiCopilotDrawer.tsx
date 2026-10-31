@@ -401,7 +401,7 @@ function parsePastedMalwareFileLine(line: string): {
   const sizeMatch = clean.match(pastedFileSizeSuffixRegex);
   if (sizeMatch) {
     sizeBytes = humanSizeToBytes(
-      parseFloat(sizeMatch[1]),
+      Number.parseFloat(sizeMatch[1]),
       sizeMatch[2],
     );
     clean = clean.replace(pastedFileSizeSuffixRegex, "");
