@@ -360,7 +360,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     const inactive = torrents.filter((t) => !isTorrentActive(t));
     if (inactive.length > 0) {
       trackBulkAction("start_all", inactive.length);
-      await Promise.all(inactive.map((t) => { onResume(t.id); }));
+      inactive.forEach((t) => {
+        onResume(t.id);
+      });
     }
   };
 
@@ -368,7 +370,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     const active = torrents.filter((t) => isTorrentActive(t));
     if (active.length > 0) {
       trackBulkAction("stop_all", active.length);
-      await Promise.all(active.map((t) => { onPause(t.id); }));
+      active.forEach((t) => {
+        onPause(t.id);
+      });
     }
   };
 
@@ -428,7 +432,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setBulkPending(true);
     try {
       trackBulkAction("start", targetIds.length);
-      await Promise.all(targetIds.map((id) => { onResume(id); }));
+      targetIds.forEach((id) => {
+        onResume(id);
+      });
     } finally {
       setBulkPending(false);
     }
@@ -449,7 +455,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setBulkPending(true);
     try {
       trackBulkAction("stop", targetIds.length);
-      await Promise.all(targetIds.map((id) => { onPause(id); }));
+      targetIds.forEach((id) => {
+        onPause(id);
+      });
     } finally {
       setBulkPending(false);
     }
