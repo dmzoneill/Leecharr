@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.27](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.27) - 2026-10-31
+
+### 🐛 Bug Fixes
+- Fix SonarCloud minor smell: use Number.parseFloat (typescript:S7773) (#1936)
+
 ## [v3.0.26](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.26) - 2026-10-31
 
 ### 🐛 Bug Fixes
