@@ -372,7 +372,7 @@ function renderMarkdownContent(
 }
 
 const pastedFileSizeSuffixRegex =
-  /\s*[(\[-]?(\d+(?:\.\d+)?)\s*(KB|MB|GB|TB|bytes)\)?$/i;
+  /[(\[-]?(\d+(?:\.\d+)?)\s*(KB|MB|GB|TB|bytes)\)?$/i;
 
 function humanSizeToBytes(value: number, unit: string): number {
   switch (unit.toUpperCase()) {
