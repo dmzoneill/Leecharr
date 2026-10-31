@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.25](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.25) - 2026-10-31
+
+### 🐛 Bug Fixes
+- Fix SonarCloud code smell: simplify pasted file-size regex (typescript:S8786) (#1934)
+
 ## [v3.0.24](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.24) - 2026-10-30
 
 ### 🔧 Maintenance & Improvements
