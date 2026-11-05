@@ -458,6 +458,9 @@ public class HadoukenRpcController : ControllerBase
                                         case "removedata":
                                             await this.torrentService.DeleteAsync(t.Id, true);
                                             break;
+                                        default:
+                                            // Unknown actions leave the torrent unchanged.
+                                            break;
                                     }
                                 }
 

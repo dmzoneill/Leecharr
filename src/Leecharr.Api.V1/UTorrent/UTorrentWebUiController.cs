@@ -592,6 +592,10 @@ public class UTorrentWebUiController : ControllerBase
                     }
 
                     return this.Ok(new { build = 45000 });
+
+                default:
+                    // Unknown actions fall through to the handling below.
+                    break;
             }
         }
 

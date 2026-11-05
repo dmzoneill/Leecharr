@@ -786,6 +786,9 @@ public class TorznabClient : ITorznabClient
                             }
 
                             break;
+                        default:
+                            // Other Torznab attributes are not used.
+                            break;
                     }
                 }
 

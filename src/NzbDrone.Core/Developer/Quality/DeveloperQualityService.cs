@@ -268,6 +268,9 @@ public class DeveloperQualityService : IDeveloperQualityService
                             case "sqale_index" when int.TryParse(val, out var sq):
                                 report.Metrics.TechnicalDebtFormatted = $"{sq} min";
                                 break;
+                            default:
+                                // Other or unparseable measures are not part of the report.
+                                break;
                         }
                     }
                 }

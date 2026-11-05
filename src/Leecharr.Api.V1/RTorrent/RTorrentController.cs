@@ -1637,6 +1637,9 @@ public class RTorrentController : ControllerBase
             case "custom5":
                 torrent.Custom5 = normalizedValue;
                 break;
+            default:
+                // Only custom2-custom5 are stored; other fields are ignored.
+                break;
         }
     }
 

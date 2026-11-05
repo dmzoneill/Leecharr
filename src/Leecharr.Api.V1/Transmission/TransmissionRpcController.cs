@@ -1166,6 +1166,10 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 }
 
                 break;
+
+            default:
+                // Unknown queue directions leave the queue unchanged.
+                break;
         }
 
         return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
