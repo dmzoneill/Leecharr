@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v3.0.28](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.28) - 2026-11-05
+
+### 🐛 Bug Fixes
+- fix(codacy): add documented default clauses to switch statements (S131) (#1938)
+
 ## [v3.0.27](https://github.com/dmzoneill/Leecharr/releases/tag/v3.0.27) - 2026-10-31
 
 ### 🐛 Bug Fixes
