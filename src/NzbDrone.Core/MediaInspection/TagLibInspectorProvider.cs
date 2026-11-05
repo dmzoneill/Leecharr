@@ -971,6 +971,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 }
 
                 break;
+
+            default:
+                // Other values carry no information we extract.
+                break;
         }
     }
 
@@ -2607,6 +2611,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 case "ftyp":
                     ParseFtypBox(data, payloadOffset, boxEnd, info);
                     break;
+
+                default:
+                    // Other values carry no information we extract.
+                    break;
             }
 
             offset = boxEnd;
@@ -2712,6 +2720,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                         info.AudioCodec = "FLAC";
                     }
 
+                    break;
+
+                default:
+                    // Other values carry no information we extract.
                     break;
             }
         }
@@ -2884,6 +2896,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                         _ => format,
                     };
                     AddSubtitleTrack(info, subName);
+                    break;
+
+                default:
+                    // Other values carry no information we extract.
                     break;
             }
 

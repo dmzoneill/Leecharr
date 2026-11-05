@@ -209,6 +209,9 @@ public static class EmailNotificationSender
                     case "recipient":
                         to = val;
                         break;
+                    default:
+                        // Unrecognised settings keys are ignored.
+                        break;
                 }
             }
         }

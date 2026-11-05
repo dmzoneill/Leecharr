@@ -139,6 +139,10 @@ public static class MagnetLinkParser
                     }
 
                     break;
+
+                default:
+                    // Other magnet parameters are not used.
+                    break;
             }
         }
 

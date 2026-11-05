@@ -598,6 +598,9 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                 case "tmdb":
                     meta.TmdbId = value;
                     break;
+                default:
+                    // Other unique ID types are not used.
+                    break;
             }
         }
 
