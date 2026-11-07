@@ -56,7 +56,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         // Periodic lease renewal check every 30 seconds
         this.renewalTimer = new Timer(
-            _state => _ = this.CheckAndRenewMappingsAsync(),
+            state => _ = this.CheckAndRenewMappingsAsync(),
             null,
             TimeSpan.FromSeconds(30),
             TimeSpan.FromSeconds(30));
