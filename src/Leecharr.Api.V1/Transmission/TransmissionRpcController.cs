@@ -2162,6 +2162,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         }
         catch
         {
+            // Storage path lookup is optional; fall back to config/download dir below.
         }
 
         if (string.IsNullOrWhiteSpace(baseDownloadDir))

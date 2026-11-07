@@ -112,7 +112,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
         if (this.downloadEngine != null)
         {
             this.timer = new System.Threading.Timer(
-                _ => { _ = this.ApplyCurrentLimitsAsync(); },
+                state => { _ = this.ApplyCurrentLimitsAsync(); },
                 null,
                 TimeSpan.FromSeconds(10),
                 TimeSpan.FromSeconds(60));

@@ -441,8 +441,6 @@ public class ScriptHttpContext : IDisposable
 
                 return new FormUrlEncodedContent(formList);
             }
-
-            sendAsJson = true;
         }
         else if (body is IDictionary<string, object> formDict)
         {
@@ -456,12 +454,6 @@ public class ScriptHttpContext : IDisposable
 
                 return new FormUrlEncodedContent(formList);
             }
-
-            sendAsJson = true;
-        }
-        else if (body is IDictionary)
-        {
-            sendAsJson = true;
         }
 
         var jsonStr = JsonSerializer.Serialize(body);
