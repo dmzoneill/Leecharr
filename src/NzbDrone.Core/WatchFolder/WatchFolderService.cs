@@ -414,8 +414,6 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
         try
         {
-            folder ??= watchRoot;
-
             if (!await this.IsFileStabilizedAsync(file).ConfigureAwait(false))
             {
                 this.logger.Debug("Watch folder file '{0}' is locked, empty, or still being written. Skipping this scan cycle.", file);
