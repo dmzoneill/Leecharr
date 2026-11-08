@@ -11,7 +11,7 @@ using NLog;
 
 namespace NzbDrone.Core.Messaging.Commands;
 
-public class CommandWorker : BackgroundService
+public class CommandWorker : BackgroundService, IDisposable
 {
     public const int DefaultMaxConcurrency = 3;
 

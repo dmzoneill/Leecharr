@@ -16,7 +16,7 @@ using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.BitTorrent.Tracker;
 
-public class UdpTrackerService : IUdpTrackerService
+public class UdpTrackerService : IUdpTrackerService, IDisposable
 {
     private const long MagicProtocolId = 0x41727101980L;
 
