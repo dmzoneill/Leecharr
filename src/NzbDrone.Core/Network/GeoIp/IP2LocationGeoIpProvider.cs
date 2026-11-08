@@ -456,6 +456,9 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
             {
                 this.CloseReader();
             }
+
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }

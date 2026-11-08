@@ -260,6 +260,8 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
     public void Dispose()
     {
         this.StopWatcher();
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     protected virtual void Dispose(bool disposing)

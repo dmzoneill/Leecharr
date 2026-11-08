@@ -387,7 +387,9 @@ public class UdpTrackerService : IUdpTrackerService, IDisposable
         }
 
         this.StopAsync().GetAwaiter().GetResult();
+        Dispose(true);
         this.cts?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private async Task ListenLoopAsync(Socket listeningSocket, CancellationToken token)
