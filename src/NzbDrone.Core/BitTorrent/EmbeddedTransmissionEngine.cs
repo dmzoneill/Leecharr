@@ -294,8 +294,6 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                 this.logger.Trace(ex, "Exception while awaiting sync loop task during engine shutdown");
             }
 
-            this.syncCts.Dispose();
-            this.syncCts = null;
         }
 
         if (this.daemonProcess != null && !this.daemonProcess.HasExited)
@@ -303,17 +301,14 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             try
             {
                 this.daemonProcess.Kill(entireProcessTree: true);
-                this.daemonProcess.Dispose();
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Error terminating Transmission daemon child process.");
             }
-            finally
-            {
-                this.daemonProcess = null;
-            }
         }
+
+        Dispose(true);
 
         this.tasks.Clear();
         this.infoHashToId.Clear();
@@ -1170,11 +1165,36 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         {
             this.disposed = true;
             this.StopAsync().GetAwaiter().GetResult();
+            Dispose(true);
             this.vpnKillSwitchTransitionGate.Dispose();
             if (this.ownsHttpClient)
             {
                 this.httpClient.Dispose();
             }
+        }
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
+        this.syncCts?.Dispose();
+        this.syncCts = null;
+
+        try
+        {
+            this.daemonProcess?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error terminating Transmission daemon child process.");
+        }
+        finally
+        {
+            this.daemonProcess = null;
         }
     }
 

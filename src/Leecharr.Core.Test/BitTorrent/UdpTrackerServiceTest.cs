@@ -11,6 +11,8 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
+using System.Reflection;
+using System.Threading;
 
 namespace Leecharr.Core.Test.BitTorrent;
 
@@ -355,6 +357,64 @@ public class UdpTrackerServiceTest
 
         await this.udpTrackerService.StopAsync();
         this.udpTrackerService.IsRunning.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Dispose_after_start_releases_socket()
+    {
+        await this.udpTrackerService.StartAsync();
+        this.udpTrackerService.IsRunning.Should().BeTrue();
+
+        var socketField = typeof(UdpTrackerService).GetField("socket", BindingFlags.NonPublic | BindingFlags.Instance);
+        socketField.GetValue(this.udpTrackerService).Should().NotBeNull();
+
+        this.udpTrackerService.Dispose();
+        socketField.GetValue(this.udpTrackerService).Should().BeNull();
+        this.udpTrackerService.IsRunning.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task StopAsync_then_restart_recreates_socket_and_dispose_releases_it()
+    {
+        await this.udpTrackerService.StartAsync();
+        var socketField = typeof(UdpTrackerService).GetField("socket", BindingFlags.NonPublic | BindingFlags.Instance);
+        var first = socketField.GetValue(this.udpTrackerService);
+        first.Should().NotBeNull();
+
+        await this.udpTrackerService.StopAsync();
+        socketField.GetValue(this.udpTrackerService).Should().BeNull();
+        this.udpTrackerService.IsRunning.Should().BeFalse();
+
+        await this.udpTrackerService.StartAsync();
+        var second = socketField.GetValue(this.udpTrackerService);
+        second.Should().NotBeNull();
+        second.Should().NotBeSameAs(first);
+        this.udpTrackerService.IsRunning.Should().BeTrue();
+
+        this.udpTrackerService.Dispose();
+        socketField.GetValue(this.udpTrackerService).Should().BeNull();
+        this.udpTrackerService.IsRunning.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Dispose_bool_false_does_not_release_socket()
+    {
+        await this.udpTrackerService.StartAsync();
+        var socketField = typeof(UdpTrackerService).GetField("socket", BindingFlags.NonPublic | BindingFlags.Instance);
+        var socket = socketField.GetValue(this.udpTrackerService);
+        socket.Should().NotBeNull();
+
+        var disposeBool = typeof(UdpTrackerService).GetMethod(
+            "Dispose",
+            BindingFlags.NonPublic | BindingFlags.Instance,
+            null,
+            new[] { typeof(bool) },
+            null);
+        disposeBool.Invoke(this.udpTrackerService, new object[] { false });
+        socketField.GetValue(this.udpTrackerService).Should().BeSameAs(socket);
+
+        this.udpTrackerService.Dispose();
+        socketField.GetValue(this.udpTrackerService).Should().BeNull();
     }
 
     [Test]

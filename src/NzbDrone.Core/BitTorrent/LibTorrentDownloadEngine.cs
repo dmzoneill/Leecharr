@@ -378,8 +378,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 this.logger.Trace(ex, "Exception while awaiting libtorrent sync loop task on shutdown");
             }
 
-            this.syncCts.Dispose();
-            this.syncCts = null;
+            Dispose(true);
         }
 
         if (this.daemonProcess != null && !this.daemonProcess.HasExited)
@@ -1274,6 +1273,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         {
             this.disposed = true;
             this.StopAsync().GetAwaiter().GetResult();
+            Dispose(true);
             if (this.daemonProcess != null && !this.daemonProcess.HasExited)
             {
                 try
@@ -1296,6 +1296,17 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 this.httpClient.Dispose();
             }
         }
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
+        this.syncCts?.Dispose();
+        this.syncCts = null;
     }
 
     private async Task PollSessionLoopAsync(CancellationToken ct)

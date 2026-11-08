@@ -435,6 +435,16 @@ public class UdpTrackerService : IUdpTrackerService, IDisposable
 
     private void CleanupSocket()
     {
+        Dispose(true);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
         try
         {
             this.socket?.Close();

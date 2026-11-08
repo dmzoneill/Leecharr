@@ -12,6 +12,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.WatchFolder;
+using System.Reflection;
 
 namespace Leecharr.Core.Test.WatchFolderTests;
 
@@ -786,6 +787,32 @@ public class WatchFolderServiceTest
 
         var disposeAction = () => this.service.Dispose();
         disposeAction.Should().NotThrow();
+    }
+
+    [Test]
+    public void StopWatcher_then_restart_then_dispose_releases_watcher()
+    {
+        this.service.StartWatcher();
+        var watcherField = typeof(WatchFolderService).GetField("watcher", BindingFlags.NonPublic | BindingFlags.Instance);
+        watcherField.GetValue(this.service).Should().NotBeNull();
+
+        var disposeBool = typeof(WatchFolderService).GetMethod(
+            "Dispose",
+            BindingFlags.NonPublic | BindingFlags.Instance,
+            null,
+            new[] { typeof(bool) },
+            null);
+        var original = watcherField.GetValue(this.service);
+        disposeBool.Invoke(this.service, new object[] { false });
+        watcherField.GetValue(this.service).Should().BeSameAs(original);
+
+        this.service.StopWatcher();
+        watcherField.GetValue(this.service).Should().BeNull();
+
+        this.service.StartWatcher();
+        watcherField.GetValue(this.service).Should().NotBeNull();
+        this.service.Dispose();
+        watcherField.GetValue(this.service).Should().BeNull();
     }
 
     [Test]

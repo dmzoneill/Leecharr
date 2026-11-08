@@ -43,6 +43,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
     private CancellationTokenSource flushSignalCts = new();
     private volatile bool isProcessingBatch;
     private bool disposed;
+    private bool resourcesDisposed;
 
     public TrackerMetricService(
         ITrackerMetricRepository metricRepository,
@@ -939,7 +940,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                         {
                             if (this.flushSignalCts.IsCancellationRequested)
                             {
-                                this.flushSignalCts.Dispose();
+                                this.Dispose(this.flushSignalCts);
                                 this.flushSignalCts = new CancellationTokenSource();
                             }
 
@@ -1065,42 +1066,53 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
             }
         }
 
-        this.cts.Dispose();
-        this.flushSignalCts.Dispose();
-        this.flushLock.Dispose();
+        this.Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(CancellationTokenSource source)
+    {
+        source?.Dispose();
     }
 
     protected virtual void Dispose(bool disposing)
     {
+        if (!disposing)
+        {
+            return;
+        }
+
         if (!this.disposed)
         {
             this.disposed = true;
-            this.pruneTimer?.Dispose();
-
-            if (disposing)
+            this.snapshotChannel.Writer.TryComplete();
+            if (this.flushTask != null)
             {
-                this.snapshotChannel.Writer.TryComplete();
-                if (this.flushTask != null)
+                try
                 {
-                    try
+                    if (!this.flushTask.Wait(TimeSpan.FromSeconds(5)))
                     {
-                        if (!this.flushTask.Wait(TimeSpan.FromSeconds(5)))
-                        {
-                            this.cts.Cancel();
-                            this.flushTask.Wait(TimeSpan.FromSeconds(1));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Error while waiting for tracker metric snapshot processor shutdown");
+                        this.cts.Cancel();
+                        this.flushTask.Wait(TimeSpan.FromSeconds(1));
                     }
                 }
-
-                this.cts.Dispose();
-                this.flushSignalCts.Dispose();
-                this.flushLock.Dispose();
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error while waiting for tracker metric snapshot processor shutdown");
+                }
             }
         }
+
+        if (this.resourcesDisposed)
+        {
+            return;
+        }
+
+        this.resourcesDisposed = true;
+        this.pruneTimer?.Dispose();
+        this.cts?.Dispose();
+        this.flushSignalCts?.Dispose();
+        this.flushSignalCts = null;
+        this.flushLock?.Dispose();
     }
 }

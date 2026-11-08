@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Http.Terminal;
 using NUnit.Framework;
+using System.Diagnostics;
+using System.Reflection;
 
 namespace Leecharr.Core.Test.Terminal;
 
@@ -60,8 +62,37 @@ public class FallbackProcessSessionTest
         session.Should().NotBeNull();
         session.IsActive.Should().BeTrue();
 
+        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        var ctsField = typeof(FallbackProcessSession).GetField("sessionCts", flags);
+        var processField = typeof(FallbackProcessSession).GetField("process", flags);
+        var sessionCts = (CancellationTokenSource)ctsField.GetValue(session);
+        var process = (Process)processField.GetValue(session);
+        sessionCts.Should().NotBeNull();
+        process.Should().NotBeNull();
+
+        var disposeBool = typeof(FallbackProcessSession).GetMethod(
+            "Dispose",
+            flags,
+            null,
+            new[] { typeof(bool) },
+            null);
+        disposeBool.Invoke(session, new object[] { false });
+        ctsField.GetValue(session).Should().BeSameAs(sessionCts);
+
         session.Kill();
         session.IsActive.Should().BeFalse();
+        sessionCts.IsCancellationRequested.Should().BeTrue();
+        var processDisposed = false;
+        try
+        {
+            _ = process.HasExited;
+        }
+        catch (ObjectDisposedException)
+        {
+            processDisposed = true;
+        }
+
+        processDisposed.Should().BeTrue();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var buffer = new byte[1024];

@@ -20,6 +20,7 @@ using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
+using System.Reflection;
 
 namespace Leecharr.Core.Test.BitTorrent;
 
@@ -751,6 +752,28 @@ public class LibTorrentDownloadEngineTest
         await engine.AddTorrentAsync(torrent);
         await engine.ForceAnnounceAsync(torrentId);
         return capturedBody;
+    }
+
+    [Test]
+    public void Dispose_releases_injected_sync_cts()
+    {
+        using var engine = this.CreateEngine();
+        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        var ctsField = typeof(LibTorrentDownloadEngine).GetField("syncCts", flags);
+        var cts = new CancellationTokenSource();
+        ctsField.SetValue(engine, cts);
+
+        var disposeBool = typeof(LibTorrentDownloadEngine).GetMethod(
+            "Dispose",
+            flags,
+            null,
+            new[] { typeof(bool) },
+            null);
+        disposeBool.Invoke(engine, new object[] { false });
+        ctsField.GetValue(engine).Should().BeSameAs(cts);
+
+        engine.Dispose();
+        ctsField.GetValue(engine).Should().BeNull();
     }
 
     private LibTorrentDownloadEngine CreateEngine(HttpClient client = null)
