@@ -1,6 +1,8 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -43,5 +45,20 @@ public class HttpTrackerServiceTest
         Func<Task> act = () => service.StopAsync();
 
         await act.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public void Dispose_DisposesCancellationTokenSource()
+    {
+        var service = new HttpTrackerService(Substitute.For<IEmbeddedTrackerHttpProcessor>());
+        var tokenSource = new CancellationTokenSource();
+        typeof(HttpTrackerService)
+            .GetField("cts", BindingFlags.NonPublic | BindingFlags.Instance)
+            .SetValue(service, tokenSource);
+
+        service.Dispose();
+
+        Action act = () => _ = tokenSource.Token;
+        act.Should().Throw<ObjectDisposedException>();
     }
 }
