@@ -247,22 +247,42 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                 this.watcher.Created -= this.OnFileSystemWatcherCreated;
                 this.watcher.Changed -= this.OnFileSystemWatcherChanged;
                 this.watcher.Renamed -= this.OnFileSystemWatcherRenamed;
-                this.watcher.Dispose();
             }
             catch (Exception ex)
             {
                 this.logger.Debug(ex, "Error disposing FileSystemWatcher");
             }
-            finally
-            {
-                this.watcher = null;
-            }
+
+            Dispose(true);
         }
     }
 
     public void Dispose()
     {
         this.StopWatcher();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
+        try
+        {
+            this.watcher?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error disposing FileSystemWatcher");
+        }
+        finally
+        {
+            this.watcher = null;
+        }
     }
 
     public Task ExecuteAsync(WatchFolderScanCommand message, CancellationToken cancellationToken = default)

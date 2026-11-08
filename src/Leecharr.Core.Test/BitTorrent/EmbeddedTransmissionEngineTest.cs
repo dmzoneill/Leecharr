@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1103,6 +1105,46 @@ public class EmbeddedTransmissionEngineTest
         await act.Should().ThrowAsync<InvalidOperationException>();
 
         engine.GetTask(43).Should().BeNull();
+    }
+
+    [Test]
+    public void Dispose_releases_injected_sync_cts_and_daemon_process()
+    {
+        using var engine = this.CreateEngine();
+        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        var ctsField = typeof(EmbeddedTransmissionEngine).GetField("syncCts", flags);
+        var processField = typeof(EmbeddedTransmissionEngine).GetField("daemonProcess", flags);
+
+        var cts = new CancellationTokenSource();
+        var psi = new ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "true",
+            Arguments = OperatingSystem.IsWindows() ? "/c exit" : string.Empty,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        var process = Process.Start(psi);
+        process.Should().NotBeNull();
+        process.WaitForExit(2000);
+        ctsField.SetValue(engine, cts);
+        processField.SetValue(engine, process);
+
+        var disposeBool = typeof(EmbeddedTransmissionEngine).GetMethod(
+            "Dispose",
+            flags,
+            null,
+            new[] { typeof(bool) },
+            null);
+        disposeBool.Invoke(engine, new object[] { false });
+        ctsField.GetValue(engine).Should().BeSameAs(cts);
+        processField.GetValue(engine).Should().BeSameAs(process);
+
+        engine.Dispose();
+        ctsField.GetValue(engine).Should().BeNull();
+        processField.GetValue(engine).Should().BeNull();
     }
 
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)

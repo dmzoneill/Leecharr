@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -751,6 +752,28 @@ public class LibTorrentDownloadEngineTest
         await engine.AddTorrentAsync(torrent);
         await engine.ForceAnnounceAsync(torrentId);
         return capturedBody;
+    }
+
+    [Test]
+    public void Dispose_releases_injected_sync_cts()
+    {
+        using var engine = this.CreateEngine();
+        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        var ctsField = typeof(LibTorrentDownloadEngine).GetField("syncCts", flags);
+        var cts = new CancellationTokenSource();
+        ctsField.SetValue(engine, cts);
+
+        var disposeBool = typeof(LibTorrentDownloadEngine).GetMethod(
+            "Dispose",
+            flags,
+            null,
+            new[] { typeof(bool) },
+            null);
+        disposeBool.Invoke(engine, new object[] { false });
+        ctsField.GetValue(engine).Should().BeSameAs(cts);
+
+        engine.Dispose();
+        ctsField.GetValue(engine).Should().BeNull();
     }
 
     private LibTorrentDownloadEngine CreateEngine(HttpClient client = null)

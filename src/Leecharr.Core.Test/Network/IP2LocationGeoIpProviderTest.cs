@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Numerics;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -378,6 +379,50 @@ public class IP2LocationGeoIpProviderTest
         var gbName = Encoding.ASCII.GetBytes("United Kingdom");
         writer.Write((byte)gbName.Length);
         writer.Write(gbName);
+    }
+
+    [Test]
+    public void Dispose_and_reopen_release_reader_and_file_stream()
+    {
+        CreateSampleBinaryDatabase(this.tempDbFile);
+        this.diskProvider.FileExists(this.tempDbFile).Returns(true);
+
+        using var provider = new TestableIP2LocationGeoIpProvider(this.tempDbFile, this.diskProvider, this.appFolderInfo);
+        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        var readerField = typeof(IP2LocationGeoIpProvider).GetField("binaryReader", flags);
+        var streamField = typeof(IP2LocationGeoIpProvider).GetField("fileStream", flags);
+
+        using (var fileStream = new FileStream(this.tempDbFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        using (var reader = new BinaryReader(fileStream))
+        {
+            readerField.SetValue(provider, reader);
+            streamField.SetValue(provider, fileStream);
+
+            var disposeBool = typeof(IP2LocationGeoIpProvider).GetMethod(
+                "Dispose",
+                flags,
+                null,
+                new[] { typeof(bool) },
+                null);
+            disposeBool.Invoke(provider, new object[] { false });
+            readerField.GetValue(provider).Should().BeSameAs(reader);
+            streamField.GetValue(provider).Should().BeSameAs(fileStream);
+        }
+
+        // Recreate after the using-block disposed the temporary handles, then CloseReader via Dispose(true).
+        var reopenStream = new FileStream(this.tempDbFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var reopenReader = new BinaryReader(reopenStream);
+        readerField.SetValue(provider, reopenReader);
+        streamField.SetValue(provider, reopenStream);
+
+        var closeReader = typeof(IP2LocationGeoIpProvider).GetMethod("CloseReader", flags);
+        closeReader.Invoke(provider, null);
+        readerField.GetValue(provider).Should().BeNull();
+        streamField.GetValue(provider).Should().BeNull();
+
+        provider.Dispose();
+        readerField.GetValue(provider).Should().BeNull();
+        streamField.GetValue(provider).Should().BeNull();
     }
 
     private class TestableIP2LocationGeoIpProvider : IP2LocationGeoIpProvider

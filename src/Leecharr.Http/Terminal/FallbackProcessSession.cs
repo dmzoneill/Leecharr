@@ -165,25 +165,39 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
         try
         {
             this.sessionCts.Cancel();
-            this.sessionCts.Dispose();
             this.outputChannel.Writer.TryComplete();
 
             if (!this.process.HasExited)
             {
                 this.process.Kill(entireProcessTree: true);
             }
-
-            this.process.Dispose();
         }
         catch (Exception ex)
         {
             Logger.Trace(ex, "Failed to kill process tree during teardown");
         }
+        finally
+        {
+            Dispose(true);
+        }
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
+        this.sessionCts?.Dispose();
+        this.process?.Dispose();
     }
 
     public void Dispose()
     {
         this.Kill();
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     public ValueTask DisposeAsync()

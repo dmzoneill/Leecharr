@@ -431,6 +431,16 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
 
     private void CloseReader()
     {
+        Dispose(true);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
         this.binaryReader?.Dispose();
         this.binaryReader = null;
         this.fileStream?.Dispose();
@@ -446,6 +456,9 @@ public class IP2LocationGeoIpProvider : IGeoIpProvider, IDisposable
             {
                 this.CloseReader();
             }
+
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }
