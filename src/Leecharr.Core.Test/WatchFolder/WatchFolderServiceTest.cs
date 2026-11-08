@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -12,7 +13,6 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.WatchFolder;
-using System.Reflection;
 
 namespace Leecharr.Core.Test.WatchFolderTests;
 

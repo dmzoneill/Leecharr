@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,8 +24,6 @@ using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
-using System.Diagnostics;
-using System.Reflection;
 
 namespace Leecharr.Core.Test.BitTorrent;
 

@@ -1,6 +1,8 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -8,8 +10,6 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Http.Terminal;
 using NUnit.Framework;
-using System.Diagnostics;
-using System.Reflection;
 
 namespace Leecharr.Core.Test.Terminal;
 
