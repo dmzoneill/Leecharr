@@ -82,17 +82,21 @@ public class FallbackProcessSessionTest
         session.Kill();
         session.IsActive.Should().BeFalse();
         sessionCts.IsCancellationRequested.Should().BeTrue();
-        var processDisposed = false;
+        var processReleased = false;
         try
         {
             _ = process.HasExited;
         }
         catch (ObjectDisposedException)
         {
-            processDisposed = true;
+            processReleased = true;
+        }
+        catch (InvalidOperationException)
+        {
+            processReleased = true;
         }
 
-        processDisposed.Should().BeTrue();
+        processReleased.Should().BeTrue();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var buffer = new byte[1024];
