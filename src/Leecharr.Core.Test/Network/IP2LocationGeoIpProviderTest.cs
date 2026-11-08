@@ -384,7 +384,7 @@ public class IP2LocationGeoIpProviderTest
     [Test]
     public void Dispose_and_reopen_release_reader_and_file_stream()
     {
-        this.CreateSampleBinaryDatabase(this.tempDbFile);
+        CreateSampleBinaryDatabase(this.tempDbFile);
         this.diskProvider.FileExists(this.tempDbFile).Returns(true);
 
         using var provider = new TestableIP2LocationGeoIpProvider(this.tempDbFile, this.diskProvider, this.appFolderInfo);

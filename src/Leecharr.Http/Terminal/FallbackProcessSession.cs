@@ -196,6 +196,8 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
     public void Dispose()
     {
         this.Kill();
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     public ValueTask DisposeAsync()
