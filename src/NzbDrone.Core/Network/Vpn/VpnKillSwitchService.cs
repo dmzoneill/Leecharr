@@ -13,7 +13,7 @@ using NzbDrone.Core.Network.Binding;
 
 namespace NzbDrone.Core.Network.Vpn;
 
-public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEvent>
+public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly INetworkSettingsRepository repository;
     private readonly IConfigService configService;

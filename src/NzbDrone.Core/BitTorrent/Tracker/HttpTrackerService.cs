@@ -9,7 +9,7 @@ using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.BitTorrent.Tracker;
 
-public class HttpTrackerService : IHttpTrackerService
+public class HttpTrackerService : IHttpTrackerService, IDisposable
 {
     private readonly IEmbeddedTrackerHttpProcessor httpProcessor;
     private readonly IConfigService configService;
@@ -134,7 +134,8 @@ public class HttpTrackerService : IHttpTrackerService
             return;
         }
 
-        _ = this.StopAsync();
+        this.StopAsync().GetAwaiter().GetResult();
+        this.cts?.Dispose();
     }
 
     private async Task ListenLoopAsync(CancellationToken cancellationToken)
