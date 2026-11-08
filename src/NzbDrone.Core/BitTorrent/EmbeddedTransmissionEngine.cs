@@ -293,7 +293,6 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 this.logger.Trace(ex, "Exception while awaiting sync loop task during engine shutdown");
             }
-
         }
 
         if (this.daemonProcess != null && !this.daemonProcess.HasExited)

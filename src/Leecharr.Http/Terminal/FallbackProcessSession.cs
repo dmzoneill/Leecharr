@@ -182,7 +182,7 @@ public sealed class FallbackProcessSession : ITerminalSession, IDisposable
         }
     }
 
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
         if (!disposing)
         {
