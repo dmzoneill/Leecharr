@@ -9,6 +9,7 @@ using NLog;
 namespace NzbDrone.Core.Datastore;
 
 public class EmbeddedDocumentConverter<T> : SqlMapper.TypeHandler<T>
+    where T : class
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
