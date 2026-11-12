@@ -770,7 +770,6 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
 }
 
 public class BoundedSet<T>
-    where T : class
 {
     private readonly int capacity;
     private readonly ConcurrentDictionary<T, byte> set;
