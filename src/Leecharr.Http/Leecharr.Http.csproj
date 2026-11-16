@@ -10,8 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.2.0" />
-    <PackageReference Include="ITfoxtec.Identity.Saml2.MvcCore" Version="4.21.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.14" />
+    <PackageReference Include="ITfoxtec.Identity.Saml2.MvcCore" Version="4.22.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup>
