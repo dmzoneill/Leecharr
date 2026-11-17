@@ -1,11 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { ArrConnection } from "../api/types";
+import type { ArrConnection, IndexerDefinition } from "../api/types";
 import {
   getArrInstanceUrl,
   getDownloadClientUrl,
   getMediaDeepLink,
   getMusicBrainzUrl,
+  getProwlarrUrl,
   getTmdbUrl,
 } from "./arrLinks";
 
@@ -25,6 +26,27 @@ function createMockArrConnection(
     webhookHost: "",
     implementation: "Sonarr",
     configContract: "SonarrSettings",
+    ...overrides,
+  };
+}
+
+function createMockIndexer(
+  overrides: Partial<IndexerDefinition> = {},
+): IndexerDefinition {
+  return {
+    id: 1,
+    name: "Example Indexer",
+    indexerType: "torznab",
+    url: "http://127.0.0.1:9696",
+    apiKey: "secret-key",
+    apiPath: "/api",
+    enableRss: true,
+    enableSearch: true,
+    categories: [],
+    downloadClientId: 0,
+    implementation: "Torznab",
+    configContract: "TorznabSettings",
+    enable: true,
     ...overrides,
   };
 }
@@ -350,6 +372,59 @@ void describe("arrLinks: getTmdbUrl", () => {
     assert.equal(
       getTmdbUrl(1399, null, null),
       "https://www.themoviedb.org/tv/1399",
+    );
+  });
+});
+
+void describe("arrLinks: getProwlarrUrl", () => {
+  void it("should return null when indexers are missing or empty", () => {
+    assert.equal(getProwlarrUrl(null), null);
+    assert.equal(getProwlarrUrl([]), null);
+  });
+
+  void it("should match an enabled indexer by indexerType", () => {
+    const indexers = [
+      createMockIndexer({ name: "Other", indexerType: "jackett", enable: true }),
+      createMockIndexer({
+        name: "Prowlarr Main",
+        indexerType: "Prowlarr",
+        url: "http://127.0.0.1:9696",
+        enable: true,
+      }),
+    ];
+    assert.equal(getProwlarrUrl(indexers), "http://127.0.0.1:9696");
+  });
+
+  void it("should match an enabled indexer by name when type is not prowlarr", () => {
+    const indexers = [
+      createMockIndexer({
+        name: "My Prowlarr",
+        indexerType: "application",
+        url: "http://prowlarr.example:9696",
+        enable: true,
+      }),
+    ];
+    assert.equal(getProwlarrUrl(indexers), "http://prowlarr.example:9696");
+  });
+
+  void it("should ignore disabled Prowlarr indexers and append a search query", () => {
+    const indexers = [
+      createMockIndexer({
+        name: "Prowlarr",
+        indexerType: "prowlarr",
+        url: "http://127.0.0.1:9696",
+        enable: false,
+      }),
+      createMockIndexer({
+        name: "Prowlarr Live",
+        indexerType: "prowlarr",
+        url: "http://127.0.0.1:9696",
+        enable: true,
+      }),
+    ];
+    assert.equal(
+      getProwlarrUrl(indexers, "ubuntu"),
+      "http://127.0.0.1:9696/search?query=ubuntu",
     );
   });
 });
