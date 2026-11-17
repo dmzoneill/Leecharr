@@ -45,7 +45,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       onLoginSuccess();
     } catch (err: unknown) {
       setError(
-        (err as Error)?.message ||
+        (err as Error).message ||
           t("login.invalidCredentials", "Invalid username or password"),
       );
     } finally {

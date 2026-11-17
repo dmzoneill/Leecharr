@@ -44,17 +44,17 @@ export function HostSettingsTab() {
   useEffect(() => {
     if (config) {
       setForm({
-        port: config.port ?? 7889,
-        bindAddress: config.bindAddress ?? "0.0.0.0",
-        urlBase: config.urlBase ?? "",
+        port: config.port,
+        bindAddress: config.bindAddress,
+        urlBase: config.urlBase,
         branch: config.branch || "main",
-        autoStart: config.autoStart ?? true,
-        enableSsl: config.enableSsl ?? false,
-        sslPort: config.sslPort ?? 7890,
-        sslCertPath: config.sslCertPath ?? "",
-        sslKeyPath: config.sslKeyPath ?? "",
+        autoStart: config.autoStart,
+        enableSsl: config.enableSsl,
+        sslPort: config.sslPort,
+        sslCertPath: config.sslCertPath,
+        sslKeyPath: config.sslKeyPath,
         sslCertPassword: config.sslCertPassword ?? "",
-        redirectHttpToHttps: config.redirectHttpToHttps ?? false,
+        redirectHttpToHttps: config.redirectHttpToHttps,
       });
       setDirty(false);
     }
@@ -466,7 +466,7 @@ export function HostSettingsTab() {
                             : t("settingsTabs.host.ssl.test.fields.keyMissing")}
                         </span>
                       </div>
-                      {sslTestResult.subjectAlternativeNames?.length > 0 && (
+                      {sslTestResult.subjectAlternativeNames.length > 0 && (
                         <div style={{ gridColumn: "1 / -1" }}>
                           <span
                             style={{

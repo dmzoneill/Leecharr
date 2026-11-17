@@ -70,7 +70,7 @@ function PeerMap() {
     return (
       torrentsList.find(
         (t) =>
-          t.infoHash?.toLowerCase() === hash.toLowerCase() ||
+          t.infoHash.toLowerCase() === hash.toLowerCase() ||
           t.id.toString() === hash,
       ) ?? null
     );
@@ -84,7 +84,7 @@ function PeerMap() {
       {
         onSuccess: (res) => {
           showToast(
-            res?.message ||
+            res.message ||
               t("torrents.detail.peerDisconnected", "Peer disconnected"),
             "success",
           );

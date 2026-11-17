@@ -339,7 +339,7 @@ export function App() {
       setAnalyticsInstanceUuid(generalConfig.instanceUuid);
       trackConfigAdoption({
         has_auth: generalConfig.authenticationEnabled,
-        has_ssl: generalConfig.enableSsl ?? false,
+        has_ssl: generalConfig.enableSsl,
         theme: generalConfig.themeStyle,
         color_scheme: generalConfig.colorScheme,
         language: generalConfig.uiLanguage,
@@ -603,7 +603,7 @@ export function App() {
     if (unmaskedTopApiKey) return unmaskedTopApiKey;
     try {
       const res = await api.getApiKey();
-      if (res?.apiKey) {
+      if (res.apiKey) {
         setUnmaskedTopApiKey(res.apiKey);
         return res.apiKey;
       }

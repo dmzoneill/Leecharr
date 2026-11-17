@@ -216,7 +216,7 @@ export function TrackersTab({
 
   const pickerTrackers = useMemo<TrackerPickerItem[]>(() => {
     return (availableTrackers ?? []).map((tr) => {
-      const cleanUrl = (tr.url ?? "").trim().toLowerCase();
+      const cleanUrl = (tr.url).trim().toLowerCase();
       const det = detectionMap.get(cleanUrl);
       const isAttached = attachedUrls.has(cleanUrl) || det?.isAttached || false;
       const isVerified = det?.isVerified || false;
@@ -255,7 +255,7 @@ export function TrackersTab({
       return {
         url: tr.url,
         host: tr.host,
-        protocol: String(tr.protocol ?? ""),
+        protocol: String(tr.protocol),
         isAttached,
         isVerified,
         isAlive,
@@ -308,12 +308,12 @@ export function TrackersTab({
           };
           const rawMsg =
             (typeof errObj?.response?.data === "object"
-              ? errObj.response.data?.message
+              ? errObj.response.data.message
               : null) ||
             (typeof errObj?.response?.data === "string" && errObj.response.data.trim()
               ? errObj.response.data.trim()
               : null) ||
-            errObj?.message ||
+            errObj.message ||
             t("torrents.detail.failedToAddTracker", "Failed to add tracker");
           errors.push(selectedUrls.size > 1 ? `${rawMsg} (${url})` : rawMsg);
         }
@@ -453,7 +453,7 @@ export function TrackersTab({
             <tbody>
               {trackers.map((tItem) => {
                 const det = detectionMap.get(
-                  (tItem.url ?? "").trim().toLowerCase(),
+                  (tItem.url).trim().toLowerCase(),
                 );
                 const ind = getAttachedTrackerIndicator(tItem.status, det);
                 return (

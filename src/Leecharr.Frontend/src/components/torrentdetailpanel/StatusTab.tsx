@@ -12,7 +12,7 @@ import { InfoRow } from "./shared";
 
 export function StatusTab({ torrent }: { torrent: Torrent }) {
   const { t } = useTranslation();
-  const percent = Math.min(100, Math.max(0, (torrent.progress ?? 0) * 100));
+  const percent = Math.min(100, Math.max(0, (torrent.progress) * 100));
   const isComplete = percent >= 100;
   const isSeeding = (torrent.status || "").toLowerCase() === "seeding";
   const isPaused = (torrent.status || "").toLowerCase() === "paused";

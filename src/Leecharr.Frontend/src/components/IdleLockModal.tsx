@@ -122,7 +122,7 @@ export function IdleLockModal({
         onUnlock();
       } catch (err: unknown) {
         const msg =
-          (err as Error)?.message ||
+          (err as Error).message ||
           t("auth.invalidPassword", "Invalid password or credentials");
         setError(msg);
         passwordInputRef.current?.select();

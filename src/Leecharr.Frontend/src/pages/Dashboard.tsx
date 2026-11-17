@@ -25,10 +25,10 @@ export function calculateCompletedLibrarySize(
   return (torrents || [])
     .filter(
       (t) =>
-        t.status?.toLowerCase() === "seeding" ||
-        t.status?.toLowerCase() === "completed" ||
+        t.status.toLowerCase() === "seeding" ||
+        t.status.toLowerCase() === "completed" ||
         Boolean(t.dateCompleted) ||
-        (t.progress ?? 0) >= 1,
+        (t.progress) >= 1,
     )
     .reduce((acc, t) => acc + (t.totalSize || 0), 0);
 }
@@ -191,11 +191,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const list = arrConnections || [];
     const conn = list.find((c) => {
       const nameMatch = c.name
-        ?.toLowerCase()
+        .toLowerCase()
         .includes(serviceName.toLowerCase());
       const typeMatch =
-        c.arrType?.toLowerCase().includes(serviceName.toLowerCase()) ||
-        c.implementation?.toLowerCase().includes(serviceName.toLowerCase());
+        c.arrType.toLowerCase().includes(serviceName.toLowerCase()) ||
+        c.implementation.toLowerCase().includes(serviceName.toLowerCase());
       return nameMatch || typeMatch;
     });
 
@@ -204,8 +204,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       if (serviceName.toLowerCase() === "prowlarr") {
         const prowlarrIndexer = (indexers || []).find(
           (i) =>
-            i.name?.toLowerCase().includes("prowlarr") ||
-            i.indexerType?.toLowerCase().includes("prowlarr"),
+            i.name.toLowerCase().includes("prowlarr") ||
+            i.indexerType.toLowerCase().includes("prowlarr"),
         );
         if (prowlarrIndexer) {
           return prowlarrIndexer.enable

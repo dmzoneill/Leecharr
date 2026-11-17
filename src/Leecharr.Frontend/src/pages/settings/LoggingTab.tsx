@@ -34,10 +34,10 @@ export function LoggingTab() {
   useEffect(() => {
     if (config) {
       setForm({
-        logToFile: config.logToFile ?? true,
+        logToFile: config.logToFile,
         fileLogLevel: config.fileLogLevel || "Info",
-        debugMode: config.debugMode ?? false,
-        uiRefreshRateSec: config.uiRefreshRateSec ?? 2,
+        debugMode: config.debugMode,
+        uiRefreshRateSec: config.uiRefreshRateSec,
       });
       setDirty(false);
     }
@@ -94,8 +94,8 @@ export function LoggingTab() {
       });
       showToast(
         t("settingsTabs.logging.testLogSuccess", {
-          defaultValue: `Diagnostic ${res?.level || testLogLevel} test log emitted successfully`,
-          level: res?.level || testLogLevel,
+          defaultValue: `Diagnostic ${res.level || testLogLevel} test log emitted successfully`,
+          level: res.level || testLogLevel,
         }),
         "success",
       );

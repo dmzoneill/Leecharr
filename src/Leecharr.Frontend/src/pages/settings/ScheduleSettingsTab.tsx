@@ -29,18 +29,18 @@ export function ScheduleSettingsTab() {
   useEffect(() => {
     if (config) {
       setForm({
-        schedulerEnabled: config.schedulerEnabled ?? false,
-        schedulerStartHour: config.schedulerStartHour ?? 8,
-        schedulerStartMinute: config.schedulerStartMinute ?? 0,
-        schedulerEndHour: config.schedulerEndHour ?? 23,
-        schedulerEndMinute: config.schedulerEndMinute ?? 0,
-        schedulerMonday: config.schedulerMonday ?? true,
-        schedulerTuesday: config.schedulerTuesday ?? true,
-        schedulerWednesday: config.schedulerWednesday ?? true,
-        schedulerThursday: config.schedulerThursday ?? true,
-        schedulerFriday: config.schedulerFriday ?? true,
-        schedulerSaturday: config.schedulerSaturday ?? true,
-        schedulerSunday: config.schedulerSunday ?? true,
+        schedulerEnabled: config.schedulerEnabled,
+        schedulerStartHour: config.schedulerStartHour,
+        schedulerStartMinute: config.schedulerStartMinute,
+        schedulerEndHour: config.schedulerEndHour,
+        schedulerEndMinute: config.schedulerEndMinute,
+        schedulerMonday: config.schedulerMonday,
+        schedulerTuesday: config.schedulerTuesday,
+        schedulerWednesday: config.schedulerWednesday,
+        schedulerThursday: config.schedulerThursday,
+        schedulerFriday: config.schedulerFriday,
+        schedulerSaturday: config.schedulerSaturday,
+        schedulerSunday: config.schedulerSunday,
       });
       setDirty(false);
     }

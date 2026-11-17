@@ -451,7 +451,7 @@ export function FilesTab({
       setRenamingNode(null);
       await refetchFiles();
     } catch (err: unknown) {
-      showToast((err as Error)?.message || "Failed to rename item", "error");
+      showToast((err as Error).message || "Failed to rename item", "error");
     } finally {
       setIsRenaming(false);
     }
@@ -657,7 +657,7 @@ export function FilesTab({
 
       // Right arrow: expand folder if collapsed
       if (e.key === "ArrowRight") {
-        if (currentNode?.isFolder) {
+        if (currentNode.isFolder) {
           e.preventDefault();
           e.stopPropagation();
           if (!expandedPaths.has(currentNode.fullPath)) {
@@ -677,7 +677,7 @@ export function FilesTab({
 
       // Left arrow: collapse folder if expanded, or move to parent
       if (e.key === "ArrowLeft") {
-        if (currentNode?.isFolder && expandedPaths.has(currentNode.fullPath)) {
+        if (currentNode.isFolder && expandedPaths.has(currentNode.fullPath)) {
           e.preventDefault();
           e.stopPropagation();
           setExpandedPaths((prev) => {

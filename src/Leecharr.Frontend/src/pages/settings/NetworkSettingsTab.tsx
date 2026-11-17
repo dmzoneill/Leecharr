@@ -44,14 +44,14 @@ export function NetworkSettingsTab() {
       const initialBindInterface =
         config.bindInterface || config.networkInterfaceBinding || "";
       setForm({
-        listeningPort: config.listeningPort ?? 51413,
-        upnpEnabled: config.upnpEnabled ?? true,
+        listeningPort: config.listeningPort,
+        upnpEnabled: config.upnpEnabled,
         enableIPv6: config.enableIPv6 ?? true,
         bindInterface: initialBindInterface,
         enableVpnKillSwitch: config.enableVpnKillSwitch ?? false,
-        maxGlobalConnections: config.maxGlobalConnections ?? 300,
-        maxPerTorrentConnections: config.maxPerTorrentConnections ?? 50,
-        maxUploadSlots: config.maxUploadSlots ?? 8,
+        maxGlobalConnections: config.maxGlobalConnections,
+        maxPerTorrentConnections: config.maxPerTorrentConnections,
+        maxUploadSlots: config.maxUploadSlots,
         maxConnectionsPerIp: config.maxConnectionsPerIp ?? 5,
         maximumHalfOpenConnections: config.maximumHalfOpenConnections ?? 50,
         peerDscp: config.peerDscp ?? 4,
@@ -195,7 +195,7 @@ export function NetworkSettingsTab() {
             </div>
             <div>
               {t("settingsTabs.batch2.activePortMappings")}:{" "}
-              <strong>{netStatus.portMappings?.length ?? 0}</strong>
+              <strong>{netStatus.portMappings?.length}</strong>
             </div>
           </div>
         </div>

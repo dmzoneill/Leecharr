@@ -130,7 +130,7 @@ export function DownloadClientsTab() {
         },
         onError: (err: unknown) => {
           showToast(
-            (err as Error)?.message ||
+            (err as Error).message ||
               t(
                 "settingsTabs.downloadClients.updateFailed",
                 "Failed to update download client",
@@ -232,7 +232,7 @@ export function DownloadClientsTab() {
                     "success",
                   ); },
                 onError: (err: unknown) => { showToast(
-                    `${t("settingsTabs.downloadClients.syncFailed")}${(err as Error)?.message || t("settingsTabs.notifications.unknownError")}`,
+                    `${t("settingsTabs.downloadClients.syncFailed")}${(err as Error).message || t("settingsTabs.notifications.unknownError")}`,
                     "error",
                   ); },
               });
@@ -325,7 +325,7 @@ export function DownloadClientsTab() {
               <div className="provider-card-badges">
                 <span className="provider-card-badge provider-card-badge-green">
                   {t(
-                    `downloadClients.types.${client.clientType?.toLowerCase()}`,
+                    `downloadClients.types.${client.clientType.toLowerCase()}`,
                     client.clientType,
                   )}
                 </span>
@@ -436,7 +436,7 @@ export function DownloadClientsTab() {
                 setEditing({
                   ...editing,
                   clientType: v,
-                  port: clientDefaults[v]?.port || editing.port || 8080,
+                  port: clientDefaults[v].port || editing.port || 8080,
                 });
               }}
               options={[

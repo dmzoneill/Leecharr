@@ -121,7 +121,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
     setShowConfirmClear(false);
     clearLogFiles.mutate(undefined, {
       onSuccess: () => {
-        toast?.showToast(
+        toast.showToast(
           t(
             "system.logFilesClearedSuccess",
             "Disk log files successfully cleared.",

@@ -754,7 +754,7 @@ export function FileBrowser() {
       void refetch();
     } catch (err: unknown) {
       showToast(
-        (err as Error)?.message ||
+        (err as Error).message ||
           t("filebrowser.failedToCreateFolder", "Failed to create folder"),
         "error",
       );
@@ -778,7 +778,7 @@ export function FileBrowser() {
       void refetch();
     } catch (err: unknown) {
       showToast(
-        (err as Error)?.message || t("filebrowser.failedToRename", "Failed to rename"),
+        (err as Error).message || t("filebrowser.failedToRename", "Failed to rename"),
         "error",
       );
     }
@@ -888,7 +888,7 @@ export function FileBrowser() {
   ) => {
     if (!copiedFiles || copiedFiles.length === 0) return;
     try {
-      const dest = destinationFolder?.path || activePath || "/downloads";
+      const dest = destinationFolder.path || activePath || "/downloads";
       await pasteMutation.mutateAsync({
         sources: copiedFiles.map((f) => f.path),
         destination: dest,
@@ -901,7 +901,7 @@ export function FileBrowser() {
               ? t("filebrowser.moved", "Moved")
               : t("filebrowser.copied", "Copied"),
           count: copiedFiles.length,
-          dest: destinationFolder?.name || dest,
+          dest: destinationFolder.name || dest,
         }),
         "success",
       );

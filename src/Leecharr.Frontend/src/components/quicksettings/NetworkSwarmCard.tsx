@@ -35,7 +35,7 @@ export const NetworkSwarmCard: React.FC = () => {
       },
       {
         onError: (err: unknown) => {
-          const msg = (err as Error)?.message || "";
+          const msg = (err as Error).message || "";
           showToast(
             t("quickSettings.failedToUpdateNetwork", {
               error: msg,
@@ -87,12 +87,12 @@ export const NetworkSwarmCard: React.FC = () => {
     );
   }
 
-  const globalConns = netConfig.maxGlobalConnections ?? 300;
-  const perTorrentConns = netConfig.maxPerTorrentConnections ?? 50;
+  const globalConns = netConfig.maxGlobalConnections;
+  const perTorrentConns = netConfig.maxPerTorrentConnections;
   const vpnKillSwitch = netConfig.enableVpnKillSwitch ?? false;
-  const dht = btConfig.enableDht ?? true;
-  const pex = btConfig.enablePex ?? true;
-  const lpd = btConfig.enableLpd ?? true;
+  const dht = btConfig.enableDht;
+  const pex = btConfig.enablePex;
+  const lpd = btConfig.enableLpd;
 
   const activeInterface =
     netStatus?.networkInterface || netConfig.bindInterface || "All";

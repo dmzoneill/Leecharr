@@ -205,9 +205,9 @@ export default function DownloadClientTorrents() {
 
       const term = searchTerm.toLowerCase();
       return (
-        item.title?.toLowerCase().includes(term) ||
+        item.title.toLowerCase().includes(term) ||
         (item.category && item.category.toLowerCase().includes(term)) ||
-        item.infoHash?.toLowerCase().includes(term) ||
+        item.infoHash.toLowerCase().includes(term) ||
         (item.outputPath && item.outputPath.toLowerCase().includes(term))
       );
     });
@@ -323,9 +323,9 @@ export default function DownloadClientTorrents() {
           infoHashes: hashes,
           clientId: cId,
         });
-        totalAdded += res.added ?? 0;
-        totalSkipped += res.skipped ?? 0;
-        totalFailed += res.failed ?? 0;
+        totalAdded += res.added;
+        totalSkipped += res.skipped;
+        totalFailed += res.failed;
         if (res.items) {
           failedItems.push(
             ...res.items.filter((i: BatchImportItemResult) => !i.success),
@@ -582,7 +582,7 @@ export default function DownloadClientTorrents() {
               rel="noopener noreferrer"
               className="btn btn-outline"
               style={{ fontSize: "0.85rem", textDecoration: "none" }}
-              title={`Open ${client?.name} Web UI`}
+              title={`Open ${client.name} Web UI`}
             >
               Open Web UI ↗
             </a>
@@ -766,7 +766,7 @@ export default function DownloadClientTorrents() {
               marginBottom: "1.25rem",
             }}
           >
-            {(error as Error)?.message || "Connection refused or timed out."}
+            {(error as Error).message || "Connection refused or timed out."}
           </div>
           <Link to="/settings/download-clients" className="btn btn-outline">
             Check Client Configuration
@@ -867,8 +867,8 @@ export default function DownloadClientTorrents() {
               const match = history?.find(
                 (h) =>
                   (item.infoHash &&
-                    h.infoHash?.toLowerCase() ===
-                      item.infoHash?.toLowerCase()) ||
+                    h.infoHash.toLowerCase() ===
+                      item.infoHash.toLowerCase()) ||
                   (item.title &&
                     h.title?.toLowerCase() === item.title?.toLowerCase()),
               );
@@ -1112,12 +1112,12 @@ export default function DownloadClientTorrents() {
                     >
                       <span
                         className={`badge ${
-                          item.status?.toLowerCase() === "seeding"
+                          item.status.toLowerCase() === "seeding"
                             ? "badge-success"
-                            : item.status?.toLowerCase() === "downloading"
+                            : item.status.toLowerCase() === "downloading"
                               ? "badge-primary"
-                              : item.status?.toLowerCase() === "paused" ||
-                                  item.status?.toLowerCase() === "stopped"
+                              : item.status.toLowerCase() === "paused" ||
+                                  item.status.toLowerCase() === "stopped"
                                 ? "badge-warning"
                                 : "badge-secondary"
                         }`}
@@ -1133,7 +1133,7 @@ export default function DownloadClientTorrents() {
                           {item.clientName}
                         </span>
                       )}
-                      {duplicateHashes.has(item.infoHash?.toLowerCase()) && (
+                      {duplicateHashes.has(item.infoHash.toLowerCase()) && (
                         <span
                           className="badge badge-warning"
                           style={{ fontSize: "0.72rem" }}
@@ -1222,8 +1222,8 @@ export default function DownloadClientTorrents() {
                           </button>
                         )}
 
-                        {item.status?.toLowerCase() === "paused" ||
-                        item.status?.toLowerCase() === "stopped" ? (
+                        {item.status.toLowerCase() === "paused" ||
+                        item.status.toLowerCase() === "stopped" ? (
                           <button type="button" className="btn btn-outline btn-small"
                             style={{
                               fontSize: "0.78rem",
@@ -1540,7 +1540,7 @@ export default function DownloadClientTorrents() {
                               </span>
                             )}
                             {duplicateHashes.has(
-                              item.infoHash?.toLowerCase(),
+                              item.infoHash.toLowerCase(),
                             ) && (
                               <span
                                 className="badge badge-warning"
@@ -2170,7 +2170,7 @@ export default function DownloadClientTorrents() {
                           onClick={() => {
                             const matchingItem = items?.find(
                               (f) =>
-                                f.infoHash?.toLowerCase() ===
+                                f.infoHash.toLowerCase() ===
                                 item.infoHash.toLowerCase(),
                             );
                             handleImportOne(

@@ -174,7 +174,7 @@ export function useUpdates() {
 export function useInstallUpdate() {
   const queryClient = useQueryClient();
   return useMutation<InstallUpdateResponse, Error, { version?: string } | void>({
-    mutationFn: (data) => apiClient.post("/update", data ?? {}),
+    mutationFn: (data) => apiClient.post("/update", data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["updates"] });
     },

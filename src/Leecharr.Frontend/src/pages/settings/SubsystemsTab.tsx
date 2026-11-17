@@ -102,7 +102,7 @@ export function SubsystemsTab() {
     return (
       <div style={{ color: "#e74c3c", padding: "1rem" }}>
         {t("settingsTabs.subsystems.errorLoading")}
-        {(error as Error)?.message}
+        {(error as Error).message}
         <button
           onClick={() => { void refetch(); }}
           style={{ marginLeft: "1rem", padding: "0.25rem 0.75rem" }}

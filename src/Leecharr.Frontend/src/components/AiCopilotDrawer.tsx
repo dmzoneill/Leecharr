@@ -1672,7 +1672,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     </span>
                   </div>
 
-                  {securityResult.threatReasons?.length > 0 && (
+                  {securityResult.threatReasons.length > 0 && (
                     <ul
                       style={{
                         margin: 0,
@@ -1686,7 +1686,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     </ul>
                   )}
 
-                  {securityResult.suspiciousFileNames?.length > 0 && (
+                  {securityResult.suspiciousFileNames.length > 0 && (
                     <div
                       style={{
                         display: "flex",

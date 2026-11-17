@@ -51,7 +51,7 @@ interface QualityReportResponse {
 }
 
 function isQualityGateUnavailable(report: QualityReportResponse): boolean {
-  const status = report.qualityGate?.status;
+  const status = report.qualityGate.status;
   return Boolean(report.usedFallbackQualityGate) || !status || status === "NONE";
 }
 

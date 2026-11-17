@@ -34,19 +34,19 @@ export function TrackerServerSettingsTab() {
   useEffect(() => {
     if (config) {
       setForm({
-        trackerServerEnabled: config.trackerServerEnabled ?? false,
-        trackerHttpEnabled: config.trackerHttpEnabled ?? true,
-        trackerHttpPort: config.trackerHttpPort ?? 6969,
-        trackerUdpEnabled: config.trackerUdpEnabled ?? true,
-        trackerUdpPort: config.trackerUdpPort ?? 6969,
+        trackerServerEnabled: config.trackerServerEnabled,
+        trackerHttpEnabled: config.trackerHttpEnabled,
+        trackerHttpPort: config.trackerHttpPort,
+        trackerUdpEnabled: config.trackerUdpEnabled,
+        trackerUdpPort: config.trackerUdpPort,
         trackerBindAddress:
           config.trackerBindAddress || t("settingsTabs.batch2.defaultIp"),
-        trackerAnnounceInterval: config.trackerAnnounceInterval ?? 1800,
-        trackerMaxPeersPerAnnounce: config.trackerMaxPeersPerAnnounce ?? 50,
-        trackerEnableScrape: config.trackerEnableScrape ?? true,
-        trackerPrivateMode: config.trackerPrivateMode ?? false,
-        trackerLogAnnounces: config.trackerLogAnnounces ?? false,
-        trackerRateLimitPerMinute: config.trackerRateLimitPerMinute ?? 60,
+        trackerAnnounceInterval: config.trackerAnnounceInterval,
+        trackerMaxPeersPerAnnounce: config.trackerMaxPeersPerAnnounce,
+        trackerEnableScrape: config.trackerEnableScrape,
+        trackerPrivateMode: config.trackerPrivateMode,
+        trackerLogAnnounces: config.trackerLogAnnounces,
+        trackerRateLimitPerMinute: config.trackerRateLimitPerMinute,
       });
       setDirty(false);
     }

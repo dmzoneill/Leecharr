@@ -36,7 +36,7 @@ export function parseSearchQuery(rawQuery: string): ParsedQuery {
   );
   if (prefixMatch) {
     const prefix = prefixMatch[1].toLowerCase();
-    const rest = (prefixMatch[2] ?? "").trim();
+    const rest = (prefixMatch[2]).trim();
     let category: string | undefined;
 
     if (prefix.startsWith("tor")) category = "Torrents";

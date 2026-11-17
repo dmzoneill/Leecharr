@@ -1489,7 +1489,7 @@ export default function DatabaseExplorer() {
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
                         onClick={() => { setConsoleView("data"); }}
                       >
-                        📊 Data Grid ({queryResult.rows?.length ?? 0})
+                        📊 Data Grid ({queryResult.rows?.length})
                       </button>
                       <button type="button" className={`btn btn-small ${consoleView === "plan" ? "btn-primary" : "btn-outline"}`}
                         style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
@@ -1779,7 +1779,7 @@ export default function DatabaseExplorer() {
               {/* Foreign Keys Card */}
               <div className="card" style={{ padding: "1rem" }}>
                 <h3 style={{ fontSize: "1.05rem", fontWeight: 600, marginBottom: "0.75rem" }}>
-                  Foreign Keys ({currentInspectorTable.foreignKeys?.length || 0})
+                  Foreign Keys ({currentInspectorTable.foreignKeys.length || 0})
                 </h3>
                 {(!currentInspectorTable.foreignKeys || currentInspectorTable.foreignKeys.length === 0) ? (
                   <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>No foreign keys defined.</p>
@@ -1812,7 +1812,7 @@ export default function DatabaseExplorer() {
               {/* Indexes Card */}
               <div className="card" style={{ padding: "1rem" }}>
                 <h3 style={{ fontSize: "1.05rem", fontWeight: 600, marginBottom: "0.75rem" }}>
-                  Indexes ({currentInspectorTable.indexes?.length || 0})
+                  Indexes ({currentInspectorTable.indexes.length || 0})
                 </h3>
                 {(!currentInspectorTable.indexes || currentInspectorTable.indexes.length === 0) ? (
                   <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>No indexes defined.</p>

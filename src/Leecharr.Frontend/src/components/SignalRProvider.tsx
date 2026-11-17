@@ -186,7 +186,7 @@ export default function SignalRProvider({
           updates = [obj as { id: number; [key: string]: unknown }];
         } else {
           updates = Object.entries(obj).map(([id, data]) => ({
-            id: Number(id) || (data as { id?: number })?.id || 0,
+            id: Number(id) || (data as { id?: number }).id || 0,
             ...(typeof data === "object" && data !== null ? data : {}),
           }));
         }

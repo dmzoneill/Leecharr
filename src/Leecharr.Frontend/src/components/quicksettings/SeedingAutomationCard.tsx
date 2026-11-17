@@ -42,7 +42,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
       },
       {
         onError: (err: unknown) => {
-          const msg = (err as Error)?.message || "";
+          const msg = (err as Error).message || "";
           showToast(
             t("quickSettings.failedToUpdateSeeding", {
               error: msg,
@@ -94,7 +94,7 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
     );
   }
 
-  const currentRatio = seedConfig.globalSeedRatioLimit ?? 0;
+  const currentRatio = seedConfig.globalSeedRatioLimit;
   const currentStrategy = btConfig.piecePickerStrategy || "RarestFirst";
   const isSequential = currentStrategy.toLowerCase().includes("sequential");
 

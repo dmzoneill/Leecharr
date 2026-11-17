@@ -569,7 +569,7 @@ export function NotificationsTab() {
       showToast(t("settingsTabs.notifications.toastSaved"), "success");
     } catch (err: unknown) {
       showToast(
-        (err as Error)?.message ||
+        (err as Error).message ||
           t("settingsTabs.notifications.toastSaveFailed"),
         "error",
       );
@@ -658,7 +658,7 @@ export function NotificationsTab() {
       });
     } catch (err: unknown) {
       const msg =
-        (err as Error)?.message || t("settingsTabs.notifications.testFailed");
+        (err as Error).message || t("settingsTabs.notifications.testFailed");
       setTestResults((prev) => ({
         ...prev,
         [id]: { success: false, message: msg },
@@ -755,7 +755,7 @@ export function NotificationsTab() {
       });
     } catch (err: unknown) {
       showToast(
-        (err as Error)?.message || t("settingsTabs.notifications.deleteFailed"),
+        (err as Error).message || t("settingsTabs.notifications.deleteFailed"),
         "error",
       );
     }
@@ -815,7 +815,7 @@ export function NotificationsTab() {
       }
     } catch (err: unknown) {
       showToast(
-        (err as Error)?.message || t("settingsTabs.notifications.saveFailed"),
+        (err as Error).message || t("settingsTabs.notifications.saveFailed"),
         "error",
       );
     }

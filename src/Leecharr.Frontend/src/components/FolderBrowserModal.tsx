@@ -116,7 +116,7 @@ export function FolderBrowserModal({
         err as { response?: { data?: { message?: string } } }
       )?.response?.data?.message;
       showToast(
-        serverMessage || (err as Error)?.message || "Failed to create folder",
+        serverMessage || (err as Error).message || "Failed to create folder",
         "error",
       );
     }

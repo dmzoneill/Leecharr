@@ -294,8 +294,8 @@ export function useDownloadClientItems(clientId: number | string) {
           "/downloadclients/items",
         );
         return {
-          items: response.items ?? [],
-          queryFailures: response.failures ?? [],
+          items: response.items,
+          queryFailures: response.failures,
           querySuccess: response.success,
         };
       }
@@ -303,7 +303,7 @@ export function useDownloadClientItems(clientId: number | string) {
       const items = await apiClient.get<DownloadClientRemoteItem[]>(
         `/downloadclients/${numId}/items`,
       );
-      return { items: items ?? [] };
+      return { items: items };
     },
     enabled: isValid,
     refetchInterval: interval,

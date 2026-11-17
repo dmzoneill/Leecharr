@@ -410,7 +410,7 @@ export function TextInput({
             <input
               type={type || "text"}
               className="form-input"
-              value={value ?? ""}
+              value={value}
               onChange={(e) => { onChange(e.target.value); }}
               onBlur={onBlur}
               placeholder={placeholder}

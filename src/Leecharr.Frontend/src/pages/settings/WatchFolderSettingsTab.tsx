@@ -28,14 +28,14 @@ export function WatchFolderSettingsTab() {
   useEffect(() => {
     if (config) {
       setForm({
-        watchFolderEnabled: config.watchFolderEnabled ?? false,
+        watchFolderEnabled: config.watchFolderEnabled,
         watchFolderPath: config.watchFolderPath || "/downloads/watch",
         watchFolderScanIntervalSeconds:
-          config.watchFolderScanIntervalSeconds ?? 10,
+          config.watchFolderScanIntervalSeconds,
         watchFolderAutoStartTorrents:
-          config.watchFolderAutoStartTorrents ?? true,
+          config.watchFolderAutoStartTorrents,
         watchFolderDeleteAddedTorrents:
-          config.watchFolderDeleteAddedTorrents ?? false,
+          config.watchFolderDeleteAddedTorrents,
       });
       setDirty(false);
     }
@@ -74,7 +74,7 @@ export function WatchFolderSettingsTab() {
         const tasks = await apiClient.get<
           Array<{ id: number; name?: string; typeName?: string }>
         >("/system/task");
-        const watchTask = tasks?.find(
+        const watchTask = tasks.find(
           (t) =>
             t.name === "WatchFolderScan" ||
             t.typeName === "WatchFolderScanTask",
@@ -96,7 +96,7 @@ export function WatchFolderSettingsTab() {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message ||
-        (err as Error)?.message ||
+        (err as Error).message ||
         "Failed to trigger watch folder scan";
       showToast(msg, "error");
     } finally {

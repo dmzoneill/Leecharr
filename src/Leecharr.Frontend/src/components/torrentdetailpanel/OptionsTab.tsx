@@ -8,10 +8,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const { t } = useTranslation();
   const updateTorrent = useUpdateTorrent();
   const lastTorrentIdRef = useRef(torrent.id);
-  const [priority, setPriority] = useState(String(torrent.priority ?? 1));
-  const [uploadLimit, setUploadLimit] = useState(torrent.uploadLimit ?? 0);
+  const [priority, setPriority] = useState(String(torrent.priority));
+  const [uploadLimit, setUploadLimit] = useState(torrent.uploadLimit);
   const [downloadLimit, setDownloadLimit] = useState(
-    torrent.downloadLimit ?? 0,
+    torrent.downloadLimit,
   );
   const [initialSeeding, setInitialSeeding] = useState(
     Boolean(torrent.initialSeeding),
@@ -44,15 +44,15 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const [dirty, setDirty] = useState(false);
 
   const resetToTorrent = (tObj: Torrent) => {
-    setPriority(String(tObj.priority ?? 1));
-    setUploadLimit(tObj.uploadLimit ?? 0);
-    setDownloadLimit(tObj.downloadLimit ?? 0);
+    setPriority(String(tObj.priority));
+    setUploadLimit(tObj.uploadLimit);
+    setDownloadLimit(tObj.downloadLimit);
     setInitialSeeding(Boolean(tObj.initialSeeding));
     setForceStart(Boolean(tObj.forceStart));
     setSequentialDownload(Boolean(tObj.sequentialDownload));
     setIsPrivate(Boolean(tObj.isPrivate));
     setActive(
-      tObj.active ?? (tObj.status !== "paused" && tObj.status !== "stopped"),
+      tObj.active,
     );
     setLabel(tObj.label ?? "");
     setAnnounceInterval(tObj.announceInterval || 1800);
@@ -97,7 +97,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         sequentialDownload,
         isPrivate,
         active,
-        label: label ?? "",
+        label: label,
         announceInterval: Math.max(0, announceInterval),
         nextUpdate: Math.max(0, nextUpdate),
         threshold: Math.max(0, threshold),

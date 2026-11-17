@@ -272,7 +272,7 @@ export function applyTelemetry(
       : !isStale && telemetry?.status
         ? telemetry.status
         : torrent.status
-  )?.toLowerCase();
+  ).toLowerCase();
 
   const isInactive =
     effectiveStatus === "paused" ||

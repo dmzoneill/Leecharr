@@ -284,7 +284,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             }}
           >
             {isChecking
-              ? `${t("torrentStatus.checking", "Checking")} (${((mergedTorrent.progress ?? 0) * 100).toFixed(1)}%)`
+              ? `${t("torrentStatus.checking", "Checking")} (${((mergedTorrent.progress) * 100).toFixed(1)}%)`
               : isQueuedRecheck
                 ? t("torrentStatus.queuedforchecking", "Queued for Recheck")
                 : t(
@@ -345,7 +345,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 color: isChecking ? "var(--info, #38bdf8)" : undefined,
               }}
             >
-              {((mergedTorrent.progress ?? 0) * 100).toFixed(1)}%
+              {((mergedTorrent.progress) * 100).toFixed(1)}%
             </span>
           </div>
 
@@ -361,7 +361,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             <div
               style={{
                 height: "100%",
-                width: `${Math.min(100, Math.max(0, (mergedTorrent.progress ?? 0) * 100))}%`,
+                width: `${Math.min(100, Math.max(0, (mergedTorrent.progress) * 100))}%`,
                 backgroundColor: isSeeding
                   ? "var(--success)"
                   : isChecking
@@ -415,7 +415,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               }}
             >
               {t("torrents.grid.ratio", {
-                ratio: formatRatio(mergedTorrent.ratio ?? 0),
+                ratio: formatRatio(mergedTorrent.ratio),
               })}
             </span>
           </div>

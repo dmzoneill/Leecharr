@@ -846,9 +846,9 @@ export function useIndexerSearch(
       const data = await apiClient.get<
         ReleaseInfo[] | { results?: ReleaseInfo[] }
       >(`/indexers/search?${queryString}`);
-      return Array.isArray(data) ? data : (data?.results ?? []);
+      return Array.isArray(data) ? data : (data.results ?? []);
     },
-    enabled: enabled && Boolean(params.query?.trim()),
+    enabled: enabled && Boolean(params.query.trim()),
     staleTime: 30_000,
   });
 }

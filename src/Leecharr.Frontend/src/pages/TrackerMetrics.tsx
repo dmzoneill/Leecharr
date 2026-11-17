@@ -1370,11 +1370,11 @@ export function calculateHourlyActivityPoints(
   height = 160,
   padding = 20,
 ): ChartPointsResult {
-  const safeData = data ?? [];
+  const safeData = data;
   const maxTraffic = Math.max(
     ...safeData.map((d) => {
-      const up = Number.isFinite(d?.uploaded) ? Math.max(0, d.uploaded) : 0;
-      const down = Number.isFinite(d?.downloaded)
+      const up = Number.isFinite(d.uploaded) ? Math.max(0, d.uploaded) : 0;
+      const down = Number.isFinite(d.downloaded)
         ? Math.max(0, d.downloaded)
         : 0;
       return Math.max(up, down);
@@ -1383,7 +1383,7 @@ export function calculateHourlyActivityPoints(
   );
   const maxAnnounce = Math.max(
     ...safeData.map((d) => {
-      return Number.isFinite(d?.announces) ? Math.max(0, d.announces) : 0;
+      return Number.isFinite(d.announces) ? Math.max(0, d.announces) : 0;
     }),
     1,
   );
@@ -1403,7 +1403,7 @@ export function calculateHourlyActivityPoints(
     .map((d, i) => {
       const rawX = padding + (i / divisor) * innerWidth;
       const x = Number.isFinite(rawX) ? rawX : padding;
-      const val = Number.isFinite(d?.uploaded) ? Math.max(0, d.uploaded) : 0;
+      const val = Number.isFinite(d.uploaded) ? Math.max(0, d.uploaded) : 0;
       const rawY = height - padding - (val / safeMaxTraffic) * innerHeight;
       const y = Number.isFinite(rawY) ? rawY : fallbackY;
       return `${x},${y}`;
@@ -1414,7 +1414,7 @@ export function calculateHourlyActivityPoints(
     .map((d, i) => {
       const rawX = padding + (i / divisor) * innerWidth;
       const x = Number.isFinite(rawX) ? rawX : padding;
-      const val = Number.isFinite(d?.downloaded)
+      const val = Number.isFinite(d.downloaded)
         ? Math.max(0, d.downloaded)
         : 0;
       const rawY = height - padding - (val / safeMaxTraffic) * innerHeight;
@@ -1427,7 +1427,7 @@ export function calculateHourlyActivityPoints(
     .map((d, i) => {
       const rawX = padding + (i / divisor) * innerWidth;
       const x = Number.isFinite(rawX) ? rawX : padding;
-      const val = Number.isFinite(d?.announces) ? Math.max(0, d.announces) : 0;
+      const val = Number.isFinite(d.announces) ? Math.max(0, d.announces) : 0;
       const rawY = height - padding - (val / safeMaxAnnounce) * innerHeight;
       const y = Number.isFinite(rawY) ? rawY : fallbackY;
       return `${x},${y}`;
@@ -1573,13 +1573,13 @@ export function HourlyActivitySvgChart({
           padding + (i / (data.length - 1 || 1)) * (width - 2 * padding);
         const x = Number.isFinite(rawX) ? rawX : padding;
 
-        const upVal = Number.isFinite(d?.uploaded)
+        const upVal = Number.isFinite(d.uploaded)
           ? Math.max(0, d.uploaded)
           : 0;
-        const downVal = Number.isFinite(d?.downloaded)
+        const downVal = Number.isFinite(d.downloaded)
           ? Math.max(0, d.downloaded)
           : 0;
-        const annVal = Number.isFinite(d?.announces)
+        const annVal = Number.isFinite(d.announces)
           ? Math.max(0, d.announces)
           : 0;
 
@@ -1594,10 +1594,10 @@ export function HourlyActivitySvgChart({
         return (
           <g key={i}>
             <circle cx={x} cy={yUp} r="3" fill="#22c55e">
-              <title>{`${d?.timeLabel || ""}: ${formatBytes(upVal)} uploaded, ${formatBytes(downVal)} downloaded, ${annVal} announces`}</title>
+              <title>{`${d.timeLabel || ""}: ${formatBytes(upVal)} uploaded, ${formatBytes(downVal)} downloaded, ${annVal} announces`}</title>
             </circle>
             <circle cx={x} cy={yDown} r="2.5" fill="#60a5fa">
-              <title>{`${d?.timeLabel || ""}: ${formatBytes(downVal)} downloaded`}</title>
+              <title>{`${d.timeLabel || ""}: ${formatBytes(downVal)} downloaded`}</title>
             </circle>
           </g>
         );

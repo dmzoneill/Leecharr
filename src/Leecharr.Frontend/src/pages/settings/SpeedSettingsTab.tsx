@@ -42,30 +42,30 @@ export function SpeedSettingsTab() {
   useEffect(() => {
     if (config) {
       setForm({
-        maxDownloadSpeedKbps: config.maxDownloadSpeedKbps ?? 0,
-        maxUploadSpeedKbps: config.maxUploadSpeedKbps ?? 0,
-        alternativeSpeedEnabled: config.alternativeSpeedEnabled ?? false,
-        altDownloadSpeedKbps: config.altDownloadSpeedKbps ?? 2000,
-        altUploadSpeedKbps: config.altUploadSpeedKbps ?? 500,
+        maxDownloadSpeedKbps: config.maxDownloadSpeedKbps,
+        maxUploadSpeedKbps: config.maxUploadSpeedKbps,
+        alternativeSpeedEnabled: config.alternativeSpeedEnabled,
+        altDownloadSpeedKbps: config.altDownloadSpeedKbps,
+        altUploadSpeedKbps: config.altUploadSpeedKbps,
         uploadDistributionAlgorithm:
           config.uploadDistributionAlgorithm || "Equal",
         uploadDistributionSpreadPercentage:
-          config.uploadDistributionSpreadPercentage ?? 50,
+          config.uploadDistributionSpreadPercentage,
         uploadRedistributionMode: config.uploadRedistributionMode || "tick",
-        uploadCustomIntervalMinutes: config.uploadCustomIntervalMinutes ?? 5,
-        uploadStoppedMinPercentage: config.uploadStoppedMinPercentage ?? 20,
-        uploadStoppedMaxPercentage: config.uploadStoppedMaxPercentage ?? 40,
+        uploadCustomIntervalMinutes: config.uploadCustomIntervalMinutes,
+        uploadStoppedMinPercentage: config.uploadStoppedMinPercentage,
+        uploadStoppedMaxPercentage: config.uploadStoppedMaxPercentage,
         downloadDistributionAlgorithm:
           config.downloadDistributionAlgorithm || "Equal",
         downloadDistributionSpreadPercentage:
-          config.downloadDistributionSpreadPercentage ?? 50,
+          config.downloadDistributionSpreadPercentage,
         downloadRedistributionMode: config.downloadRedistributionMode || "tick",
         downloadCustomIntervalMinutes:
-          config.downloadCustomIntervalMinutes ?? 5,
-        downloadStoppedMinPercentage: config.downloadStoppedMinPercentage ?? 20,
-        downloadStoppedMaxPercentage: config.downloadStoppedMaxPercentage ?? 40,
-        speedVariationMin: config.speedVariationMin ?? 0.2,
-        speedVariationMax: config.speedVariationMax ?? 0.8,
+          config.downloadCustomIntervalMinutes,
+        downloadStoppedMinPercentage: config.downloadStoppedMinPercentage,
+        downloadStoppedMaxPercentage: config.downloadStoppedMaxPercentage,
+        speedVariationMin: config.speedVariationMin,
+        speedVariationMax: config.speedVariationMax,
       });
       setDirty(false);
     }

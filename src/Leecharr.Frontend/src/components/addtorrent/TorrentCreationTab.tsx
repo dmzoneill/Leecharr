@@ -147,7 +147,7 @@ export function TorrentCreationTab({
       downloadTorrentFile(target.torrentFileBytes, filename);
     } catch (err: unknown) {
       showToast(
-        (err as Error)?.message || "Failed to download torrent file",
+        (err as Error).message || "Failed to download torrent file",
         "error",
       );
     }
@@ -224,7 +224,7 @@ export function TorrentCreationTab({
       }
     } catch (err: unknown) {
       showToast(
-        (err as Error)?.message ||
+        (err as Error).message ||
           t("addTorrent.failedToCreateTorrent", "Failed to create torrent"),
         "error",
       );

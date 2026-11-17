@@ -517,7 +517,7 @@ export function MediaPlayerModal({
               >
                 {titleText}
               </h3>
-              {Array.isArray(mediaBadges?.badges) &&
+              {Array.isArray(mediaBadges.badges) &&
                 mediaBadges.badges.map((b) => (
                   <span key={b} className="media-badge">
                     {b}
