@@ -1097,7 +1097,7 @@ export function SpeedSchedule() {
         },
         onError: (err: unknown) => {
           showToast(
-            (err as Error)?.message ||
+            (err as Error).message ||
               t("speedSchedule.updateError", "Failed to update speed schedule"),
             "error",
           );

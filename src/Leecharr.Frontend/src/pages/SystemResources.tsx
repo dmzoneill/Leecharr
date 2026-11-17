@@ -809,7 +809,7 @@ export function SystemResources() {
                   marginTop: "0.5rem",
                 }}
               >
-                {Object.entries(sub.metrics ?? {}).map(([k, v]) => (
+                {Object.entries(sub.metrics).map(([k, v]) => (
                   <span
                     key={k}
                     style={{

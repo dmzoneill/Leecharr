@@ -91,7 +91,7 @@ export function translate(
   if (!value) {
     value = defaultValue ?? key;
   }
-  return interpolate(value ?? key, params);
+  return interpolate(value, params);
 }
 
 export const useTranslation = () => {

@@ -159,7 +159,7 @@ function formatDateTime(dateStr?: string | null): string {
 }
 
 function statusIcon(status: string): string {
-  switch (status?.toLowerCase()) {
+  switch (status.toLowerCase()) {
     case "queued":
       return "⌚";
     case "running":
@@ -543,7 +543,7 @@ function SystemTasks() {
                       >
                         {statusIcon(cmd.status)}{" "}
                         {t(
-                          `commandStatus.${cmd.status?.toLowerCase()}`,
+                          `commandStatus.${cmd.status.toLowerCase()}`,
                           cmd.status,
                         )}
                       </span>

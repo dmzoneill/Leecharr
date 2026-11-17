@@ -122,7 +122,7 @@ export function BulkTagModal({
       const newTag = await createTagMutation.mutateAsync({
         label: trimmedSearch,
       });
-      if (newTag?.id) {
+      if (newTag.id) {
         setSelectedTagIds((prev) => new Set(prev).add(newTag.id));
       }
       setSearchTerm("");

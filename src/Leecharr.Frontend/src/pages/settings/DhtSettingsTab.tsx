@@ -100,7 +100,7 @@ export function DhtSettingsTab() {
 
     const handleError = (err: unknown) => {
       hasError = true;
-      showToast((err as Error)?.message || t("settingsTabs.dht.failedToSave"), "error");
+      showToast((err as Error).message || t("settingsTabs.dht.failedToSave"), "error");
     };
 
     if (btConfig) {

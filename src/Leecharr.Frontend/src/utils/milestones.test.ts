@@ -154,6 +154,22 @@ void describe("milestones: getTorrentBadges", () => {
     assert.ok(goldBadge, "Expected Gold Ratio badge");
     assert.equal(goldBadge.label, "5.5x");
   });
+
+  void it("should award Swarm Guardian when seeding with two or fewer seeders", () => {
+    const torrent = createMockTorrent({
+      seeders: 2,
+      status: "Seeding",
+    });
+
+    const badges = getTorrentBadges(torrent);
+    const guardian = badges.find((b) => b.label === "Guardian");
+
+    assert.ok(guardian, "Expected Swarm Guardian badge");
+    assert.equal(
+      guardian.title,
+      "Swarm Guardian: Only 2 seeders in the world! You are keeping this swarm alive.",
+    );
+  });
 });
 
 void describe("milestones: calculateAchievements", () => {

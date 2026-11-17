@@ -76,7 +76,7 @@ void describe("Health Check Serialization & Casing Support (#1011)", () => {
       const hasIssues =
         healthChecks &&
         healthChecks.some((c) => {
-          const type = c.type?.toLowerCase();
+          const type = c.type.toLowerCase();
           return type === "warning" || type === "error";
         });
 

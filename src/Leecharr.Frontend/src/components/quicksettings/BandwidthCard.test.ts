@@ -145,7 +145,7 @@ void describe("BandwidthCard slider commit and pointer interaction semantics (#1
     // 1. Pointer down captures pointerId so drags outside track aren't dropped
     const pointerDown = (e: { pointerId: number; target: typeof mockTarget }) => {
       isDragging = true;
-      e.target.setPointerCapture?.(e.pointerId);
+      e.target.setPointerCapture(e.pointerId);
     };
 
     pointerDown({ pointerId: 42, target: mockTarget });
@@ -158,8 +158,8 @@ void describe("BandwidthCard slider commit and pointer interaction semantics (#1
 
     // 3. Pointer release outside element still arrives at target because of pointer capture
     const pointerUp = (e: { pointerId: number; target: typeof mockTarget }) => {
-      if (e.target.hasPointerCapture?.(e.pointerId)) {
-        e.target.releasePointerCapture?.(e.pointerId);
+      if (e.target.hasPointerCapture(e.pointerId)) {
+        e.target.releasePointerCapture(e.pointerId);
       }
       isDragging = false;
       const idx = Number(e.target.value);

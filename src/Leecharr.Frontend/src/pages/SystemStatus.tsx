@@ -82,7 +82,7 @@ function SystemStatus() {
       trackSystemLifecycle("restart");
       setSystemAction("restarting");
       const res = await restartSystem.mutateAsync();
-      showToast(res?.message || t("system.restartServer"), "info");
+      showToast(res.message || t("system.restartServer"), "info");
     } catch (err: unknown) {
       setSystemAction("idle");
       const message =
@@ -107,7 +107,7 @@ function SystemStatus() {
       trackSystemLifecycle("shutdown");
       setSystemAction("shutdown");
       const res = await shutdownSystem.mutateAsync();
-      showToast(res?.message || t("system.shutdownServer"), "info");
+      showToast(res.message || t("system.shutdownServer"), "info");
     } catch (err: unknown) {
       setSystemAction("idle");
       const message =
@@ -120,7 +120,7 @@ function SystemStatus() {
 
   const warningOrErrorChecks =
     health?.filter((c) => {
-      const type = c.type?.toLowerCase();
+      const type = c.type.toLowerCase();
       return type === "warning" || type === "error";
     }) ?? [];
 
@@ -391,7 +391,7 @@ function SystemStatus() {
             style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
           >
             {warningOrErrorChecks.map((check, i) => {
-              const isError = check.type?.toLowerCase() === "error";
+              const isError = check.type.toLowerCase() === "error";
               return (
                 <div
                   key={i}
@@ -601,7 +601,7 @@ function SystemStatus() {
                     <td>
                       <span className="badge badge-secondary">
                         {t(
-                          `downloadClients.types.${client.clientType?.toLowerCase()}`,
+                          `downloadClients.types.${client.clientType.toLowerCase()}`,
                           client.clientType,
                         )}
                       </span>
@@ -660,7 +660,7 @@ function SystemStatus() {
                     <td>
                       <span className="badge badge-secondary">
                         {t(
-                          `indexers.types.${idx.indexerType?.toLowerCase()}`,
+                          `indexers.types.${idx.indexerType.toLowerCase()}`,
                           idx.indexerType,
                         )}
                       </span>

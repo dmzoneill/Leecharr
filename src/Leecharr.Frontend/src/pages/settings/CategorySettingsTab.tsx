@@ -155,7 +155,7 @@ export function CategorySettingsTab({
           },
           onError: (err: unknown) => {
             setModalError(
-              (err as Error)?.message || t("settingsTabs.categories.updateFailed"),
+              (err as Error).message || t("settingsTabs.categories.updateFailed"),
             );
           },
         },
@@ -174,7 +174,7 @@ export function CategorySettingsTab({
         },
         onError: (err: unknown) => {
           setModalError(
-            (err as Error)?.message || t("settingsTabs.categories.createFailed"),
+            (err as Error).message || t("settingsTabs.categories.createFailed"),
           );
         },
       });
@@ -205,7 +205,7 @@ export function CategorySettingsTab({
       },
       onError: (err: unknown) => {
         showToast(
-          (err as Error)?.message || t("settingsTabs.categories.deleteFailed"),
+          (err as Error).message || t("settingsTabs.categories.deleteFailed"),
           "error",
         );
       },

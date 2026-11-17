@@ -250,7 +250,7 @@ export function SpeedGraph({
     return { value, y };
   });
 
-  const effectiveMaxPoints = currentTfConfig?.pointCount ?? maxPoints;
+  const effectiveMaxPoints = currentTfConfig?.pointCount;
 
   const toPoints = (
     data: Array<{ uploadSpeed: number; downloadSpeed: number }>,

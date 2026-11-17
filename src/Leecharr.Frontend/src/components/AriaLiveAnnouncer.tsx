@@ -23,7 +23,7 @@ export function announce(
   message: string,
   priority: AriaPriority = "polite",
 ): void {
-  const trimmed = message?.trim();
+  const trimmed = message.trim();
   if (!trimmed) return;
 
   const item: AriaAnnouncement = {

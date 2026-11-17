@@ -255,7 +255,7 @@ export function IndexersTab() {
           onError: (err) => {
             trackIndexerAction("sync", "Prowlarr", false);
             showToast(
-              err?.message || t("settingsTabs.indexers.syncProwlarrFailed"),
+              err.message || t("settingsTabs.indexers.syncProwlarrFailed"),
               "error",
             );
           },
@@ -554,8 +554,8 @@ export function IndexersTab() {
         showToast(
           t(
             "settingsTabs.indexers.bulkDeleteSuccess",
-            { count: res?.count ?? count },
-            `Deleted ${res?.count ?? count} indexer(s)`,
+            { count: res?.count},
+            `Deleted ${res?.count} indexer(s)`,
           ),
           "info",
         );
@@ -817,7 +817,7 @@ export function IndexersTab() {
               <div className="provider-card-badges">
                 <span className="provider-card-badge provider-card-badge-green">
                   {t(
-                    `settingsTabs.indexers.${idx.indexerType?.toLowerCase() || "torznab"}`,
+                    `settingsTabs.indexers.${idx.indexerType.toLowerCase() || "torznab"}`,
                     idx.indexerType,
                   )}
                 </span>

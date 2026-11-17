@@ -322,7 +322,7 @@ export const api = {
         return await api.login(credentials);
       } catch (err: unknown) {
         lastError = err;
-        const msg = String((err as Error)?.message || "");
+        const msg = String((err as Error).message || "");
         // Do not retry client/auth errors like invalid password
         if (
           msg.includes("401") ||

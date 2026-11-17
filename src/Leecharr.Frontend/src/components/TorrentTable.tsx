@@ -1532,11 +1532,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         valA =
           mergedA.queuePosition && mergedA.queuePosition > 0
             ? mergedA.queuePosition
-            : (mergedA.id ?? 0);
+            : (mergedA.id);
         valB =
           mergedB.queuePosition && mergedB.queuePosition > 0
             ? mergedB.queuePosition
-            : (mergedB.id ?? 0);
+            : (mergedB.id);
       } else if (sortKey === "category") {
         valA = mergedA.category ?? mergedA.label ?? "";
         valB = mergedB.category ?? mergedB.label ?? "";
@@ -1560,8 +1560,8 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       if (valB === undefined || valB === null) return -1;
 
       if (typeof valA === "string" || typeof valB === "string") {
-        const strA = String(valA ?? "");
-        const strB = String(valB ?? "");
+        const strA = String(valA);
+        const strB = String(valB);
         return sortAsc
           ? strA.localeCompare(strB, undefined, {
               numeric: true,

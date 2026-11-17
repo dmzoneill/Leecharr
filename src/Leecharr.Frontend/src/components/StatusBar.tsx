@@ -59,7 +59,7 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
   const hasIssues =
     healthChecks &&
     healthChecks.some((c) => {
-      const type = c.type?.toLowerCase();
+      const type = c.type.toLowerCase();
       return type === "warning" || type === "error";
     });
   const issuesCount = hasIssues

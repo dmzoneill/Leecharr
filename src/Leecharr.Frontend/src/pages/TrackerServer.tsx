@@ -125,9 +125,9 @@ function TrackerServer() {
       if (filterScope === "external" && t.isInternal) return false;
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
-        const matchName = t.name?.toLowerCase().includes(q);
+        const matchName = t.name.toLowerCase().includes(q);
         const matchTitle = t.mediaTitle?.toLowerCase().includes(q);
-        const matchHash = t.infoHash?.toLowerCase().includes(q);
+        const matchHash = t.infoHash.toLowerCase().includes(q);
         const matchGenre = t.genres?.some((g) => g.toLowerCase().includes(q));
         if (!matchName && !matchTitle && !matchHash && !matchGenre)
           return false;

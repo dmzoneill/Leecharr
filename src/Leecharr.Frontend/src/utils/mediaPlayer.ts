@@ -196,7 +196,7 @@ export function getAbsoluteUrl(url: string, origin?: string): string {
   }
   const base =
     origin ??
-    (typeof window !== "undefined" && window.location?.origin
+    (typeof window !== "undefined" && window.location.origin
       ? window.location.origin
       : "http://localhost:5000");
   const cleanedBase = base.endsWith("/") ? base.slice(0, -1) : base;

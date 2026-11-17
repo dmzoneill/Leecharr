@@ -291,7 +291,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
               </div>
 
               {/* Issues & Bottlenecks */}
-              {report.issues?.length > 0 && (
+              {report.issues.length > 0 && (
                 <div style={{ fontSize: "0.75rem" }}>
                   <span
                     style={{
@@ -318,7 +318,7 @@ export const AiSwarmDiagnosticCard: React.FC<AiSwarmDiagnosticCardProps> = ({
               )}
 
               {/* Actionable Recommendations & 1-Click Fixes */}
-              {report.recommendations?.length > 0 && (
+              {report.recommendations.length > 0 && (
                 <div style={{ fontSize: "0.75rem" }}>
                   <span
                     style={{

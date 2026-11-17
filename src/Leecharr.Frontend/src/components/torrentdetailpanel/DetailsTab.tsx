@@ -30,7 +30,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
   const historyMatch = history?.find(
     (h) =>
       (torrent.infoHash &&
-        h.infoHash?.toLowerCase() === torrent.infoHash.toLowerCase()) ||
+        h.infoHash.toLowerCase() === torrent.infoHash.toLowerCase()) ||
       h.title?.toLowerCase() === torrent.name?.toLowerCase(),
   );
 

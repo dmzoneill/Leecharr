@@ -251,7 +251,7 @@ export function ConnectionsTab() {
         },
         onError: (err: unknown) => {
           showToast(
-            (err as Error)?.message ||
+            (err as Error).message ||
               t(
                 "settingsTabs.connections.updateFailed",
                 "Failed to update connection",
@@ -347,7 +347,7 @@ export function ConnectionsTab() {
             {syncMutation.isError && (
               <span style={{ color: "var(--danger)", fontSize: "0.85rem" }}>
                 {t("settingsTabs.connections.syncFailed", {
-                  error: syncMutation.error?.message,
+                  error: syncMutation.error.message,
                 })}
               </span>
             )}

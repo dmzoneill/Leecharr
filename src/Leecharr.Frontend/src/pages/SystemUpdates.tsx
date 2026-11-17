@@ -114,7 +114,7 @@ function SystemUpdates() {
       {
         onSuccess: (data) => {
           toast.showToast(
-            data?.message || t("system.updateInstallStarted"),
+            data.message || t("system.updateInstallStarted"),
             "success",
           );
         },

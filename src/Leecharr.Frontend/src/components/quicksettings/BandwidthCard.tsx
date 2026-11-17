@@ -81,7 +81,7 @@ export const BandwidthCard: React.FC = () => {
       },
       {
         onError: (err: unknown) => {
-          const msg = (err as Error)?.message || "";
+          const msg = (err as Error).message || "";
           showToast(
             t("quickSettings.failedToUpdateSpeed", {
               error: msg,
@@ -109,7 +109,7 @@ export const BandwidthCard: React.FC = () => {
     );
   }
 
-  const isAltActive = config.alternativeSpeedEnabled ?? false;
+  const isAltActive = config.alternativeSpeedEnabled;
 
   const dlIndex = valueToStepIndex(localDl, DL_STEPS);
   const dlPercent = (dlIndex / (DL_STEPS.length - 1)) * 100;
@@ -227,15 +227,15 @@ export const BandwidthCard: React.FC = () => {
               onPointerDown={(e) => {
                 setIsDraggingDl(true);
                 try {
-                  (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+                  (e.target as HTMLElement).setPointerCapture(e.pointerId);
                 } catch {
                   // ignore in environments without pointer capture support
                 }
               }}
               onPointerUp={(e) => {
                 try {
-                  if ((e.target as HTMLElement).hasPointerCapture?.(e.pointerId)) {
-                    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+                  if ((e.target as HTMLElement).hasPointerCapture(e.pointerId)) {
+                    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
                   }
                 } catch {
                   // ignore
@@ -372,8 +372,8 @@ export const BandwidthCard: React.FC = () => {
             <span
               style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
             >
-              DL: {config.altDownloadSpeedKbps ?? 2000} KB/s | UL:{" "}
-              {config.altUploadSpeedKbps ?? 500} KB/s
+              DL: {config.altDownloadSpeedKbps} KB/s | UL:{" "}
+              {config.altUploadSpeedKbps} KB/s
             </span>
           </div>
         )}

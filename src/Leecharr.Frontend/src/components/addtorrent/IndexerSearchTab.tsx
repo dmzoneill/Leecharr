@@ -276,7 +276,7 @@ export function IndexerSearchTab({
             }}
           >
             {t("addTorrent.searchFailed", "Search failed:")}{" "}
-            {(searchResults.error as Error)?.message ||
+            {(searchResults.error as Error).message ||
               t(
                 "addTorrent.checkIndexerConnection",
                 "Check indexer connection",

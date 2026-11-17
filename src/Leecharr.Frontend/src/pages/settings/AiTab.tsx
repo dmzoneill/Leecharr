@@ -141,7 +141,7 @@ export function AiTab() {
               ? {
                   ...s,
                   activeProviderId: providerId,
-                  providers: s.providers?.map((p) => ({
+                  providers: s.providers.map((p) => ({
                     ...p,
                     isActive: p.providerId === providerId,
                   })),
@@ -167,7 +167,7 @@ export function AiTab() {
       showToast(
         t("settingsTabs.ai.switchError", {
           error:
-            (err as Error)?.message ||
+            (err as Error).message ||
             t("settingsTabs.notifications.unknownError"),
         }),
         "error",
@@ -227,7 +227,7 @@ export function AiTab() {
   const renderProbeBanner = (providerId: string) => {
     if (
       !probeResult ||
-      probeResult.providerId?.toLowerCase() !== providerId.toLowerCase()
+      probeResult.providerId.toLowerCase() !== providerId.toLowerCase()
     ) {
       return null;
     }

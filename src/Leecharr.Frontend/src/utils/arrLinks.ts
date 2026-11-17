@@ -14,7 +14,7 @@ export function applySmartFallback(
     trimmed = trimmed.slice(0, -1);
   }
 
-  if (typeof window !== "undefined" && window.location?.hostname) {
+  if (typeof window !== "undefined" && window.location.hostname) {
     const currentHost = window.location.hostname;
     try {
       const parsed = new URL(trimmed);
@@ -188,8 +188,8 @@ export function getProwlarrUrl(
   const prowlarr = indexers.find(
     (i) =>
       i.enable &&
-      (i.indexerType?.toLowerCase() === "prowlarr" ||
-        i.name?.toLowerCase().includes("prowlarr")),
+      (i.indexerType.toLowerCase() === "prowlarr" ||
+        i.name.toLowerCase().includes("prowlarr")),
   );
   if (!prowlarr) return null;
   const targetUrl = prowlarr.externalUrl || prowlarr.publicUrl || prowlarr.url;

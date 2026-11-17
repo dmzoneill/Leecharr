@@ -175,7 +175,7 @@ export function ClientEmulationSettingsTab() {
     const handleError = (err: unknown) => {
       hasError = true;
       showToast(
-        (err as Error)?.message || t("settingsTabs.clientEmulation.saveError"),
+        (err as Error).message || t("settingsTabs.clientEmulation.saveError"),
         "error",
       );
     };

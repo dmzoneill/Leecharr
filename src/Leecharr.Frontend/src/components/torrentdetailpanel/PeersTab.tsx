@@ -111,7 +111,7 @@ export function PeersTab({
         {
           onSuccess: (res) => {
             showToast(
-              res?.message ||
+              res.message ||
                 t("torrents.detail.peerDisconnected", "Peer disconnected"),
               "success",
             );
@@ -467,7 +467,7 @@ export function PeersTab({
                         disabled={
                           !effectiveId ||
                           (activeAction?.ip === p.ip &&
-                            activeAction?.action === "disconnect")
+                            activeAction.action === "disconnect")
                         }
                         title={t(
                           "torrents.detail.disconnectPeer",
@@ -477,7 +477,7 @@ export function PeersTab({
                         <i
                           className={`fas ${
                             activeAction?.ip === p.ip &&
-                            activeAction?.action === "disconnect"
+                            activeAction.action === "disconnect"
                               ? "fa-spinner fa-spin"
                               : "fa-unlink"
                           }`}
@@ -497,14 +497,14 @@ export function PeersTab({
                         disabled={
                           !effectiveId ||
                           (activeAction?.ip === p.ip &&
-                            activeAction?.action === "ban")
+                            activeAction.action === "ban")
                         }
                         title={t("torrents.detail.banPeer", "Ban Peer")}
                       >
                         <i
                           className={`fas ${
                             activeAction?.ip === p.ip &&
-                            activeAction?.action === "ban"
+                            activeAction.action === "ban"
                               ? "fa-spinner fa-spin"
                               : "fa-ban"
                           }`}

@@ -215,19 +215,19 @@ export function GettingStartedModal({
   useEffect(() => {
     if (existingConnections && existingConnections.length > 0) {
       const sonarr = existingConnections.find(
-        (c) => c.arrType?.toLowerCase() === "sonarr",
+        (c) => c.arrType.toLowerCase() === "sonarr",
       );
       if (sonarr) {
         setSonarrForm((prev) => ({ ...prev, ...sonarr }));
       }
       const radarr = existingConnections.find(
-        (c) => c.arrType?.toLowerCase() === "radarr",
+        (c) => c.arrType.toLowerCase() === "radarr",
       );
       if (radarr) {
         setRadarrForm((prev) => ({ ...prev, ...radarr }));
       }
       const lidarr = existingConnections.find(
-        (c) => c.arrType?.toLowerCase() === "lidarr",
+        (c) => c.arrType.toLowerCase() === "lidarr",
       );
       if (lidarr) {
         setLidarrForm((prev) => ({ ...prev, ...lidarr }));

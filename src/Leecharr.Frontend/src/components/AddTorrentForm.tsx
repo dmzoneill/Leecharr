@@ -113,7 +113,7 @@ export function AddTorrentForm({
               const details = result.failed
                 .map((f) => `${f.fileName} (${f.reason})`)
                 .join("; ");
-              const summaryMsg = `${result.added?.length ?? 0} added, ${result.failed.length} skipped: ${details}`;
+              const summaryMsg = `${result.added?.length} added, ${result.failed.length} skipped: ${details}`;
               setResultMessage(summaryMsg);
               showToast(summaryMsg, "error");
             } else {

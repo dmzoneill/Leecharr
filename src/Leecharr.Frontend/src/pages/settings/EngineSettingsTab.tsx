@@ -507,7 +507,7 @@ export function EngineSettingsTab() {
                       marginTop: "0.4rem",
                     }}
                   >
-                    {selectedCaps?.supportsV2Torrents ? (
+                    {selectedCaps.supportsV2Torrents ? (
                       <span
                         className="badge badge-info"
                         style={{
@@ -530,7 +530,7 @@ export function EngineSettingsTab() {
                         v1 Only
                       </span>
                     )}
-                    {selectedCaps?.supportsMemoryMappedIo ? (
+                    {selectedCaps.supportsMemoryMappedIo ? (
                       <span
                         className="badge badge-info"
                         style={{
@@ -553,7 +553,7 @@ export function EngineSettingsTab() {
                         POSIX I/O
                       </span>
                     )}
-                    {selectedCaps?.supportsUtp && (
+                    {selectedCaps.supportsUtp && (
                       <span
                         className="badge badge-secondary"
                         style={{

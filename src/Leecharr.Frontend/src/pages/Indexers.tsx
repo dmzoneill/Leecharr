@@ -672,7 +672,7 @@ export const Indexers: React.FC<IndexersProps> = ({
             >
               {t("indexers.searchQueryFailed", "Search query failed: {error}", {
                 error:
-                  (searchResults.error as Error)?.message ||
+                  (searchResults.error as Error).message ||
                   t("indexers.checkConnection", "Check indexer connection"),
               })}
             </div>

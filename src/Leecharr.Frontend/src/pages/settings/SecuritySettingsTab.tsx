@@ -209,13 +209,13 @@ export function SecuritySettingsTab() {
 
   useEffect(() => {
     if (blocklistData) {
-      const intervalHours = blocklistData.autoUpdateIntervalHours ?? 24;
+      const intervalHours = blocklistData.autoUpdateIntervalHours;
       setBlocklistForm({
-        enabled: blocklistData.enabled ?? false,
-        url: blocklistData.url ?? "",
-        autoUpdateEnabled: blocklistData.autoUpdateEnabled ?? true,
+        enabled: blocklistData.enabled,
+        url: blocklistData.url,
+        autoUpdateEnabled: blocklistData.autoUpdateEnabled,
         autoUpdateIntervalHours: intervalHours,
-        autoUpdateIntervalDays: blocklistData.autoUpdateIntervalDays ?? 1,
+        autoUpdateIntervalDays: blocklistData.autoUpdateIntervalDays,
       });
       const isPreset = BLOCKLIST_INTERVAL_PRESET_HOURS.includes(intervalHours);
       setCustomInterval(!isPreset);
@@ -286,11 +286,11 @@ export function SecuritySettingsTab() {
   useEffect(() => {
     if (config) {
       setForm({
-        authenticationEnabled: config.authenticationEnabled ?? false,
+        authenticationEnabled: config.authenticationEnabled,
         authenticationRequired: parseAuthRequired(
           config.authenticationRequired,
         ),
-        apiKey: config.apiKey ?? "",
+        apiKey: config.apiKey,
         csrfProtectionEnabled: config.csrfProtectionEnabled ?? true,
         hostHeaderValidationEnabled:
           config.hostHeaderValidationEnabled ?? false,
@@ -357,12 +357,12 @@ export function SecuritySettingsTab() {
     try {
       setLoadingApiKey(true);
       const res = await api.getApiKey();
-      if (res?.apiKey) {
+      if (res.apiKey) {
         setRevealedApiKey(res.apiKey);
         setShowApiKey(true);
       }
     } catch {
-      toast?.showToast(
+      toast.showToast(
         t("settingsTabs.batch2.failedToRetrieveUnmaskedApiKey"),
         "error",
       );
@@ -391,7 +391,7 @@ export function SecuritySettingsTab() {
       }
 
       if (!keyToCopy || keyToCopy.includes("*")) {
-        toast?.showToast(t("settingsTabs.batch2.noApiKeyAvailable"), "error");
+        toast.showToast(t("settingsTabs.batch2.noApiKeyAvailable"), "error");
         return;
       }
 
@@ -403,7 +403,7 @@ export function SecuritySettingsTab() {
         "success",
       );
     } catch {
-      toast?.showToast(t("settingsTabs.batch2.failedToCopyApiKey"), "error");
+      toast.showToast(t("settingsTabs.batch2.failedToCopyApiKey"), "error");
     }
   };
 

@@ -46,7 +46,7 @@ export interface TorrentContextMenuProps {
 }
 
 export function buildMagnetLink(t: Torrent): string {
-  const hash = t.infoHash?.trim() || "";
+  const hash = t.infoHash.trim() || "";
   let xt = `urn:btih:${hash}`;
   if (hash.length === 64) {
     xt = `urn:btmh:1220${hash}`;
@@ -176,7 +176,7 @@ export function TorrentContextMenu({
       ? history?.find(
           (h) =>
             (ct.infoHash &&
-              h.infoHash?.toLowerCase() === ct.infoHash.toLowerCase()) ||
+              h.infoHash.toLowerCase() === ct.infoHash.toLowerCase()) ||
             h.title?.toLowerCase() === ct.name?.toLowerCase(),
         )
       : null;
