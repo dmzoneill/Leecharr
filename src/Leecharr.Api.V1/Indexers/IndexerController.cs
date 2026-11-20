@@ -341,6 +341,11 @@ public class IndexerController : Controller
     {
         try
         {
+            if (!this.prowlarrSyncService.IsSyncEnabled)
+            {
+                return this.Ok(new { success = true, syncedCount = 0, message = "Prowlarr sync is disabled." });
+            }
+
             var targetUrl = !string.IsNullOrWhiteSpace(request?.Url) ? request.Url : (!string.IsNullOrWhiteSpace(url) ? url : null);
             var targetApiKey = !string.IsNullOrWhiteSpace(request?.ApiKey) ? request.ApiKey : (!string.IsNullOrWhiteSpace(apiKey) ? apiKey : null);
 

@@ -88,6 +88,8 @@ public interface IConfigService
 
     bool AutoStart { get; }
 
+    bool ProwlarrSyncEnabled { get; }
+
     string Branch { get; }
 
     string ThemeStyle { get; }
@@ -949,6 +951,8 @@ public class ConfigService : IConfigService
     public bool AutoQuarantineHighRisk => this.GetValueBoolean("AutoQuarantineHighRisk", false);
 
     public bool AutoStart => this.GetValueBoolean("AutoStart", true);
+
+    public bool ProwlarrSyncEnabled => this.GetValueBoolean("ProwlarrSyncEnabled", true);
 
     public string Branch => this.GetValue("Branch", "main");
 

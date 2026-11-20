@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Messaging.Commands;
@@ -66,6 +67,8 @@ public class ProwlarrFieldDto
 
 public interface IProwlarrSyncService
 {
+    bool IsSyncEnabled { get; }
+
     Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey, bool? syncCategories = null);
 
     Task<int> SyncAllAsync();
@@ -81,6 +84,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
     private readonly IIndexerRepository repository;
     private readonly IArrConnectionRepository arrRepository;
+    private readonly IConfigService configService;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly HttpClient httpClient;
     private readonly ITorznabClient torznabClient;
@@ -93,10 +97,12 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         HttpClient httpClient = null,
         ITorznabClient torznabClient = null,
         IArrConnectionRepository arrRepository = null,
-        ISafeHttpClientService safeHttpClientService = null)
+        ISafeHttpClientService safeHttpClientService = null,
+        IConfigService configService = null)
     {
         this.repository = repository;
         this.arrRepository = arrRepository;
+        this.configService = configService;
         this.safeHttpClientService = safeHttpClientService;
 
         // An injected ISafeHttpClientService wins over HttpClient. DryIoc auto-resolves a raw HttpClient,
@@ -129,10 +135,13 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         IIndexerRepository repository,
         HttpClient httpClient,
         ITorznabClient torznabClient = null,
-        IArrConnectionRepository arrRepository = null)
-        : this(repository, null, httpClient, torznabClient, arrRepository)
+        IArrConnectionRepository arrRepository = null,
+        IConfigService configService = null)
+        : this(repository, null, httpClient, torznabClient, arrRepository, null, configService)
     {
     }
+
+    public bool IsSyncEnabled => this.configService?.ProwlarrSyncEnabled ?? true;
 
     public async Task ExecuteAsync(ProwlarrSyncCommand message, CancellationToken cancellationToken = default)
     {
@@ -146,6 +155,11 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
     public bool IsConfigured()
     {
+        if (!this.IsSyncEnabled)
+        {
+            return false;
+        }
+
         var hasIndexer = this.repository.All().Any(ProwlarrInstanceDiscovery.IsSyncTarget);
 
         if (hasIndexer)
@@ -171,6 +185,12 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
     public async Task<int> SyncAllAsync()
     {
+        if (!this.IsSyncEnabled)
+        {
+            this.logger.Debug("Prowlarr sync is disabled.");
+            return 0;
+        }
+
         var targets = new List<(string Url, string ApiKey, bool SyncCategories)>();
 
         var indexers = this.repository.All().Where(ProwlarrInstanceDiscovery.IsSyncTarget).ToList();
@@ -232,6 +252,12 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
     public async Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey, bool? syncCategories = null)
     {
+        if (!this.IsSyncEnabled)
+        {
+            this.logger.Debug("Prowlarr sync is disabled.");
+            return 0;
+        }
+
         if (string.IsNullOrWhiteSpace(prowlarrUrl) || string.IsNullOrWhiteSpace(apiKey))
         {
             return 0;

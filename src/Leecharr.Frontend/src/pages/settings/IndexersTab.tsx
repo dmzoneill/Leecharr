@@ -14,6 +14,8 @@ import {
   useUpdateRssRule,
   useDeleteRssRule,
   useSyncRss,
+  useGeneralConfig,
+  useSaveGeneralConfig,
 } from "../../api/hooks";
 import type {
   IndexerDefinition,
@@ -105,6 +107,7 @@ export function IndexersTab() {
   const { showToast } = useToast();
   const { data: indexers, isLoading: isIndexersLoading } = useIndexers();
   const { data: rssRules, isLoading: isRssRulesLoading } = useRssRules();
+  const { data: generalConfig } = useGeneralConfig();
 
   const createMutation = useCreateIndexer();
   const updateMutation = useUpdateIndexer();
@@ -113,6 +116,7 @@ export function IndexersTab() {
   const testMutation = useTestIndexer();
   const testDirectMutation = useTestDirectIndexer();
   const syncMutation = useSyncProwlarr();
+  const saveGeneralMutation = useSaveGeneralConfig();
 
   const createRuleMutation = useCreateRssRule();
   const updateRuleMutation = useUpdateRssRule();
@@ -481,6 +485,39 @@ export function IndexersTab() {
     });
   };
 
+  const prowlarrSyncEnabled = generalConfig?.prowlarrSyncEnabled ?? true;
+
+  const handleProwlarrSyncEnabledChange = (enabled: boolean) => {
+    if (!generalConfig) {
+      return;
+    }
+
+    saveGeneralMutation.mutate(
+      { ...generalConfig, prowlarrSyncEnabled: enabled },
+      {
+        onSuccess: () => {
+          showToast(
+            t(
+              "settingsTabs.indexers.prowlarrSyncSettingSaved",
+              "Prowlarr sync setting saved",
+            ),
+            "success",
+          );
+        },
+        onError: (err) => {
+          showToast(
+            err.message ||
+              t(
+                "settingsTabs.indexers.prowlarrSyncSettingFailed",
+                "Failed to save Prowlarr sync setting",
+              ),
+            "error",
+          );
+        },
+      },
+    );
+  };
+
   const handleSyncRssNow = () => {
     syncRssMutation.mutate(undefined, {
       onSuccess: (res) => {
@@ -665,14 +702,31 @@ export function IndexersTab() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "0.5rem",
+              gap: "0.75rem",
+              flexWrap: "wrap",
             }}
           >
+            <Toggle
+              label={t(
+                "settingsTabs.indexers.prowlarrSyncEnabled",
+                "Enable Prowlarr sync",
+              )}
+              checked={prowlarrSyncEnabled}
+              onChange={handleProwlarrSyncEnabledChange}
+              hint={t(
+                "settingsTabs.indexers.prowlarrSyncEnabledHint",
+                "Automatically sync indexers from configured Prowlarr instances.",
+              )}
+            />
             <button
               type="button"
               className="btn btn-outline btn-small"
               onClick={handleSyncProwlarrNow}
-              disabled={syncMutation.isPending}
+              disabled={
+                syncMutation.isPending ||
+                saveGeneralMutation.isPending ||
+                !prowlarrSyncEnabled
+              }
             >
               {syncMutation.isPending
                 ? t("settingsTabs.indexers.syncingProwlarr")

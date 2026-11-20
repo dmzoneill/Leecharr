@@ -336,6 +336,7 @@ export interface GeneralConfig {
   id: number;
   instanceUuid?: string;
   autoStart: boolean;
+  prowlarrSyncEnabled?: boolean;
   themeStyle: string;
   colorScheme: string;
   watchFolderEnabled: boolean;

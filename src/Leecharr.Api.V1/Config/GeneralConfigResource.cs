@@ -12,6 +12,8 @@ public class GeneralConfigResource : RestResource
 
     public bool AutoStart { get; set; }
 
+    public bool ProwlarrSyncEnabled { get; set; } = true;
+
     public string ThemeStyle { get; set; }
 
     public string ColorScheme { get; set; }
@@ -105,6 +107,7 @@ public static class GeneralConfigResourceMapper
         {
             InstanceUuid = config?.InstanceUuid,
             AutoStart = config?.AutoStart ?? false,
+            ProwlarrSyncEnabled = config?.ProwlarrSyncEnabled ?? true,
             ThemeStyle = config?.ThemeStyle,
             ColorScheme = config?.ColorScheme,
             WatchFolderEnabled = config?.WatchFolderEnabled ?? false,
