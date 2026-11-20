@@ -136,7 +136,13 @@ When querying across multiple indexers, Leecharr aggregates, deduplicates, and r
 - `PUT /api/v1/indexer/{id}`: Update indexer settings.
 - `DELETE /api/v1/indexer/{id}`: Remove indexer.
 - `POST /api/v1/indexer/{id}/test`: Test connectivity (`t=caps`) and API key validity.
-- `POST /api/v1/indexer/sync-prowlarr`: Force re-synchronization with Prowlarr.
+- `POST /api/v1/indexer/sync-prowlarr`: Force re-synchronization with Prowlarr. Returns `{ "success": true, "syncedCount": 0, "message": "Prowlarr sync is disabled." }` when Prowlarr sync is disabled.
+
+### Prowlarr sync toggle
+
+`ProwlarrSyncEnabled` is a general config setting (default `true`) that controls all Prowlarr indexer synchronization: startup sync, the hourly loop, the scheduled task/manual execute, the `sync-prowlarr` endpoint, and Prowlarr webhook-triggered sync. Set it via `PUT /api/v1/config/general/1` with `{"prowlarrSyncEnabled": false}` or the Indexers settings toggle.
+
+When disabled, Leecharr does not query Prowlarr and does not create, update, or prune any `IsProwlarrManaged` indexers. Existing managed indexers are left in place and can be removed normally.
 
 ### 2. Search & Grab (`/api/v1/search`)
 

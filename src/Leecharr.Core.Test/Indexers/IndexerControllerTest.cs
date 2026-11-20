@@ -36,6 +36,7 @@ public class IndexerControllerTest
         this.indexerRepository = Substitute.For<IIndexerRepository>();
         this.torznabClient = Substitute.For<ITorznabClient>();
         this.prowlarrSyncService = Substitute.For<IProwlarrSyncService>();
+        this.prowlarrSyncService.IsSyncEnabled.Returns(true);
         this.torrentService = Substitute.For<ITorrentService>();
         this.torrentFileParser = Substitute.For<ITorrentFileParser>();
         this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();

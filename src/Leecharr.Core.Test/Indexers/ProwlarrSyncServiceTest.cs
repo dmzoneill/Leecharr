@@ -12,6 +12,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers;
 
@@ -1471,6 +1472,84 @@ public class ProwlarrSyncServiceTest
 
         synced.Should().Be(0);
         called.Should().BeFalse();
+    }
+
+    [Test]
+    public void IsConfigured_WhenSyncDisabled_ReturnsFalse()
+    {
+        this.repository.All().Returns(new List<IndexerDefinition>
+        {
+            new()
+            {
+                Name = "Prowlarr",
+                Url = "http://localhost:9696",
+                ApiKey = "secret",
+                Implementation = "Prowlarr",
+            },
+        });
+
+        var configService = Substitute.For<IConfigService>();
+        configService.ProwlarrSyncEnabled.Returns(false);
+
+        var service = new ProwlarrSyncService(this.repository, configService: configService);
+
+        service.IsConfigured().Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SyncAllAsync_WhenSyncDisabled_DoesNotQueryProwlarrApi()
+    {
+        var called = false;
+        var handler = new MockHttpMessageHandler(_ =>
+        {
+            called = true;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        this.repository.All().Returns(new List<IndexerDefinition>
+        {
+            new()
+            {
+                Name = "Prowlarr",
+                Url = "http://localhost:9696",
+                ApiKey = "secret",
+                Implementation = "Prowlarr",
+            },
+        });
+
+        var configService = Substitute.For<IConfigService>();
+        configService.ProwlarrSyncEnabled.Returns(false);
+
+        var service = new ProwlarrSyncService(this.repository, httpClient: httpClient, configService: configService);
+        var synced = await service.SyncAllAsync();
+
+        synced.Should().Be(0);
+        called.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenSyncDisabled_DoesNotQueryProwlarrApi()
+    {
+        var called = false;
+        var handler = new MockHttpMessageHandler(_ =>
+        {
+            called = true;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var configService = Substitute.For<IConfigService>();
+        configService.ProwlarrSyncEnabled.Returns(false);
+
+        var service = new ProwlarrSyncService(this.repository, httpClient: httpClient, configService: configService);
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "fake-prowlarr-key");
+
+        synced.Should().Be(0);
+        called.Should().BeFalse();
+        this.repository.DidNotReceive().Insert(Arg.Any<IndexerDefinition>());
     }
 
     private sealed class DisposableHttpResponseMessage : HttpResponseMessage
