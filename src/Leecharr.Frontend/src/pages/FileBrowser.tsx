@@ -239,6 +239,26 @@ export function getFileCategory(fileName: string): FileCategory {
   return "other";
 }
 
+/** Build an icon + label pair with DOM nodes (no HTML parsing of the label). */
+function setIconLabel(
+  el: HTMLElement,
+  iconStyle: string,
+  icon: string,
+  label: string,
+  spaced: boolean,
+): void {
+  const iconSpan = document.createElement("span");
+  iconSpan.setAttribute("style", iconStyle);
+  iconSpan.textContent = icon;
+  const labelSpan = document.createElement("span");
+  labelSpan.textContent = label;
+  el.replaceChildren(
+    ...(spaced
+      ? [iconSpan, document.createTextNode(" "), labelSpan]
+      : [iconSpan, labelSpan]),
+  );
+}
+
 export function FileBrowser() {
   const { language } = useI18nStore();
   const { t } = useTranslation();
@@ -472,7 +492,13 @@ export function FileBrowser() {
         playLi.style.cursor = "pointer";
         playLi.style.fontWeight = "600";
         playLi.style.color = "var(--accent, #ffd166)";
-        playLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">▶</span> <span>${t("common.play", "Play / Stream")}</span>`;
+        setIconLabel(
+          playLi,
+          "font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;",
+          "▶",
+          t("common.play", "Play / Stream"),
+          true,
+        );
         playLi.addEventListener("click", (ev) => {
           ev.stopPropagation();
           closeMenu();
@@ -484,7 +510,13 @@ export function FileBrowser() {
         const m3uLi = document.createElement("li");
         m3uLi.className = "leecharr-ctx-item leecharr-ctx-m3u";
         m3uLi.style.cursor = "pointer";
-        m3uLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">📥</span> <span>${t("filebrowser.downloadM3u", "Download M3U Playlist")}</span>`;
+        setIconLabel(
+          m3uLi,
+          "font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;",
+          "📥",
+          t("filebrowser.downloadM3u", "Download M3U Playlist"),
+          true,
+        );
         m3uLi.addEventListener("click", (ev) => {
           ev.stopPropagation();
           closeMenu();
@@ -496,7 +528,13 @@ export function FileBrowser() {
         const previewLi = document.createElement("li");
         previewLi.className = "leecharr-ctx-item leecharr-ctx-preview";
         previewLi.style.cursor = "pointer";
-        previewLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">👁</span> <span>${t("common.preview", "Quick Preview")}</span>`;
+        setIconLabel(
+          previewLi,
+          "font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;",
+          "👁",
+          t("common.preview", "Quick Preview"),
+          true,
+        );
         previewLi.addEventListener("click", (ev) => {
           ev.stopPropagation();
           closeMenu();
@@ -510,7 +548,13 @@ export function FileBrowser() {
         previewLi.style.cursor = "pointer";
         previewLi.style.fontWeight = "600";
         previewLi.style.color = "var(--accent, #ffd166)";
-        previewLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">👁</span> <span>${t("common.preview", "Preview File")}</span>`;
+        setIconLabel(
+          previewLi,
+          "font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;",
+          "👁",
+          t("common.preview", "Preview File"),
+          true,
+        );
         previewLi.addEventListener("click", (ev) => {
           ev.stopPropagation();
           closeMenu();
@@ -571,7 +615,13 @@ export function FileBrowser() {
           "item-action file-action leecharr-tb-btn leecharr-tb-play";
         playBtn.style.color = "var(--accent, #ffd166)";
         playBtn.style.fontWeight = "700";
-        playBtn.innerHTML = `<span style="font-size: 16px; margin-right: 4px;">▶</span><span>${t("common.play", "Play")}</span>`;
+        setIconLabel(
+          playBtn,
+          "font-size: 16px; margin-right: 4px;",
+          "▶",
+          t("common.play", "Play"),
+          false,
+        );
         playBtn.addEventListener("click", (ev) => {
           ev.stopPropagation();
           handlePlayFile(targetFile);
@@ -581,7 +631,13 @@ export function FileBrowser() {
         m3uBtn.type = "button";
         m3uBtn.className =
           "item-action file-action leecharr-tb-btn leecharr-tb-m3u";
-        m3uBtn.innerHTML = `<span style="font-size: 16px; margin-right: 4px;">📥</span><span>M3U</span>`;
+        setIconLabel(
+          m3uBtn,
+          "font-size: 16px; margin-right: 4px;",
+          "📥",
+          "M3U",
+          false,
+        );
         m3uBtn.addEventListener("click", (ev) => {
           ev.stopPropagation();
           handleDownloadM3u(targetFile);
@@ -591,7 +647,13 @@ export function FileBrowser() {
         prevBtn.type = "button";
         prevBtn.className =
           "item-action file-action leecharr-tb-btn leecharr-tb-preview";
-        prevBtn.innerHTML = `<span style="font-size: 16px; margin-right: 4px;">👁</span><span>${t("common.preview", "Preview")}</span>`;
+        setIconLabel(
+          prevBtn,
+          "font-size: 16px; margin-right: 4px;",
+          "👁",
+          t("common.preview", "Preview"),
+          false,
+        );
         prevBtn.addEventListener("click", (ev) => {
           ev.stopPropagation();
           handlePreviewFile(targetFile);
@@ -607,7 +669,13 @@ export function FileBrowser() {
           "item-action file-action leecharr-tb-btn leecharr-tb-preview";
         prevBtn.style.color = "var(--accent, #ffd166)";
         prevBtn.style.fontWeight = "700";
-        prevBtn.innerHTML = `<span style="font-size: 16px; margin-right: 4px;">👁</span><span>${t("common.preview", "Preview")}</span>`;
+        setIconLabel(
+          prevBtn,
+          "font-size: 16px; margin-right: 4px;",
+          "👁",
+          t("common.preview", "Preview"),
+          false,
+        );
         prevBtn.addEventListener("click", (ev) => {
           ev.stopPropagation();
           handlePreviewFile(targetFile);
