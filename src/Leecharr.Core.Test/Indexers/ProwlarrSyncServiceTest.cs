@@ -1521,7 +1521,7 @@ public class ProwlarrSyncServiceTest
         var configService = Substitute.For<IConfigService>();
         configService.ProwlarrSyncEnabled.Returns(false);
 
-        var service = new ProwlarrSyncService(this.repository, httpClient: httpClient, configService: configService);
+        var service = new ProwlarrSyncService(this.repository, httpClient, configService: configService);
         var synced = await service.SyncAllAsync();
 
         synced.Should().Be(0);
@@ -1544,7 +1544,7 @@ public class ProwlarrSyncServiceTest
         var configService = Substitute.For<IConfigService>();
         configService.ProwlarrSyncEnabled.Returns(false);
 
-        var service = new ProwlarrSyncService(this.repository, httpClient: httpClient, configService: configService);
+        var service = new ProwlarrSyncService(this.repository, httpClient, configService: configService);
         var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "fake-prowlarr-key");
 
         synced.Should().Be(0);
