@@ -135,9 +135,8 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         IIndexerRepository repository,
         HttpClient httpClient,
         ITorznabClient torznabClient = null,
-        IArrConnectionRepository arrRepository = null,
-        IConfigService configService = null)
-        : this(repository, null, httpClient, torznabClient, arrRepository, null, configService)
+        IArrConnectionRepository arrRepository = null)
+        : this(repository, null, httpClient, torznabClient, arrRepository)
     {
     }
 
