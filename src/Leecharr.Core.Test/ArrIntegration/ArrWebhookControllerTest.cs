@@ -2,14 +2,18 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Webhooks;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Developer;
+using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
@@ -1190,6 +1194,197 @@ public class ArrWebhookControllerTest
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<MediaEnrichedEvent>(e =>
             e.TorrentId == 1 &&
             e.Metadata.Title == "Severance"));
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenSeriesImagesPresent_AssignsPosterToDownload()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var torrent = new Torrent
+        {
+            Id = 7,
+            Name = "House.of.Guinness.S01E02.1080p.WEB.h264-ETHEL",
+            InfoHash = hash,
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.mediaMetadataRepository.GetByTorrentId(7).Returns((TorrentMediaMetadata)null);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            InstanceName = "Sonarr",
+            ApplicationUrl = "http://sonarr:8989",
+            DownloadId = hash,
+            Series = new ArrWebhookSeries
+            {
+                Id = 1526,
+                Title = "House of Guinness",
+                Year = 2025,
+                TvdbId = 447594,
+                Images = new List<ArrWebhookImage>
+                {
+                    new()
+                    {
+                        CoverType = "poster",
+                        Url = "/MediaCover/1526/poster.jpg",
+                        RemoteUrl = "https://artworks.thetvdb.com/banners/posters/447594-1.jpg",
+                    },
+                    new()
+                    {
+                        CoverType = "fanart",
+                        RemoteUrl = "https://artworks.thetvdb.com/banners/fanart/original/447594-1.jpg",
+                    },
+                },
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        (result.Result as OkObjectResult).Should().NotBeNull();
+
+        this.mediaMetadataRepository.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m =>
+            m.TorrentId == 7 &&
+            m.Title == "House of Guinness" &&
+            m.PosterUrl == "https://artworks.thetvdb.com/banners/posters/447594-1.jpg" &&
+            m.BackdropUrl == "https://artworks.thetvdb.com/banners/fanart/original/447594-1.jpg"));
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenCachedArtworkLandsDuringWebhook_KeepsPosterPath()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var torrent = new Torrent
+        {
+            Id = 8,
+            Name = "RuPaul's Drag Race S09E12",
+            InfoHash = hash,
+        };
+
+        var stale = new TorrentMediaMetadata
+        {
+            Id = 8,
+            TorrentId = 8,
+            Title = "RuPaul's Drag Race",
+            ArrType = "TV",
+        };
+        var fresh = new TorrentMediaMetadata
+        {
+            Id = 8,
+            TorrentId = 8,
+            Title = "RuPaul's Drag Race",
+            ArrType = "TV",
+            PosterUrl = "https://artworks.thetvdb.com/banners/posters/85002-1.jpg",
+            PosterLocalPath = "/config/MediaCache/8/poster.jpg",
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.mediaMetadataRepository.GetByTorrentId(8).Returns(stale, fresh);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            InstanceName = "Sonarr",
+            DownloadId = hash,
+            Series = new ArrWebhookSeries
+            {
+                Id = 894,
+                Title = "RuPaul's Drag Race",
+                Year = 2009,
+                TvdbId = 85002,
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        (result.Result as OkObjectResult).Should().NotBeNull();
+
+        this.mediaMetadataRepository.Received(1).Update(Arg.Is<TorrentMediaMetadata>(m =>
+            m.Id == 8 &&
+            m.PosterUrl == "https://artworks.thetvdb.com/banners/posters/85002-1.jpg" &&
+            m.PosterLocalPath == "/config/MediaCache/8/poster.jpg"));
+        this.mediaMetadataRepository.DidNotReceive().Insert(Arg.Any<TorrentMediaMetadata>());
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenSiblingEpisodeAlreadyHasPoster_CopiesPosterOntoNewEpisode()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "leecharr_webhook_art_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        try
+        {
+            var donorPoster = Path.Combine(temp, "MediaCache", "1", "poster.jpg");
+            Directory.CreateDirectory(Path.GetDirectoryName(donorPoster)!);
+            File.WriteAllBytes(donorPoster, [0xFF, 0xD8, 0xFF, 0xD9]);
+
+            var appFolder = Substitute.For<IAppFolderInfo>();
+            appFolder.AppDataFolder.Returns(temp);
+            var enrichment = new MediaEnrichmentService(
+                this.mediaMetadataRepository,
+                Substitute.For<IMediaContainerInspector>(),
+                Substitute.For<IConfigService>(),
+                appFolder,
+                this.eventAggregator);
+            var controller = new ArrWebhookController(
+                this.torrentRepository,
+                this.mediaMetadataRepository,
+                this.arrConnectionRepository,
+                null,
+                this.prowlarrSyncService,
+                this.eventAggregator,
+                null,
+                enrichment);
+
+            var hash = "abcdefabcdefabcdefabcdefabcdefabcdefabcd";
+            var torrent = new Torrent
+            {
+                Id = 9,
+                Name = "Some Show S01E02",
+                InfoHash = hash,
+            };
+            this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+            this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+            this.mediaMetadataRepository.GetByTorrentId(9).Returns((TorrentMediaMetadata)null);
+            this.mediaMetadataRepository.GetRelated(Arg.Any<TorrentMediaMetadata>()).Returns(new List<TorrentMediaMetadata>
+            {
+                new()
+                {
+                    Id = 1,
+                    TorrentId = 1,
+                    ArrType = "Sonarr",
+                    ArrMediaId = 50,
+                    TvdbId = "12345",
+                    Title = "Some Show",
+                    PosterLocalPath = donorPoster,
+                },
+            });
+
+            var result = await controller.HandleSonarr(new ArrWebhookPayload
+            {
+                EventType = "Download",
+                DownloadId = hash,
+                Series = new ArrWebhookSeries
+                {
+                    Id = 50,
+                    Title = "Some Show",
+                    Year = 2020,
+                    TvdbId = 12345,
+                },
+            });
+
+            (result.Result as OkObjectResult).Should().NotBeNull();
+            var expected = Path.Combine(temp, "MediaCache", "9", "poster.jpg");
+            File.Exists(expected).Should().BeTrue();
+            this.mediaMetadataRepository.Received().Insert(Arg.Is<TorrentMediaMetadata>(metadata =>
+                metadata.TorrentId == 9 && metadata.PosterLocalPath == expected && metadata.TvdbId == "12345"));
+        }
+        finally
+        {
+            if (Directory.Exists(temp))
+            {
+                Directory.Delete(temp, true);
+            }
+        }
     }
 
     [Test]

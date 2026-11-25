@@ -989,6 +989,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                     url = $"{baseUrl}{url}";
                 }
 
+                url = MediaEnrichmentService.RewriteContainerCoverUrl(url);
+
                 if ((string.Equals(coverType, "poster", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(coverType, "cover", StringComparison.OrdinalIgnoreCase)) &&
                     string.IsNullOrEmpty(meta.PosterUrl))

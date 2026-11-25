@@ -1,5 +1,6 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
+using System.IO;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.MediaEnrichment;
@@ -38,5 +39,24 @@ public class MediaArtworkUrlsTest
     {
         MediaArtworkUrls.RedactApiKeyQuery("http://127.0.0.1:7878/MediaCover/1/fanart.jpg?apikey=test")
             .Should().Be("http://127.0.0.1:7878/MediaCover/1/fanart.jpg");
+    }
+
+    [Test]
+    public void FindCachedFile_WhenPosterExists_ReturnsCachePath()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "leecharr-artwork-" + Path.GetRandomFileName());
+        var poster = Path.Combine(root, "MediaCache", "42", "poster.jpg");
+        Directory.CreateDirectory(Path.GetDirectoryName(poster)!);
+        File.WriteAllBytes(poster, [0xFF, 0xD8, 0xFF, 0xD9]);
+
+        try
+        {
+            MediaArtworkUrls.FindCachedFile(root, 42, "poster").Should().Be(poster);
+            MediaArtworkUrls.FindCachedFile(root, 42, "backdrop").Should().BeNull();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 }

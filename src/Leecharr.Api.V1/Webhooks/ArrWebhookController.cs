@@ -31,6 +31,7 @@ public class ArrWebhookController : Controller
     private readonly IProwlarrSyncService prowlarrSyncService;
     private readonly IEventAggregator eventAggregator;
     private readonly IDeveloperWebhookStore webhookStore;
+    private readonly IMediaEnrichmentService mediaEnrichmentService;
     private readonly Logger logger;
 
     public ArrWebhookController(
@@ -40,7 +41,8 @@ public class ArrWebhookController : Controller
         ITorrentService torrentService = null,
         IProwlarrSyncService prowlarrSyncService = null,
         IEventAggregator eventAggregator = null,
-        IDeveloperWebhookStore webhookStore = null)
+        IDeveloperWebhookStore webhookStore = null,
+        IMediaEnrichmentService mediaEnrichmentService = null)
     {
         this.torrentRepository = torrentRepository;
         this.mediaMetadataRepository = mediaMetadataRepository;
@@ -49,6 +51,7 @@ public class ArrWebhookController : Controller
         this.prowlarrSyncService = prowlarrSyncService;
         this.eventAggregator = eventAggregator;
         this.webhookStore = webhookStore;
+        this.mediaEnrichmentService = mediaEnrichmentService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -915,7 +918,6 @@ public class ArrWebhookController : Controller
         try
         {
             var existingMeta = this.mediaMetadataRepository.GetByTorrentId(torrent.Id);
-            var isNew = existingMeta == null;
             var meta = existingMeta ?? new TorrentMediaMetadata
             {
                 TorrentId = torrent.Id,
@@ -948,6 +950,18 @@ public class ArrWebhookController : Controller
                     meta.Year = payload.Series.Year;
                 }
 
+                if (string.IsNullOrWhiteSpace(meta.Overview) && !string.IsNullOrWhiteSpace(payload.Series.Overview))
+                {
+                    meta.Overview = payload.Series.Overview;
+                }
+
+                if (string.IsNullOrWhiteSpace(meta.Genres) && payload.Series.Genres != null && payload.Series.Genres.Count > 0)
+                {
+                    meta.Genres = string.Join(", ", payload.Series.Genres.Where(g => !string.IsNullOrWhiteSpace(g)));
+                }
+
+                ApplyWebhookImages(meta, payload.Series.Images, payload.ApplicationUrl);
+
                 if (payload.Series.TvdbId > 0)
                 {
                     meta.TvdbId = payload.Series.TvdbId.ToString();
@@ -976,6 +990,18 @@ public class ArrWebhookController : Controller
                     meta.Year = payload.Movie.Year;
                 }
 
+                if (string.IsNullOrWhiteSpace(meta.Overview) && !string.IsNullOrWhiteSpace(payload.Movie.Overview))
+                {
+                    meta.Overview = payload.Movie.Overview;
+                }
+
+                if (string.IsNullOrWhiteSpace(meta.Genres) && payload.Movie.Genres != null && payload.Movie.Genres.Count > 0)
+                {
+                    meta.Genres = string.Join(", ", payload.Movie.Genres.Where(g => !string.IsNullOrWhiteSpace(g)));
+                }
+
+                ApplyWebhookImages(meta, payload.Movie.Images, payload.ApplicationUrl);
+
                 if (payload.Movie.TmdbId > 0)
                 {
                     meta.TmdbId = payload.Movie.TmdbId.ToString();
@@ -1003,6 +1029,13 @@ public class ArrWebhookController : Controller
                 {
                     meta.MusicBrainzId = payload.Artist.MbId;
                 }
+
+                if (string.IsNullOrWhiteSpace(meta.Overview) && !string.IsNullOrWhiteSpace(payload.Artist?.Overview))
+                {
+                    meta.Overview = payload.Artist.Overview;
+                }
+
+                ApplyWebhookImages(meta, payload.Artist?.Images, payload.ApplicationUrl);
 
                 if (!string.IsNullOrWhiteSpace(payload.Album?.Title))
                 {
@@ -1053,14 +1086,21 @@ public class ArrWebhookController : Controller
 
             if (!string.IsNullOrWhiteSpace(meta.Title))
             {
-                if (isNew)
+                var latest = this.mediaMetadataRepository.GetByTorrentId(torrent.Id);
+                PreserveArtwork(meta, latest);
+                this.mediaEnrichmentService?.AdoptSharedArtwork(meta);
+
+                if (latest == null)
                 {
                     this.mediaMetadataRepository.Insert(meta);
                 }
                 else
                 {
+                    meta.Id = latest.Id;
                     this.mediaMetadataRepository.Update(meta);
                 }
+
+                this.mediaEnrichmentService?.PublishSharedArtwork(meta);
 
                 this.eventAggregator?.PublishEvent(new MediaEnrichedEvent
                 {
@@ -1072,6 +1112,117 @@ public class ArrWebhookController : Controller
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Failed to enrich metadata from webhook payload for torrent {0}", torrent.Id);
+        }
+    }
+
+    private static void ApplyWebhookImages(TorrentMediaMetadata meta, List<ArrWebhookImage> images, string applicationUrl)
+    {
+        if (meta == null || images == null)
+        {
+            return;
+        }
+
+        foreach (var image in images)
+        {
+            var url = ResolveWebhookImageUrl(image, applicationUrl);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
+
+            var coverType = image.CoverType ?? string.Empty;
+            url = MediaEnrichmentService.RewriteContainerCoverUrl(url);
+            if ((string.Equals(coverType, "poster", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(coverType, "cover", StringComparison.OrdinalIgnoreCase)) &&
+                string.IsNullOrWhiteSpace(meta.PosterUrl))
+            {
+                meta.PosterUrl = MediaEnrichmentService.RewriteContainerCoverUrl(url);
+            }
+            else if ((string.Equals(coverType, "fanart", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(coverType, "backdrop", StringComparison.OrdinalIgnoreCase)) &&
+                string.IsNullOrWhiteSpace(meta.BackdropUrl))
+            {
+                meta.BackdropUrl = url;
+            }
+            else if (string.Equals(coverType, "banner", StringComparison.OrdinalIgnoreCase) &&
+                string.IsNullOrWhiteSpace(meta.BannerUrl))
+            {
+                meta.BannerUrl = url;
+            }
+        }
+    }
+
+    private static string ResolveWebhookImageUrl(ArrWebhookImage image, string applicationUrl)
+    {
+        if (image == null)
+        {
+            return null;
+        }
+
+        var url = !string.IsNullOrWhiteSpace(image.RemoteUrl) ? image.RemoteUrl : image.Url;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        if (!url.StartsWith('/'))
+        {
+            return url;
+        }
+
+        if (string.IsNullOrWhiteSpace(applicationUrl))
+        {
+            return null;
+        }
+
+        return applicationUrl.TrimEnd('/') + url;
+    }
+
+    private static void PreserveArtwork(TorrentMediaMetadata target, TorrentMediaMetadata latest)
+    {
+        if (target == null || latest == null || ReferenceEquals(target, latest))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.PosterUrl))
+        {
+            target.PosterUrl = latest.PosterUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.PosterLocalPath))
+        {
+            target.PosterLocalPath = latest.PosterLocalPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.BackdropUrl))
+        {
+            target.BackdropUrl = latest.BackdropUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.BackdropLocalPath))
+        {
+            target.BackdropLocalPath = latest.BackdropLocalPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.BannerUrl))
+        {
+            target.BannerUrl = latest.BannerUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.BannerLocalPath))
+        {
+            target.BannerLocalPath = latest.BannerLocalPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.Overview))
+        {
+            target.Overview = latest.Overview;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.Genres))
+        {
+            target.Genres = latest.Genres;
         }
     }
 }

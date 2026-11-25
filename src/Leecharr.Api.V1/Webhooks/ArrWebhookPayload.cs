@@ -141,6 +141,27 @@ public class ArrWebhookSeries
 
     [JsonPropertyName("year")]
     public int Year { get; set; }
+
+    [JsonPropertyName("overview")]
+    public string Overview { get; set; }
+
+    [JsonPropertyName("genres")]
+    public List<string> Genres { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<ArrWebhookImage> Images { get; set; }
+}
+
+public class ArrWebhookImage
+{
+    [JsonPropertyName("coverType")]
+    public string CoverType { get; set; }
+
+    [JsonPropertyName("url")]
+    public string Url { get; set; }
+
+    [JsonPropertyName("remoteUrl")]
+    public string RemoteUrl { get; set; }
 }
 
 public class ArrWebhookMovie
@@ -162,6 +183,15 @@ public class ArrWebhookMovie
 
     [JsonPropertyName("year")]
     public int Year { get; set; }
+
+    [JsonPropertyName("overview")]
+    public string Overview { get; set; }
+
+    [JsonPropertyName("genres")]
+    public List<string> Genres { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<ArrWebhookImage> Images { get; set; }
 }
 
 public class ArrWebhookArtist
@@ -177,6 +207,12 @@ public class ArrWebhookArtist
 
     [JsonPropertyName("mbId")]
     public string MbId { get; set; }
+
+    [JsonPropertyName("overview")]
+    public string Overview { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<ArrWebhookImage> Images { get; set; }
 }
 
 public class ArrWebhookAlbum

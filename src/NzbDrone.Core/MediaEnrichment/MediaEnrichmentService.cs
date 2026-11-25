@@ -47,6 +47,10 @@ public interface IMediaEnrichmentService
 
     void DeleteMediaCache(int torrentId);
 
+    void AdoptSharedArtwork(TorrentMediaMetadata metadata);
+
+    void PublishSharedArtwork(TorrentMediaMetadata metadata);
+
     Task<string> CacheArtworkAsync(string url, int torrentId, string type);
 }
 
@@ -270,6 +274,8 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
             metadata.ArrType = GuessArrType(torrent.Category, torrent.Name);
         }
 
+        this.AdoptSharedArtwork(metadata);
+
         // 4. Cache remote or local poster if URL/path present and local path not yet downloaded
         if (!string.IsNullOrEmpty(metadata.PosterUrl) && string.IsNullOrEmpty(metadata.PosterLocalPath))
         {
@@ -297,6 +303,8 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
                 this.repository.Update(metadata);
             }
 
+            this.PublishSharedArtwork(metadata);
+
             this.eventAggregator.PublishEvent(new MediaEnrichedEvent { TorrentId = torrent.Id, Metadata = metadata });
         }
 
@@ -305,7 +313,10 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
 
     public TorrentMediaMetadata GetMetadata(int torrentId)
     {
-        return this.repository.GetByTorrentId(torrentId);
+        var metadata = this.repository.GetByTorrentId(torrentId);
+        this.RestoreCachedArtworkPaths(metadata);
+        this.RepairMissingPoster(metadata);
+        return metadata;
     }
 
     public Dictionary<int, TorrentMediaMetadata> GetAllMetadata()
@@ -314,7 +325,13 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
         {
             return this.repository.All()
                 .GroupBy(m => m.TorrentId)
-                .ToDictionary(g => g.Key, g => g.First());
+                .ToDictionary(g => g.Key, g =>
+                {
+                    var metadata = g.First();
+                    this.RestoreCachedArtworkPaths(metadata);
+                    this.RepairMissingPoster(metadata);
+                    return metadata;
+                });
         }
         catch (Exception ex)
         {
@@ -410,8 +427,275 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
         }
     }
 
+    public void AdoptSharedArtwork(TorrentMediaMetadata metadata)
+    {
+        if (metadata == null || metadata.TorrentId <= 0 || this.repository == null)
+        {
+            return;
+        }
+
+        if (HasLocalFile(metadata.PosterLocalPath)
+            && HasLocalFile(metadata.BackdropLocalPath)
+            && HasLocalFile(metadata.BannerLocalPath))
+        {
+            return;
+        }
+
+        List<TorrentMediaMetadata> related;
+        try
+        {
+            related = this.repository.GetRelated(metadata);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to look up shared artwork for torrent {0}", metadata.TorrentId);
+            return;
+        }
+
+        if (related == null)
+        {
+            return;
+        }
+
+        foreach (var donor in related)
+        {
+            if (donor == null || donor.TorrentId == metadata.TorrentId)
+            {
+                continue;
+            }
+
+            this.CopyArtworkField(donor, metadata, "poster", static item => item.PosterLocalPath, static (item, path) => item.PosterLocalPath = path, static item => item.PosterUrl, static (item, url) => item.PosterUrl = url);
+            this.CopyArtworkField(donor, metadata, "backdrop", static item => item.BackdropLocalPath, static (item, path) => item.BackdropLocalPath = path, static item => item.BackdropUrl, static (item, url) => item.BackdropUrl = url);
+            this.CopyArtworkField(donor, metadata, "banner", static item => item.BannerLocalPath, static (item, path) => item.BannerLocalPath = path, static item => item.BannerUrl, static (item, url) => item.BannerUrl = url);
+        }
+    }
+
+    public void PublishSharedArtwork(TorrentMediaMetadata metadata)
+    {
+        if (metadata == null || metadata.TorrentId <= 0 || this.repository == null)
+        {
+            return;
+        }
+
+        if (!HasLocalFile(metadata.PosterLocalPath)
+            && !HasLocalFile(metadata.BackdropLocalPath)
+            && !HasLocalFile(metadata.BannerLocalPath))
+        {
+            return;
+        }
+
+        List<TorrentMediaMetadata> related;
+        try
+        {
+            related = this.repository.GetRelated(metadata);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to share artwork from torrent {0}", metadata.TorrentId);
+            return;
+        }
+
+        if (related == null)
+        {
+            return;
+        }
+
+        foreach (var sibling in related)
+        {
+            if (sibling == null || sibling.Id <= 0 || sibling.TorrentId == metadata.TorrentId)
+            {
+                continue;
+            }
+
+            var changed = false;
+            changed |= this.CopyArtworkField(metadata, sibling, "poster", static item => item.PosterLocalPath, static (item, path) => item.PosterLocalPath = path, static item => item.PosterUrl, static (item, url) => item.PosterUrl = url);
+            changed |= this.CopyArtworkField(metadata, sibling, "backdrop", static item => item.BackdropLocalPath, static (item, path) => item.BackdropLocalPath = path, static item => item.BackdropUrl, static (item, url) => item.BackdropUrl = url);
+            changed |= this.CopyArtworkField(metadata, sibling, "banner", static item => item.BannerLocalPath, static (item, path) => item.BannerLocalPath = path, static item => item.BannerUrl, static (item, url) => item.BannerUrl = url);
+            if (!changed)
+            {
+                continue;
+            }
+
+            this.repository.Update(sibling);
+            if (this.eventAggregator != null)
+            {
+                this.eventAggregator.PublishEvent(new MediaEnrichedEvent
+                {
+                    TorrentId = sibling.TorrentId,
+                    Metadata = sibling,
+                });
+            }
+        }
+    }
+
+    internal static string RewriteContainerCoverUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return url;
+        }
+
+        const string containerPrefix = "/config/MediaCover/";
+        var index = url.IndexOf(containerPrefix, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+        {
+            return url;
+        }
+
+        return url.Remove(index, "/config".Length);
+    }
+
+    private void RepairMissingPoster(TorrentMediaMetadata metadata)
+    {
+        if (metadata == null || HasLocalFile(metadata.PosterLocalPath))
+        {
+            return;
+        }
+
+        var poster = metadata.PosterLocalPath;
+        var backdrop = metadata.BackdropLocalPath;
+        var banner = metadata.BannerLocalPath;
+        this.AdoptSharedArtwork(metadata);
+        if (metadata.Id <= 0)
+        {
+            return;
+        }
+
+        if (metadata.PosterLocalPath != poster
+            || metadata.BackdropLocalPath != backdrop
+            || metadata.BannerLocalPath != banner)
+        {
+            this.repository.Update(metadata);
+        }
+    }
+
+    private bool CopyArtworkField(
+        TorrentMediaMetadata source,
+        TorrentMediaMetadata target,
+        string artworkType,
+        Func<TorrentMediaMetadata, string> getPath,
+        Action<TorrentMediaMetadata, string> setPath,
+        Func<TorrentMediaMetadata, string> getUrl,
+        Action<TorrentMediaMetadata, string> setUrl)
+    {
+        if (source == null || target == null || HasLocalFile(getPath(target)))
+        {
+            return false;
+        }
+
+        var copied = this.CopyArtworkFile(getPath(source), target.TorrentId, artworkType);
+        if (copied == null && source.TorrentId > 0)
+        {
+            var cached = MediaArtworkUrls.FindCachedFile(this.appFolderInfo?.AppDataFolder, source.TorrentId, artworkType);
+            copied = this.CopyArtworkFile(cached, target.TorrentId, artworkType);
+        }
+
+        if (!string.IsNullOrEmpty(copied))
+        {
+            setPath(target, copied);
+            if (string.IsNullOrWhiteSpace(getUrl(target)) && !string.IsNullOrWhiteSpace(getUrl(source)))
+            {
+                setUrl(target, RewriteContainerCoverUrl(getUrl(source)));
+            }
+
+            return true;
+        }
+
+        var sourceUrl = RewriteContainerCoverUrl(getUrl(source));
+        if (string.IsNullOrWhiteSpace(getUrl(target)) && !string.IsNullOrWhiteSpace(sourceUrl))
+        {
+            setUrl(target, sourceUrl);
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(getUrl(target)))
+        {
+            var rewritten = RewriteContainerCoverUrl(getUrl(target));
+            if (!string.Equals(rewritten, getUrl(target), StringComparison.Ordinal))
+            {
+                setUrl(target, rewritten);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private string CopyArtworkFile(string sourcePath, int torrentId, string artworkType)
+    {
+        if (torrentId <= 0 || string.IsNullOrWhiteSpace(sourcePath) || string.IsNullOrWhiteSpace(artworkType))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(this.appFolderInfo?.AppDataFolder) || !File.Exists(sourcePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var extension = Path.GetExtension(sourcePath);
+            if (string.IsNullOrEmpty(extension) || extension.Length > 5)
+            {
+                extension = ".jpg";
+            }
+
+            var destinationDir = Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache", torrentId.ToString());
+            Directory.CreateDirectory(destinationDir);
+            var destination = Path.Combine(destinationDir, artworkType + extension);
+            var fullSource = Path.GetFullPath(sourcePath);
+            var fullDestination = Path.GetFullPath(destination);
+            if (string.Equals(fullSource, fullDestination, StringComparison.OrdinalIgnoreCase))
+            {
+                return destination;
+            }
+
+            if (!File.Exists(destination) || new FileInfo(destination).Length == 0)
+            {
+                File.Copy(fullSource, fullDestination, overwrite: true);
+            }
+
+            return destination;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to copy {0} artwork onto torrent {1}", artworkType, torrentId);
+            return null;
+        }
+    }
+
+    private static bool HasLocalFile(string path)
+    {
+        return !string.IsNullOrWhiteSpace(path) && File.Exists(path);
+    }
+
+    private void RestoreCachedArtworkPaths(TorrentMediaMetadata metadata)
+    {
+        if (metadata == null || metadata.TorrentId <= 0 || string.IsNullOrWhiteSpace(this.appFolderInfo?.AppDataFolder))
+        {
+            return;
+        }
+
+        var appData = this.appFolderInfo.AppDataFolder;
+        metadata.PosterLocalPath = PreferExistingArtwork(metadata.PosterLocalPath, appData, metadata.TorrentId, "poster");
+        metadata.BackdropLocalPath = PreferExistingArtwork(metadata.BackdropLocalPath, appData, metadata.TorrentId, "backdrop");
+        metadata.BannerLocalPath = PreferExistingArtwork(metadata.BannerLocalPath, appData, metadata.TorrentId, "banner");
+    }
+
+    private static string PreferExistingArtwork(string currentPath, string appDataFolder, int torrentId, string artworkType)
+    {
+        if (!string.IsNullOrEmpty(currentPath) && File.Exists(currentPath))
+        {
+            return currentPath;
+        }
+
+        return MediaArtworkUrls.FindCachedFile(appDataFolder, torrentId, artworkType) ?? currentPath;
+    }
+
     public async Task<string> CacheArtworkAsync(string url, int torrentId, string type)
     {
+        url = RewriteContainerCoverUrl(url);
         if (string.IsNullOrWhiteSpace(url))
         {
             return null;

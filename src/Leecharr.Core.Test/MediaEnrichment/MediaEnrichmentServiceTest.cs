@@ -414,6 +414,71 @@ public class MediaEnrichmentServiceTest
     }
 
     [Test]
+    public void GetMetadata_WhenPosterPathMissingButCacheFileExists_RestoresLocalPath()
+    {
+        var poster = Path.Combine(this.tempDirectory, "MediaCache", "99", "poster.jpg");
+        Directory.CreateDirectory(Path.GetDirectoryName(poster)!);
+        File.WriteAllBytes(poster, [0xFF, 0xD8, 0xFF, 0xD9]);
+
+        var meta = new TorrentMediaMetadata { Id = 1, TorrentId = 99, Title = "Interstellar" };
+        this.repository.GetByTorrentId(99).Returns(meta);
+
+        var result = this.service.GetMetadata(99);
+
+        result.PosterLocalPath.Should().Be(poster);
+    }
+
+    [Test]
+    public async Task EnrichTorrentAsync_WhenSiblingSeriesHasPoster_CopiesItOntoEpisodeWithoutArtwork()
+    {
+        var donorPoster = Path.Combine(this.tempDirectory, "MediaCache", "1", "poster.jpg");
+        Directory.CreateDirectory(Path.GetDirectoryName(donorPoster)!);
+        File.WriteAllBytes(donorPoster, [0xFF, 0xD8, 0xFF, 0xD9]);
+
+        var donor = new TorrentMediaMetadata
+        {
+            Id = 1,
+            TorrentId = 1,
+            ArrType = "Sonarr",
+            ArrMediaId = 50,
+            TvdbId = "12345",
+            Title = "Some Show",
+            PosterLocalPath = donorPoster,
+        };
+
+        this.repository.GetByTorrentId(2).Returns(new TorrentMediaMetadata
+        {
+            Id = 2,
+            TorrentId = 2,
+            ArrType = "Sonarr",
+            ArrMediaId = 50,
+            TvdbId = "12345",
+            Title = "Some Show",
+        });
+        this.repository.GetRelated(Arg.Any<TorrentMediaMetadata>()).Returns(new List<TorrentMediaMetadata> { donor });
+
+        var result = await this.service.EnrichTorrentAsync(new Torrent
+        {
+            Id = 2,
+            Name = "Some.Show.S01E02.1080p",
+            Category = "tv",
+        });
+
+        var expected = Path.Combine(this.tempDirectory, "MediaCache", "2", "poster.jpg");
+        result.PosterLocalPath.Should().Be(expected);
+        File.Exists(expected).Should().BeTrue();
+        this.repository.Received().Update(Arg.Is<TorrentMediaMetadata>(metadata =>
+            metadata.TorrentId == 2 && metadata.PosterLocalPath == expected));
+    }
+
+    [Test]
+    public void RewriteContainerCoverUrl_RemovesContainerConfigPrefix()
+    {
+        MediaEnrichmentService.RewriteContainerCoverUrl("http://localhost:8686/config/MediaCover/115/poster.jpg")
+            .Should().Be("http://localhost:8686/MediaCover/115/poster.jpg");
+    }
+
+    [Test]
     public void DeleteMetadata_WhenAutoPruneEnabled_DeletesLocalArtworkFilesAndDbRecord()
     {
         this.configService.AutoPruneRemovedArtwork.Returns(true);

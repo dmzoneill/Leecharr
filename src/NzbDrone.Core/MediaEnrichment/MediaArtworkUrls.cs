@@ -1,12 +1,40 @@
 // Copyright (c) FeedItOut. All rights reserved.
 
 using System;
+using System.IO;
 using System.Linq;
 
 namespace NzbDrone.Core.MediaEnrichment;
 
 public static class MediaArtworkUrls
 {
+    private static readonly string[] ImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+
+    public static string FindCachedFile(string appDataFolder, int torrentId, string artworkType)
+    {
+        if (string.IsNullOrWhiteSpace(appDataFolder) || torrentId <= 0 || string.IsNullOrWhiteSpace(artworkType))
+        {
+            return null;
+        }
+
+        var cacheDir = Path.Combine(appDataFolder, "MediaCache", torrentId.ToString());
+        if (!Directory.Exists(cacheDir))
+        {
+            return null;
+        }
+
+        foreach (var ext in ImageExtensions)
+        {
+            var candidate = Path.Combine(cacheDir, artworkType + ext);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
     public static string ToPublicUrl(int torrentId, string localPath, string remoteUrl, string artworkType)
     {
         if (torrentId > 0 && !string.IsNullOrEmpty(localPath))

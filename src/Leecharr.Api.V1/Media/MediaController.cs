@@ -112,8 +112,48 @@ public class MediaController : RestController<MediaMetadataResource>
             return this.NotFound();
         }
 
+        var contentType = DetectImageContentType(path);
+        return this.PhysicalFile(global::System.IO.Path.GetFullPath(path), contentType);
+    }
+
+    private static string DetectImageContentType(string path)
+    {
+        try
+        {
+            var header = new byte[12];
+            using var stream = global::System.IO.File.OpenRead(path);
+            var read = stream.Read(header, 0, header.Length);
+            if (read >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF)
+            {
+                return "image/jpeg";
+            }
+
+            if (read >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47)
+            {
+                return "image/png";
+            }
+
+            if (read >= 12 &&
+                header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 &&
+                header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50)
+            {
+                return "image/webp";
+            }
+
+            if (read >= 6 &&
+                header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x38 &&
+                (header[4] == 0x37 || header[4] == 0x39) && header[5] == 0x61)
+            {
+                return "image/gif";
+            }
+        }
+        catch (global::System.IO.IOException)
+        {
+            // Fall through to the extension when the header cannot be read.
+        }
+
         var ext = global::System.IO.Path.GetExtension(path).ToLowerInvariant();
-        var contentType = ext switch
+        return ext switch
         {
             ".png" => "image/png",
             ".webp" => "image/webp",
@@ -122,8 +162,6 @@ public class MediaController : RestController<MediaMetadataResource>
             ".jpg" or ".jpeg" => "image/jpeg",
             _ => "application/octet-stream",
         };
-
-        return this.PhysicalFile(global::System.IO.Path.GetFullPath(path), contentType);
     }
 
     private static string FindArtworkOnDisk(TorrentMediaMetadata meta, string type)
