@@ -27,6 +27,6 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="11.0.0" />
     <PackageReference Include="NSubstitute" Version="6.2.0" />
     <PackageReference Include="FluentAssertions" Version="8.11.0" />
-    <PackageReference Include="Testcontainers" Version="4.16.0" />
+    <PackageReference Include="Testcontainers" Version="4.17.0" />
   </ItemGroup>
 </Project>
